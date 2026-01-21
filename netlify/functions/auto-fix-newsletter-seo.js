@@ -341,94 +341,119 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
     }
   }
 
-  // 4. AI 이미지 콘텐츠 중간 삽입 (이미지가 2개 미만일 때)
+  // 4. AI 이미지 콘텐츠 중간 삽입 (2-3개 이미지 추가)
   const existingImages = (optimized.match(/<img/gi) || []).length
-  if (existingImages < 2) {
+  const targetImageCount = 3 // 목표 이미지 수
+  const imagesToAdd = Math.max(0, targetImageCount - existingImages)
+
+  if (imagesToAdd > 0) {
     try {
-      console.log('[auto-fix-seo] Attempting to insert AI image...')
-      const aiImageUrl = await generateAiImage(suggestions.imagePrompt || title, apiKey, title)
-      console.log('[auto-fix-seo] Generated image URL:', aiImageUrl)
+      console.log(`[auto-fix-seo] Adding ${imagesToAdd} images (existing: ${existingImages})`)
 
-      if (aiImageUrl) {
-        // AI가 생성한 SEO 최적화 이미지 alt/title
-        const imageAlt = suggestions.imageAlt || `${title} - 핵심 인사이트 이미지`
-        const imageTitle = suggestions.imageTitle || `${title} 관련 시각 자료`
+      // AI 키워드 추출
+      const keywords = await extractKeywords(suggestions.imagePrompt || title, apiKey)
+      console.log('[auto-fix-seo] Keywords:', keywords)
 
-        // 이미지 HTML 생성
-        const imageHtml = `<figure style="text-align:center;margin:24px 0;"><img src="${aiImageUrl}" alt="${imageAlt}" title="${imageTitle}" style="max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${imageTitle}</figcaption></figure>`
+      // 여러 이미지 URL 가져오기 (중복 방지)
+      const imageUrls = getMultipleImages(keywords, imagesToAdd)
+      console.log('[auto-fix-seo] Image URLs:', imageUrls)
 
-        let imageInserted = false
+      // 이미지별 alt/title 생성
+      const altTexts = [
+        suggestions.imageAlt || `${title} - 핵심 인사이트`,
+        `${title} - 실전 전략 가이드`,
+        `${title} - 성공 사례 분석`
+      ]
+      const titleTexts = [
+        suggestions.imageTitle || `${title} 관련 시각 자료`,
+        `${title} 전략 인포그래픽`,
+        `${title} 데이터 분석`
+      ]
 
-        // 방법 1: H2 태그 바로 뒤에 삽입 (가장 좋은 위치)
-        if (!imageInserted && /<h2[^>]*>.*?<\/h2>/i.test(optimized)) {
-          // 첫 번째 H2 태그 뒤에 삽입
-          optimized = optimized.replace(
-            /(<h2[^>]*>.*?<\/h2>)/i,
-            `$1\n${imageHtml}`
-          )
-          imageInserted = true
-          console.log('[auto-fix-seo] Image inserted after H2 heading')
-        }
+      let insertedCount = 0
 
-        // 방법 2: H3 태그 바로 뒤에 삽입
-        if (!imageInserted && /<h3[^>]*>.*?<\/h3>/i.test(optimized)) {
-          optimized = optimized.replace(
-            /(<h3[^>]*>.*?<\/h3>)/i,
-            `$1\n${imageHtml}`
-          )
-          imageInserted = true
-          console.log('[auto-fix-seo] Image inserted after H3 heading')
-        }
-
-        // 방법 3: 첫 번째 <br> 태그 집합 뒤 (Stibee 뉴스레터 형식)
-        if (!imageInserted && /<br\s*\/?>\s*<br\s*\/?>/i.test(optimized)) {
-          optimized = optimized.replace(
-            /(<br\s*\/?>\s*<br\s*\/?>)/i,
-            `$1\n${imageHtml}`
-          )
-          imageInserted = true
-          console.log('[auto-fix-seo] Image inserted after br tags')
-        }
-
-        // 방법 4: 3번째 </p> 태그 뒤에 삽입
-        if (!imageInserted) {
-          let pCount = 0
-          optimized = optimized.replace(/<\/p>/gi, (match) => {
-            pCount++
-            if (pCount === 3 && !imageInserted) {
-              imageInserted = true
-              return `${match}\n${imageHtml}`
+      // 이미지 삽입 위치들 (우선순위)
+      const insertionMethods = [
+        // 1. 콘텐츠 상단 (첫 번째 div 또는 body 뒤)
+        {
+          name: 'top',
+          test: () => true,
+          insert: (html) => {
+            if (/<body[^>]*>/i.test(optimized)) {
+              optimized = optimized.replace(/(<body[^>]*>)/i, `$1\n${html}`)
+            } else if (/<div[^>]*>/i.test(optimized)) {
+              optimized = optimized.replace(/(<div[^>]*>)/i, `$1\n${html}`)
+            } else {
+              optimized = html + optimized
             }
-            return match
-          })
-          if (imageInserted) {
-            console.log('[auto-fix-seo] Image inserted after 3rd paragraph')
+            return true
+          }
+        },
+        // 2. 콘텐츠 중간 (전체 길이의 40% 위치)
+        {
+          name: 'middle',
+          test: () => optimized.length > 500,
+          insert: (html) => {
+            const paragraphs = optimized.split(/<\/p>/i)
+            if (paragraphs.length > 4) {
+              const insertIdx = Math.floor(paragraphs.length * 0.4)
+              paragraphs.splice(insertIdx, 0, `</p>\n${html}\n<p>`)
+              optimized = paragraphs.join('</p>')
+              return true
+            }
+            // br 태그 기반 삽입 (Stibee 형식)
+            const brSections = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
+            if (brSections.length > 3) {
+              const insertIdx = Math.floor(brSections.length * 0.4)
+              brSections.splice(insertIdx, 0, `\n${html}\n`)
+              optimized = brSections.join('<br><br>')
+              return true
+            }
+            return false
+          }
+        },
+        // 3. 콘텐츠 하단 (전체 길이의 75% 위치)
+        {
+          name: 'bottom',
+          test: () => optimized.length > 800,
+          insert: (html) => {
+            const paragraphs = optimized.split(/<\/p>/i)
+            if (paragraphs.length > 5) {
+              const insertIdx = Math.floor(paragraphs.length * 0.75)
+              paragraphs.splice(insertIdx, 0, `</p>\n${html}\n<p>`)
+              optimized = paragraphs.join('</p>')
+              return true
+            }
+            // br 태그 기반 삽입
+            const brSections = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
+            if (brSections.length > 4) {
+              const insertIdx = Math.floor(brSections.length * 0.75)
+              brSections.splice(insertIdx, 0, `\n${html}\n`)
+              optimized = brSections.join('<br><br>')
+              return true
+            }
+            return false
           }
         }
+      ]
 
-        // 방법 5: 콘텐츠 시작 부분에 삽입 (최후 수단)
-        if (!imageInserted) {
-          // body나 첫 번째 div 찾기
-          if (/<body[^>]*>/i.test(optimized)) {
-            optimized = optimized.replace(
-              /(<body[^>]*>)/i,
-              `$1\n${imageHtml}`
-            )
-          } else if (/<div[^>]*>/i.test(optimized)) {
-            optimized = optimized.replace(
-              /(<div[^>]*>)/i,
-              `$1\n${imageHtml}`
-            )
-          } else {
-            optimized = imageHtml + optimized
-          }
-          imageInserted = true
-          console.log('[auto-fix-seo] Image inserted at content start')
-        }
+      // 각 이미지 삽입
+      for (let i = 0; i < imageUrls.length && insertedCount < imagesToAdd; i++) {
+        const imageUrl = imageUrls[i]
+        const altText = altTexts[i] || `${title} 이미지 ${i + 1}`
+        const titleText = titleTexts[i] || `${title} 관련 자료 ${i + 1}`
 
-        if (imageInserted) {
-          contentChanges.push(`AI 이미지 삽입 (alt: "${imageAlt.slice(0, 25)}...")`)
+        const imageHtml = `<figure style="text-align:center;margin:24px 0;"><img src="${imageUrl}" alt="${altText}" title="${titleText}" style="max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${titleText}</figcaption></figure>`
+
+        const method = insertionMethods[i]
+        if (method && method.test() && method.insert(imageHtml)) {
+          insertedCount++
+          console.log(`[auto-fix-seo] Image ${i + 1} inserted at ${method.name}`)
         }
+      }
+
+      if (insertedCount > 0) {
+        contentChanges.push(`AI 이미지 ${insertedCount}개 삽입`)
       }
     } catch (imgError) {
       console.error('[auto-fix-seo] AI image insertion error:', imgError)
@@ -444,6 +469,157 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
 async function generateAiThumbnail(title, suggestions, apiKey) {
   const prompt = suggestions.imagePrompt || `Professional newsletter thumbnail about: ${title}`
   return generateAiImage(prompt, apiKey, title)
+}
+
+/**
+ * AI 키워드 추출 (캐시 가능)
+ */
+async function extractKeywords(prompt, apiKey) {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Extract 3-5 simple English keywords for finding stock photos related to this topic:
+"${prompt}"
+
+Requirements:
+- Only common, general words that would match stock photos
+- Business/marketing/technology related
+- Separate with commas
+- Example output: marketing, business, digital, team, strategy
+
+Return ONLY the keywords, nothing else:`
+            }]
+          }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 50 }
+        }),
+        signal: controller.signal
+      }
+    )
+
+    clearTimeout(timeout)
+
+    const result = await response.json()
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+    const keywords = text.trim().toLowerCase()
+      .replace(/[^a-z,\s]/g, '')
+      .split(/[,\s]+/)
+      .filter(k => k.length > 2)
+      .slice(0, 5)
+
+    return keywords.length > 0 ? keywords : ['marketing', 'business', 'digital']
+  } catch (error) {
+    console.error('[auto-fix-seo] Keyword extraction error:', error.message)
+    return ['marketing', 'business', 'digital']
+  }
+}
+
+/**
+ * 여러 이미지 URL 가져오기 (중복 방지)
+ */
+function getMultipleImages(keywords, count) {
+  const usedImages = new Set()
+  const images = []
+
+  // 키워드별로 이미지 가져오기
+  for (const keyword of keywords) {
+    if (images.length >= count) break
+    const img = getImageByKeyword(keyword)
+    if (img && !usedImages.has(img)) {
+      usedImages.add(img)
+      images.push(img)
+    }
+  }
+
+  // 부족하면 랜덤 이미지 추가
+  while (images.length < count) {
+    const img = getRandomBusinessImage()
+    if (!usedImages.has(img)) {
+      usedImages.add(img)
+      images.push(img)
+    }
+  }
+
+  return images
+}
+
+/**
+ * 단일 키워드로 이미지 가져오기
+ */
+function getImageByKeyword(keyword) {
+  const keywordImages = getKeywordImageMap()
+  return keywordImages[keyword] || null
+}
+
+/**
+ * 키워드-이미지 맵 반환
+ */
+function getKeywordImageMap() {
+  return {
+    // 마케팅 관련
+    marketing: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=1200&h=630&fit=crop',
+    digital: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=630&fit=crop',
+    social: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&h=630&fit=crop',
+    media: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=1200&h=630&fit=crop',
+    advertising: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=1200&h=630&fit=crop',
+    campaign: 'https://images.unsplash.com/photo-1557838923-2985c318be48?w=1200&h=630&fit=crop',
+
+    // 비즈니스 관련
+    business: 'https://images.unsplash.com/photo-1664575602554-2087b04935a5?w=1200&h=630&fit=crop',
+    strategy: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=630&fit=crop',
+    team: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=630&fit=crop',
+    meeting: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&h=630&fit=crop',
+    office: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=630&fit=crop',
+    collaboration: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=630&fit=crop',
+    planning: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=630&fit=crop',
+
+    // 기술 관련
+    technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
+    tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
+    data: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
+    analytics: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
+    ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
+    automation: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1200&h=630&fit=crop',
+
+    // 크리에이터/인플루언서
+    creator: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
+    influencer: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
+    content: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=630&fit=crop',
+    video: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1200&h=630&fit=crop',
+    youtube: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?w=1200&h=630&fit=crop',
+    instagram: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&h=630&fit=crop',
+
+    // 쇼핑/이커머스
+    shopping: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
+    ecommerce: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
+    retail: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=630&fit=crop',
+    product: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&h=630&fit=crop',
+
+    // 성장/트렌드
+    growth: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
+    trend: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
+    success: 'https://images.unsplash.com/photo-1533750516457-a7f992034fec?w=1200&h=630&fit=crop',
+    performance: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=630&fit=crop',
+
+    // 브랜드
+    brand: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
+    branding: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
+    identity: 'https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?w=1200&h=630&fit=crop',
+
+    // 커뮤니케이션
+    communication: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=630&fit=crop',
+    network: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1200&h=630&fit=crop',
+    connection: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1200&h=630&fit=crop',
+  }
 }
 
 /**
@@ -500,11 +676,13 @@ Return ONLY the keywords, nothing else:`
 
     console.log('[auto-fix-seo] Generated keywords:', keywords)
 
-    // 검증된 Unsplash 이미지 ID로 직접 URL 생성 (빠름)
-    const categoryImages = getImagesByKeyword(keywords)
-    if (categoryImages) {
-      console.log('[auto-fix-seo] Using category image:', categoryImages)
-      return categoryImages
+    // 첫 번째 매칭 키워드로 이미지 반환
+    for (const keyword of keywords) {
+      const img = getImageByKeyword(keyword)
+      if (img) {
+        console.log('[auto-fix-seo] Using category image for keyword:', keyword)
+        return img
+      }
     }
 
     // 폴백: 기본 비즈니스 이미지
@@ -513,64 +691,6 @@ Return ONLY the keywords, nothing else:`
     console.error('[auto-fix-seo] Image generation error:', error.message)
     return getRandomBusinessImage()
   }
-}
-
-/**
- * 키워드별 검증된 이미지 매칭
- */
-function getImagesByKeyword(keywords) {
-  const keywordImages = {
-    // 마케팅 관련
-    marketing: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=1200&h=630&fit=crop',
-    digital: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=630&fit=crop',
-    social: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&h=630&fit=crop',
-    media: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=1200&h=630&fit=crop',
-    advertising: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=1200&h=630&fit=crop',
-
-    // 비즈니스 관련
-    business: 'https://images.unsplash.com/photo-1664575602554-2087b04935a5?w=1200&h=630&fit=crop',
-    strategy: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=630&fit=crop',
-    team: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=630&fit=crop',
-    meeting: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&h=630&fit=crop',
-    office: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=630&fit=crop',
-
-    // 기술 관련
-    technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
-    tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
-    data: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
-    analytics: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
-    ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
-
-    // 크리에이터/인플루언서
-    creator: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
-    influencer: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
-    content: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=630&fit=crop',
-    video: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1200&h=630&fit=crop',
-    youtube: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?w=1200&h=630&fit=crop',
-
-    // 쇼핑/이커머스
-    shopping: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
-    ecommerce: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
-    retail: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=630&fit=crop',
-
-    // 성장/트렌드
-    growth: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
-    trend: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
-    success: 'https://images.unsplash.com/photo-1533750516457-a7f992034fec?w=1200&h=630&fit=crop',
-
-    // 브랜드
-    brand: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
-    branding: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
-  }
-
-  // 키워드 매칭
-  for (const keyword of keywords) {
-    if (keywordImages[keyword]) {
-      return keywordImages[keyword]
-    }
-  }
-
-  return null
 }
 
 /**
