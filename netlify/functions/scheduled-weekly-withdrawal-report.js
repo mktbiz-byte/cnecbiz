@@ -1,7 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
-const XLSX = require('xlsx');
+
+// xlsx는 동적으로 로드 (모듈 로딩 실패 방지)
+let XLSX = null;
+try {
+  XLSX = require('xlsx');
+} catch (e) {
+  console.warn('xlsx 모듈 로드 실패 (엑셀 기능 비활성화):', e.message);
+}
 
 /**
  * 매주 월요일 오전 10시 (KST) 출금 신청 주간 보고서 발송
@@ -214,6 +221,12 @@ function formatDate(date) {
 
 // 엑셀 파일 생성 및 Supabase Storage 업로드
 async function createAndUploadExcel(withdrawals, startDate, endDate) {
+  // xlsx 모듈이 로드되지 않았으면 null 반환
+  if (!XLSX) {
+    console.log('[Excel] xlsx 모듈 없음 - 엑셀 생성 건너뜀');
+    return null;
+  }
+
   try {
     // 엑셀 데이터 준비
     const excelData = withdrawals.map((w, index) => {
