@@ -545,10 +545,11 @@ exports.handler = async (event, context) => {
         }
 
         const supabase = createClient(region.url, region.key);
-        const { data: campaigns, error: campaignError } = await supabase
+
+        // 모든 활성 캠페인 조회 (캠페인 타입별 마감일 필드 포함)
+        const { data: regionCampaigns, error: campaignError } = await supabase
           .from('campaigns')
-          .select('id, title, company_id, campaign_type, content_submission_deadline')
-          .eq('content_submission_deadline', date)
+          .select('id, title, company_id, campaign_type, content_submission_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
           .in('status', ['active', 'recruiting', 'approved']);
 
         if (campaignError) {
@@ -556,14 +557,34 @@ exports.handler = async (event, context) => {
           continue;
         }
 
-        if (campaigns && campaigns.length > 0) {
-          console.log(`${region.name} ${label}: ${campaigns.length}개 캠페인 발견`);
-          campaigns.forEach(c => c.region = region.name);
-          allCampaigns.push(...campaigns);
+        // 캠페인 타입별 마감일 필터링
+        const matchingCampaigns = (regionCampaigns || []).filter(campaign => {
+          const type = (campaign.campaign_type || '').toLowerCase();
+
+          if (type.includes('4week') || type.includes('challenge')) {
+            // 4주 챌린지: 4개 마감일 체크
+            return campaign.week1_deadline === date ||
+                   campaign.week2_deadline === date ||
+                   campaign.week3_deadline === date ||
+                   campaign.week4_deadline === date;
+          } else if (type.includes('olive') || type.includes('올리브')) {
+            // 올리브영: 2개 마감일 체크
+            return campaign.step1_deadline === date ||
+                   campaign.step2_deadline === date;
+          } else {
+            // 기획형/일반: 1개 마감일 체크
+            return campaign.content_submission_deadline === date;
+          }
+        });
+
+        if (matchingCampaigns.length > 0) {
+          console.log(`${region.name} ${label}: ${matchingCampaigns.length}개 캠페인 발견`);
+          matchingCampaigns.forEach(c => c.region = region.name);
+          allCampaigns.push(...matchingCampaigns);
         }
       }
 
-      const campaigns = allCampaigns;
+      const campaigns = allCampaigns.filter(c => c.region); // region이 있는 것만 (필터링된 것)
       if (!campaigns || campaigns.length === 0) {
         console.log(`${label}: 해당 날짜에 마감되는 캠페인 없음 (모든 지역)`);
         continue;
