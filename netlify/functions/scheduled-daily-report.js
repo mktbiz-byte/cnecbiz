@@ -5,20 +5,7 @@ const nodemailer = require('nodemailer');
 
 /**
  * 일일 현황 리포트 - 매일 10시 (KST)
- * 네이버웍스: 5~10줄 요약
- * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
  */
-
-// 모듈 레벨에서 클라이언트 초기화 (주간 리포트와 동일 패턴)
-const supabaseKorea = process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
-  : null;
-const supabaseJapan = process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY
-  ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.VITE_SUPABASE_JAPAN_ANON_KEY)
-  : null;
-const supabaseUS = process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY
-  ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.VITE_SUPABASE_US_ANON_KEY)
-  : null;
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -48,8 +35,6 @@ rv6RBqA2rzQOE0aaf/UcNnIAqJ4TUmgBfZ4TpXNkNHJ7YanXYdcKKVd2jGhoiZdH
 h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
 skmeYX6UpJwnuTP2xN5NDDI=
 -----END PRIVATE KEY-----`;
-
-// 클라이언트는 handler 내부에서 초기화
 
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
@@ -112,29 +97,13 @@ async function sendEmail(to, subject, html) {
   await transporter.sendMail({ from: `"CNEC 리포트" <${gmailEmail}>`, to, subject, html });
 }
 
-function getYesterdayRange() {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const y = yesterday.getFullYear(), m = String(yesterday.getMonth() + 1).padStart(2, '0'), d = String(yesterday.getDate()).padStart(2, '0');
-  return { start: `${y}-${m}-${d}T00:00:00`, end: `${y}-${m}-${d}T23:59:59`, dateStr: `${m}/${d}` };
-}
-
 exports.handler = async (event) => {
-  const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
-  console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
+  console.log('[일일리포트] 시작');
 
   try {
-    // 모듈 레벨에서 초기화된 클라이언트 사용
-    const clients = {};
-    if (supabaseKorea) clients.korea = supabaseKorea;
-    if (supabaseJapan) clients.japan = supabaseJapan;
-    if (supabaseUS) clients.us = supabaseUS;
-    console.log('[일일리포트] 클라이언트:', Object.keys(clients));
-
-    const { start, end, dateStr } = getYesterdayRange();
     const today = new Date().toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 
+    // 간단한 통계 수집
     const stats = {
       campaigns: { active: 0, recruiting: 0, total: 0, deadlineSoon: [] },
       videos: { uploads: 0, snsUploads: 0, pendingReview: 0 },
@@ -143,73 +112,35 @@ exports.handler = async (event) => {
       byRegion: {}
     };
 
-    // 각 지역 데이터 수집
-    for (const [region, client] of Object.entries(clients)) {
-      if (!client || region === 'biz') continue;
+    // Korea 클라이언트만 테스트
+    if (process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY) {
+      const supabaseKorea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY);
+
       try {
-        const { data: campaigns } = await client.from('campaigns').select('id, title, status, end_date, application_deadline');
-        const { data: newCompanies } = await client.from('companies').select('id').gte('created_at', start).lte('created_at', end);
-        const { data: allCompanies } = await client.from('companies').select('id');
-        const { data: videoUploads } = await client.from('applications').select('id').not('video_file_url', 'is', null).gte('updated_at', start).lte('updated_at', end);
-        const { data: snsUploads } = await client.from('applications').select('id').not('sns_upload_url', 'is', null).gte('updated_at', start).lte('updated_at', end);
-        const { data: pending } = await client.from('applications').select('id').eq('status', 'submitted');
+        const { data: campaigns } = await supabaseKorea.from('campaigns').select('id, title, status');
+        stats.campaigns.total = campaigns?.length || 0;
+        campaigns?.forEach(c => {
+          if (['active', 'in_progress'].includes(c.status)) stats.campaigns.active++;
+          if (['recruiting', 'open'].includes(c.status)) stats.campaigns.recruiting++;
+        });
 
-        if (campaigns) {
-          stats.campaigns.total += campaigns.length;
-          campaigns.forEach(c => {
-            if (['active', 'in_progress'].includes(c.status)) stats.campaigns.active++;
-            if (['recruiting', 'open'].includes(c.status)) stats.campaigns.recruiting++;
-            // 3일 이내 마감
-            const deadline = c.application_deadline || c.end_date;
-            if (deadline) {
-              const days = Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24));
-              if (days >= 0 && days <= 3) stats.campaigns.deadlineSoon.push({ region, title: c.title, days });
-            }
-          });
-        }
+        const { data: pending } = await supabaseKorea.from('applications').select('id').eq('status', 'submitted');
+        stats.videos.pendingReview = pending?.length || 0;
 
-        stats.companies.new += newCompanies?.length || 0;
-        stats.companies.total += allCompanies?.length || 0;
-        stats.videos.uploads += videoUploads?.length || 0;
-        stats.videos.snsUploads += snsUploads?.length || 0;
-        stats.videos.pendingReview += pending?.length || 0;
-
-        stats.byRegion[region] = {
-          campaigns: campaigns?.length || 0,
-          newCompanies: newCompanies?.length || 0,
-          videoUploads: videoUploads?.length || 0
-        };
-
-        // 크리에이터
-        try {
-          const { data: newProfiles } = await client.from('user_profiles').select('id').gte('created_at', start).lte('created_at', end);
-          const { data: allProfiles } = await client.from('user_profiles').select('id');
-          stats.creators.new += newProfiles?.length || 0;
-          stats.creators.total += allProfiles?.length || 0;
-        } catch (e) {}
+        stats.byRegion.korea = { campaigns: stats.campaigns.total };
       } catch (e) {
-        console.error(`${region} 수집 실패:`, e.message);
+        console.error('Korea 데이터 수집 실패:', e.message);
       }
     }
 
-    // 네이버웍스 메시지 (5~10줄 요약)
-    const deadlineAlert = stats.campaigns.deadlineSoon.length > 0
-      ? `⚠️ 마감임박 ${stats.campaigns.deadlineSoon.length}개`
-      : '✅ 마감임박 없음';
-
+    // 네이버웍스 메시지
     const nwMessage = `📊 일일현황 (${today})
 
 📌 캠페인
 • 진행중: ${stats.campaigns.active}개 | 모집중: ${stats.campaigns.recruiting}개
-• ${deadlineAlert}
+• 전체: ${stats.campaigns.total}개
 
-🎬 영상/검수
-• 업로드: ${stats.videos.uploads}건 | SNS: ${stats.videos.snsUploads}건
-• 검수대기: ${stats.videos.pendingReview}건
-
-👥 회원현황
-• 기업: ${stats.companies.total}개 (+${stats.companies.new})
-• 크리에이터: ${stats.creators.total}명 (+${stats.creators.new})`;
+🎬 검수대기: ${stats.videos.pendingReview}건`;
 
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
@@ -222,79 +153,28 @@ exports.handler = async (event) => {
       console.log('[일일리포트] 네이버웍스 발송 완료');
     }
 
-    // 이메일 상세 리포트
-    const deadlineRows = stats.campaigns.deadlineSoon.map((c, i) => {
-      const flag = c.region === 'korea' ? '🇰🇷' : c.region === 'japan' ? '🇯🇵' : '🇺🇸';
-      const daysText = c.days === 0 ? '오늘' : `D-${c.days}`;
-      return `<tr><td style="padding:6px;border:1px solid #ddd">${i + 1}</td><td style="padding:6px;border:1px solid #ddd">${flag} ${c.title?.slice(0, 30) || ''}</td><td style="padding:6px;border:1px solid #ddd;text-align:center;color:#dc2626;font-weight:bold">${daysText}</td></tr>`;
-    }).join('');
-
-    const regionRows = Object.entries(stats.byRegion).map(([r, d]) => {
-      const flag = r === 'korea' ? '🇰🇷 한국' : r === 'japan' ? '🇯🇵 일본' : '🇺🇸 미국';
-      return `<tr><td style="padding:6px;border:1px solid #ddd">${flag}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${d.campaigns}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${d.newCompanies}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${d.videoUploads}</td></tr>`;
-    }).join('');
-
+    // 이메일 (간단 버전)
+    const dateStr = new Date().toLocaleDateString('ko-KR');
     const emailHtml = `
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:20px">
-  <h2 style="border-bottom:2px solid #333;padding-bottom:10px">📊 일일 현황 리포트 (${dateStr} 기준)</h2>
-  ${isManualTest ? '<p style="color:#f59e0b">⚠️ 수동 테스트</p>' : ''}
-
-  <div style="display:flex;gap:15px;margin:20px 0;flex-wrap:wrap">
-    <div style="flex:1;min-width:120px;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center">
-      <div style="font-size:12px;color:#666">진행중 캠페인</div>
-      <div style="font-size:24px;font-weight:bold">${stats.campaigns.active}</div>
-    </div>
-    <div style="flex:1;min-width:120px;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center">
-      <div style="font-size:12px;color:#666">검수 대기</div>
-      <div style="font-size:24px;font-weight:bold;color:#2563eb">${stats.videos.pendingReview}</div>
-    </div>
-    <div style="flex:1;min-width:120px;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center">
-      <div style="font-size:12px;color:#666">영상 업로드</div>
-      <div style="font-size:24px;font-weight:bold">${stats.videos.uploads}</div>
-    </div>
-    <div style="flex:1;min-width:120px;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center">
-      <div style="font-size:12px;color:#666">신규 기업</div>
-      <div style="font-size:24px;font-weight:bold">${stats.companies.new}</div>
-    </div>
-  </div>
-
-  ${stats.campaigns.deadlineSoon.length > 0 ? `
-  <h3 style="color:#dc2626">⚠️ 마감 임박 캠페인 (${stats.campaigns.deadlineSoon.length}개)</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="background:#fef2f2"><th style="padding:8px;border:1px solid #ddd">No</th><th style="padding:8px;border:1px solid #ddd">캠페인</th><th style="padding:8px;border:1px solid #ddd">마감</th></tr></thead>
-    <tbody>${deadlineRows}</tbody>
-  </table>` : '<p style="color:#16a34a">✅ 마감 임박 캠페인 없음</p>'}
-
-  <h3 style="margin-top:30px">🌏 지역별 현황</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="background:#f1f5f9"><th style="padding:8px;border:1px solid #ddd">지역</th><th style="padding:8px;border:1px solid #ddd">캠페인</th><th style="padding:8px;border:1px solid #ddd">신규기업</th><th style="padding:8px;border:1px solid #ddd">영상업로드</th></tr></thead>
-    <tbody>${regionRows}</tbody>
-  </table>
-
-  <h3 style="margin-top:30px">📈 전체 현황</h3>
-  <ul style="line-height:1.8">
-    <li>전체 캠페인: ${stats.campaigns.total}개 (진행중 ${stats.campaigns.active} / 모집중 ${stats.campaigns.recruiting})</li>
-    <li>전체 기업: ${stats.companies.total}개 (신규 +${stats.companies.new})</li>
-    <li>전체 크리에이터: ${stats.creators.total}명 (신규 +${stats.creators.new})</li>
-    <li>영상: 업로드 ${stats.videos.uploads}건 / SNS ${stats.videos.snsUploads}건 / 검수대기 ${stats.videos.pendingReview}건</li>
+  <h2>📊 일일 현황 리포트 (${dateStr})</h2>
+  <ul>
+    <li>캠페인: ${stats.campaigns.total}개 (진행중 ${stats.campaigns.active} / 모집중 ${stats.campaigns.recruiting})</li>
+    <li>검수대기: ${stats.videos.pendingReview}건</li>
   </ul>
-
-  <p style="color:#999;font-size:11px;margin-top:40px;text-align:center">
+  <p style="color:#999;font-size:11px;margin-top:40px">
     ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} | CNEC 자동 리포트
   </p>
 </body></html>`;
 
-    // 이메일 발송 (실패해도 전체 성공 처리)
     let emailSent = false;
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 현황 리포트 (${dateStr})`, emailHtml);
         emailSent = true;
         console.log('[일일리포트] 이메일 발송 완료');
-      } else {
-        console.log('[일일리포트] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
       }
     } catch (emailErr) {
       console.error('[일일리포트] 이메일 발송 실패:', emailErr.message);
