@@ -5,13 +5,16 @@ const nodemailer = require('nodemailer');
 
 /**
  * 통합 일일 리포트 - 매일 10시 (KST)
+ * - 캠페인 현황
+ * - 신규 회원
+ * - 영상 제출 현황 (applications 테이블 기반)
+ * - 마감 예정일 영상 미제출 크리에이터
+ *
+ * 네이버웍스: 5~10줄 요약
+ * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
  */
 
-// Supabase 클라이언트 - 주간리포트와 동일한 패턴
-const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -92,16 +95,18 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 }
 
 async function sendEmail(to, subject, html) {
+  const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
   const gmailPassword = process.env.GMAIL_APP_PASSWORD;
-  if (!gmailPassword) return false;
+  if (!gmailPassword) throw new Error('GMAIL_APP_PASSWORD 없음');
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'mkt_biz@cnec.co.kr', pass: gmailPassword.replace(/\s/g, '') }
+    auth: { user: gmailEmail, pass: gmailPassword.replace(/\s/g, '') }
   });
-  await transporter.sendMail({ from: '"CNEC 리포트" <mkt_biz@cnec.co.kr>', to, subject, html });
-  return true;
+  await transporter.sendMail({ from: `"CNEC 리포트" <${gmailEmail}>`, to, subject, html });
 }
+
+function formatNumber(num) { return (num || 0).toLocaleString('ko-KR'); }
 
 function getYesterdayRange() {
   const now = new Date();
@@ -121,7 +126,10 @@ function getYesterdayRange() {
 function getTodayDateStr() {
   const now = new Date();
   const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return `${kstNow.getUTCFullYear()}-${String(kstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(kstNow.getUTCDate()).padStart(2, '0')}`;
+  const year = kstNow.getUTCFullYear();
+  const month = String(kstNow.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kstNow.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 exports.handler = async (event) => {
@@ -134,26 +142,29 @@ exports.handler = async (event) => {
     const todayStr = getTodayDateStr();
 
     // 1. 캠페인 현황
-    const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, status');
-    const activeCampaigns = (campaigns || []).filter(c => ['active', 'recruiting', 'in_progress'].includes(c.status));
+    console.log('[일일리포트] 캠페인 데이터 수집...');
+    const { data: campaigns } = await supabaseBiz.from('campaigns').select('*');
+    const activeCampaigns = (campaigns || []).filter(c => c.status === 'active' || c.status === 'recruiting' || c.status === 'in_progress');
     const { data: newCampaigns } = await supabaseBiz
       .from('campaigns')
-      .select('id')
+      .select('*')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString());
 
-    // 2. 신규 기업
+    // 2. 신규 회원
+    console.log('[일일리포트] 회원 데이터 수집...');
     const { data: newCompanies } = await supabaseBiz
       .from('companies')
-      .select('id')
+      .select('*')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString());
 
-    // 3. 영상 제출 현황
+    // 3. 영상 제출 현황 (applications 테이블에서 video_submitted 상태 조회)
+    console.log('[일일리포트] 영상 제출 데이터 수집...');
     const videoStatuses = ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'];
     const { data: videoSubmissions } = await supabaseBiz
       .from('applications')
-      .select('id, name, status, campaign_id, updated_at')
+      .select('id, name, email, status, campaign_id, updated_at')
       .in('status', videoStatuses)
       .gte('updated_at', start.toISOString())
       .lte('updated_at', end.toISOString())
@@ -163,20 +174,23 @@ exports.handler = async (event) => {
     let videoList = [];
     if (videoSubmissions && videoSubmissions.length > 0) {
       const campaignIds = [...new Set(videoSubmissions.map(s => s.campaign_id).filter(Boolean))];
-      if (campaignIds.length > 0) {
-        const { data: campaignData } = await supabaseBiz
-          .from('campaigns')
-          .select('id, title')
-          .in('id', campaignIds);
-        const campaignMap = new Map((campaignData || []).map(c => [c.id, c.title]));
-        videoList = videoSubmissions.map(v => ({ ...v, campaign_title: campaignMap.get(v.campaign_id) || '-' }));
-      }
+      const { data: campaignData } = await supabaseBiz
+        .from('campaigns')
+        .select('id, title')
+        .in('id', campaignIds);
+      const campaignMap = new Map((campaignData || []).map(c => [c.id, c.title]));
+
+      videoList = videoSubmissions.map(v => ({
+        ...v,
+        campaign_title: campaignMap.get(v.campaign_id) || '-'
+      }));
     }
 
     const submittedCount = videoList.filter(v => v.status === 'video_submitted').length;
     const completedCount = videoList.filter(v => v.status === 'completed').length;
 
-    // 4. 마감 예정 미제출
+    // 4. 마감 예정일 영상 미제출 크리에이터
+    console.log('[일일리포트] 마감 미제출 크리에이터 수집...');
     const notSubmittedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation'];
     const { data: todayDeadlineCampaigns } = await supabaseBiz
       .from('campaigns')
@@ -189,7 +203,7 @@ exports.handler = async (event) => {
       for (const campaign of todayDeadlineCampaigns) {
         const { data: overdueApps } = await supabaseBiz
           .from('applications')
-          .select('id, name, status')
+          .select('id, name, email, status')
           .eq('campaign_id', campaign.id)
           .in('status', notSubmittedStatuses);
 
@@ -226,9 +240,10 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
     if (clientId && clientSecret && botId && channelId) {
       const accessToken = await getAccessToken(clientId, clientSecret, '7c15c.serviceaccount@howlab.co.kr');
       await sendNaverWorksMessage(accessToken, botId, channelId, nwMessage);
+      console.log('[일일리포트] 네이버웍스 발송 완료');
     }
 
-    // 6. 이메일 HTML
+    // 6. 이메일 상세 리포트
     const videoRows = videoList.map((v, i) => `<tr>
       <td style="padding:6px;border:1px solid #ddd;text-align:center">${i + 1}</td>
       <td style="padding:6px;border:1px solid #ddd">${v.campaign_title}</td>
@@ -242,22 +257,28 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
       <td style="padding:6px;border:1px solid #ddd">${new Date(v.updated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</td>
     </tr>`).join('');
 
-    let overdueHtml = overdueCreators.length > 0
-      ? overdueCreators.map(c => `
+    // 마감 미제출 섹션
+    let overdueHtml = '';
+    if (overdueCreators.length > 0) {
+      overdueHtml = overdueCreators.map(campaign => `
         <div style="margin-bottom:15px;padding:10px;background:#fef2f2;border-radius:8px;border-left:4px solid #dc2626">
-          <strong>🚨 ${c.campaign_title}</strong> (마감: ${c.deadline})
+          <strong>🚨 ${campaign.campaign_title}</strong> (마감: ${campaign.deadline})
           <ul style="margin:5px 0;padding-left:20px">
-            ${c.creators.map(cr => `<li>${cr.name} (${cr.status})</li>`).join('')}
+            ${campaign.creators.map(c => `<li>${c.name} (${c.status})</li>`).join('')}
           </ul>
         </div>
-      `).join('')
-      : '<p style="color:#16a34a">✅ 오늘 마감인 캠페인 중 미제출 크리에이터가 없습니다.</p>';
+      `).join('');
+    } else {
+      overdueHtml = '<p style="color:#16a34a">✅ 오늘 마감인 캠페인 중 미제출 크리에이터가 없습니다.</p>';
+    }
 
-    const emailHtml = `<!DOCTYPE html>
+    const emailHtml = `
+<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px">
   <h2 style="border-bottom:2px solid #333;padding-bottom:10px">📊 일일 리포트 (${dateStr})</h2>
   ${isManualTest ? '<p style="color:#f59e0b">⚠️ 수동 테스트</p>' : ''}
+
   <div style="display:flex;gap:20px;margin:20px 0">
     <div style="flex:1;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center">
       <div style="font-size:12px;color:#666">진행중 캠페인</div>
@@ -274,6 +295,7 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
       <div style="font-size:14px;color:#2563eb">제출 ${submittedCount} | 완료 ${completedCount}</div>
     </div>
   </div>
+
   <h3>🎬 영상 제출 내역</h3>
   ${videoList.length > 0 ? `
   <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -286,8 +308,10 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
     </tr></thead>
     <tbody>${videoRows}</tbody>
   </table>` : '<p style="color:#666">어제 영상 제출 없음</p>'}
+
   <h3 style="margin-top:30px">🚨 마감 예정일 영상 미제출 (${totalOverdue}명)</h3>
   ${overdueHtml}
+
   <p style="color:#999;font-size:11px;margin-top:40px;text-align:center">
     발송: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} | CNEC 자동 리포트
   </p>
@@ -295,7 +319,13 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
 
     let emailSent = false;
     try {
-      emailSent = await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
+      if (process.env.GMAIL_APP_PASSWORD) {
+        await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
+        emailSent = true;
+        console.log('[일일리포트] 이메일 발송 완료');
+      } else {
+        console.log('[일일리포트] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
+      }
     } catch (emailErr) {
       console.error('[일일리포트] 이메일 발송 실패:', emailErr.message);
     }
@@ -315,7 +345,7 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
 
   } catch (error) {
     console.error('[일일리포트] 오류:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message, stack: error.stack }) };
+    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
 
