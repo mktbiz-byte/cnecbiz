@@ -83,49 +83,83 @@ exports.handler = async (event) => {
     const aiSuggestions = await generateSeoSuggestions(newsletter, geminiApiKey)
     console.log('[auto-fix-seo] AI suggestions:', JSON.stringify(aiSuggestions))
 
-    // 현재 상태 체크
+    // 현재 상태 체크 (100점 기준으로 엄격하게)
     const currentDesc = newsletter.description || ''
+    const currentTitle = newsletter.title || ''
     // tags는 PostgreSQL 배열 타입 (text[])
     const currentTags = Array.isArray(newsletter.tags) ? newsletter.tags : []
-    const needsDescription = currentDesc.length < 50
-    const needsTags = currentTags.length < 3
 
-    console.log('[auto-fix-seo] Needs description:', needsDescription, 'current length:', currentDesc.length)
-    console.log('[auto-fix-seo] Needs tags:', needsTags, 'current count:', currentTags.length)
+    // 100점 기준: 설명 80-150자, 태그 5개+, 제목 30-50자
+    const needsDescription = currentDesc.length < 80 || currentDesc.length > 150
+    const needsTags = currentTags.length < 5
+    const needsTitle = currentTitle.length < 30 || currentTitle.length > 50
 
-    // 1. 제목 최적화
-    if (aiSuggestions.title && aiSuggestions.title !== newsletter.title) {
-      updates.title = aiSuggestions.title
-      changes.push(`제목 SEO 최적화 (${aiSuggestions.title.length}자)`)
-    }
+    console.log('[auto-fix-seo] Title length:', currentTitle.length, 'needs fix:', needsTitle)
+    console.log('[auto-fix-seo] Desc length:', currentDesc.length, 'needs fix:', needsDescription)
+    console.log('[auto-fix-seo] Tags count:', currentTags.length, 'needs fix:', needsTags)
 
-    // 2. 설명 최적화 (없거나 50자 미만이면 무조건 생성)
-    if (needsDescription) {
-      if (aiSuggestions.description) {
-        updates.description = aiSuggestions.description
-        changes.push(`메타 설명 생성 (${aiSuggestions.description.length}자)`)
-      } else {
-        // AI 실패 시 제목 기반으로 기본 설명 생성
-        const fallbackDesc = `${newsletter.title}에 대한 상세한 인사이트와 전략을 확인하세요. 크넥 뉴스레터에서 최신 마케팅 트렌드를 만나보세요.`
-        updates.description = fallbackDesc.slice(0, 150)
-        changes.push(`메타 설명 자동 생성 (기본)`)
+    // 1. 제목 최적화 (30-50자로 강제 조정)
+    if (needsTitle) {
+      if (aiSuggestions.title && aiSuggestions.title.length >= 30 && aiSuggestions.title.length <= 50) {
+        updates.title = aiSuggestions.title
+        changes.push(`제목 SEO 최적화 (${aiSuggestions.title.length}자)`)
+      } else if (currentTitle.length > 50) {
+        // 너무 길면 자르기
+        updates.title = currentTitle.slice(0, 47) + '...'
+        changes.push(`제목 길이 조정 (50자 이하)`)
+      } else if (currentTitle.length < 30 && aiSuggestions.title) {
+        // 너무 짧으면 AI 제안 사용 (길이 상관없이)
+        updates.title = aiSuggestions.title.slice(0, 50)
+        changes.push(`제목 확장 (${aiSuggestions.title.length}자)`)
       }
     }
 
-    // 3. 태그 추가 (3개 미만이면 무조건 추가)
+    // 2. 설명 최적화 (80-150자로 강제 조정)
+    if (needsDescription) {
+      if (aiSuggestions.description && aiSuggestions.description.length >= 80 && aiSuggestions.description.length <= 150) {
+        updates.description = aiSuggestions.description
+        changes.push(`메타 설명 최적화 (${aiSuggestions.description.length}자)`)
+      } else if (aiSuggestions.description) {
+        // AI 설명을 80-150자로 조정
+        let desc = aiSuggestions.description
+        if (desc.length > 150) {
+          desc = desc.slice(0, 147) + '...'
+        } else if (desc.length < 80) {
+          desc = `${desc} 크넥 뉴스레터에서 마케팅 인사이트와 최신 트렌드를 확인하세요.`.slice(0, 150)
+        }
+        updates.description = desc
+        changes.push(`메타 설명 생성 (${desc.length}자)`)
+      } else {
+        // AI 실패 시 제목 기반으로 80자 이상 설명 생성
+        const fallbackDesc = `${newsletter.title}에 대한 상세한 인사이트와 전략을 확인하세요. 크넥 뉴스레터에서 최신 마케팅 트렌드와 성공 사례를 만나보세요.`
+        updates.description = fallbackDesc.slice(0, 150)
+        changes.push(`메타 설명 자동 생성 (${updates.description.length}자)`)
+      }
+    }
+
+    // 3. 태그 추가 (5개 미만이면 무조건 5개 이상으로)
     if (needsTags) {
       let newTags = []
       if (aiSuggestions.tags && aiSuggestions.tags.length > 0) {
-        newTags = aiSuggestions.tags.slice(0, 5)
+        newTags = aiSuggestions.tags.slice(0, 7)
       } else {
         // AI 실패 시 기본 태그 생성
-        newTags = ['마케팅', '인플루언서', '크리에이터', '브랜드', '트렌드']
+        newTags = ['마케팅', '인플루언서', '크리에이터', '브랜드', '트렌드', '디지털마케팅', '콘텐츠']
       }
 
       const allTags = [...new Set([...currentTags, ...newTags])].slice(0, 7)
+      // 최소 5개 보장
+      while (allTags.length < 5) {
+        const defaultTags = ['SNS', '성장전략', '브랜딩', '광고', '소셜미디어']
+        for (const t of defaultTags) {
+          if (!allTags.includes(t) && allTags.length < 5) {
+            allTags.push(t)
+          }
+        }
+      }
       // tags는 PostgreSQL 배열 타입 - 배열로 저장
       updates.tags = allTags
-      changes.push(`태그 추가: ${newTags.join(', ')}`)
+      changes.push(`태그 ${allTags.length}개로 보강`)
     }
 
     // 4. 카테고리 자동 설정
