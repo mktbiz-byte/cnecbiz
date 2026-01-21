@@ -8,6 +8,7 @@ import AdminNavigation from './AdminNavigation'
 import BankTransactionsTab from './BankTransactionsTab'
 import TaxInvoiceRequestsTab from './TaxInvoiceRequestsTab'
 import CreatorPointPaymentsTab from './CreatorPointPaymentsTab'
+import HowlabDepositsTab from './HowlabDepositsTab'
 
 export default function PointsChargeManagement() {
   const [activeTab, setActiveTab] = useState('requests') // requests, transactions, tax_invoices
@@ -468,6 +469,19 @@ export default function PointsChargeManagement() {
                 크리에이터 포인트 지급
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('howlab_deposits')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'howlab_deposits'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                하우랩 입금확인
+              </div>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -478,6 +492,8 @@ export default function PointsChargeManagement() {
         <TaxInvoiceRequestsTab />
       ) : activeTab === 'creator_payments' ? (
         <CreatorPointPaymentsTab />
+      ) : activeTab === 'howlab_deposits' ? (
+        <HowlabDepositsTab />
       ) : (
         <>
       {/* 필터 및 검색 */}
