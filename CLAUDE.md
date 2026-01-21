@@ -497,35 +497,91 @@ npm run build    # 프로덕션 빌드
 
 ## 환경변수 (.env)
 
-```env
-# Supabase BIZ (주 사용)
-VITE_SUPABASE_BIZ_URL=
-VITE_SUPABASE_BIZ_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=  # Netlify Functions 전용
+> ⚠️ **중요**: 환경변수 이름은 정확히 아래와 같이 사용해야 합니다. 오타 주의!
 
-# 기타 리전
-VITE_SUPABASE_KOREA_URL=
-VITE_SUPABASE_KOREA_ANON_KEY=
-VITE_SUPABASE_JAPAN_URL=
-VITE_SUPABASE_JAPAN_ANON_KEY=
-VITE_SUPABASE_US_URL=
-VITE_SUPABASE_US_ANON_KEY=
+### Supabase 환경변수 (올바른 이름)
 
-# 이메일 (Gmail SMTP)
-GMAIL_USER=
-GMAIL_APP_PASSWORD=
+| 변수명 | 용도 | 사용처 |
+|--------|------|--------|
+| `VITE_SUPABASE_BIZ_URL` | BIZ DB URL | Frontend + Netlify Functions |
+| `VITE_SUPABASE_BIZ_ANON_KEY` | BIZ DB Anon Key | Frontend |
+| `SUPABASE_SERVICE_ROLE_KEY` | BIZ DB Service Key | Netlify Functions 전용 |
+| `VITE_SUPABASE_KOREA_URL` | Korea DB URL | Frontend + Netlify Functions |
+| `VITE_SUPABASE_KOREA_ANON_KEY` | Korea DB Anon Key | Frontend |
+| `SUPABASE_KOREA_SERVICE_ROLE_KEY` | Korea DB Service Key | Netlify Functions 전용 |
+| `VITE_SUPABASE_JAPAN_URL` | Japan DB URL | Frontend |
+| `VITE_SUPABASE_JAPAN_ANON_KEY` | Japan DB Anon Key | Frontend |
+| `VITE_SUPABASE_US_URL` | US DB URL | Frontend |
+| `VITE_SUPABASE_US_ANON_KEY` | US DB Anon Key | Frontend |
+| `VITE_SUPABASE_TAIWAN_URL` | Taiwan DB URL | Frontend |
+| `VITE_SUPABASE_TAIWAN_ANON_KEY` | Taiwan DB Anon Key | Frontend |
 
-# Popbill
-POPBILL_LINK_ID=
-POPBILL_SECRET_KEY=
+### ❌ 잘못된 환경변수 이름 (사용 금지)
 
-# Stibee
-STIBEE_API_KEY=
-
-# Stripe / Toss
-STRIPE_SECRET_KEY=
-TOSS_SECRET_KEY=
 ```
+# 아래 이름들은 잘못된 것입니다. 절대 사용하지 마세요!
+VITE_SUPABASE_URL_BIZ      ❌ → VITE_SUPABASE_BIZ_URL ✅
+SUPABASE_SERVICE_ROLE_KEY_BIZ ❌ → SUPABASE_SERVICE_ROLE_KEY ✅
+SUPABASE_URL               ❌ → VITE_SUPABASE_BIZ_URL ✅
+SUPABASE_ANON_KEY          ❌ → VITE_SUPABASE_BIZ_ANON_KEY ✅
+```
+
+### Netlify Functions에서 Supabase 사용 패턴
+
+```javascript
+// ✅ 올바른 사용법
+const { createClient } = require('@supabase/supabase-js')
+
+const supabaseBiz = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+const supabaseKorea = createClient(
+  process.env.VITE_SUPABASE_KOREA_URL,
+  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+)
+```
+
+### 네이버웍스 환경변수
+
+| 변수명 | 용도 |
+|--------|------|
+| `NAVER_WORKS_CLIENT_ID` | 클라이언트 ID |
+| `NAVER_WORKS_CLIENT_SECRET` | 클라이언트 시크릿 |
+| `NAVER_WORKS_BOT_ID` | 봇 ID |
+| `NAVER_WORKS_CHANNEL_ID` | 기본 채널 ID |
+| `NAVER_WORKS_WITHDRAWAL_CHANNEL_ID` | 출금 알림 채널 ID (선택) |
+
+### AI 서비스 환경변수
+
+| 변수명 | 용도 |
+|--------|------|
+| `GEMINI_API_KEY` | Google Gemini API |
+| `OPENAI_API_KEY` | OpenAI API |
+
+### 결제 서비스 환경변수
+
+| 변수명 | 용도 |
+|--------|------|
+| `STRIPE_SECRET_KEY` | Stripe 시크릿 키 |
+| `TOSS_SECRET_KEY` | 토스페이먼츠 시크릿 키 |
+
+### 이메일/SMS 환경변수
+
+| 변수명 | 용도 |
+|--------|------|
+| `GMAIL_USER` | Gmail 사용자 |
+| `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 |
+
+### 기타 환경변수
+
+| 변수명 | 용도 |
+|--------|------|
+| `POPBILL_LINK_ID` | 팝빌 연동 ID |
+| `POPBILL_SECRET_KEY` | 팝빌 시크릿 키 |
+| `STIBEE_API_KEY` | 스티비 API 키 |
+| `VITE_ENCRYPTION_KEY` | 암호화 키 |
 
 ---
 
