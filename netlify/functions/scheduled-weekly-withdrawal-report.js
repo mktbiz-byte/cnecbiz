@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
+const XLSX = require('xlsx');
 
 /**
  * 매주 월요일 오전 10시 (KST) 출금 신청 주간 보고서 발송
@@ -209,6 +210,102 @@ function formatNumber(num) {
 function formatDate(date) {
   const d = new Date(date);
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+// 엑셀 파일 생성 및 Supabase Storage 업로드
+async function createAndUploadExcel(withdrawals, startDate, endDate) {
+  try {
+    // 엑셀 데이터 준비
+    const excelData = withdrawals.map((w, index) => {
+      const grossAmount = w.amount || 0;
+      const incomeTax = Math.round(grossAmount * 0.03);
+      const residentTax = Math.round(grossAmount * 0.003);
+      const netAmount = grossAmount - incomeTax - residentTax;
+
+      return {
+        '순번': index + 1,
+        '신청일': new Date(w.created_at).toLocaleDateString('ko-KR'),
+        '이름': w.name || '',
+        '은행': w.bank_name || '',
+        '계좌번호': w.account_number || '',
+        '신청금액': grossAmount,
+        '소득세(3%)': incomeTax,
+        '주민세(0.3%)': residentTax,
+        '실지급액': netAmount,
+        '상태': w.status === 'approved' ? '승인' : w.status === 'pending' ? '대기' : w.status
+      };
+    });
+
+    // 합계 행 추가
+    const totalGross = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const totalIncomeTax = Math.round(totalGross * 0.03);
+    const totalResidentTax = Math.round(totalGross * 0.003);
+    const totalNet = totalGross - totalIncomeTax - totalResidentTax;
+
+    excelData.push({
+      '순번': '',
+      '신청일': '',
+      '이름': '합계',
+      '은행': '',
+      '계좌번호': '',
+      '신청금액': totalGross,
+      '소득세(3%)': totalIncomeTax,
+      '주민세(0.3%)': totalResidentTax,
+      '실지급액': totalNet,
+      '상태': `총 ${withdrawals.length}건`
+    });
+
+    // 워크북 생성
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    ws['!cols'] = [
+      { wch: 6 },   // 순번
+      { wch: 12 },  // 신청일
+      { wch: 12 },  // 이름
+      { wch: 12 },  // 은행
+      { wch: 20 },  // 계좌번호
+      { wch: 15 },  // 신청금액
+      { wch: 12 },  // 소득세
+      { wch: 12 },  // 주민세
+      { wch: 15 },  // 실지급액
+      { wch: 10 }   // 상태
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, '출금신청목록');
+
+    // 엑셀 파일을 버퍼로 생성
+    const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    // 파일명 생성
+    const startStr = `${startDate.getMonth() + 1}${startDate.getDate()}`.padStart(4, '0');
+    const endStr = `${endDate.getMonth() + 1}${endDate.getDate()}`.padStart(4, '0');
+    const fileName = `출금신청_${startStr}-${endStr}_${Date.now()}.xlsx`;
+
+    // Supabase Storage에 업로드
+    const { data, error } = await supabaseBiz.storage
+      .from('reports')
+      .upload(`withdrawals/${fileName}`, excelBuffer, {
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: true
+      });
+
+    if (error) {
+      console.error('엑셀 업로드 오류:', error);
+      return null;
+    }
+
+    // 공개 URL 생성 (1주일 유효)
+    const { data: urlData } = await supabaseBiz.storage
+      .from('reports')
+      .createSignedUrl(`withdrawals/${fileName}`, 60 * 60 * 24 * 7); // 7일
+
+    return urlData?.signedUrl || null;
+  } catch (error) {
+    console.error('엑셀 생성 오류:', error);
+    return null;
+  }
 }
 
 exports.handler = async (event, context) => {
@@ -438,6 +535,15 @@ exports.handler = async (event, context) => {
       );
     }
 
+    // 엑셀 파일 생성 및 업로드
+    console.log('[Report] 엑셀 파일 생성 중...');
+    const excelUrl = await createAndUploadExcel(allWithdrawals, monday, sunday);
+    if (excelUrl) {
+      console.log('[Report] 엑셀 파일 업로드 완료:', excelUrl);
+    } else {
+      console.log('[Report] 엑셀 파일 생성 실패 (메시지만 발송)');
+    }
+
     const testLabel = isManualTest ? ' (수동 테스트)' : '';
     const message = `📋 [주간 출금 신청 보고서]${testLabel}
 ━━━━━━━━━━━━━━━━━━━━
@@ -453,7 +559,7 @@ exports.handler = async (event, context) => {
 ${detailLines.join('\n')}
 
 ━━━━━━━━━━━━━━━━━━━━
-⏰ 발송시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+${excelUrl ? `📥 엑셀 다운로드:\n${excelUrl}\n\n` : ''}⏰ 발송시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
 
     // 네이버웍스로 메시지 전송
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
@@ -483,6 +589,7 @@ ${detailLines.join('\n')}
         message: `Weekly withdrawal report sent (${allWithdrawals.length} items)`,
         totalAmount: totalAmount,
         totalNetAmount: totalNetAmount,
+        excelUrl: excelUrl || null,
         period: { start: monday.toISOString(), end: sunday.toISOString() },
         withdrawalDetails: allWithdrawals.slice(0, 5) // 처음 5개만 반환 (디버깅용)
       })
