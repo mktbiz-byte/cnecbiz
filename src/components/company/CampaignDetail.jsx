@@ -10017,18 +10017,30 @@ JSON만 출력.`
                         const guideData = campaign.guide_content
                           ? (typeof campaign.guide_content === 'string' ? JSON.parse(campaign.guide_content) : campaign.guide_content)
                           : null
-                        if (guideData) {
-                          return (
-                            <div className="space-y-1">
-                              {guideData.shooting_concept && <p><strong>촬영 컨셉:</strong> {guideData.shooting_concept}</p>}
-                              {guideData.key_message && <p><strong>핵심 메시지:</strong> {guideData.key_message}</p>}
-                              {guideData.must_include && <p><strong>필수 포함:</strong> {Array.isArray(guideData.must_include) ? guideData.must_include.join(', ') : guideData.must_include}</p>}
-                            </div>
-                          )
+                        if (guideData && typeof guideData === 'object') {
+                          // 표시할 필드들 안전하게 추출
+                          const concept = guideData.shooting_concept || guideData.coreMessage || ''
+                          const message = guideData.key_message || guideData.hookingPoint || ''
+                          const includes = guideData.must_include || guideData.missions || []
+
+                          if (concept || message || (Array.isArray(includes) && includes.length > 0)) {
+                            return (
+                              <div className="space-y-1">
+                                {concept && typeof concept === 'string' && <p><strong>촬영 컨셉:</strong> {concept}</p>}
+                                {message && typeof message === 'string' && <p><strong>핵심 메시지:</strong> {message}</p>}
+                                {includes && Array.isArray(includes) && includes.length > 0 && (
+                                  <p><strong>필수 포함:</strong> {includes.filter(i => typeof i === 'string').join(', ')}</p>
+                                )}
+                              </div>
+                            )
+                          }
                         }
-                        return <p>{campaign.ai_generated_guide || campaign.description || '작성된 가이드가 없습니다.'}</p>
+                        // 안전한 fallback - 객체가 아닌 경우만 표시
+                        const fallback = campaign.ai_generated_guide || campaign.description
+                        return <p>{typeof fallback === 'string' ? fallback : '작성된 가이드가 없습니다.'}</p>
                       } catch (e) {
-                        return <p>{campaign.ai_generated_guide || campaign.description || '작성된 가이드가 없습니다.'}</p>
+                        const fallback = campaign.description
+                        return <p>{typeof fallback === 'string' ? fallback : '작성된 가이드가 없습니다.'}</p>
                       }
                     })()}
                   </div>
