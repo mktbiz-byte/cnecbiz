@@ -2,7 +2,7 @@
  * 일일 보고서 수동 테스트 함수
  */
 
-const { handler: dailyReportHandler } = require('./scheduled-daily-report.js');
+const { handler: dailyReportHandler } = require('./daily-stats-report.js');
 
 exports.handler = async (event, context) => {
   console.log('🧪 [TEST] 일일 보고서 수동 실행');
