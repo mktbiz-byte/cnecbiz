@@ -212,7 +212,13 @@ function formatDate(date) {
 }
 
 exports.handler = async (event, context) => {
+  // HTTP 요청 정보 로깅 (수동 테스트 확인용)
+  const httpMethod = event.httpMethod || 'SCHEDULED';
+  const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
+
   console.log('[Weekly Withdrawal Report] Starting...');
+  console.log(`📌 실행 방식: ${isManualTest ? `수동 테스트 (${httpMethod})` : '스케줄 자동 실행'}`);
+  console.log(`📅 실행 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
 
   // 환경 변수 확인
   console.log('[ENV Check] VITE_SUPABASE_BIZ_URL:', process.env.VITE_SUPABASE_BIZ_URL ? '✅ SET' : '❌ NOT SET');
@@ -432,7 +438,8 @@ exports.handler = async (event, context) => {
       );
     }
 
-    const message = `📋 [주간 출금 신청 보고서]
+    const testLabel = isManualTest ? ' (수동 테스트)' : '';
+    const message = `📋 [주간 출금 신청 보고서]${testLabel}
 ━━━━━━━━━━━━━━━━━━━━
 📅 기간: ${startStr} ~ ${endStr}
 📊 총 ${allWithdrawals.length}건
@@ -472,8 +479,12 @@ ${detailLines.join('\n')}
       statusCode: 200,
       body: JSON.stringify({
         success: true,
+        executionType: isManualTest ? 'manual' : 'scheduled',
         message: `Weekly withdrawal report sent (${allWithdrawals.length} items)`,
-        period: { start: monday.toISOString(), end: sunday.toISOString() }
+        totalAmount: totalAmount,
+        totalNetAmount: totalNetAmount,
+        period: { start: monday.toISOString(), end: sunday.toISOString() },
+        withdrawalDetails: allWithdrawals.slice(0, 5) // 처음 5개만 반환 (디버깅용)
       })
     };
 
