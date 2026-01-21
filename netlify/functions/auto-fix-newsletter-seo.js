@@ -447,10 +447,14 @@ async function generateAiThumbnail(title, suggestions, apiKey) {
 }
 
 /**
- * AI 키워드 추출 및 이미지 검색
+ * AI 키워드 추출 및 이미지 검색 (타임아웃 최적화)
  */
 async function generateAiImage(prompt, apiKey, title = '') {
   try {
+    // 타임아웃을 위한 AbortController (10초)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+
     // AI로 영문 키워드 추출
     const keywordsResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -473,9 +477,12 @@ Return ONLY the keywords, nothing else:`
             }]
           }],
           generationConfig: { temperature: 0.3, maxOutputTokens: 50 }
-        })
+        }),
+        signal: controller.signal
       }
     )
+
+    clearTimeout(timeout)
 
     const keywordsResult = await keywordsResponse.json()
     const keywordsText = keywordsResult.candidates?.[0]?.content?.parts?.[0]?.text || ''
@@ -493,25 +500,77 @@ Return ONLY the keywords, nothing else:`
 
     console.log('[auto-fix-seo] Generated keywords:', keywords)
 
-    // Unsplash Source API 사용 (인증 불필요)
-    const query = keywords.join(',')
-    const imageUrl = `https://source.unsplash.com/1200x630/?${encodeURIComponent(query)}`
-
-    // 이미지 URL 검증 (리다이렉트 따라가서 실제 URL 확인)
-    const checkResponse = await fetch(imageUrl, { method: 'HEAD', redirect: 'follow' })
-    if (checkResponse.ok) {
-      // 실제 리다이렉트된 URL 반환 (고정 이미지)
-      const finalUrl = checkResponse.url
-      console.log('[auto-fix-seo] Image URL:', finalUrl)
-      return finalUrl
+    // 검증된 Unsplash 이미지 ID로 직접 URL 생성 (빠름)
+    const categoryImages = getImagesByKeyword(keywords)
+    if (categoryImages) {
+      console.log('[auto-fix-seo] Using category image:', categoryImages)
+      return categoryImages
     }
 
     // 폴백: 기본 비즈니스 이미지
     return getRandomBusinessImage()
   } catch (error) {
-    console.error('[auto-fix-seo] Image generation error:', error)
+    console.error('[auto-fix-seo] Image generation error:', error.message)
     return getRandomBusinessImage()
   }
+}
+
+/**
+ * 키워드별 검증된 이미지 매칭
+ */
+function getImagesByKeyword(keywords) {
+  const keywordImages = {
+    // 마케팅 관련
+    marketing: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=1200&h=630&fit=crop',
+    digital: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=630&fit=crop',
+    social: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&h=630&fit=crop',
+    media: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=1200&h=630&fit=crop',
+    advertising: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=1200&h=630&fit=crop',
+
+    // 비즈니스 관련
+    business: 'https://images.unsplash.com/photo-1664575602554-2087b04935a5?w=1200&h=630&fit=crop',
+    strategy: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=630&fit=crop',
+    team: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=630&fit=crop',
+    meeting: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&h=630&fit=crop',
+    office: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=630&fit=crop',
+
+    // 기술 관련
+    technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
+    tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=630&fit=crop',
+    data: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
+    analytics: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop',
+    ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
+
+    // 크리에이터/인플루언서
+    creator: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
+    influencer: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=1200&h=630&fit=crop',
+    content: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=630&fit=crop',
+    video: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1200&h=630&fit=crop',
+    youtube: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?w=1200&h=630&fit=crop',
+
+    // 쇼핑/이커머스
+    shopping: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
+    ecommerce: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
+    retail: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=630&fit=crop',
+
+    // 성장/트렌드
+    growth: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
+    trend: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1200&h=630&fit=crop',
+    success: 'https://images.unsplash.com/photo-1533750516457-a7f992034fec?w=1200&h=630&fit=crop',
+
+    // 브랜드
+    brand: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
+    branding: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=1200&h=630&fit=crop',
+  }
+
+  // 키워드 매칭
+  for (const keyword of keywords) {
+    if (keywordImages[keyword]) {
+      return keywordImages[keyword]
+    }
+  }
+
+  return null
 }
 
 /**
