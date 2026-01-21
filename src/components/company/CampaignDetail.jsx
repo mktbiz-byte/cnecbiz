@@ -2724,7 +2724,10 @@ JSON만 출력.`
                 product_key_points: campaign.product_key_points || campaign.key_message || '',
                 video_duration: campaign.video_duration
               },
-              baseGuide: campaign.guide_content || campaign.ai_generated_guide || ''
+              baseGuide: (() => {
+                const raw = campaign.guide_content || campaign.ai_generated_guide || ''
+                return typeof raw === 'object' ? JSON.stringify(raw) : raw
+              })()
             })
           })
 
@@ -10140,7 +10143,9 @@ JSON만 출력.`
                       .eq('id', selectedParticipantForGuide.user_id)
                       .maybeSingle()
 
-                    const baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
+                    // guide_content가 객체일 경우 JSON 문자열로 변환
+                    const rawGuide = campaign.guide_content || campaign.ai_generated_guide || ''
+                    const baseGuide = typeof rawGuide === 'object' ? JSON.stringify(rawGuide) : rawGuide
 
                     // AI 가이드 생성 요청 (스타일 정보 포함)
                     const response = await fetch('/.netlify/functions/generate-personalized-guide', {
@@ -10375,13 +10380,13 @@ JSON만 출력.`
               )}
 
               {/* 해시태그 */}
-              {campaign.hashtags && (
+              {campaign.hashtags && typeof campaign.hashtags !== 'object' && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-bold text-gray-800">필수 해시태그</h3>
                   <div className="flex flex-wrap gap-2">
-                    {(Array.isArray(campaign.hashtags) ? campaign.hashtags : campaign.hashtags.split(/[,\s]+/)).map((tag, i) => (
+                    {(Array.isArray(campaign.hashtags) ? campaign.hashtags : String(campaign.hashtags).split(/[,\s]+/)).filter(Boolean).map((tag, i) => (
                       <span key={i} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                        #{tag.replace(/^#/, '')}
+                        #{String(tag).replace(/^#/, '')}
                       </span>
                     ))}
                   </div>
