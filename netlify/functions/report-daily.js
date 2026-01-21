@@ -1,10 +1,12 @@
-/**
- * 일일 리포트 - 멀티-리전 지원
- */
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+
+/**
+ * 일일 리포트 (새 버전) - 매일 10시 (KST)
+ * 멀티-리전 지원: 미국/일본/한국
+ */
 
 // Supabase 클라이언트 초기화
 let supabaseBiz = null;
@@ -156,7 +158,7 @@ function getRegionKey(country) {
 
 exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
-  console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
+  console.log(`[report-daily] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   if (!supabaseBiz) {
     return {
@@ -178,31 +180,52 @@ exports.handler = async (event) => {
     const todayStr = getTodayDateStr();
 
     // 1. 캠페인 현황
-    const campaignResult = { total: { active: 0, new: 0 }, byRegion: { korea: { active: 0 }, japan: { active: 0 }, us: { active: 0 } } };
+    console.log('[report-daily] 캠페인 조회...');
+    const campaignResult = { total: { active: 0, new: 0 }, byRegion: { korea: { active: 0, new: 0 }, japan: { active: 0, new: 0 }, us: { active: 0, new: 0 } } };
+
     try {
-      const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, status, country, region, created_at');
+      const { data: campaigns, error } = await supabaseBiz.from('campaigns').select('id, status, country, region, created_at');
+      if (error) throw error;
+
       for (const c of (campaigns || [])) {
         const isActive = ['active', 'recruiting', 'in_progress'].includes(c.status);
         const isNew = new Date(c.created_at) >= start && new Date(c.created_at) <= end;
         const region = getRegionKey(c.country || c.region);
-        if (isActive) { campaignResult.total.active++; campaignResult.byRegion[region].active++; }
-        if (isNew) campaignResult.total.new++;
+
+        if (isActive) {
+          campaignResult.total.active++;
+          campaignResult.byRegion[region].active++;
+        }
+        if (isNew) {
+          campaignResult.total.new++;
+          campaignResult.byRegion[region].new++;
+        }
       }
     } catch (e) { console.error('[캠페인 조회 오류]', e.message); }
 
     // 2. 신규 기업
+    console.log('[report-daily] 신규 기업 조회...');
     let newCompanies = 0;
     try {
-      const { data } = await supabaseBiz.from('companies').select('id').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+      const { data, error } = await supabaseBiz.from('companies').select('id').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+      if (error) throw error;
       newCompanies = data?.length || 0;
     } catch (e) { console.error('[신규 기업 조회 오류]', e.message); }
 
     // 3. 신규 크리에이터 (리전별)
+    console.log('[report-daily] 크리에이터 조회...');
     const creatorResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
-    for (const r of [{ key: 'korea', client: supabaseKorea }, { key: 'japan', client: supabaseJapan }, { key: 'us', client: supabaseUS }]) {
+    const regions = [
+      { key: 'korea', client: supabaseKorea },
+      { key: 'japan', client: supabaseJapan },
+      { key: 'us', client: supabaseUS }
+    ];
+
+    for (const r of regions) {
       if (!r.client) continue;
       try {
-        const { data } = await r.client.from('user_profiles').select('id').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+        const { data, error } = await r.client.from('user_profiles').select('id').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+        if (error) throw error;
         const count = data?.length || 0;
         creatorResult.byRegion[r.key] = count;
         creatorResult.total += count;
@@ -210,14 +233,18 @@ exports.handler = async (event) => {
     }
 
     // 4. 영상 제출 현황
+    console.log('[report-daily] 영상 제출 조회...');
     const videoResult = { total: { count: 0, submitted: 0, completed: 0 }, byRegion: { korea: { count: 0 }, japan: { count: 0 }, us: { count: 0 } } };
+
     try {
-      const { data: submissions } = await supabaseBiz
+      const { data: submissions, error } = await supabaseBiz
         .from('applications')
         .select('id, status, campaign_id')
         .in('status', ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
         .gte('updated_at', start.toISOString())
         .lte('updated_at', end.toISOString());
+
+      if (error) throw error;
 
       if (submissions && submissions.length > 0) {
         const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))];
@@ -227,6 +254,7 @@ exports.handler = async (event) => {
         for (const s of submissions) {
           const campaign = campaignMap.get(s.campaign_id) || {};
           const region = getRegionKey(campaign.country || campaign.region);
+
           videoResult.total.count++;
           videoResult.byRegion[region].count++;
           if (s.status === 'video_submitted') videoResult.total.submitted++;
@@ -236,13 +264,17 @@ exports.handler = async (event) => {
     } catch (e) { console.error('[영상 제출 조회 오류]', e.message); }
 
     // 5. 마감 미제출
+    console.log('[report-daily] 마감 미제출 조회...');
     const overdueResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
+
     try {
-      const { data: deadlineCampaigns } = await supabaseBiz
+      const { data: deadlineCampaigns, error } = await supabaseBiz
         .from('campaigns')
         .select('id, title, country, region')
         .eq('content_submission_deadline', todayStr)
         .in('status', ['active', 'in_progress', 'recruiting']);
+
+      if (error) throw error;
 
       for (const campaign of (deadlineCampaigns || [])) {
         const { data: overdueApps } = await supabaseBiz
@@ -283,7 +315,7 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
       if (clientId && clientSecret && botId && channelId) {
         const accessToken = await getAccessToken(clientId, clientSecret, '7c15c.serviceaccount@howlab.co.kr');
         await sendNaverWorksMessage(accessToken, botId, channelId, nwMessage);
-        console.log('[일일리포트] 네이버웍스 발송 완료');
+        console.log('[report-daily] 네이버웍스 발송 완료');
       }
     } catch (e) { console.error('[네이버웍스 발송 오류]', e.message); }
 
@@ -291,17 +323,28 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
     let emailSent = false;
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
-        const emailHtml = `<h2>📊 일일 리포트 (${dateStr})</h2>
+        const emailHtml = `
+          <h2>📊 일일 리포트 (${dateStr})</h2>
           ${isManualTest ? '<p style="color:orange">⚠️ 수동 테스트</p>' : ''}
           <h3>📢 캠페인 현황</h3>
           <p>진행중: ${campaignResult.total.active}개 / 신규: ${campaignResult.total.new}개</p>
-          <ul><li>🇰🇷 한국: ${campaignResult.byRegion.korea.active}개</li><li>🇯🇵 일본: ${campaignResult.byRegion.japan.active}개</li><li>🇺🇸 미국: ${campaignResult.byRegion.us.active}개</li></ul>
-          <h3>👥 신규 회원</h3><p>기업: ${newCompanies}개 / 크리에이터: ${creatorResult.total}명</p>
-          <h3>🎬 영상 제출</h3><p>총 ${videoResult.total.count}건 (제출 ${videoResult.total.submitted} / 완료 ${videoResult.total.completed})</p>
-          <h3>⚠️ 마감 미제출</h3><p>${overdueResult.total > 0 ? `${overdueResult.total}명` : '없음'}</p>
-          <hr><p style="color:gray;font-size:12px">발송: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>`;
+          <ul>
+            <li>🇰🇷 한국: ${campaignResult.byRegion.korea.active}개</li>
+            <li>🇯🇵 일본: ${campaignResult.byRegion.japan.active}개</li>
+            <li>🇺🇸 미국: ${campaignResult.byRegion.us.active}개</li>
+          </ul>
+          <h3>👥 신규 회원</h3>
+          <p>기업: ${newCompanies}개 / 크리에이터: ${creatorResult.total}명</p>
+          <h3>🎬 영상 제출</h3>
+          <p>총 ${videoResult.total.count}건 (제출 ${videoResult.total.submitted} / 완료 ${videoResult.total.completed})</p>
+          <h3>⚠️ 마감 미제출</h3>
+          <p>${overdueResult.total > 0 ? `${overdueResult.total}명` : '없음'}</p>
+          <hr>
+          <p style="color:gray;font-size:12px">발송: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
+        `;
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
         emailSent = true;
+        console.log('[report-daily] 이메일 발송 완료');
       }
     } catch (e) { console.error('[이메일 발송 오류]', e.message); }
 
@@ -318,8 +361,9 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
         emailSent
       })
     };
+
   } catch (error) {
-    console.error('[일일리포트] 오류:', error);
+    console.error('[report-daily] 오류:', error);
     return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message, stack: error.stack }) };
   }
 };
