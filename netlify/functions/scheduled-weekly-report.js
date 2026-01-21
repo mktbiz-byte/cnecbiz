@@ -98,11 +98,15 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 }
 
 async function sendEmail(to, subject, html) {
+  const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+  const gmailPassword = process.env.GMAIL_APP_PASSWORD;
+  if (!gmailPassword) throw new Error('GMAIL_APP_PASSWORD 없음');
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
+    auth: { user: gmailEmail, pass: gmailPassword.replace(/\s/g, '') }
   });
-  await transporter.sendMail({ from: `"CNEC 리포트" <${process.env.GMAIL_USER}>`, to, subject, html });
+  await transporter.sendMail({ from: `"CNEC 리포트" <${gmailEmail}>`, to, subject, html });
 }
 
 function getLastWeekRange() {
@@ -392,12 +396,12 @@ ${stoppedCount > 0 ? `⚠️ 업로드중단 ${stoppedCount}명` : '✅ 이상�
     // 이메일 발송 (실패해도 전체 성공 처리)
     let emailSent = false;
     try {
-      if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      if (process.env.GMAIL_APP_PASSWORD) {
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 주간 리포트 (${startStr}~${endStr})`, emailHtml);
         emailSent = true;
         console.log('[주간리포트] 이메일 발송 완료');
       } else {
-        console.log('[주간리포트] Gmail 자격증명 없음 - 이메일 발송 생략');
+        console.log('[주간리포트] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
       }
     } catch (emailErr) {
       console.error('[주간리포트] 이메일 발송 실패:', emailErr.message);
