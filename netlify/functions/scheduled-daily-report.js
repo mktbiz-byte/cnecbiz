@@ -7,10 +7,8 @@ const nodemailer = require('nodemailer');
  * 통합 일일 리포트 - 매일 10시 (KST)
  */
 
-// Supabase 클라이언트
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseBiz = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+// Supabase 클라이언트 - 주간리포트와 동일한 패턴 사용
+const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -131,15 +129,6 @@ function getTodayDateStr() {
 exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
-
-  // Supabase 클라이언트 체크
-  if (!supabaseBiz) {
-    console.error('[일일리포트] Supabase 클라이언트 없음');
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Supabase client not initialized' })
-    };
-  }
 
   try {
     const { start, end } = getYesterdayRange();
