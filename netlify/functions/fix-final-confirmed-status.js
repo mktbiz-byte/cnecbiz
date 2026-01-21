@@ -90,13 +90,12 @@ exports.handler = async (event) => {
         continue
       }
 
-      // video_submissions가 있으면 final_confirmed_at 업데이트
+      // video_submissions가 있으면 final_confirmed_at 업데이트 (status는 변경하지 않음 - 체크 제약 조건)
       for (const sub of (submissions || [])) {
         if (!sub.final_confirmed_at) {
           const { error: updateError } = await supabaseKorea
             .from('video_submissions')
             .update({
-              status: 'completed',
               final_confirmed_at: point.created_at
             })
             .eq('id', sub.id)
@@ -144,7 +143,6 @@ exports.handler = async (event) => {
             const { error: updateAppError } = await supabaseBiz
               .from('applications')
               .update({
-                status: 'completed',
                 final_confirmed_at: point.created_at
               })
               .eq('id', app.id)
