@@ -85,7 +85,8 @@ exports.handler = async (event) => {
 
     // 현재 상태 체크
     const currentDesc = newsletter.description || ''
-    const currentTags = (newsletter.tags || '').split(',').filter(t => t.trim())
+    // tags는 PostgreSQL 배열 타입 (text[])
+    const currentTags = Array.isArray(newsletter.tags) ? newsletter.tags : []
     const needsDescription = currentDesc.length < 50
     const needsTags = currentTags.length < 3
 
@@ -122,7 +123,8 @@ exports.handler = async (event) => {
       }
 
       const allTags = [...new Set([...currentTags, ...newTags])].slice(0, 7)
-      updates.tags = allTags.join(', ')
+      // tags는 PostgreSQL 배열 타입 - 배열로 저장
+      updates.tags = allTags
       changes.push(`태그 추가: ${newTags.join(', ')}`)
     }
 
