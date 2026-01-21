@@ -136,10 +136,20 @@ exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
+  // 환경변수 체크
+  if (!process.env.VITE_SUPABASE_BIZ_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[일일리포트] 필수 환경변수 누락');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Missing required environment variables' })
+    };
+  }
+
   try {
     const { start, end } = getYesterdayRange();
     const dateStr = `${start.getMonth() + 1}/${start.getDate()}`;
     const todayStr = getTodayDateStr();
+    console.log(`[일일리포트] 날짜: ${dateStr}, 오늘: ${todayStr}`);
 
     // 1. 캠페인 현황
     console.log('[일일리포트] 캠페인 데이터 수집...');
