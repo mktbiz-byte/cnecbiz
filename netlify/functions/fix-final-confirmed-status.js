@@ -29,13 +29,15 @@ exports.handler = async (event) => {
     }
 
     // 1. 포인트 지급 내역 조회 (campaign_complete 타입)
+    let pointData = []
+
     const { data: pointHistory, error: pointError } = await supabaseBiz
       .from('point_history')
       .select('user_id, campaign_id, created_at')
       .eq('type', 'campaign_complete')
 
-    if (pointError) {
-      console.log('point_history 조회 실패, point_transactions 시도')
+    if (pointError || !pointHistory || pointHistory.length === 0) {
+      console.log('point_history 조회 실패 또는 비어있음, point_transactions 시도')
       // point_transactions 테이블 시도
       const { data: pointTx, error: txError } = await supabaseBiz
         .from('point_transactions')
@@ -44,21 +46,23 @@ exports.handler = async (event) => {
         .ilike('description', '%캠페인 완료%')
 
       if (txError) {
-        throw new Error(`포인트 내역 조회 실패: ${txError.message}`)
+        console.log('point_transactions 조회도 실패:', txError.message)
+      } else {
+        // point_transactions 데이터를 point_history 형태로 변환
+        pointData = (pointTx || []).map(tx => ({
+          user_id: tx.user_id,
+          campaign_id: tx.related_campaign_id,
+          created_at: tx.created_at
+        }))
       }
-
-      // point_transactions 데이터를 point_history 형태로 변환
-      pointHistory = pointTx?.map(tx => ({
-        user_id: tx.user_id,
-        campaign_id: tx.related_campaign_id,
-        created_at: tx.created_at
-      })) || []
+    } else {
+      pointData = pointHistory
     }
 
-    results.pointHistoryChecked = pointHistory?.length || 0
+    results.pointHistoryChecked = pointData.length
     console.log(`포인트 지급 내역: ${results.pointHistoryChecked}건`)
 
-    if (!pointHistory || pointHistory.length === 0) {
+    if (pointData.length === 0) {
       return {
         statusCode: 200,
         body: JSON.stringify({
@@ -70,7 +74,7 @@ exports.handler = async (event) => {
     }
 
     // 2. 각 포인트 지급 내역에 대해 video_submissions 업데이트
-    for (const point of pointHistory) {
+    for (const point of pointData) {
       if (!point.user_id || !point.campaign_id) continue
 
       // Korea DB의 video_submissions 업데이트
