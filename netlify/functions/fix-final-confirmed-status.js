@@ -64,30 +64,40 @@ exports.handler = async (event) => {
       }
     }
 
-    // 2. 각 포인트 지급 내역에 대해 video_submissions 업데이트
+    // 2. 각 application에 대해 video_submissions 업데이트 및 applications에 final_confirmed_at 설정
+    let debugSubmissions = []
+
     for (const point of pointData) {
       if (!point.user_id || !point.campaign_id) continue
 
-      // Korea DB의 video_submissions 업데이트
+      // Korea DB의 video_submissions 조회
       const { data: submissions, error: subError } = await supabaseKorea
         .from('video_submissions')
-        .select('id, final_confirmed_at, status')
+        .select('id, final_confirmed_at, status, user_id, campaign_id')
         .eq('user_id', point.user_id)
         .eq('campaign_id', point.campaign_id)
 
+      debugSubmissions.push({
+        user_id: point.user_id,
+        campaign_id: point.campaign_id,
+        submissions_found: submissions?.length || 0,
+        error: subError?.message,
+        submissions: submissions?.map(s => ({ id: s.id, status: s.status, final_confirmed_at: s.final_confirmed_at }))
+      })
+
       if (subError) {
-        console.log(`video_submissions 조회 실패 (user: ${point.user_id}):`, subError.message)
+        console.log(`video_submissions 조회 실패:`, subError.message)
         continue
       }
 
-      // final_confirmed_at이 없는 submission들 업데이트
+      // video_submissions가 있으면 final_confirmed_at 업데이트
       for (const sub of (submissions || [])) {
         if (!sub.final_confirmed_at) {
           const { error: updateError } = await supabaseKorea
             .from('video_submissions')
             .update({
               status: 'completed',
-              final_confirmed_at: point.created_at // 포인트 지급 시간 사용
+              final_confirmed_at: point.created_at
             })
             .eq('id', sub.id)
 
@@ -101,6 +111,17 @@ exports.handler = async (event) => {
             })
           }
         }
+      }
+
+      // Korea DB의 applications에도 final_confirmed_at 설정
+      const { error: appUpdateError } = await supabaseKorea
+        .from('applications')
+        .update({ final_confirmed_at: point.created_at })
+        .eq('id', point.application_id)
+        .is('final_confirmed_at', null)
+
+      if (!appUpdateError) {
+        results.applicationsUpdated++
       }
 
       // BIZ DB의 applications도 업데이트
@@ -142,7 +163,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         message: `final_confirmed_at 수정 완료`,
-        results
+        results,
+        debugSubmissions: debugSubmissions.slice(0, 5) // 처음 5개만
       })
     }
   } catch (error) {
