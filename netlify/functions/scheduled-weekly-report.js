@@ -201,7 +201,7 @@ async function getCreatorData() {
     }
 
     if (!channelId) {
-      stats.push({ name: creator.name, status: 'no_channel', weeklyUploads: 0, avgViews: 0, subscriberCount: creator.subscriber_count || 0 });
+      stats.push({ name: creator.creator_name, status: 'no_channel', weeklyUploads: 0, avgViews: 0, subscriberCount: creator.subscriber_count || 0 });
       continue;
     }
 
@@ -243,17 +243,17 @@ async function getCreatorData() {
       const lastVideoDate = lastRes.data.items?.[0]?.snippet?.publishedAt;
       const daysSinceUpload = lastVideoDate ? Math.floor((Date.now() - new Date(lastVideoDate).getTime()) / (1000 * 60 * 60 * 24)) : null;
 
-      stats.push({ name: creator.name, status: 'active', weeklyUploads, avgViews, subscriberCount, daysSinceUpload });
+      stats.push({ name: creator.creator_name, status: 'active', weeklyUploads, avgViews, subscriberCount, daysSinceUpload });
 
       // 알림
-      if (daysSinceUpload >= 4) alerts.push({ type: 'stopped', name: creator.name, detail: `${daysSinceUpload}일간 업로드 없음` });
+      if (daysSinceUpload >= 4) alerts.push({ type: 'stopped', name: creator.creator_name, detail: `${daysSinceUpload}일간 업로드 없음` });
 
       // DB 업데이트
       await supabaseBiz.from('affiliated_creators').update({ subscriber_count: subscriberCount, last_checked_at: new Date().toISOString() }).eq('id', creator.id);
 
       await new Promise(resolve => setTimeout(resolve, 500)); // API 제한 방지
     } catch (e) {
-      console.error(`크리에이터 ${creator.name} 분석 오류:`, e.message);
+      console.error(`크리에이터 ${creator.creator_name} 분석 오류:`, e.message);
     }
   }
 
