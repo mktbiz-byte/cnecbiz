@@ -227,6 +227,8 @@ async function generateSeoSuggestions(newsletter, apiKey) {
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
   "category": "카테고리",
   "imagePrompt": "이 뉴스레터에 어울리는 이미지 생성을 위한 영문 프롬프트 (간단명료하게)",
+  "imageAlt": "SEO 최적화된 이미지 대체 텍스트 (핵심 키워드 포함, 50자 내외)",
+  "imageTitle": "이미지 제목 속성 (클릭 시 표시될 설명, 30자 내외)",
   "headings": ["본문에 추가할 소제목1", "본문에 추가할 소제목2"]
 }`
 
@@ -331,14 +333,18 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
     try {
       const aiImageUrl = await generateAiImage(suggestions.imagePrompt, apiKey)
       if (aiImageUrl) {
+        // AI가 생성한 SEO 최적화 이미지 alt/title
+        const imageAlt = suggestions.imageAlt || `${title} - 핵심 인사이트 인포그래픽`
+        const imageTitle = suggestions.imageTitle || `${title} 관련 시각 자료`
+
         // 콘텐츠 중간에 이미지 삽입
         const paragraphs = optimized.split(/<\/p>/i)
         if (paragraphs.length > 2) {
           const insertIdx = Math.floor(paragraphs.length / 2)
-          const imageHtml = `</p><div style="text-align:center;margin:24px 0;"><img src="${aiImageUrl}" alt="${title} 인포그래픽" style="max-width:100%;height:auto;border-radius:8px;" /></div><p>`
+          const imageHtml = `</p><figure style="text-align:center;margin:24px 0;"><img src="${aiImageUrl}" alt="${imageAlt}" title="${imageTitle}" style="max-width:100%;height:auto;border-radius:8px;" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${imageTitle}</figcaption></figure><p>`
           paragraphs.splice(insertIdx, 0, imageHtml)
           optimized = paragraphs.join('</p>')
-          contentChanges.push('AI 이미지 본문 삽입')
+          contentChanges.push(`AI 이미지 삽입 (alt: "${imageAlt.slice(0, 30)}...")`)
         }
       }
     } catch (imgError) {
