@@ -343,22 +343,91 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
 
   // 4. AI 이미지 콘텐츠 중간 삽입 (이미지가 2개 미만일 때)
   const existingImages = (optimized.match(/<img/gi) || []).length
-  if (existingImages < 2 && suggestions.imagePrompt) {
+  if (existingImages < 2) {
     try {
-      const aiImageUrl = await generateAiImage(suggestions.imagePrompt, apiKey)
+      console.log('[auto-fix-seo] Attempting to insert AI image...')
+      const aiImageUrl = await generateAiImage(suggestions.imagePrompt || title, apiKey, title)
+      console.log('[auto-fix-seo] Generated image URL:', aiImageUrl)
+
       if (aiImageUrl) {
         // AI가 생성한 SEO 최적화 이미지 alt/title
-        const imageAlt = suggestions.imageAlt || `${title} - 핵심 인사이트 인포그래픽`
+        const imageAlt = suggestions.imageAlt || `${title} - 핵심 인사이트 이미지`
         const imageTitle = suggestions.imageTitle || `${title} 관련 시각 자료`
 
-        // 콘텐츠 중간에 이미지 삽입
-        const paragraphs = optimized.split(/<\/p>/i)
-        if (paragraphs.length > 2) {
-          const insertIdx = Math.floor(paragraphs.length / 2)
-          const imageHtml = `</p><figure style="text-align:center;margin:24px 0;"><img src="${aiImageUrl}" alt="${imageAlt}" title="${imageTitle}" style="max-width:100%;height:auto;border-radius:8px;" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${imageTitle}</figcaption></figure><p>`
-          paragraphs.splice(insertIdx, 0, imageHtml)
-          optimized = paragraphs.join('</p>')
-          contentChanges.push(`AI 이미지 삽입 (alt: "${imageAlt.slice(0, 30)}...")`)
+        // 이미지 HTML 생성
+        const imageHtml = `<figure style="text-align:center;margin:24px 0;"><img src="${aiImageUrl}" alt="${imageAlt}" title="${imageTitle}" style="max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${imageTitle}</figcaption></figure>`
+
+        let imageInserted = false
+
+        // 방법 1: H2 태그 바로 뒤에 삽입 (가장 좋은 위치)
+        if (!imageInserted && /<h2[^>]*>.*?<\/h2>/i.test(optimized)) {
+          // 첫 번째 H2 태그 뒤에 삽입
+          optimized = optimized.replace(
+            /(<h2[^>]*>.*?<\/h2>)/i,
+            `$1\n${imageHtml}`
+          )
+          imageInserted = true
+          console.log('[auto-fix-seo] Image inserted after H2 heading')
+        }
+
+        // 방법 2: H3 태그 바로 뒤에 삽입
+        if (!imageInserted && /<h3[^>]*>.*?<\/h3>/i.test(optimized)) {
+          optimized = optimized.replace(
+            /(<h3[^>]*>.*?<\/h3>)/i,
+            `$1\n${imageHtml}`
+          )
+          imageInserted = true
+          console.log('[auto-fix-seo] Image inserted after H3 heading')
+        }
+
+        // 방법 3: 첫 번째 <br> 태그 집합 뒤 (Stibee 뉴스레터 형식)
+        if (!imageInserted && /<br\s*\/?>\s*<br\s*\/?>/i.test(optimized)) {
+          optimized = optimized.replace(
+            /(<br\s*\/?>\s*<br\s*\/?>)/i,
+            `$1\n${imageHtml}`
+          )
+          imageInserted = true
+          console.log('[auto-fix-seo] Image inserted after br tags')
+        }
+
+        // 방법 4: 3번째 </p> 태그 뒤에 삽입
+        if (!imageInserted) {
+          let pCount = 0
+          optimized = optimized.replace(/<\/p>/gi, (match) => {
+            pCount++
+            if (pCount === 3 && !imageInserted) {
+              imageInserted = true
+              return `${match}\n${imageHtml}`
+            }
+            return match
+          })
+          if (imageInserted) {
+            console.log('[auto-fix-seo] Image inserted after 3rd paragraph')
+          }
+        }
+
+        // 방법 5: 콘텐츠 시작 부분에 삽입 (최후 수단)
+        if (!imageInserted) {
+          // body나 첫 번째 div 찾기
+          if (/<body[^>]*>/i.test(optimized)) {
+            optimized = optimized.replace(
+              /(<body[^>]*>)/i,
+              `$1\n${imageHtml}`
+            )
+          } else if (/<div[^>]*>/i.test(optimized)) {
+            optimized = optimized.replace(
+              /(<div[^>]*>)/i,
+              `$1\n${imageHtml}`
+            )
+          } else {
+            optimized = imageHtml + optimized
+          }
+          imageInserted = true
+          console.log('[auto-fix-seo] Image inserted at content start')
+        }
+
+        if (imageInserted) {
+          contentChanges.push(`AI 이미지 삽입 (alt: "${imageAlt.slice(0, 25)}...")`)
         }
       }
     } catch (imgError) {
@@ -374,19 +443,16 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
  */
 async function generateAiThumbnail(title, suggestions, apiKey) {
   const prompt = suggestions.imagePrompt || `Professional newsletter thumbnail about: ${title}`
-  return generateAiImage(prompt, apiKey)
+  return generateAiImage(prompt, apiKey, title)
 }
 
 /**
- * AI 이미지 생성 (Gemini Imagen)
+ * AI 키워드 추출 및 이미지 검색
  */
-async function generateAiImage(prompt, apiKey) {
+async function generateAiImage(prompt, apiKey, title = '') {
   try {
-    // Gemini로 이미지 생성용 상세 프롬프트 만들기
-    const enhancedPrompt = `Professional, modern, clean design for business newsletter. ${prompt}. Minimalist style, corporate colors, high quality.`
-
-    // 이미지 생성 API 호출 (Imagen 또는 대체 서비스)
-    const response = await fetch(
+    // AI로 영문 키워드 추출
+    const keywordsResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
@@ -394,31 +460,75 @@ async function generateAiImage(prompt, apiKey) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Generate a placeholder image URL for: ${enhancedPrompt}.
-              Since I cannot actually generate images, please provide a relevant Unsplash image URL that matches this concept.
-              Return ONLY the URL, nothing else. Format: https://images.unsplash.com/...`
+              text: `Extract 2-3 simple English keywords for finding a stock photo related to this topic:
+"${prompt || title}"
+
+Requirements:
+- Only common, general words that would match stock photos
+- Business/marketing/technology related
+- Separate with commas
+- Example output: marketing, business, digital
+
+Return ONLY the keywords, nothing else:`
             }]
           }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 200 }
+          generationConfig: { temperature: 0.3, maxOutputTokens: 50 }
         })
       }
     )
 
-    const result = await response.json()
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const keywordsResult = await keywordsResponse.json()
+    const keywordsText = keywordsResult.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    // URL 추출
-    const urlMatch = text.match(/https:\/\/images\.unsplash\.com\/[^\s"')]+/)
-    if (urlMatch) {
-      return urlMatch[0]
+    // 키워드 정리
+    let keywords = keywordsText.trim().toLowerCase()
+      .replace(/[^a-z,\s]/g, '')
+      .split(/[,\s]+/)
+      .filter(k => k.length > 2)
+      .slice(0, 3)
+
+    if (keywords.length === 0) {
+      keywords = ['marketing', 'business']
     }
 
-    // 기본 Unsplash 이미지 반환
-    return `https://images.unsplash.com/photo-1553484771-047a44eee27b?w=1200&h=630&fit=crop`
+    console.log('[auto-fix-seo] Generated keywords:', keywords)
+
+    // Unsplash Source API 사용 (인증 불필요)
+    const query = keywords.join(',')
+    const imageUrl = `https://source.unsplash.com/1200x630/?${encodeURIComponent(query)}`
+
+    // 이미지 URL 검증 (리다이렉트 따라가서 실제 URL 확인)
+    const checkResponse = await fetch(imageUrl, { method: 'HEAD', redirect: 'follow' })
+    if (checkResponse.ok) {
+      // 실제 리다이렉트된 URL 반환 (고정 이미지)
+      const finalUrl = checkResponse.url
+      console.log('[auto-fix-seo] Image URL:', finalUrl)
+      return finalUrl
+    }
+
+    // 폴백: 기본 비즈니스 이미지
+    return getRandomBusinessImage()
   } catch (error) {
     console.error('[auto-fix-seo] Image generation error:', error)
-    return null
+    return getRandomBusinessImage()
   }
+}
+
+/**
+ * 랜덤 비즈니스 이미지 (검증된 Unsplash 이미지)
+ */
+function getRandomBusinessImage() {
+  const verifiedImages = [
+    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=630&fit=crop', // 마케팅 대시보드
+    'https://images.unsplash.com/photo-1553484771-047a44eee27b?w=1200&h=630&fit=crop', // 팀 미팅
+    'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&h=630&fit=crop', // 비즈니스 미팅
+    'https://images.unsplash.com/photo-1551434678-e076c223a692?w=1200&h=630&fit=crop', // 사무실
+    'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=630&fit=crop', // 협업
+    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=630&fit=crop', // 브레인스토밍
+    'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=630&fit=crop', // 마케팅 전략
+    'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1200&h=630&fit=crop', // 프레젠테이션
+  ]
+  return verifiedImages[Math.floor(Math.random() * verifiedImages.length)]
 }
 
 /**
