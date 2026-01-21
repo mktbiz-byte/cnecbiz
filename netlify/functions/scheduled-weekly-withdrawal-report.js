@@ -535,13 +535,18 @@ exports.handler = async (event, context) => {
       );
     }
 
-    // 엑셀 파일 생성 및 업로드
-    console.log('[Report] 엑셀 파일 생성 중...');
-    const excelUrl = await createAndUploadExcel(allWithdrawals, monday, sunday);
-    if (excelUrl) {
-      console.log('[Report] 엑셀 파일 업로드 완료:', excelUrl);
-    } else {
-      console.log('[Report] 엑셀 파일 생성 실패 (메시지만 발송)');
+    // 엑셀 파일 생성 및 업로드 (실패해도 메시지는 발송)
+    let excelUrl = null;
+    try {
+      console.log('[Report] 엑셀 파일 생성 중...');
+      excelUrl = await createAndUploadExcel(allWithdrawals, monday, sunday);
+      if (excelUrl) {
+        console.log('[Report] 엑셀 파일 업로드 완료:', excelUrl);
+      } else {
+        console.log('[Report] 엑셀 파일 생성 실패 (메시지만 발송)');
+      }
+    } catch (excelError) {
+      console.error('[Report] 엑셀 생성 오류 (메시지만 발송):', excelError.message);
     }
 
     const testLabel = isManualTest ? ' (수동 테스트)' : '';
