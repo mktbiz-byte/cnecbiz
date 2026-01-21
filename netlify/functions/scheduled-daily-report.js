@@ -145,11 +145,13 @@ function getTodayDateStr() {
 // 국가별 캠페인 데이터 수집
 async function getCampaignsByRegion(start, end) {
   const regions = {
-    korea: { client: supabaseKorea || supabaseBiz, name: '한국', data: { active: [], new: [] } },
-    japan: { client: supabaseJapan, name: '일본', data: { active: [], new: [] } },
-    us: { client: supabaseUS, name: '미국', data: { active: [], new: [] } },
     biz: { client: supabaseBiz, name: 'BIZ(통합)', data: { active: [], new: [] } }
   };
+
+  // 추가 리전 (환경변수가 있는 경우만)
+  if (supabaseKorea) regions.korea = { client: supabaseKorea, name: '한국', data: { active: [], new: [] } };
+  if (supabaseJapan) regions.japan = { client: supabaseJapan, name: '일본', data: { active: [], new: [] } };
+  if (supabaseUS) regions.us = { client: supabaseUS, name: '미국', data: { active: [], new: [] } };
 
   for (const [key, region] of Object.entries(regions)) {
     if (!region.client) continue;
@@ -182,11 +184,12 @@ async function getCampaignsByRegion(start, end) {
 // 국가별 신규 기업 데이터 수집
 async function getNewCompaniesByRegion(start, end) {
   const regions = {
-    korea: { client: supabaseKorea || supabaseBiz, name: '한국', data: [] },
-    japan: { client: supabaseJapan, name: '일본', data: [] },
-    us: { client: supabaseUS, name: '미국', data: [] },
     biz: { client: supabaseBiz, name: 'BIZ(통합)', data: [] }
   };
+
+  if (supabaseKorea) regions.korea = { client: supabaseKorea, name: '한국', data: [] };
+  if (supabaseJapan) regions.japan = { client: supabaseJapan, name: '일본', data: [] };
+  if (supabaseUS) regions.us = { client: supabaseUS, name: '미국', data: [] };
 
   for (const [key, region] of Object.entries(regions)) {
     if (!region.client) continue;
@@ -210,11 +213,12 @@ async function getNewCompaniesByRegion(start, end) {
 // 영상 제출 현황 (applications 테이블에서 video_submitted 상태 조회)
 async function getVideoSubmissionsByRegion(start, end) {
   const regions = {
-    korea: { client: supabaseKorea || supabaseBiz, name: '한국', data: [] },
-    japan: { client: supabaseJapan, name: '일본', data: [] },
-    us: { client: supabaseUS, name: '미국', data: [] },
     biz: { client: supabaseBiz, name: 'BIZ(통합)', data: [] }
   };
+
+  if (supabaseKorea) regions.korea = { client: supabaseKorea, name: '한국', data: [] };
+  if (supabaseJapan) regions.japan = { client: supabaseJapan, name: '일본', data: [] };
+  if (supabaseUS) regions.us = { client: supabaseUS, name: '미국', data: [] };
 
   const videoStatuses = ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'];
 
@@ -261,9 +265,10 @@ async function getOverdueCreators() {
   const results = [];
 
   const regions = {
-    korea: { client: supabaseKorea || supabaseBiz, name: '한국' },
     biz: { client: supabaseBiz, name: 'BIZ(통합)' }
   };
+
+  if (supabaseKorea) regions.korea = { client: supabaseKorea, name: '한국' };
 
   // 영상 미제출 상태들 (선정되었지만 아직 영상 제출 안함)
   const notSubmittedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation'];
