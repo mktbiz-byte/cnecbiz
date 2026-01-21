@@ -90,9 +90,10 @@ exports.handler = async (event) => {
         continue
       }
 
-      // video_submissions가 있으면 final_confirmed_at 업데이트 (status는 변경하지 않음 - 체크 제약 조건)
+      // video_submissions가 있으면 final_confirmed_at 업데이트
+      // status='approved'(검수완료)인 영상만 업데이트
       for (const sub of (submissions || [])) {
-        if (!sub.final_confirmed_at) {
+        if (!sub.final_confirmed_at && sub.status === 'approved') {
           const { error: updateError } = await supabaseKorea
             .from('video_submissions')
             .update({
@@ -112,10 +113,18 @@ exports.handler = async (event) => {
             results.details.push({
               type: 'video_submission',
               id: sub.id,
+              status: sub.status,
               user_id: point.user_id,
               campaign_id: point.campaign_id
             })
           }
+        } else if (!sub.final_confirmed_at && sub.status !== 'approved') {
+          results.details.push({
+            type: 'skipped',
+            id: sub.id,
+            status: sub.status,
+            reason: '검수완료(approved) 상태가 아님'
+          })
         }
       }
 
