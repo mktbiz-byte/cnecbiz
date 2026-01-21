@@ -360,17 +360,59 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
     contentChanges.push(`외부 링크 보안 속성 추가 (${linkCount}개)`)
   }
 
-  // 3. 소제목(h2, h3) 구조 확인 및 추가
+  // 3. 소제목(h2, h3) 구조 확인 및 추가 (100점을 위해 필수)
   const hasH2 = /<h2[^>]*>/i.test(optimized)
   const hasH3 = /<h3[^>]*>/i.test(optimized)
 
-  if (!hasH2 && !hasH3 && suggestions.headings && suggestions.headings.length > 0) {
-    // 콘텐츠 중간에 소제목 삽입 시도
+  if (!hasH2 && !hasH3) {
+    // 기본 소제목 생성 (AI 제안 없으면 기본값)
+    const headingText = (suggestions.headings && suggestions.headings[0]) || `${title} 핵심 포인트`
+    const headingHtml = `<h2 style="margin-top:24px;margin-bottom:12px;font-size:20px;font-weight:bold;color:#333;">${headingText}</h2>`
+
+    let headingInserted = false
+
+    // P 태그 기반
     const paragraphs = optimized.split(/<\/p>/i)
-    if (paragraphs.length > 3) {
+    if (!headingInserted && paragraphs.length > 2) {
       const insertIdx = Math.floor(paragraphs.length / 3)
-      paragraphs.splice(insertIdx, 0, `</p><h2 style="margin-top:24px;margin-bottom:12px;font-size:20px;font-weight:bold;">${suggestions.headings[0]}</h2><p>`)
+      paragraphs.splice(insertIdx, 0, `</p>${headingHtml}<p>`)
       optimized = paragraphs.join('</p>')
+      headingInserted = true
+    }
+
+    // BR 태그 기반 (Stibee)
+    if (!headingInserted) {
+      const brSections = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
+      if (brSections.length > 2) {
+        const insertIdx = Math.floor(brSections.length / 3)
+        brSections.splice(insertIdx, 0, `\n${headingHtml}\n`)
+        optimized = brSections.join('<br><br>')
+        headingInserted = true
+      }
+    }
+
+    // DIV 태그 기반
+    if (!headingInserted) {
+      const divs = optimized.split(/<\/div>/i)
+      if (divs.length > 2) {
+        const insertIdx = Math.floor(divs.length / 3)
+        divs.splice(insertIdx, 0, `</div>${headingHtml}<div>`)
+        optimized = divs.join('</div>')
+        headingInserted = true
+      }
+    }
+
+    // 최후 수단: 콘텐츠 시작 부분
+    if (!headingInserted) {
+      if (/<body[^>]*>/i.test(optimized)) {
+        optimized = optimized.replace(/(<body[^>]*>)/i, `$1\n${headingHtml}`)
+      } else {
+        optimized = headingHtml + optimized
+      }
+      headingInserted = true
+    }
+
+    if (headingInserted) {
       contentChanges.push('SEO 소제목(H2) 추가')
     }
   }
@@ -406,83 +448,80 @@ async function optimizeHtmlContent(htmlContent, title, suggestions, apiKey) {
 
       let insertedCount = 0
 
-      // 이미지 삽입 위치들 (우선순위)
-      const insertionMethods = [
-        // 1. 콘텐츠 상단 (첫 번째 div 또는 body 뒤)
-        {
-          name: 'top',
-          test: () => true,
-          insert: (html) => {
-            if (/<body[^>]*>/i.test(optimized)) {
-              optimized = optimized.replace(/(<body[^>]*>)/i, `$1\n${html}`)
-            } else if (/<div[^>]*>/i.test(optimized)) {
-              optimized = optimized.replace(/(<div[^>]*>)/i, `$1\n${html}`)
-            } else {
-              optimized = html + optimized
-            }
-            return true
-          }
-        },
-        // 2. 콘텐츠 중간 (전체 길이의 40% 위치)
-        {
-          name: 'middle',
-          test: () => optimized.length > 500,
-          insert: (html) => {
-            const paragraphs = optimized.split(/<\/p>/i)
-            if (paragraphs.length > 4) {
-              const insertIdx = Math.floor(paragraphs.length * 0.4)
-              paragraphs.splice(insertIdx, 0, `</p>\n${html}\n<p>`)
-              optimized = paragraphs.join('</p>')
-              return true
-            }
-            // br 태그 기반 삽입 (Stibee 형식)
-            const brSections = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
-            if (brSections.length > 3) {
-              const insertIdx = Math.floor(brSections.length * 0.4)
-              brSections.splice(insertIdx, 0, `\n${html}\n`)
-              optimized = brSections.join('<br><br>')
-              return true
-            }
-            return false
-          }
-        },
-        // 3. 콘텐츠 하단 (전체 길이의 75% 위치)
-        {
-          name: 'bottom',
-          test: () => optimized.length > 800,
-          insert: (html) => {
-            const paragraphs = optimized.split(/<\/p>/i)
-            if (paragraphs.length > 5) {
-              const insertIdx = Math.floor(paragraphs.length * 0.75)
-              paragraphs.splice(insertIdx, 0, `</p>\n${html}\n<p>`)
-              optimized = paragraphs.join('</p>')
-              return true
-            }
-            // br 태그 기반 삽입
-            const brSections = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
-            if (brSections.length > 4) {
-              const insertIdx = Math.floor(brSections.length * 0.75)
-              brSections.splice(insertIdx, 0, `\n${html}\n`)
-              optimized = brSections.join('<br><br>')
-              return true
-            }
-            return false
-          }
-        }
-      ]
+      // HTML 구조 감지 (Stibee vs Custom)
+      const isTableBased = /<table/i.test(optimized)
+      const hasParagraphs = (optimized.match(/<\/p>/gi) || []).length > 2
+      const hasBrBreaks = (optimized.match(/<br\s*\/?>\s*<br\s*\/?>/gi) || []).length > 2
+      const hasDivs = (optimized.match(/<\/div>/gi) || []).length > 3
+      const hasTds = (optimized.match(/<\/td>/gi) || []).length > 2
 
-      // 각 이미지 삽입
-      for (let i = 0; i < imageUrls.length && insertedCount < imagesToAdd; i++) {
+      console.log(`[auto-fix-seo] HTML structure: table=${isTableBased}, p=${hasParagraphs}, br=${hasBrBreaks}, div=${hasDivs}, td=${hasTds}`)
+
+      // 범용 이미지 삽입 함수
+      const insertImageAtPosition = (html, position) => {
+        // 위치: 'top', 'middle', 'bottom'
+        const ratio = position === 'top' ? 0.15 : position === 'middle' ? 0.45 : 0.75
+
+        // 1. P 태그 기반 삽입 (커스텀 에디터)
+        if (hasParagraphs) {
+          const parts = optimized.split(/<\/p>/i)
+          const idx = Math.max(1, Math.floor(parts.length * ratio))
+          parts.splice(idx, 0, `</p>\n${html}\n<p>`)
+          optimized = parts.join('</p>')
+          return true
+        }
+
+        // 2. BR 태그 기반 삽입 (Stibee 텍스트)
+        if (hasBrBreaks) {
+          const parts = optimized.split(/<br\s*\/?>\s*<br\s*\/?>/i)
+          const idx = Math.max(1, Math.floor(parts.length * ratio))
+          parts.splice(idx, 0, `\n${html}\n`)
+          optimized = parts.join('<br><br>')
+          return true
+        }
+
+        // 3. TD 태그 기반 삽입 (Stibee 테이블)
+        if (hasTds) {
+          const parts = optimized.split(/<\/td>/i)
+          const idx = Math.max(1, Math.floor(parts.length * ratio))
+          parts.splice(idx, 0, `</td><td style="padding:16px;">${html}</td><td`)
+          optimized = parts.join('</td>')
+          return true
+        }
+
+        // 4. DIV 태그 기반 삽입
+        if (hasDivs) {
+          const parts = optimized.split(/<\/div>/i)
+          const idx = Math.max(1, Math.floor(parts.length * ratio))
+          parts.splice(idx, 0, `</div>\n${html}\n<div>`)
+          optimized = parts.join('</div>')
+          return true
+        }
+
+        // 5. 최후 수단: 문자열 길이 기준
+        const charIdx = Math.floor(optimized.length * ratio)
+        // 가장 가까운 > 태그 찾기
+        let insertIdx = optimized.indexOf('>', charIdx)
+        if (insertIdx === -1) insertIdx = charIdx
+        optimized = optimized.slice(0, insertIdx + 1) + `\n${html}\n` + optimized.slice(insertIdx + 1)
+        return true
+      }
+
+      // 이미지 삽입 위치들
+      const positions = ['top', 'middle', 'bottom']
+
+      // 각 이미지 삽입 (항상 성공하도록)
+      for (let i = 0; i < imagesToAdd && i < imageUrls.length; i++) {
         const imageUrl = imageUrls[i]
         const altText = altTexts[i] || `${title} 이미지 ${i + 1}`
         const titleText = titleTexts[i] || `${title} 관련 자료 ${i + 1}`
+        const position = positions[i] || 'middle'
 
         const imageHtml = `<figure style="text-align:center;margin:24px 0;"><img src="${imageUrl}" alt="${altText}" title="${titleText}" style="max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);" loading="lazy" /><figcaption style="font-size:12px;color:#666;margin-top:8px;">${titleText}</figcaption></figure>`
 
-        const method = insertionMethods[i]
-        if (method && method.test() && method.insert(imageHtml)) {
+        if (insertImageAtPosition(imageHtml, position)) {
           insertedCount++
-          console.log(`[auto-fix-seo] Image ${i + 1} inserted at ${method.name}`)
+          console.log(`[auto-fix-seo] Image ${i + 1} inserted at ${position}`)
         }
       }
 
