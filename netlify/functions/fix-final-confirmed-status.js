@@ -101,7 +101,14 @@ exports.handler = async (event) => {
             })
             .eq('id', sub.id)
 
-          if (!updateError) {
+          if (updateError) {
+            console.log('video_submissions 업데이트 실패:', updateError.message)
+            results.details.push({
+              type: 'video_submission_error',
+              id: sub.id,
+              error: updateError.message
+            })
+          } else {
             results.submissionsUpdated++
             results.details.push({
               type: 'video_submission',
