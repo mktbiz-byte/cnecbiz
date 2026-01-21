@@ -582,7 +582,5 @@ exports.handler = async (event, context) => {
   }
 };
 
-// Netlify Scheduled Function 설정 - 매주 월요일 오전 10시 (한국시간)
-exports.config = {
-  schedule: '0 1 * * 1'  // 매주 월요일 UTC 1시 = 한국시간 10시
-};
+// 스케줄 비활성화 - scheduled-weekly-report.js로 통합됨
+// exports.config = { schedule: '0 1 * * 1' };

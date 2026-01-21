@@ -305,4 +305,5 @@ ${allWithdrawals.length}건 / ${formatNumber(totalAmount)}원
   }
 };
 
-exports.config = { schedule: '0 1 * * 1' };
+// 스케줄 비활성화 - scheduled-weekly-report.js로 통합됨
+// exports.config = { schedule: '0 1 * * 1' };
