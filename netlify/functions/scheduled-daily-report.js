@@ -190,11 +190,24 @@ exports.handler = async (event) => {
       }
     }
 
-    // 네이버웍스 메시지 (3줄)
-    const deadlineAlert = stats.campaigns.deadlineSoon.length > 0 ? `⚠️ 마감임박 ${stats.campaigns.deadlineSoon.length}개` : '✅ 이상없음';
-    const nwMessage = `📊 일일현황 ${today}
-캠페인 ${stats.campaigns.active}개 | 검수대기 ${stats.videos.pendingReview}건
-${deadlineAlert}`;
+    // 네이버웍스 메시지 (5~10줄 요약)
+    const deadlineAlert = stats.campaigns.deadlineSoon.length > 0
+      ? `⚠️ 마감임박 ${stats.campaigns.deadlineSoon.length}개`
+      : '✅ 마감임박 없음';
+
+    const nwMessage = `📊 일일현황 (${today})
+
+📌 캠페인
+• 진행중: ${stats.campaigns.active}개 | 모집중: ${stats.campaigns.recruiting}개
+• ${deadlineAlert}
+
+🎬 영상/검수
+• 업로드: ${stats.videos.uploads}건 | SNS: ${stats.videos.snsUploads}건
+• 검수대기: ${stats.videos.pendingReview}건
+
+👥 회원현황
+• 기업: ${stats.companies.total}개 (+${stats.companies.new})
+• 크리에이터: ${stats.creators.total}명 (+${stats.creators.new})`;
 
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;

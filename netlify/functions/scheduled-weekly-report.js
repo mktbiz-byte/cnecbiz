@@ -283,11 +283,22 @@ exports.handler = async (event) => {
     const totalUploads = activeStats.reduce((sum, s) => sum + s.weeklyUploads, 0);
     const stoppedCount = alerts.filter(a => a.type === 'stopped').length;
 
-    // 3. 네이버웍스 메시지 (간단 요약)
+    // 3. 네이버웍스 메시지 (5~10줄 요약)
+    const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length;
+    const approvedWithdrawals = withdrawals.filter(w => w.status === 'approved').length;
+    const avgViews = activeStats.length > 0 ? Math.round(activeStats.reduce((sum, s) => sum + s.avgViews, 0) / activeStats.length) : 0;
+
     const nwMessage = `📋 주간리포트 (${startStr}~${endStr})
-출금 ${withdrawals.length}건 / ${formatNumber(totalAmount)}원
-크리에이터 ${creators.length}명 / 업로드 ${totalUploads}건
-${stoppedCount > 0 ? `⚠️ 업로드중단 ${stoppedCount}명` : '✅ 이상없음'}`;
+
+💰 출금현황
+• 총 ${withdrawals.length}건 / ${formatNumber(totalAmount)}원
+• 대기 ${pendingWithdrawals}건 | 승인 ${approvedWithdrawals}건
+• 실지급: ${formatNumber(totalNetAmount)}원
+
+👤 크리에이터 (${creators.length}명)
+• 주간 업로드: ${totalUploads}건
+• 평균 조회수: ${formatK(avgViews)}회
+${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅ 전원 활동중'}`;
 
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
