@@ -3,14 +3,22 @@ const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-console.log('[일일리포트] 모듈 로드 완료');
-
 /**
  * 일일 현황 리포트 - 매일 10시 (KST)
  * 네이버웍스: 5~10줄 요약
  * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
- * 수정: 2026-01-21
  */
+
+// 모듈 레벨에서 클라이언트 초기화 (주간 리포트와 동일 패턴)
+const supabaseKorea = process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+  ? createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
+  : null;
+const supabaseJapan = process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+  ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.VITE_SUPABASE_JAPAN_ANON_KEY)
+  : null;
+const supabaseUS = process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY
+  ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.VITE_SUPABASE_US_ANON_KEY)
+  : null;
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -117,20 +125,11 @@ exports.handler = async (event) => {
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   try {
-    // 클라이언트 초기화 (handler 내부에서)
+    // 모듈 레벨에서 초기화된 클라이언트 사용
     const clients = {};
-    if (process.env.VITE_SUPABASE_KOREA_URL && (process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY)) {
-      clients.korea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY);
-    }
-    if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY) {
-      clients.japan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.VITE_SUPABASE_JAPAN_ANON_KEY);
-    }
-    if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY) {
-      clients.us = createClient(process.env.VITE_SUPABASE_US_URL, process.env.VITE_SUPABASE_US_ANON_KEY);
-    }
-    if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      clients.biz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    }
+    if (supabaseKorea) clients.korea = supabaseKorea;
+    if (supabaseJapan) clients.japan = supabaseJapan;
+    if (supabaseUS) clients.us = supabaseUS;
     console.log('[일일리포트] 클라이언트:', Object.keys(clients));
 
     const { start, end, dateStr } = getYesterdayRange();
