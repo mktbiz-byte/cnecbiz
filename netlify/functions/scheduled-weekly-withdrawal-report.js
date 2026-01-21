@@ -2,13 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
 
-// xlsx는 동적으로 로드 (모듈 로딩 실패 방지)
-let XLSX = null;
-try {
-  XLSX = require('xlsx');
-} catch (e) {
-  console.warn('xlsx 모듈 로드 실패 (엑셀 기능 비활성화):', e.message);
-}
+// 엑셀 기능 비활성화 (테스트용)
+const XLSX = null;
 
 /**
  * 매주 월요일 오전 10시 (KST) 출금 신청 주간 보고서 발송
