@@ -14,17 +14,35 @@ const nodemailer = require('nodemailer');
  * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
  */
 
-// Supabase 클라이언트 (멀티-리전)
-const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const supabaseKorea = process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
-  : null;
-const supabaseJapan = process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
-  : null;
-const supabaseUS = process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
-  : null;
+// Supabase 클라이언트 (멀티-리전) - 안전한 초기화
+let supabaseBiz = null;
+let supabaseKorea = null;
+let supabaseJapan = null;
+let supabaseUS = null;
+
+try {
+  if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+} catch (e) { console.error('[BIZ 초기화 오류]', e.message); }
+
+try {
+  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY) {
+    supabaseKorea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY);
+  }
+} catch (e) { console.error('[Korea 초기화 오류]', e.message); }
+
+try {
+  if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY) {
+    supabaseJapan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY);
+  }
+} catch (e) { console.error('[Japan 초기화 오류]', e.message); }
+
+try {
+  if (process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY) {
+    supabaseUS = createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY);
+  }
+} catch (e) { console.error('[US 초기화 오류]', e.message); }
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -395,6 +413,22 @@ async function getNewSignupsByRegion(start, end) {
 exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
+
+  // supabaseBiz 필수 체크
+  if (!supabaseBiz) {
+    console.error('[일일리포트] supabaseBiz 클라이언트 초기화 실패');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: 'Supabase BIZ 클라이언트 초기화 실패',
+        envCheck: {
+          VITE_SUPABASE_BIZ_URL: !!process.env.VITE_SUPABASE_BIZ_URL,
+          SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+        }
+      })
+    };
+  }
 
   try {
     const { start, end } = getYesterdayRange();

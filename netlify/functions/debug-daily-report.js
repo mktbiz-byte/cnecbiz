@@ -12,10 +12,16 @@ exports.handler = async (event, context) => {
   };
 
   try {
-    // 1. 환경변수 체크
+    // 1. 환경변수 체크 (BIZ + 멀티-리전)
     results.tests.envVars = {
       VITE_SUPABASE_BIZ_URL: !!process.env.VITE_SUPABASE_BIZ_URL,
       SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      VITE_SUPABASE_KOREA_URL: !!process.env.VITE_SUPABASE_KOREA_URL,
+      SUPABASE_KOREA_SERVICE_ROLE_KEY: !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY,
+      VITE_SUPABASE_JAPAN_URL: !!process.env.VITE_SUPABASE_JAPAN_URL,
+      SUPABASE_JAPAN_SERVICE_ROLE_KEY: !!process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY,
+      VITE_SUPABASE_US_URL: !!process.env.VITE_SUPABASE_US_URL,
+      SUPABASE_US_SERVICE_ROLE_KEY: !!process.env.SUPABASE_US_SERVICE_ROLE_KEY,
       GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
       NAVER_WORKS_CLIENT_ID: !!process.env.NAVER_WORKS_CLIENT_ID,
       NAVER_WORKS_CLIENT_SECRET: !!process.env.NAVER_WORKS_CLIENT_SECRET,
@@ -47,6 +53,32 @@ exports.handler = async (event, context) => {
       }
     } catch (supaError) {
       results.tests.supabase = { success: false, error: supaError.message };
+    }
+
+    // 2b. 멀티-리전 Supabase 테스트
+    const regionTests = [
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY }
+    ];
+
+    results.tests.multiRegion = {};
+    for (const region of regionTests) {
+      if (region.url && region.key) {
+        try {
+          const client = createClient(region.url, region.key);
+          const { data, error } = await client.from('user_profiles').select('id').limit(1);
+          results.tests.multiRegion[region.name] = {
+            available: true,
+            success: !error,
+            error: error?.message || null
+          };
+        } catch (err) {
+          results.tests.multiRegion[region.name] = { available: true, success: false, error: err.message };
+        }
+      } else {
+        results.tests.multiRegion[region.name] = { available: false, reason: 'env vars missing' };
+      }
     }
 
     // 3. nodemailer 모듈 테스트
