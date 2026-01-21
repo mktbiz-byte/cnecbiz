@@ -81,43 +81,56 @@ exports.handler = async (event) => {
 
     // AI를 통한 SEO 최적화 제안 생성 (항상 실행)
     const aiSuggestions = await generateSeoSuggestions(newsletter, geminiApiKey)
-    console.log('[auto-fix-seo] AI suggestions:', aiSuggestions)
+    console.log('[auto-fix-seo] AI suggestions:', JSON.stringify(aiSuggestions))
 
-    // 1. 제목 최적화 (항상 최적화된 제목 적용)
+    // 현재 상태 체크
+    const currentDesc = newsletter.description || ''
+    const currentTags = (newsletter.tags || '').split(',').filter(t => t.trim())
+    const needsDescription = currentDesc.length < 50
+    const needsTags = currentTags.length < 3
+
+    console.log('[auto-fix-seo] Needs description:', needsDescription, 'current length:', currentDesc.length)
+    console.log('[auto-fix-seo] Needs tags:', needsTags, 'current count:', currentTags.length)
+
+    // 1. 제목 최적화
     if (aiSuggestions.title && aiSuggestions.title !== newsletter.title) {
       updates.title = aiSuggestions.title
       changes.push(`제목 SEO 최적화 (${aiSuggestions.title.length}자)`)
     }
 
-    // 2. 설명 최적화 (없거나 짧으면 생성)
-    const currentDesc = newsletter.description || ''
-    if (aiSuggestions.description && (currentDesc.length < 80 || currentDesc.length > 160)) {
-      updates.description = aiSuggestions.description
-      changes.push(`메타 설명 최적화 (${aiSuggestions.description.length}자)`)
-    } else if (!currentDesc && aiSuggestions.description) {
-      updates.description = aiSuggestions.description
-      changes.push(`메타 설명 자동 생성`)
-    }
-
-    // 3. 태그 추가/보완 (항상 5개 태그 유지)
-    if (aiSuggestions.tags && aiSuggestions.tags.length > 0) {
-      const currentTags = (newsletter.tags || '').split(',').filter(t => t.trim())
-      const suggestedTags = aiSuggestions.tags.slice(0, 5)
-
-      // 기존 태그와 새 태그 병합 (중복 제거)
-      const allTags = [...new Set([...currentTags, ...suggestedTags])].slice(0, 7)
-      const newTagsStr = allTags.join(', ')
-
-      if (newTagsStr !== newsletter.tags) {
-        updates.tags = newTagsStr
-        changes.push(`태그 추가: ${suggestedTags.join(', ')}`)
+    // 2. 설명 최적화 (없거나 50자 미만이면 무조건 생성)
+    if (needsDescription) {
+      if (aiSuggestions.description) {
+        updates.description = aiSuggestions.description
+        changes.push(`메타 설명 생성 (${aiSuggestions.description.length}자)`)
+      } else {
+        // AI 실패 시 제목 기반으로 기본 설명 생성
+        const fallbackDesc = `${newsletter.title}에 대한 상세한 인사이트와 전략을 확인하세요. 크넥 뉴스레터에서 최신 마케팅 트렌드를 만나보세요.`
+        updates.description = fallbackDesc.slice(0, 150)
+        changes.push(`메타 설명 자동 생성 (기본)`)
       }
     }
 
+    // 3. 태그 추가 (3개 미만이면 무조건 추가)
+    if (needsTags) {
+      let newTags = []
+      if (aiSuggestions.tags && aiSuggestions.tags.length > 0) {
+        newTags = aiSuggestions.tags.slice(0, 5)
+      } else {
+        // AI 실패 시 기본 태그 생성
+        newTags = ['마케팅', '인플루언서', '크리에이터', '브랜드', '트렌드']
+      }
+
+      const allTags = [...new Set([...currentTags, ...newTags])].slice(0, 7)
+      updates.tags = allTags.join(', ')
+      changes.push(`태그 추가: ${newTags.join(', ')}`)
+    }
+
     // 4. 카테고리 자동 설정
-    if (aiSuggestions.category && (!newsletter.category || newsletter.category === 'other')) {
-      updates.category = aiSuggestions.category
-      changes.push(`카테고리 설정: ${getCategoryLabel(aiSuggestions.category)}`)
+    if (!newsletter.category || newsletter.category === 'other') {
+      const newCategory = aiSuggestions.category || 'insight'
+      updates.category = newCategory
+      changes.push(`카테고리 설정: ${getCategoryLabel(newCategory)}`)
     }
 
     // 5. HTML 콘텐츠 SEO 최적화
@@ -153,7 +166,6 @@ exports.handler = async (event) => {
     // 변경사항이 있으면 업데이트
     if (Object.keys(updates).length > 0) {
       updates.updated_at = new Date().toISOString()
-      updates.seo_optimized_at = new Date().toISOString()
 
       const { error: updateError } = await supabase
         .from('newsletters')
