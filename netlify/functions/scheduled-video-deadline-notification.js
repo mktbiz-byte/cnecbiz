@@ -558,12 +558,15 @@ exports.handler = async (event, context) => {
         const regionConfig = regions.find(r => r.name === campaign.region);
         const supabase = createClient(regionConfig.url, regionConfig.key);
 
+        // filming: 촬영 중 (영상 미제출)
+        // selected: 선정됨 (가이드 전달 전)
+        // guide_approved: 가이드 승인됨
+        // video_submitted, sns_uploaded, completed 제외 (이미 제출 완료)
         const { data: applications, error: appError } = await supabase
           .from('applications')
           .select('id, user_id, campaign_id, status')
           .eq('campaign_id', campaign.id)
-          .neq('status', 'completed')
-          .in('status', ['selected', 'approved', 'guide_approved']);
+          .in('status', ['filming', 'selected', 'guide_approved']);
 
         if (appError) {
           console.error(`Applications 조회 오류 (campaign ${campaign.id}):`, appError);
