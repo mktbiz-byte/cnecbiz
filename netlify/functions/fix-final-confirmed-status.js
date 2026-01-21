@@ -28,53 +28,53 @@ exports.handler = async (event) => {
       details: []
     }
 
-    // 1. 포인트 지급 내역 조회 - 여러 테이블/조건 시도
+    // 1. 포인트 지급 내역 조회 - Korea DB에서 여러 테이블 시도
     let pointData = []
-    let debugInfo = {}
+    let debugInfo = { biz: {}, korea: {} }
 
-    // 먼저 point_history 테이블 확인
-    const { data: allHistory, error: histError } = await supabaseBiz
-      .from('point_history')
-      .select('*')
-      .limit(5)
-    debugInfo.point_history_sample = allHistory
-    debugInfo.point_history_error = histError?.message
+    // Korea DB에서 테이블 확인
+    const koreaTableNames = ['point_history', 'point_transactions', 'points', 'creator_points', 'creator_point_history']
+    for (const tableName of koreaTableNames) {
+      const { data, error } = await supabaseKorea
+        .from(tableName)
+        .select('*')
+        .limit(3)
+      debugInfo.korea[tableName] = { data: data?.slice(0, 2), error: error?.message }
+    }
 
-    // point_transactions 테이블 확인
-    const { data: allTx, error: txErr } = await supabaseBiz
-      .from('point_transactions')
-      .select('*')
-      .limit(5)
-    debugInfo.point_transactions_sample = allTx
-    debugInfo.point_transactions_error = txErr?.message
+    // BIZ DB에서도 확인
+    const bizTableNames = ['point_history', 'point_transactions', 'points', 'creator_points']
+    for (const tableName of bizTableNames) {
+      const { data, error } = await supabaseBiz
+        .from(tableName)
+        .select('*')
+        .limit(3)
+      debugInfo.biz[tableName] = { data: data?.slice(0, 2), error: error?.message }
+    }
 
-    // points 테이블 확인 (캠페인 완료 관련)
-    const { data: pointsData, error: pointsErr } = await supabaseBiz
-      .from('points')
+    // Korea DB의 creator_points에서 캠페인 완료 데이터 찾기
+    const { data: creatorPoints } = await supabaseKorea
+      .from('creator_points')
       .select('*')
       .or('type.ilike.%완료%,reason.ilike.%완료%,description.ilike.%완료%')
 
-    debugInfo.points_sample = pointsData?.slice(0, 5)
-    debugInfo.points_error = pointsErr?.message
-
-    if (pointsData && pointsData.length > 0) {
-      pointData = pointsData.map(p => ({
-        user_id: p.user_id,
-        campaign_id: p.campaign_id || p.related_campaign_id,
+    if (creatorPoints && creatorPoints.length > 0) {
+      pointData = creatorPoints.map(p => ({
+        user_id: p.user_id || p.creator_id,
+        campaign_id: p.campaign_id,
         created_at: p.created_at
       })).filter(p => p.user_id && p.campaign_id)
     }
 
-    // 데이터가 없으면 디버그 정보 반환
-    if (pointData.length === 0) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          success: false,
-          message: '포인트 지급 내역을 찾을 수 없습니다. 디버그 정보를 확인하세요.',
-          debugInfo
-        })
-      }
+    // 디버그 정보 반환
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: pointData.length > 0,
+        message: pointData.length > 0 ? `${pointData.length}건 발견` : '포인트 지급 내역을 찾을 수 없습니다.',
+        pointDataFound: pointData.length,
+        debugInfo
+      })
     }
 
     results.pointHistoryChecked = pointData.length
