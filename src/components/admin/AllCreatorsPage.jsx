@@ -12,7 +12,8 @@ import {
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
-  Crown, Sparkles, TrendingUp, Coins, Gift
+  Crown, Sparkles, TrendingUp, Coins, Gift,
+  AlertTriangle, AlertOctagon, XOctagon, CheckCircle, Shield, ShieldAlert, ShieldX, ShieldCheck
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import { database } from '../../lib/supabaseKorea'
@@ -27,6 +28,72 @@ const GRADE_LEVELS = {
   3: { name: 'BLOOM', label: '피어나는 중', color: '#8B5CF6', bgClass: 'bg-violet-500', textClass: 'text-violet-600', lightBg: 'bg-violet-50', borderClass: 'border-violet-200' },
   4: { name: 'ICONIC', label: '아이코닉', color: '#EC4899', bgClass: 'bg-pink-500', textClass: 'text-pink-600', lightBg: 'bg-pink-50', borderClass: 'border-pink-200' },
   5: { name: 'MUSE', label: '뮤즈', color: '#F59E0B', bgClass: 'bg-amber-500', textClass: 'text-amber-600', lightBg: 'bg-amber-50', borderClass: 'border-amber-200' }
+}
+
+// 계정 상태 정의 (가계정/찐계정 관리)
+const ACCOUNT_STATUS = {
+  verified: {
+    name: '인증됨',
+    label: '찐계정',
+    icon: 'CheckCircle',
+    bgClass: 'bg-emerald-500',
+    textClass: 'text-emerald-700',
+    lightBg: 'bg-emerald-50',
+    borderClass: 'border-emerald-300',
+    description: '검증된 진짜 계정'
+  },
+  warning_1: {
+    name: '주의',
+    label: 'Level 1',
+    icon: 'AlertTriangle',
+    bgClass: 'bg-yellow-500',
+    textClass: 'text-yellow-700',
+    lightBg: 'bg-yellow-50',
+    borderClass: 'border-yellow-300',
+    description: '의심 신호 약간 - 팔로워 대비 참여율 낮음, 급격한 팔로워 증가'
+  },
+  warning_2: {
+    name: '경고',
+    label: 'Level 2',
+    icon: 'AlertOctagon',
+    bgClass: 'bg-orange-500',
+    textClass: 'text-orange-700',
+    lightBg: 'bg-orange-50',
+    borderClass: 'border-orange-300',
+    description: '명확한 부정 신호 - 봇 팔로워 의심, 비정상적 활동 패턴'
+  },
+  warning_3: {
+    name: '위험',
+    label: 'Level 3',
+    icon: 'XOctagon',
+    bgClass: 'bg-red-500',
+    textClass: 'text-red-700',
+    lightBg: 'bg-red-50',
+    borderClass: 'border-red-300',
+    description: '확인된 가계정 - 팔로워 구매 확인, 다수 부정 지표'
+  }
+}
+
+// 주의 단계 기준 (향후 자동 분류용)
+const WARNING_CRITERIA = {
+  level_1: [
+    '팔로워 대비 좋아요 비율 1% 미만',
+    '최근 30일 내 팔로워 20% 이상 급증',
+    '댓글이 대부분 이모지만 있음',
+    '게시물 당 참여율 0.5% 미만'
+  ],
+  level_2: [
+    '팔로워 대비 좋아요 비율 0.5% 미만',
+    '팔로워 중 비활성 계정 30% 이상',
+    '동일한 댓글이 반복됨',
+    '팔로워 급증 후 급감 이력'
+  ],
+  level_3: [
+    '팔로워 구매 서비스 사용 확인',
+    '팔로워 대비 좋아요 비율 0.1% 미만',
+    '봇 팔로워 50% 이상 추정',
+    '조회수 조작 확인'
+  ]
 }
 
 // 페이지당 아이템 수
@@ -169,6 +236,13 @@ export default function AllCreatorsPage() {
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(1)
   const [savingGrade, setSavingGrade] = useState(false)
 
+  // 계정 상태 (가계정/찐계정) 관련 상태
+  const [accountStatusFilter, setAccountStatusFilter] = useState('all')
+  const [showAccountStatusModal, setShowAccountStatusModal] = useState(false)
+  const [selectedAccountStatus, setSelectedAccountStatus] = useState(null)
+  const [accountStatusNote, setAccountStatusNote] = useState('')
+  const [savingAccountStatus, setSavingAccountStatus] = useState(false)
+
   // 일괄 등급 변경 상태
   const [showBulkGradeModal, setShowBulkGradeModal] = useState(false)
   const [bulkGradeLevel, setBulkGradeLevel] = useState(1)
@@ -195,10 +269,10 @@ export default function AllCreatorsPage() {
     fetchFeaturedCreators()
   }, [])
 
-  // 탭이나 검색어, 등급필터 변경 시 페이지 초기화
+  // 탭이나 검색어, 등급필터, 계정상태필터 변경 시 페이지 초기화
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab, searchTerm, gradeFilter])
+  }, [activeTab, searchTerm, gradeFilter, accountStatusFilter])
 
   const checkAuth = async () => {
     const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -675,6 +749,17 @@ export default function AllCreatorsPage() {
           const grade = getCreatorGrade(creator.id)
           return grade && grade.level === gradeLevel
         })
+      }
+    }
+
+    // 계정 상태 필터 (가계정/찐계정)
+    if (accountStatusFilter !== 'all') {
+      if (accountStatusFilter === 'unclassified') {
+        // 미분류 계정
+        filtered = filtered.filter(creator => !creator.account_status)
+      } else {
+        // 특정 상태 (verified, warning_1, warning_2, warning_3)
+        filtered = filtered.filter(creator => creator.account_status === accountStatusFilter)
       }
     }
 
@@ -1340,6 +1425,92 @@ export default function AllCreatorsPage() {
     )
   }
 
+  // 계정 상태 뱃지 컴포넌트 (가계정/찐계정 표시)
+  const AccountStatusBadge = ({ status, showLabel = false, size = 'sm' }) => {
+    if (!status) return null
+
+    const statusInfo = ACCOUNT_STATUS[status]
+    if (!statusInfo) return null
+
+    const sizeClasses = size === 'lg'
+      ? 'px-3 py-1.5 text-sm gap-2'
+      : 'px-2 py-0.5 text-xs gap-1'
+
+    const iconSize = size === 'lg' ? 'w-4 h-4' : 'w-3 h-3'
+
+    return (
+      <span className={`inline-flex items-center ${sizeClasses} rounded-full font-bold ${statusInfo.lightBg} ${statusInfo.textClass} border-2 ${statusInfo.borderClass}`}>
+        {status === 'verified' && <ShieldCheck className={iconSize} />}
+        {status === 'warning_1' && <AlertTriangle className={iconSize} />}
+        {status === 'warning_2' && <ShieldAlert className={iconSize} />}
+        {status === 'warning_3' && <ShieldX className={iconSize} />}
+        {statusInfo.name}
+        {showLabel && <span className="opacity-70">({statusInfo.label})</span>}
+      </span>
+    )
+  }
+
+  // 계정 상태 저장 함수
+  const handleSaveAccountStatus = async () => {
+    if (!selectedCreator) return
+
+    setSavingAccountStatus(true)
+    try {
+      // 지역에 따라 적절한 Supabase 클라이언트 선택
+      const dbRegion = selectedCreator.dbRegion || 'korea'
+      let supabase
+      switch (dbRegion) {
+        case 'japan': supabase = supabaseJapan; break
+        case 'us': supabase = supabaseUS; break
+        default: supabase = supabaseKorea
+      }
+
+      const updateData = {
+        account_status: selectedAccountStatus,
+        account_status_note: accountStatusNote || null,
+        account_status_updated_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .update(updateData)
+        .eq('id', selectedCreator.id)
+
+      if (error) throw error
+
+      // 로컬 상태 업데이트
+      setCreators(prev => {
+        const updated = { ...prev }
+        const regionKey = dbRegion
+        updated[regionKey] = updated[regionKey].map(c =>
+          c.id === selectedCreator.id
+            ? { ...c, ...updateData }
+            : c
+        )
+        return updated
+      })
+
+      // 선택된 크리에이터 정보도 업데이트
+      setSelectedCreator(prev => ({ ...prev, ...updateData }))
+
+      alert('계정 상태가 저장되었습니다.')
+      setShowAccountStatusModal(false)
+    } catch (error) {
+      console.error('계정 상태 저장 오류:', error)
+      alert('계정 상태 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAccountStatus(false)
+    }
+  }
+
+  // 계정 상태 모달 열기
+  const openAccountStatusModal = (creator) => {
+    setSelectedCreator(creator)
+    setSelectedAccountStatus(creator.account_status || null)
+    setAccountStatusNote(creator.account_status_note || '')
+    setShowAccountStatusModal(true)
+  }
+
   const CreatorTable = ({ creatorList, region }) => {
     const filtered = filterCreators(creatorList)
 
@@ -1367,6 +1538,7 @@ export default function AllCreatorsPage() {
               </th>
               <th className="text-left p-1.5 font-medium text-gray-600">이름</th>
               <th className="text-left p-1.5 font-medium text-gray-600">등급</th>
+              <th className="text-left p-1.5 font-medium text-gray-600">계정</th>
               <th className="text-left p-1.5 font-medium text-gray-600">이메일</th>
               <th className="text-left p-1.5 font-medium text-gray-600">휴대폰</th>
               <th className="text-left p-1.5 font-medium text-gray-600">SNS</th>
@@ -1417,6 +1589,18 @@ export default function AllCreatorsPage() {
                   </td>
                   <td className="p-1.5">
                     <GradeBadge creatorId={creator.id} />
+                  </td>
+                  <td className="p-1.5" onClick={(e) => e.stopPropagation()}>
+                    {creator.account_status ? (
+                      <AccountStatusBadge status={creator.account_status} />
+                    ) : (
+                      <button
+                        onClick={() => openAccountStatusModal(creator)}
+                        className="text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 px-2 py-0.5 rounded"
+                      >
+                        미분류
+                      </button>
+                    )}
                   </td>
                   <td className="p-1.5 text-gray-600 truncate max-w-[180px]">{creator.email || '-'}</td>
                   <td className="p-1.5">
@@ -1644,6 +1828,75 @@ export default function AllCreatorsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* 계정 상태 필터 (가계정/찐계정) */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    <Shield className="w-4 h-4" /> 계정 필터:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setAccountStatusFilter('all')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        accountStatusFilter === 'all'
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      전체
+                    </button>
+                    <button
+                      onClick={() => setAccountStatusFilter('verified')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                        accountStatusFilter === 'verified'
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3 h-3" /> 찐계정
+                    </button>
+                    <button
+                      onClick={() => setAccountStatusFilter('warning_1')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                        accountStatusFilter === 'warning_1'
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                      }`}
+                    >
+                      <AlertTriangle className="w-3 h-3" /> 주의
+                    </button>
+                    <button
+                      onClick={() => setAccountStatusFilter('warning_2')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                        accountStatusFilter === 'warning_2'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+                      }`}
+                    >
+                      <ShieldAlert className="w-3 h-3" /> 경고
+                    </button>
+                    <button
+                      onClick={() => setAccountStatusFilter('warning_3')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                        accountStatusFilter === 'warning_3'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      <ShieldX className="w-3 h-3" /> 위험
+                    </button>
+                    <button
+                      onClick={() => setAccountStatusFilter('unclassified')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        accountStatusFilter === 'unclassified'
+                          ? 'bg-gray-500 text-white'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      미분류
+                    </button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1721,6 +1974,9 @@ export default function AllCreatorsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-xl font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
                     <GradeBadge creatorId={selectedCreator.id} showLabel />
+                    {selectedCreator.account_status && (
+                      <AccountStatusBadge status={selectedCreator.account_status} showLabel />
+                    )}
                   </div>
                   <p className="text-gray-500">{selectedCreator.email}</p>
                   {selectedCreator.phone && (
@@ -1729,6 +1985,43 @@ export default function AllCreatorsPage() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              {/* 계정 상태 설정 (가계정/찐계정) */}
+              <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> 계정 상태
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openAccountStatusModal(selectedCreator)}
+                    className="text-xs"
+                  >
+                    <ShieldAlert className="w-3 h-3 mr-1" />
+                    상태 설정
+                  </Button>
+                </div>
+                {selectedCreator.account_status ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AccountStatusBadge status={selectedCreator.account_status} size="lg" showLabel />
+                    </div>
+                    {selectedCreator.account_status_note && (
+                      <p className="text-sm text-gray-600 bg-white rounded-lg p-2 border">
+                        <span className="font-medium">메모:</span> {selectedCreator.account_status_note}
+                      </p>
+                    )}
+                    {selectedCreator.account_status_updated_at && (
+                      <p className="text-xs text-gray-400">
+                        최종 업데이트: {new Date(selectedCreator.account_status_updated_at).toLocaleString('ko-KR')}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">계정 상태가 설정되지 않았습니다. (미분류)</p>
+                )}
               </div>
 
               {/* SNS 정보 */}
@@ -2410,6 +2703,189 @@ export default function AllCreatorsPage() {
               className="bg-purple-500 hover:bg-purple-600"
             >
               {savingGrade ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  저장
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 계정 상태 설정 모달 (가계정/찐계정) */}
+      <Dialog open={showAccountStatusModal} onOpenChange={setShowAccountStatusModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-indigo-500" />
+              계정 상태 설정
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCreator && (
+            <div className="space-y-6">
+              {/* 크리에이터 정보 */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                  {selectedCreator.profile_image ? (
+                    <img src={selectedCreator.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-6 h-6 text-indigo-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
+                  <p className="text-sm text-gray-500">{selectedCreator.email}</p>
+                </div>
+              </div>
+
+              {/* 상태 선택 */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">계정 상태 선택</label>
+
+                {/* 찐계정 (인증됨) */}
+                <button
+                  onClick={() => setSelectedAccountStatus('verified')}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    selectedAccountStatus === 'verified'
+                      ? 'border-emerald-400 bg-emerald-50'
+                      : 'border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-bold text-emerald-700">찐계정 (인증됨)</p>
+                    <p className="text-xs text-gray-500">검증된 진짜 계정 - 정상적인 활동 확인</p>
+                  </div>
+                  {selectedAccountStatus === 'verified' && (
+                    <Check className="w-5 h-5 text-emerald-600" />
+                  )}
+                </button>
+
+                {/* 주의 레벨 */}
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-xs text-gray-500 mb-2 font-medium">⚠️ 주의 단계 (가계정 의심)</p>
+                </div>
+
+                {/* Level 1 - 주의 */}
+                <button
+                  onClick={() => setSelectedAccountStatus('warning_1')}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    selectedAccountStatus === 'warning_1'
+                      ? 'border-yellow-400 bg-yellow-50'
+                      : 'border-gray-100 hover:border-yellow-200 hover:bg-yellow-50/50'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-white">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-bold text-yellow-700">Level 1 - 주의</p>
+                    <p className="text-xs text-gray-500">팔로워 대비 참여율 낮음, 급격한 팔로워 증가</p>
+                  </div>
+                  {selectedAccountStatus === 'warning_1' && (
+                    <Check className="w-5 h-5 text-yellow-600" />
+                  )}
+                </button>
+
+                {/* Level 2 - 경고 */}
+                <button
+                  onClick={() => setSelectedAccountStatus('warning_2')}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    selectedAccountStatus === 'warning_2'
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'border-gray-100 hover:border-orange-200 hover:bg-orange-50/50'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white">
+                    <ShieldAlert className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-bold text-orange-700">Level 2 - 경고</p>
+                    <p className="text-xs text-gray-500">명확한 부정 신호, 봇 팔로워 의심</p>
+                  </div>
+                  {selectedAccountStatus === 'warning_2' && (
+                    <Check className="w-5 h-5 text-orange-600" />
+                  )}
+                </button>
+
+                {/* Level 3 - 위험 */}
+                <button
+                  onClick={() => setSelectedAccountStatus('warning_3')}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    selectedAccountStatus === 'warning_3'
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-gray-100 hover:border-red-200 hover:bg-red-50/50'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white">
+                    <ShieldX className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-bold text-red-700">Level 3 - 위험</p>
+                    <p className="text-xs text-gray-500">확인된 가계정, 팔로워 구매 확인</p>
+                  </div>
+                  {selectedAccountStatus === 'warning_3' && (
+                    <Check className="w-5 h-5 text-red-600" />
+                  )}
+                </button>
+              </div>
+
+              {/* 메모 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">메모 (선택사항)</label>
+                <Textarea
+                  value={accountStatusNote}
+                  onChange={(e) => setAccountStatusNote(e.target.value)}
+                  placeholder="계정 상태 설정 이유나 특이사항을 기록하세요..."
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+
+              {/* 주의 단계 기준 안내 */}
+              <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
+                <p className="font-semibold mb-2">📋 주의 단계 판단 기준</p>
+                <ul className="space-y-1">
+                  <li><span className="text-yellow-600 font-medium">Lv.1:</span> 팔로워 대비 좋아요 1% 미만, 30일 내 팔로워 20%↑</li>
+                  <li><span className="text-orange-600 font-medium">Lv.2:</span> 좋아요 0.5% 미만, 비활성 팔로워 30%↑, 동일 댓글 반복</li>
+                  <li><span className="text-red-600 font-medium">Lv.3:</span> 팔로워 구매 확인, 좋아요 0.1% 미만, 봇 50%↑</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            {selectedCreator?.account_status && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedAccountStatus(null)
+                  setAccountStatusNote('')
+                }}
+                disabled={savingAccountStatus}
+                className="text-gray-600"
+              >
+                상태 초기화
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowAccountStatusModal(false)} disabled={savingAccountStatus}>
+              취소
+            </Button>
+            <Button
+              onClick={handleSaveAccountStatus}
+              disabled={savingAccountStatus}
+              className="bg-indigo-500 hover:bg-indigo-600"
+            >
+              {savingAccountStatus ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   저장 중...

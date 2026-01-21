@@ -650,49 +650,58 @@ export default function WithdrawalManagement() {
             if (error) throw error
           }
 
-          // 알림톡 발송
+          // 이메일 발송 (승인 시에는 알림톡 없이 이메일만)
           try {
-            let creatorPhone = null
+            let creatorEmail = null
             const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
             const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
 
             if (withdrawal.user_id && supabaseKorea) {
               const { data: profileData } = await supabaseKorea
                 .from('user_profiles')
-                .select('phone')
+                .select('email')
                 .eq('id', withdrawal.user_id)
                 .maybeSingle()
-              creatorPhone = profileData?.phone
+              creatorEmail = profileData?.email
 
-              if (!creatorPhone) {
+              if (!creatorEmail) {
                 const { data: profileData2 } = await supabaseKorea
                   .from('user_profiles')
-                  .select('phone')
+                  .select('email')
                   .eq('user_id', withdrawal.user_id)
                   .maybeSingle()
-                creatorPhone = profileData2?.phone
+                creatorEmail = profileData2?.email
               }
             }
 
-            if (creatorPhone) {
+            if (creatorEmail) {
               await axios.post(
-                `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                `${baseUrl}/.netlify/functions/send-email`,
                 {
-                  receiverNum: creatorPhone,
-                  receiverName: creatorName,
-                  templateCode: '025100001019',
-                  variables: {
-                    '크리에이터명': creatorName,
-                    '출금금액': withdrawalAmount.toLocaleString(),
-                    '신청일': new Date().toLocaleDateString('ko-KR')
-                  }
+                  to: creatorEmail,
+                  subject: '[CNEC] 출금 신청이 승인되었습니다',
+                  html: `
+                    <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 승인 안내</h2>
+                      <p style="color: #333; line-height: 1.6;">안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p style="color: #333; line-height: 1.6;">신청하신 출금이 승인되었습니다.</p>
+                      <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>출금 신청 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                        <p style="margin: 0;"><strong>승인일:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
+                      </div>
+                      <p style="color: #333; line-height: 1.6;">곧 등록하신 계좌로 입금될 예정입니다.<br/>입금 완료 시 별도로 안내드리겠습니다.</p>
+                      <p style="color: #666; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 드림</p>
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                      <p style="color: #999; font-size: 12px;">문의: 1833-6025</p>
+                    </div>
+                  `
                 },
-                { timeout: 8000 }
+                { timeout: 10000 }
               )
-              console.log(`알림톡 발송 완료: ${creatorName}`)
+              console.log(`이메일 발송 완료: ${creatorName}`)
             }
           } catch (notifyError) {
-            console.error('알림톡 발송 오류:', notifyError)
+            console.error('이메일 발송 오류:', notifyError)
           }
 
           successCount++
@@ -924,58 +933,78 @@ export default function WithdrawalManagement() {
           if (error) throw error
         }
 
-        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        // 이메일 발송 (승인 시에는 알림톡 없이 이메일만)
         try {
-          let creatorPhone = null
+          let creatorEmail = null
           const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
           const withdrawalAmount = selectedWithdrawal.requested_amount || selectedWithdrawal.amount || 0
 
-          // 전화번호 조회
+          // 이메일 조회
           if (selectedWithdrawal.user_id && supabaseKorea) {
             const { data: profileData } = await supabaseKorea
               .from('user_profiles')
-              .select('phone')
+              .select('email')
               .eq('id', selectedWithdrawal.user_id)
               .maybeSingle()
 
-            creatorPhone = profileData?.phone
+            creatorEmail = profileData?.email
 
             // id로 못 찾으면 user_id로 재시도
-            if (!creatorPhone) {
+            if (!creatorEmail) {
               const { data: profileData2 } = await supabaseKorea
                 .from('user_profiles')
-                .select('phone')
+                .select('email')
                 .eq('user_id', selectedWithdrawal.user_id)
                 .maybeSingle()
-              creatorPhone = profileData2?.phone
+              creatorEmail = profileData2?.email
             }
           }
 
-          if (creatorPhone) {
-            console.log('출금 승인 알림톡 발송:', creatorName, creatorPhone)
-            // 출금 승인 알림톡 발송 - 템플릿 025100001019 사용
+          if (creatorEmail) {
+            console.log('출금 승인 이메일 발송:', creatorName, creatorEmail)
             const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
             await axios.post(
-              `${baseUrl}/.netlify/functions/send-kakao-notification`,
+              `${baseUrl}/.netlify/functions/send-email`,
               {
-                receiverNum: creatorPhone,
-                receiverName: creatorName,
-                templateCode: '025100001019',
-                variables: {
-                  '크리에이터명': creatorName,
-                  '출금금액': withdrawalAmount.toLocaleString(),
-                  '신청일': new Date().toLocaleDateString('ko-KR')
-                }
+                to: creatorEmail,
+                subject: '[CNEC] 출금 신청이 승인되었습니다',
+                html: `
+                  <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 승인 안내</h2>
+                    <p style="color: #333; line-height: 1.6;">
+                      안녕하세요, <strong>${creatorName}</strong>님!
+                    </p>
+                    <p style="color: #333; line-height: 1.6;">
+                      신청하신 출금이 승인되었습니다.
+                    </p>
+                    <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                      <p style="margin: 0 0 10px 0;"><strong>출금 신청 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                      <p style="margin: 0;"><strong>승인일:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
+                    </div>
+                    <p style="color: #333; line-height: 1.6;">
+                      곧 등록하신 계좌로 입금될 예정입니다.<br/>
+                      입금 완료 시 별도로 안내드리겠습니다.
+                    </p>
+                    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                      감사합니다.<br/>
+                      CNEC 드림
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                    <p style="color: #999; font-size: 12px;">
+                      문의: 1833-6025
+                    </p>
+                  </div>
+                `
               },
-              { timeout: 8000 }
+              { timeout: 10000 }
             )
-            console.log('출금 승인 알림톡 발송 완료')
+            console.log('출금 승인 이메일 발송 완료')
           } else {
-            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+            console.log('크리에이터 이메일 없음, 이메일 미발송')
           }
         } catch (notifyError) {
-          console.error('알림톡 발송 오류:', notifyError)
-          // 알림톡 실패해도 승인 처리는 완료된 것으로 처리
+          console.error('이메일 발송 오류:', notifyError)
+          // 이메일 실패해도 승인 처리는 완료된 것으로 처리
         }
 
         alert('승인되었습니다.')

@@ -32,7 +32,9 @@ exports.handler = async (event) => {
     const {
       creatorAnalysis,  // SNS 분석 결과
       productInfo,      // 제품 정보
-      baseGuide         // 기본 가이드
+      baseGuide,        // 기본 가이드
+      guideStyle,       // 가이드 스타일 (신규)
+      additionalNotes   // 추가 요청사항 (신규)
     } = JSON.parse(event.body || '{}')
 
     if (!creatorAnalysis || !productInfo) {
@@ -41,6 +43,11 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ error: 'Missing required parameters' })
       }
+    }
+
+    // 스타일 정보 로깅
+    if (guideStyle) {
+      console.log('[generate-personalized-guide] Using guide style:', guideStyle.name || guideStyle.id)
     }
 
     console.log('[generate-personalized-guide] Starting guide generation for:', productInfo.product_name)
@@ -55,25 +62,33 @@ exports.handler = async (event) => {
 
     // Gemini 모델 초기화
     const genai = new GoogleGenerativeAI(apiKey)
-    // 개인화 가이드: 복잡한 콘텐츠 생성 → gemini-2.5-flash (품질 중요)
-    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    // 개인화 가이드: 속도 우선 → gemini-2.0-flash-lite (504 타임아웃 방지)
+    const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
-    // 맞춤형 가이드 생성 프롬프트
-    const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 다음 크리에이터의 스타일에 맞는 **숏폼 콘텐츠 촬영 가이드**를 JSON 형식으로 작성해주세요.
+    // 아이 제품 여부 판단
+    const isChildProduct = (productInfo.category || '').toLowerCase().includes('아이') ||
+                          (productInfo.category || '').toLowerCase().includes('baby') ||
+                          (productInfo.category || '').toLowerCase().includes('kid') ||
+                          (productInfo.category || '').toLowerCase().includes('유아') ||
+                          (productInfo.product_name || '').toLowerCase().includes('아이') ||
+                          (productInfo.product_name || '').toLowerCase().includes('baby')
 
-**중요 가이드라인:**
-1. **이모티콘 사용 금지**: 절대로 이모티콘을 사용하지 마세요
-2. **B&A (Before & After) 중심 구성**: 제품 사용 전/후를 명확히 대비
-3. **첫 장면 (1번)은 반드시 후킹력 강한 장면**: 시청자의 시선을 즉시 사로잡는 자극적이고 강렬한 오프닝
-4. **정확히 10개의 촬영 장면**: 반드시 10개로 구성, 각 장면마다 구체적인 대사 포함
-5. **기업 요청사항 반영**: 아래 제품 정보와 핵심 포인트를 충실히 반영
-6. **유튜브 형식의 자연스러운 대사**: 일상적이고 진솔한 말투로 작성
-   - 예시: "요즘 이거 쓰고 있는데요", "솔직히 이거 좋더라고요", "이거 쓰고 나서 이런 변화가 있었어요"
-   - 과도하게 자극적이거나 광고 같은 표현은 피하고, 진솔한 후기 느낌으로 작성
-7. **성분 설명 최소화**: 효과와 결과 중심으로 작성
-8. **1인 리뷰 형태 (필수)**: 반드시 혼자서 촬영하는 개인 리뷰
-9. **친근한 대사**: 반말 또는 존댓말 혼용으로 친구에게 말하듯 편안한 톤
-10. **한국인 감성**: "대박", "진짜", "완전" 등 한국인이 자주 쓰는 표현 활용
+    // 맞춤형 가이드 생성 프롬프트 - 크넥 콘텐츠 철학 반영
+    const prompt = `당신은 **크넥(CNEC)**의 영상 촬영 기획 가이드를 작성하는 전문가입니다.
+
+## 🎯 크넥 콘텐츠 철학 (반드시 준수)
+
+**핵심 원칙: "공감형 콘텐츠"**
+- ✅ 추구하는 것: 나의 스타일, 나의 생활 속에서 녹아든 진심어린 리뷰
+- ✅ 시청자가 "이 사람의 실제 생활이구나"라고 느낄 수 있는 자연스러움
+- ✅ B&A(Before & After)도 스토리텔링과 함께 자연스럽게 표현
+
+**절대 규칙:**
+1. 혼자 리뷰 원칙: 가족, 친구 등 타인 출연 금지 (본인만 촬영)
+${isChildProduct ? '2. ⚠️ 아이 제품이므로: 아이가 반드시 함께 출연해야 함 (예외 적용)' : '2. 본인 외 타인 출연 없이 1인 리뷰로 진행'}
+3. 연기 금지: 진짜가 아닌 상황을 연출하면 안 됨 (있는 그대로의 상황만)
+4. 기획력 있는 스토리텔링: 영상의 흐름이 자연스럽게 이어지는 구조
+5. ⚠️ 단점 노출 금지: 이 영상은 광고 목적이므로 제품의 단점이나 아쉬운 점을 언급하지 않음
 
 ---
 
@@ -86,118 +101,220 @@ exports.handler = async (event) => {
 ## 크리에이터 분석
 - **플랫폼**: ${creatorAnalysis.platform || 'instagram'}
 - **팔로워**: ${(creatorAnalysis.followers || 0).toLocaleString()}명
-- **평균 참여율**: ${creatorAnalysis.contentAnalysis?.engagementRate || 5}%
 - **콘텐츠 톤**: ${creatorAnalysis.style?.tone || '친근하고 자연스러운'}
 - **주요 토픽**: ${(creatorAnalysis.style?.topics || ['라이프스타일']).join(', ')}
 
-${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바탕으로 커스터마이징해주세요.` : ''}
+${baseGuide ? `## 기본 가이드 (기업 작성 - 반드시 반영할 것!)\n${baseGuide}\n\n⚠️ 위 기본 가이드는 기업이 직접 작성한 내용이므로 반드시 가이드에 반영해주세요.` : ''}
+
+${guideStyle ? `---
+
+## 🎨 선택된 콘텐츠 스타일: ${guideStyle.name}
+
+${guideStyle.promptModifier}
+
+**영상 구조 힌트:** ${guideStyle.structureHint || ''}
+**핵심 톤 키워드:** ${(guideStyle.toneKeywords || []).join(', ')}
+
+⚠️ 위 스타일 특성을 반드시 가이드 전체에 반영해주세요. 씬 구성, 대사, 톤 모두 이 스타일에 맞게 작성합니다.
+` : ''}
+
+${additionalNotes ? `---
+
+## 📝 기업 추가 요청사항 (반드시 반영!)
+
+${additionalNotes}
+
+⚠️ 위 추가 요청사항은 기업이 직접 입력한 내용이므로 가이드에 반드시 반영해주세요.
+` : ''}
 
 ---
 
-# 출력 형식 (JSON)
+## 📋 가이드 작성 방식
+
+**크리에이터의 실제 생활/스타일 정보가 부족할 경우:**
+- "자율 기획 공간"을 제공하되, 예시 시나리오를 함께 제시
+- 예시 시나리오는 위아래 씬이 자연스럽게 이어지도록 구성
+- 크리에이터가 자신의 진짜 상황에 맞게 변형할 수 있는 여지를 줌
+
+다음 JSON 형식으로 작성해주세요:
 
 {
   "campaign_title": "${productInfo.brand || ''} ${productInfo.product_name || ''} 촬영 가이드",
+  "brand_info": {
+    "brand": "${productInfo.brand || ''}",
+    "product": "${productInfo.product_name || ''}",
+    "product_url": "",
+    "deadline": ""
+  },
+  "content_philosophy": {
+    "core_message": "이 영상에서 전달하고 싶은 핵심 감정/공감 포인트",
+    "authenticity_note": "진정성을 살리기 위한 핵심 조언",
+    "avoid": ["피해야 할 뻔한 표현들", "식상한 구성들"]
+  },
   "target_platform": "${creatorAnalysis.platform || 'instagram'}",
   "video_duration": "${productInfo.video_duration || '30-60초'}",
+  "shooting_concept": "전체 영상 컨셉을 2-3문장으로 설명 (공감형 스토리텔링 관점에서)",
+  "story_flow": {
+    "narrative_type": "일상 속 발견형 / 고민 해결형 / 습관 형성형 / 감정 공유형 중 선택",
+    "emotional_arc": "영상의 감정 흐름 설명 (예: 불편함 → 발견 → 만족 → 일상화)"
+  },
   "shooting_scenes": [
     {
       "order": 1,
-      "scene_type": "후킹 장면",
-      "scene_description": "극적인 문제 상황 또는 놀라운 결과를 먼저 보여주는 강렬한 오프닝 (3초 이내)",
-      "dialogue": "충격적인 멘트 또는 문제 상황을 강조하는 대사",
-      "shooting_tip": "조명과 클로즈업을 활용하여 임팩트 강화"
+      "scene_type": "후킹 (공감 유도)",
+      "scene_description": "시청자가 '나도 그래!'라고 느낄 수 있는 공감 오프닝",
+      "dialogue": "진심이 느껴지는 첫 마디 (과장 없이)",
+      "caption": "자막",
+      "shooting_tip": "촬영 팁",
+      "flexibility_note": "🎨 자율 공간: 본인의 실제 상황에 맞게 변형 가능",
+      "example_scenario": "예시) 아침에 일어나서 거울 보며 한숨..."
     },
     {
       "order": 2,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 1",
-      "dialogue": "문제점을 공감 가게 표현하는 대사",
-      "shooting_tip": "문제 상황을 명확히 보여주는 클로즈업"
+      "scene_type": "나의 일상/스타일 보여주기",
+      "scene_description": "제품이 필요한 나의 실제 생활 모습",
+      "dialogue": "자연스러운 독백 또는 상황 설명",
+      "caption": "자막",
+      "shooting_tip": "촬영 팁",
+      "flexibility_note": "🎨 자율 공간: 본인의 실제 루틴/공간에서 촬영",
+      "example_scenario": "예시) 출근 준비하면서, 집에서 쉬면서 등"
     },
     {
       "order": 3,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 2",
-      "dialogue": "구체적인 불편함을 설명하는 대사",
-      "shooting_tip": "일상적인 상황에서의 불편함 강조"
+      "scene_type": "진짜 고민/니즈 표현",
+      "scene_description": "이 제품이 필요했던 진짜 이유 (연기 아닌 실제 경험)",
+      "dialogue": "솔직한 고민 토로",
+      "caption": "자막",
+      "shooting_tip": "촬영 팁",
+      "flexibility_note": "🎨 자율 공간: 본인이 실제로 느꼈던 불편함 공유",
+      "example_scenario": ""
     },
     {
       "order": 4,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 3",
-      "dialogue": "일상적인 고민을 표현하는 대사",
-      "shooting_tip": "시청자가 공감할 수 있는 상황 연출"
+      "scene_type": "제품과의 만남",
+      "scene_description": "제품을 처음 접했을 때의 자연스러운 반응",
+      "dialogue": "호기심 또는 기대감 표현",
+      "caption": "자막",
+      "shooting_tip": "제품 언박싱 또는 첫 사용 장면",
+      "flexibility_note": "",
+      "example_scenario": ""
     },
     {
       "order": 5,
-      "scene_type": "전환",
-      "scene_description": "제품 발견 및 소개",
-      "dialogue": "제품을 발견한 계기나 기대감을 표현",
-      "shooting_tip": "제품 패키징을 매력적으로 보여주기"
+      "scene_type": "나만의 사용법",
+      "scene_description": "나의 스타일/루틴에 맞춘 사용 방법",
+      "dialogue": "개인화된 사용 팁 공유",
+      "caption": "자막",
+      "shooting_tip": "촬영 팁",
+      "flexibility_note": "🎨 자율 공간: 본인만의 활용법 강조",
+      "example_scenario": ""
     },
     {
       "order": 6,
-      "scene_type": "제품 소개",
-      "scene_description": "제품 클로즈업 및 특징 설명",
-      "dialogue": "제품의 핵심 특징을 자연스럽게 소개",
-      "shooting_tip": "제품 디테일과 텍스처 클로즈업"
+      "scene_type": "사용감 공유",
+      "scene_description": "제품 사용 중 느낀 장점과 만족감",
+      "dialogue": "자연스러운 사용 후기",
+      "caption": "자막",
+      "shooting_tip": "사용 과정을 자연스럽게",
+      "flexibility_note": "",
+      "example_scenario": ""
     },
     {
       "order": 7,
-      "scene_type": "사용",
-      "scene_description": "제품 사용 장면",
-      "dialogue": "사용감을 구체적으로 표현",
-      "shooting_tip": "슬로우 모션으로 사용 과정 강조"
+      "scene_type": "변화/효과 (자연스럽게)",
+      "scene_description": "강조된 B&A가 아닌, 일상 속에서 느끼는 변화",
+      "dialogue": "자연스러운 감탄 또는 만족 표현",
+      "caption": "자막",
+      "shooting_tip": "과장된 리액션 금지, 담담하게",
+      "flexibility_note": "",
+      "example_scenario": ""
     },
     {
       "order": 8,
-      "scene_type": "After",
-      "scene_description": "제품 사용 후 즉각적인 변화",
-      "dialogue": "놀라움을 표현하는 대사",
-      "shooting_tip": "Before와 대비되는 밝은 표정"
+      "scene_type": "나의 생활에 자리잡기",
+      "scene_description": "이 제품이 내 일상의 일부가 된 모습",
+      "dialogue": "습관이 된 느낌 전달",
+      "caption": "자막",
+      "shooting_tip": "일상적인 공간에서 촬영",
+      "flexibility_note": "🎨 자율 공간: 본인의 실제 생활 공간 활용",
+      "example_scenario": "예시) 화장대에 놓인 모습, 가방에 챙기는 모습 등"
     },
     {
       "order": 9,
-      "scene_type": "After",
-      "scene_description": "시간이 지난 후의 지속 효과",
-      "dialogue": "만족감을 표현하는 대사",
-      "shooting_tip": "일상 속에서 자연스러운 모습"
+      "scene_type": "진심어린 추천 이유",
+      "scene_description": "단순 '좋아요'가 아닌 구체적 추천 이유",
+      "dialogue": "이 제품이 나에게 특별한 이유",
+      "caption": "자막",
+      "shooting_tip": "진정성 있는 표정",
+      "flexibility_note": "",
+      "example_scenario": ""
     },
     {
       "order": 10,
-      "scene_type": "마무리",
-      "scene_description": "Before & After 비교 또는 최종 결과",
-      "dialogue": "극적인 변화를 강조하는 대사",
-      "shooting_tip": "분할 화면으로 Before/After 비교"
+      "scene_type": "자연스러운 마무리",
+      "scene_description": "광고 같지 않은, 일상으로 돌아가는 엔딩",
+      "dialogue": "부담 없는 마무리 멘트",
+      "caption": "자막",
+      "shooting_tip": "강요하지 않는 자연스러운 CTA",
+      "flexibility_note": "",
+      "example_scenario": ""
     }
   ],
+  "authenticity_guidelines": {
+    "do": [
+      "본인의 실제 생활 공간에서 촬영",
+      "평소 말투와 표현 그대로 사용",
+      "진짜 느낀 장점 자연스럽게 공유",
+      "제품의 매력 포인트 강조",
+      "나만의 스타일로 재해석"
+    ],
+    "dont": [
+      "가족/친구 출연시키기 (본인만!)",
+      "없는 상황 연기하기",
+      "과장된 리액션",
+      "대본 읽는 듯한 부자연스러운 말투",
+      "타사 제품과 비교하는 행위"
+    ]${isChildProduct ? ',\n    "exception": "⚠️ 아이 제품이므로 아이와 함께 촬영 필수"' : ''}
+  },
   "required_hashtags": {
-    "real": ["${productInfo.brand || ''}", "솔직후기", "리얼리뷰"],
-    "product": ["${productInfo.brand || ''}추천", "인생템", "꿀템발견"],
-    "common": ["뷰티", "데일리", "추천"]
+    "brand": ["#${productInfo.brand || ''}", "#${productInfo.product_name || ''}"],
+    "real": ["#솔직후기", "#리얼리뷰", "#내돈내산느낌", "#광고"],
+    "trend": ["관련 트렌디한 해시태그 3-5개"]
+  },
+  "shooting_requirements": {
+    "must_include": [
+      "나의 실제 생활 공간/상황",
+      "제품의 자연스러운 사용 모습",
+      "솔직한 사용 후기",
+      "기업 요청 필수 촬영 요소"
+    ],
+    "video_style": {
+      "tempo": "자연스러운 흐름 (급하지 않게)",
+      "tone": "친구에게 말하듯 편안하게",
+      "editing": "과하지 않은 깔끔한 편집"
+    }
   },
   "why_recommended": {
-    "scene_reasoning": "촬영 가이드 구성 이유 설명",
+    "scene_reasoning": "이 크리에이터의 스타일에 맞춘 촬영 가이드 구성 이유",
     "reference_videos": [],
     "content_strategy": "콘텐츠 전략 설명"
   },
-  "shooting_requirements": {
-    "must_include": ["제품 클로즈업", "Before & After 비교", "사용 과정", "최종 결과"],
-    "video_style": {
-      "tempo": "빠르고 역동적인 편집",
-      "tone": "친근하고 자연스러운 말투"
-    }
-  },
-  "creator_tips": ["크리에이터를 위한 촬영 팁들"]
+  "creator_tips": [
+    "💡 이 가이드는 참고용입니다. 본인의 스타일에 맞게 자유롭게 변형하세요.",
+    "💡 '자율 공간' 표시된 부분은 본인의 실제 상황으로 대체해주세요.",
+    "💡 예시 시나리오는 참고만 하고, 진짜 본인 이야기로 채워주세요.",
+    "💡 연기하지 마세요. 진짜가 아니면 시청자가 압니다.",
+    "💡 촬영 전 제품을 충분히 사용해보고 진심으로 느낀 점을 공유하세요."
+  ]
 }
 
-**중요 지침**:
-- **JSON만 출력**: 인사말, 설명, 기타 텍스트 없이 순수 JSON만 출력
-- **한국어만 사용**: 모든 텍스트는 100% 한국어로 작성
-- **이모티콘 사용 금지**
-- **정확히 10개 장면**: shooting_scenes 배열에 정확히 10개의 장면 포함
-- **자연스러운 대사**: 친근하고 자연스러운 한국어 말투`
+**⚠️ 주의사항:**
+- 반드시 유효한 JSON 형식으로 작성
+- 뻔한 B&A 구성 절대 금지 - 스토리텔링으로 풀어낼 것
+- "자율 공간"과 "예시 시나리오"를 적절히 활용하여 크리에이터에게 자유도 제공
+- 위아래 씬이 자연스럽게 이어지는 흐름 유지
+- 제품의 실제 특징과 장점을 정확하게 반영하되 과장 금지
+- JSON만 출력 (인사말, 설명 없이)`
 
     console.log('[generate-personalized-guide] Calling Gemini API...')
 
@@ -283,7 +400,12 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
           followers: creatorAnalysis.followers,
           tone: creatorAnalysis.style?.tone,
           topics: creatorAnalysis.style?.topics
-        }
+        },
+        guideStyleUsed: guideStyle ? {
+          id: guideStyle.id,
+          name: guideStyle.name
+        } : null,
+        additionalNotesUsed: additionalNotes || null
       })
     }
 
