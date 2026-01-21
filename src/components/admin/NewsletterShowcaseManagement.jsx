@@ -196,6 +196,17 @@ export default function NewsletterShowcaseManagement() {
   const [aiImagePrompt, setAiImagePrompt] = useState('')
   const [generatingAiImage, setGeneratingAiImage] = useState(false)
 
+  // SEO AI 일괄 적용
+  const [showSeoAiDialog, setShowSeoAiDialog] = useState(false)
+  const [seoAiProgress, setSeoAiProgress] = useState({ current: 0, total: 0, status: '' })
+  const [seoAiProcessing, setSeoAiProcessing] = useState(false)
+  const [seoAiResults, setSeoAiResults] = useState([])
+
+  // 유입 경로 추적
+  const [showReferrerPanel, setShowReferrerPanel] = useState(false)
+  const [referrerStats, setReferrerStats] = useState([])
+  const [loadingReferrers, setLoadingReferrers] = useState(false)
+
   // Tiptap 에디터 설정
   const editor = useEditor({
     extensions: [
@@ -1249,6 +1260,95 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // SEO AI 일괄 적용 함수
+  const handleBulkSeoAi = async () => {
+    if (selectedIds.length === 0) {
+      alert('SEO AI를 적용할 뉴스레터를 선택하세요.')
+      return
+    }
+
+    setShowSeoAiDialog(true)
+    setSeoAiProcessing(true)
+    setSeoAiResults([])
+    setSeoAiProgress({ current: 0, total: selectedIds.length, status: '분석 시작...' })
+
+    const results = []
+
+    for (let i = 0; i < selectedIds.length; i++) {
+      const newsletter = newsletters.find(n => n.id === selectedIds[i])
+      if (!newsletter) continue
+
+      setSeoAiProgress({
+        current: i + 1,
+        total: selectedIds.length,
+        status: `"${newsletter.title?.slice(0, 30)}..." 분석 및 최적화 중`
+      })
+
+      try {
+        // AI SEO 분석 및 자동 수정
+        const response = await fetch('/.netlify/functions/auto-fix-newsletter-seo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newsletterId: newsletter.id })
+        })
+
+        const result = await response.json()
+        results.push({
+          id: newsletter.id,
+          title: newsletter.title,
+          success: result.success,
+          changes: result.changes || [],
+          newScore: result.newScore,
+          error: result.error
+        })
+      } catch (error) {
+        results.push({
+          id: newsletter.id,
+          title: newsletter.title,
+          success: false,
+          error: error.message
+        })
+      }
+    }
+
+    setSeoAiResults(results)
+    setSeoAiProgress({ current: selectedIds.length, total: selectedIds.length, status: '완료!' })
+    setSeoAiProcessing(false)
+    fetchNewsletters() // 목록 새로고침
+  }
+
+  // 유입 경로 통계 조회
+  const fetchReferrerStats = async () => {
+    setLoadingReferrers(true)
+    try {
+      const { data, error } = await supabaseBiz
+        .from('newsletter_views')
+        .select('referrer, referrer_domain')
+        .not('referrer_domain', 'is', null)
+
+      if (error) throw error
+
+      // 도메인별 집계
+      const domainCounts = {}
+      ;(data || []).forEach(view => {
+        const domain = view.referrer_domain || 'direct'
+        domainCounts[domain] = (domainCounts[domain] || 0) + 1
+      })
+
+      // 배열로 변환 및 정렬
+      const sorted = Object.entries(domainCounts)
+        .map(([domain, count]) => ({ domain, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20) // 상위 20개
+
+      setReferrerStats(sorted)
+    } catch (error) {
+      console.error('유입 경로 조회 오류:', error)
+    } finally {
+      setLoadingReferrers(false)
+    }
+  }
+
   // 순서 초기화 (현재 순서대로 display_order 재설정)
   const handleResetOrder = async () => {
     if (!confirm('모든 뉴스레터의 표시 순서를 현재 목록 순서대로 초기화하시겠습니까?')) return
@@ -1585,6 +1685,18 @@ export default function NewsletterShowcaseManagement() {
                 <GripVertical className="w-4 h-4 mr-1" />
                 순서 초기화
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowReferrerPanel(true)
+                  fetchReferrerStats()
+                }}
+                className="border-purple-300 text-purple-600 hover:bg-purple-50"
+              >
+                <TrendingUp className="w-4 h-4 mr-1" />
+                유입 경로
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchNewsletters}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 새로고침
@@ -1651,6 +1763,19 @@ export default function NewsletterShowcaseManagement() {
                       적용
                     </Button>
                   </div>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkSeoAi}
+                    disabled={seoAiProcessing}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  >
+                    {seoAiProcessing ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-1" />
+                    )}
+                    SEO AI 적용
+                  </Button>
                   <Button
                     size="sm"
                     onClick={handleBulkExtractThumbnails}
@@ -1757,7 +1882,7 @@ export default function NewsletterShowcaseManagement() {
                             </button>
                           </div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 max-w-[400px]">
                           <div className="flex items-center gap-3">
                             <div
                               className="w-12 h-12 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 cursor-pointer"
@@ -1769,9 +1894,9 @@ export default function NewsletterShowcaseManagement() {
                                 <Mail className="w-5 h-5 text-white/50" />
                               )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1 max-w-[320px]">
                               <div className="font-medium text-gray-900 truncate">{newsletter.title}</div>
-                              <div className="text-xs text-gray-500 truncate">{newsletter.description || '설명 없음'}</div>
+                              <div className="text-xs text-gray-500 line-clamp-1">{newsletter.description || '설명 없음'}</div>
                             </div>
                           </div>
                         </td>
@@ -3258,6 +3383,243 @@ export default function NewsletterShowcaseManagement() {
           </div>
         </div>
       )}
+
+      {/* SEO AI 일괄 적용 다이얼로그 */}
+      <Dialog open={showSeoAiDialog} onOpenChange={setShowSeoAiDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              SEO AI 자동 최적화
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            {seoAiProcessing ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                  <div>
+                    <div className="font-medium">{seoAiProgress.status}</div>
+                    <div className="text-sm text-gray-500">
+                      {seoAiProgress.current} / {seoAiProgress.total} 처리 중
+                    </div>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all"
+                    style={{ width: `${(seoAiProgress.current / seoAiProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ) : seoAiResults.length > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 border">
+                  <h3 className="font-bold text-lg mb-2">SEO AI 최적화 완료</h3>
+                  <p className="text-sm text-gray-600">
+                    {seoAiResults.filter(r => r.success).length}개 성공, {seoAiResults.filter(r => !r.success).length}개 실패
+                  </p>
+                </div>
+
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {seoAiResults.map((result, idx) => (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-4 ${
+                        result.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-sm truncate flex-1">{result.title}</span>
+                        {result.success ? (
+                          <span className="text-green-600 flex items-center gap-1 text-sm">
+                            <Check className="w-4 h-4" />
+                            {result.newScore && `${result.newScore}점`}
+                          </span>
+                        ) : (
+                          <span className="text-red-600 flex items-center gap-1 text-sm">
+                            <X className="w-4 h-4" />
+                            실패
+                          </span>
+                        )}
+                      </div>
+                      {result.changes && result.changes.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {result.changes.map((change, i) => (
+                            <div key={i} className="text-xs text-gray-600 flex items-start gap-1">
+                              <span className="text-green-500">✓</span>
+                              <span>{change}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {result.error && (
+                        <div className="text-xs text-red-600 mt-2">{result.error}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Sparkles className="w-12 h-12 text-purple-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">SEO AI 자동 최적화</h3>
+                <p className="text-gray-500 text-sm mb-4">
+                  선택한 뉴스레터의 SEO를 AI가 자동으로 분석하고 최적화합니다.
+                </p>
+                <ul className="text-left text-sm text-gray-600 space-y-2 max-w-sm mx-auto">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    제목 SEO 최적화
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    메타 설명 자동 생성
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    관련 태그 자동 추천
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    AI 이미지 생성 및 삽입
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    콘텐츠 구조 개선
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    메타데이터 최적화
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSeoAiDialog(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 유입 경로 분석 패널 */}
+      <Dialog open={showReferrerPanel} onOpenChange={setShowReferrerPanel}>
+        <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              유입 경로 분석
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            {loadingReferrers ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                <span className="ml-3 text-gray-600">유입 경로 분석 중...</span>
+              </div>
+            ) : referrerStats.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p>유입 경로 데이터가 없습니다.</p>
+                <p className="text-sm mt-2">방문자가 늘어나면 여기에 표시됩니다.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 border">
+                  <h3 className="font-bold text-lg mb-1">방문자 유입 분석</h3>
+                  <p className="text-sm text-gray-600">
+                    총 {referrerStats.reduce((sum, r) => sum + r.count, 0).toLocaleString()}건의 유입 기록
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {referrerStats.map((stat, idx) => {
+                    const maxCount = referrerStats[0]?.count || 1
+                    const percentage = ((stat.count / maxCount) * 100).toFixed(0)
+                    const isSearch = ['google', 'naver', 'daum', 'bing', 'yahoo'].some(s => stat.domain.includes(s))
+                    const isSocial = ['facebook', 'twitter', 'instagram', 'linkedin', 'tiktok'].some(s => stat.domain.includes(s))
+
+                    return (
+                      <div key={idx} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              stat.domain === 'direct' ? 'bg-gray-100 text-gray-600' :
+                              isSearch ? 'bg-green-100 text-green-700' :
+                              isSocial ? 'bg-blue-100 text-blue-700' :
+                              'bg-purple-100 text-purple-700'
+                            }`}>
+                              {stat.domain === 'direct' ? '직접' :
+                               isSearch ? '검색' :
+                               isSocial ? '소셜' : '외부'}
+                            </span>
+                            <span className="font-medium text-sm">{stat.domain}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700">{stat.count.toLocaleString()}건</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              stat.domain === 'direct' ? 'bg-gray-400' :
+                              isSearch ? 'bg-green-500' :
+                              isSocial ? 'bg-blue-500' :
+                              'bg-purple-500'
+                            }`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 유입 유형별 요약 */}
+                <div className="grid grid-cols-4 gap-3 pt-4 border-t">
+                  {(() => {
+                    const direct = referrerStats.filter(s => s.domain === 'direct').reduce((sum, s) => sum + s.count, 0)
+                    const search = referrerStats.filter(s => ['google', 'naver', 'daum', 'bing', 'yahoo'].some(x => s.domain.includes(x))).reduce((sum, s) => sum + s.count, 0)
+                    const social = referrerStats.filter(s => ['facebook', 'twitter', 'instagram', 'linkedin', 'tiktok'].some(x => s.domain.includes(x))).reduce((sum, s) => sum + s.count, 0)
+                    const other = referrerStats.filter(s => s.domain !== 'direct' && !['google', 'naver', 'daum', 'bing', 'yahoo', 'facebook', 'twitter', 'instagram', 'linkedin', 'tiktok'].some(x => s.domain.includes(x))).reduce((sum, s) => sum + s.count, 0)
+                    return (
+                      <>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-500">직접</div>
+                          <div className="text-lg font-bold text-gray-600">{direct}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-green-600">검색</div>
+                          <div className="text-lg font-bold text-green-600">{search}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-blue-600">소셜</div>
+                          <div className="text-lg font-bold text-blue-600">{social}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-purple-600">외부</div>
+                          <div className="text-lg font-bold text-purple-600">{other}</div>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={fetchReferrerStats} disabled={loadingReferrers}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loadingReferrers ? 'animate-spin' : ''}`} />
+              새로고침
+            </Button>
+            <Button onClick={() => setShowReferrerPanel(false)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
