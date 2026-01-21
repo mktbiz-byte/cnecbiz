@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 
 /**
  * 일일 현황 리포트 - 매일 10시 (KST)
+ * v2 - 간소화 버전
  */
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
