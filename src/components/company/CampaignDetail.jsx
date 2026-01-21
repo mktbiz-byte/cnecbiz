@@ -3150,6 +3150,13 @@ JSON만 출력.`
   // skipPointPayment: 멀티비디오 캠페인에서 마지막 영상이 아닌 경우 true
   const handleFinalConfirmation = async (submission, skipPointPayment = false) => {
     try {
+      // 중복 처리 방지: 이미 최종확정된 경우 무시
+      if (submission.final_confirmed_at) {
+        console.log('이미 최종확정된 영상입니다:', submission.id)
+        alert('이미 최종 확정된 영상입니다.')
+        return
+      }
+
       const videoClient = supabaseKorea || supabaseBiz
       const pointAmount = campaign.reward_points || campaign.point || 0
       const confirmedAt = new Date().toISOString()
@@ -3326,6 +3333,13 @@ JSON만 출력.`
   // 멀티비디오 캠페인 최종 확정 (videoSubmissions가 없는 경우 - 올영/4주 applications에서 직접 처리)
   const handleMultiVideoFinalConfirmationWithoutSubmissions = async (participant, videoCount) => {
     try {
+      // 중복 처리 방지: 이미 최종확정된 경우 무시
+      if (participant.final_confirmed_at) {
+        console.log('이미 최종확정된 참가자입니다:', participant.id)
+        alert('이미 최종 확정된 크리에이터입니다.')
+        return
+      }
+
       const pointAmount = campaign.reward_points || campaign.point || 0
       const userId = participant.user_id
 
