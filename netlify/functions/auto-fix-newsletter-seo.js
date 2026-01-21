@@ -459,8 +459,8 @@ function calculateSeoScore(newsletter) {
     scores.thumbnail.score = newsletter.thumbnail_url.startsWith('https://') ? 15 : 10
   }
 
-  // 태그 (15점)
-  const tags = (newsletter.tags || '').split(',').filter(t => t.trim())
+  // 태그 (15점) - tags는 PostgreSQL 배열 타입
+  const tags = Array.isArray(newsletter.tags) ? newsletter.tags : []
   if (tags.length >= 5) {
     scores.tags.score = 15
   } else if (tags.length >= 3) {
