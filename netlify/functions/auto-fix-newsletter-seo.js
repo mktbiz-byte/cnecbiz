@@ -166,7 +166,6 @@ exports.handler = async (event) => {
     // 변경사항이 있으면 업데이트
     if (Object.keys(updates).length > 0) {
       updates.updated_at = new Date().toISOString()
-      updates.seo_optimized_at = new Date().toISOString()
 
       const { error: updateError } = await supabase
         .from('newsletters')
