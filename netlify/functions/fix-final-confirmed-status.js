@@ -28,53 +28,26 @@ exports.handler = async (event) => {
       details: []
     }
 
-    // 1. 포인트 지급 내역 조회 - Korea DB에서 여러 테이블 시도
+    // 1. Korea DB의 point_transactions에서 캠페인 완료 포인트 지급 내역 조회
     let pointData = []
-    let debugInfo = { biz: {}, korea: {} }
 
-    // Korea DB에서 테이블 확인
-    const koreaTableNames = ['point_history', 'point_transactions', 'points', 'creator_points', 'creator_point_history']
-    for (const tableName of koreaTableNames) {
-      const { data, error } = await supabaseKorea
-        .from(tableName)
-        .select('*')
-        .limit(3)
-      debugInfo.korea[tableName] = { data: data?.slice(0, 2), error: error?.message }
-    }
-
-    // BIZ DB에서도 확인
-    const bizTableNames = ['point_history', 'point_transactions', 'points', 'creator_points']
-    for (const tableName of bizTableNames) {
-      const { data, error } = await supabaseBiz
-        .from(tableName)
-        .select('*')
-        .limit(3)
-      debugInfo.biz[tableName] = { data: data?.slice(0, 2), error: error?.message }
-    }
-
-    // Korea DB의 creator_points에서 캠페인 완료 데이터 찾기
-    const { data: creatorPoints } = await supabaseKorea
-      .from('creator_points')
+    // 캠페인 완료 관련 포인트 지급 (description에 "캠페인 완료" 포함)
+    const { data: txData, error: txError } = await supabaseKorea
+      .from('point_transactions')
       .select('*')
-      .or('type.ilike.%완료%,reason.ilike.%완료%,description.ilike.%완료%')
+      .ilike('description', '%캠페인 완료%')
 
-    if (creatorPoints && creatorPoints.length > 0) {
-      pointData = creatorPoints.map(p => ({
-        user_id: p.user_id || p.creator_id,
-        campaign_id: p.campaign_id,
-        created_at: p.created_at
-      })).filter(p => p.user_id && p.campaign_id)
+    if (txError) {
+      console.log('point_transactions 조회 실패:', txError.message)
     }
 
-    // 디버그 정보 반환
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: pointData.length > 0,
-        message: pointData.length > 0 ? `${pointData.length}건 발견` : '포인트 지급 내역을 찾을 수 없습니다.',
-        pointDataFound: pointData.length,
-        debugInfo
-      })
+    if (txData && txData.length > 0) {
+      pointData = txData.map(tx => ({
+        user_id: tx.user_id,
+        campaign_id: tx.related_campaign_id,
+        created_at: tx.created_at,
+        description: tx.description
+      })).filter(p => p.user_id && p.campaign_id)
     }
 
     results.pointHistoryChecked = pointData.length
