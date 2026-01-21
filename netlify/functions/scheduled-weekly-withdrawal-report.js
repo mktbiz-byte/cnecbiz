@@ -12,8 +12,8 @@ const crypto = require('crypto');
 
 // Supabase clients
 const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_URL_BIZ,
-  process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const supabaseKorea = createClient(
@@ -213,6 +213,22 @@ function formatDate(date) {
 
 exports.handler = async (event, context) => {
   console.log('[Weekly Withdrawal Report] Starting...');
+
+  // 환경 변수 확인
+  console.log('[ENV Check] VITE_SUPABASE_BIZ_URL:', process.env.VITE_SUPABASE_BIZ_URL ? '✅ SET' : '❌ NOT SET');
+  console.log('[ENV Check] SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ SET' : '❌ NOT SET');
+  console.log('[ENV Check] VITE_SUPABASE_KOREA_URL:', process.env.VITE_SUPABASE_KOREA_URL ? '✅ SET' : '❌ NOT SET');
+  console.log('[ENV Check] NAVER_WORKS_CLIENT_ID:', process.env.NAVER_WORKS_CLIENT_ID ? '✅ SET' : '❌ NOT SET');
+  console.log('[ENV Check] NAVER_WORKS_BOT_ID:', process.env.NAVER_WORKS_BOT_ID ? '✅ SET' : '❌ NOT SET');
+  console.log('[ENV Check] NAVER_WORKS_CHANNEL_ID:', process.env.NAVER_WORKS_CHANNEL_ID ? '✅ SET' : '❌ NOT SET');
+
+  if (!process.env.VITE_SUPABASE_BIZ_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Error] 필수 환경 변수가 설정되지 않았습니다.');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Missing required environment variables' })
+    };
+  }
 
   try {
     const { monday, sunday } = getLastWeekRange();
