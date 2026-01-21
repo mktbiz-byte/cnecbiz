@@ -3152,20 +3152,26 @@ JSON만 출력.`
     try {
       const videoClient = supabaseKorea || supabaseBiz
       const pointAmount = campaign.reward_points || campaign.point || 0
+      const confirmedAt = new Date().toISOString()
 
-      // 1. video_submissions를 completed로 업데이트
-      await videoClient
+      // 1. video_submissions를 completed로 업데이트 (에러 체크 필수)
+      const { error: updateError } = await videoClient
         .from('video_submissions')
         .update({
           status: 'completed',
-          final_confirmed_at: new Date().toISOString()
+          final_confirmed_at: confirmedAt
         })
         .eq('id', submission.id)
 
-      // 로컬 상태 즉시 업데이트 (UI 반영)
+      if (updateError) {
+        console.error('video_submissions 업데이트 실패:', updateError)
+        throw new Error(`영상 상태 업데이트 실패: ${updateError.message}`)
+      }
+
+      // 로컬 상태 즉시 업데이트 (UI 반영) - DB 업데이트 성공 후에만 실행
       setVideoSubmissions(prev => prev.map(s =>
         s.id === submission.id
-          ? { ...s, status: 'completed', final_confirmed_at: new Date().toISOString() }
+          ? { ...s, status: 'completed', final_confirmed_at: confirmedAt }
           : s
       ))
 
@@ -3305,7 +3311,8 @@ JSON만 출력.`
         }
       }
 
-      await fetchVideoSubmissions()
+      // fetchVideoSubmissions() 제거 - 로컬 상태가 이미 업데이트됨
+      // fetchVideoSubmissions()를 호출하면 DB 복제 지연으로 인해 이전 상태를 가져와 로컬 상태를 덮어쓸 수 있음
       await fetchParticipants()
 
       // 기업에게는 포인트 금액 안 보여줌
