@@ -15,16 +15,27 @@ const nodemailer = require('nodemailer');
  */
 
 // Supabase 클라이언트 (멀티-리전)
-const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const supabaseKorea = process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
-  : null;
-const supabaseJapan = process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
-  : null;
-const supabaseUS = process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
-  : null;
+let supabaseBiz = null;
+let supabaseKorea = null;
+let supabaseJapan = null;
+let supabaseUS = null;
+
+try {
+  if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY) {
+    supabaseKorea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY);
+  }
+  if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY) {
+    supabaseJapan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY);
+  }
+  if (process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY) {
+    supabaseUS = createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY);
+  }
+} catch (e) {
+  console.error('[일일리포트] Supabase 클라이언트 생성 오류:', e.message);
+}
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -319,6 +330,15 @@ async function getOverdueCreators() {
 exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
+
+  // 환경변수 체크
+  if (!supabaseBiz) {
+    console.error('[일일리포트] VITE_SUPABASE_BIZ_URL 또는 SUPABASE_SERVICE_ROLE_KEY 환경변수 없음');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: '환경변수 설정 오류: VITE_SUPABASE_BIZ_URL 또는 SUPABASE_SERVICE_ROLE_KEY 없음' })
+    };
+  }
 
   try {
     const { start, end } = getYesterdayRange();
