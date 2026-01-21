@@ -7,18 +7,8 @@ const nodemailer = require('nodemailer');
  * 통합 일일 리포트 - 매일 10시 (KST)
  */
 
-// Supabase 클라이언트는 핸들러 내부에서 생성 (디버그 함수와 동일한 패턴)
-let _supabaseClient = null;
-
-function getSupabaseClient() {
-  if (!_supabaseClient) {
-    _supabaseClient = createClient(
-      process.env.VITE_SUPABASE_BIZ_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  }
-  return _supabaseClient;
-}
+// Supabase 클라이언트 (주간리포트와 동일한 패턴)
+const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -140,20 +130,17 @@ exports.handler = async (event) => {
     const dateStr = `${start.getMonth() + 1}/${start.getDate()}`;
     const todayStr = getTodayDateStr();
 
-    // Supabase 클라이언트 가져오기
-    const supabase = getSupabaseClient();
-
     // 1. 캠페인 현황
-    const { data: campaigns } = await supabase.from('campaigns').select('id, status');
+    const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, status');
     const activeCampaigns = (campaigns || []).filter(c => ['active', 'recruiting', 'in_progress'].includes(c.status));
-    const { data: newCampaigns } = await supabase
+    const { data: newCampaigns } = await supabaseBiz
       .from('campaigns')
       .select('id')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString());
 
     // 2. 신규 기업
-    const { data: newCompanies } = await supabase
+    const { data: newCompanies } = await supabaseBiz
       .from('companies')
       .select('id')
       .gte('created_at', start.toISOString())
@@ -161,7 +148,7 @@ exports.handler = async (event) => {
 
     // 3. 영상 제출 현황
     const videoStatuses = ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'];
-    const { data: videoSubmissions } = await supabase
+    const { data: videoSubmissions } = await supabaseBiz
       .from('applications')
       .select('id, name, status, campaign_id, updated_at')
       .in('status', videoStatuses)
@@ -174,7 +161,7 @@ exports.handler = async (event) => {
     if (videoSubmissions && videoSubmissions.length > 0) {
       const campaignIds = [...new Set(videoSubmissions.map(s => s.campaign_id).filter(Boolean))];
       if (campaignIds.length > 0) {
-        const { data: campaignData } = await supabase
+        const { data: campaignData } = await supabaseBiz
           .from('campaigns')
           .select('id, title')
           .in('id', campaignIds);
@@ -188,7 +175,7 @@ exports.handler = async (event) => {
 
     // 4. 마감 예정 미제출
     const notSubmittedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation'];
-    const { data: todayDeadlineCampaigns } = await supabase
+    const { data: todayDeadlineCampaigns } = await supabaseBiz
       .from('campaigns')
       .select('id, title, content_submission_deadline')
       .eq('content_submission_deadline', todayStr)
@@ -197,7 +184,7 @@ exports.handler = async (event) => {
     let overdueCreators = [];
     if (todayDeadlineCampaigns && todayDeadlineCampaigns.length > 0) {
       for (const campaign of todayDeadlineCampaigns) {
-        const { data: overdueApps } = await supabase
+        const { data: overdueApps } = await supabaseBiz
           .from('applications')
           .select('id, name, status')
           .eq('campaign_id', campaign.id)
