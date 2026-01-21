@@ -124,14 +124,14 @@ function getYesterdayRange() {
 
 exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
-  console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
+  console.log(`[DailyStats] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   try {
     const { start, end } = getYesterdayRange();
     const dateStr = `${start.getMonth() + 1}/${start.getDate()}`;
 
     // 1. 캠페인 현황
-    console.log('[일일리포트] 캠페인 데이터 수집...');
+    console.log('[DailyStats] 캠페인 데이터 수집...');
     const { data: campaigns } = await supabaseBiz.from('campaigns').select('*');
     const activeCampaigns = (campaigns || []).filter(c => c.status === 'active' || c.status === 'recruiting');
     const { data: newCampaigns } = await supabaseBiz
@@ -141,7 +141,7 @@ exports.handler = async (event) => {
       .lte('created_at', end.toISOString());
 
     // 2. 신규 회원
-    console.log('[일일리포트] 회원 데이터 수집...');
+    console.log('[DailyStats] 회원 데이터 수집...');
     const { data: newCompanies } = await supabaseBiz
       .from('companies')
       .select('*')
@@ -149,7 +149,7 @@ exports.handler = async (event) => {
       .lte('created_at', end.toISOString());
 
     // 3. 영상 제출 현황
-    console.log('[일일리포트] 영상 제출 데이터 수집...');
+    console.log('[DailyStats] 영상 제출 데이터 수집...');
     const { data: videoSubmissions } = await supabaseBiz
       .from('video_submissions')
       .select('*, campaigns(title)')
@@ -183,7 +183,7 @@ ${rejectedVideos.length > 0 ? `• ⚠️ 반려: ${rejectedVideos.length}건` :
     if (clientId && clientSecret && botId && channelId) {
       const accessToken = await getAccessToken(clientId, clientSecret, '7c15c.serviceaccount@howlab.co.kr');
       await sendNaverWorksMessage(accessToken, botId, channelId, nwMessage);
-      console.log('[일일리포트] 네이버웍스 발송 완료');
+      console.log('[DailyStats] 네이버웍스 발송 완료');
     }
 
     // 5. 이메일 상세 리포트
@@ -242,12 +242,12 @@ ${rejectedVideos.length > 0 ? `• ⚠️ 반려: ${rejectedVideos.length}건` :
       if (process.env.GMAIL_APP_PASSWORD) {
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
         emailSent = true;
-        console.log('[일일리포트] 이메일 발송 완료');
+        console.log('[DailyStats] 이메일 발송 완료');
       } else {
-        console.log('[일일리포트] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
+        console.log('[DailyStats] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
       }
     } catch (emailErr) {
-      console.error('[일일리포트] 이메일 발송 실패:', emailErr.message);
+      console.error('[DailyStats] 이메일 발송 실패:', emailErr.message);
     }
 
     return {
@@ -263,7 +263,7 @@ ${rejectedVideos.length > 0 ? `• ⚠️ 반려: ${rejectedVideos.length}건` :
     };
 
   } catch (error) {
-    console.error('[일일리포트] 오류:', error);
+    console.error('[DailyStats] 오류:', error);
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
