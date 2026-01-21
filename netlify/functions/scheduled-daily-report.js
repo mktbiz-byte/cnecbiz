@@ -38,12 +38,7 @@ h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
 skmeYX6UpJwnuTP2xN5NDDI=
 -----END PRIVATE KEY-----`;
 
-// 클라이언트 초기화
-const clients = {};
-if (process.env.VITE_SUPABASE_KOREA_URL) clients.korea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY);
-if (process.env.VITE_SUPABASE_JAPAN_URL) clients.japan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.VITE_SUPABASE_JAPAN_ANON_KEY);
-if (process.env.VITE_SUPABASE_US_URL) clients.us = createClient(process.env.VITE_SUPABASE_US_URL, process.env.VITE_SUPABASE_US_ANON_KEY);
-if (process.env.VITE_SUPABASE_BIZ_URL) clients.biz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// 클라이언트는 handler 내부에서 초기화
 
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
@@ -115,6 +110,22 @@ exports.handler = async (event) => {
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   try {
+    // 클라이언트 초기화 (handler 내부에서)
+    const clients = {};
+    if (process.env.VITE_SUPABASE_KOREA_URL && (process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY)) {
+      clients.korea = createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY);
+    }
+    if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY) {
+      clients.japan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.VITE_SUPABASE_JAPAN_ANON_KEY);
+    }
+    if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY) {
+      clients.us = createClient(process.env.VITE_SUPABASE_US_URL, process.env.VITE_SUPABASE_US_ANON_KEY);
+    }
+    if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      clients.biz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    }
+    console.log('[일일리포트] 클라이언트:', Object.keys(clients));
+
     const { start, end, dateStr } = getYesterdayRange();
     const today = new Date().toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 
