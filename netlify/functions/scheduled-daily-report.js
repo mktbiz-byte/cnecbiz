@@ -3,10 +3,13 @@ const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+console.log('[일일리포트] 모듈 로드 완료');
+
 /**
  * 일일 현황 리포트 - 매일 10시 (KST)
- * 네이버웍스: 3줄 요약
+ * 네이버웍스: 5~10줄 요약
  * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
+ * 수정: 2026-01-21
  */
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
