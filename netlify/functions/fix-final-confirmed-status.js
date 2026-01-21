@@ -28,27 +28,27 @@ exports.handler = async (event) => {
       details: []
     }
 
-    // 1. Korea DB의 point_transactions에서 캠페인 완료 포인트 지급 내역 조회
-    let pointData = []
+    // 1. Korea DB의 applications에서 status='completed'인 것 조회
+    // 포인트는 별도 테이블이 아니라 applications 기반으로 계산됨
+    const { data: completedApps, error: appError } = await supabaseKorea
+      .from('applications')
+      .select('id, user_id, campaign_id, updated_at, created_at')
+      .eq('status', 'completed')
 
-    // 캠페인 완료 관련 포인트 지급 (description에 "캠페인 완료" 포함)
-    const { data: txData, error: txError } = await supabaseKorea
-      .from('point_transactions')
-      .select('*')
-      .ilike('description', '%캠페인 완료%')
-
-    if (txError) {
-      console.log('point_transactions 조회 실패:', txError.message)
+    if (appError) {
+      console.log('applications 조회 실패:', appError.message)
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ success: false, error: appError.message })
+      }
     }
 
-    if (txData && txData.length > 0) {
-      pointData = txData.map(tx => ({
-        user_id: tx.user_id,
-        campaign_id: tx.related_campaign_id,
-        created_at: tx.created_at,
-        description: tx.description
-      })).filter(p => p.user_id && p.campaign_id)
-    }
+    const pointData = (completedApps || []).map(app => ({
+      user_id: app.user_id,
+      campaign_id: app.campaign_id,
+      created_at: app.updated_at || app.created_at,
+      application_id: app.id
+    })).filter(p => p.user_id && p.campaign_id)
 
     results.pointHistoryChecked = pointData.length
     console.log(`포인트 지급 내역: ${results.pointHistoryChecked}건`)
