@@ -239,28 +239,49 @@ exports.handler = async (event) => {
       } catch (e) { console.error(`[${r.key} 영상 제출 조회 오류]`, e.message); }
     }
 
-    // 5. 마감 미제출 (각 리전별 DB에서 조회)
+    // 5. 마감 미제출 (각 리전별 DB에서 조회 - 캠페인 타입별 마감일 체크)
     const overdueResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
     for (const r of regionClients) {
       if (!r.client) continue;
       try {
-        // 오늘 마감인 캠페인 조회
-        const { data: deadlineCampaigns } = await r.client
+        // 모든 활성 캠페인 조회 (모든 마감일 필드 포함)
+        const { data: allCampaigns } = await r.client
           .from('campaigns')
-          .select('id, title')
-          .eq('content_submission_deadline', todayStr)
+          .select('id, title, campaign_type, content_submission_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
           .in('status', ['active', 'in_progress', 'recruiting', 'approved']);
 
-        for (const campaign of (deadlineCampaigns || [])) {
-          const { data: overdueApps } = await r.client
-            .from('applications')
-            .select('id')
-            .eq('campaign_id', campaign.id)
-            .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation']);
+        for (const campaign of (allCampaigns || [])) {
+          // 캠페인 타입별 오늘 마감인 필드 확인
+          const deadlines = [];
+          const type = (campaign.campaign_type || '').toLowerCase();
 
-          if (overdueApps && overdueApps.length > 0) {
-            overdueResult.total += overdueApps.length;
-            overdueResult.byRegion[r.key] += overdueApps.length;
+          if (type.includes('4week') || type.includes('challenge')) {
+            // 4주 챌린지: 4개 마감일
+            if (campaign.week1_deadline === todayStr) deadlines.push('week1');
+            if (campaign.week2_deadline === todayStr) deadlines.push('week2');
+            if (campaign.week3_deadline === todayStr) deadlines.push('week3');
+            if (campaign.week4_deadline === todayStr) deadlines.push('week4');
+          } else if (type.includes('olive') || type.includes('올리브')) {
+            // 올리브영: 2개 마감일
+            if (campaign.step1_deadline === todayStr) deadlines.push('step1');
+            if (campaign.step2_deadline === todayStr) deadlines.push('step2');
+          } else {
+            // 기획형/일반: 1개 마감일
+            if (campaign.content_submission_deadline === todayStr) deadlines.push('content');
+          }
+
+          // 오늘 마감인 캠페인이 있으면 미제출자 확인
+          if (deadlines.length > 0) {
+            const { data: overdueApps } = await r.client
+              .from('applications')
+              .select('id')
+              .eq('campaign_id', campaign.id)
+              .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation']);
+
+            if (overdueApps && overdueApps.length > 0) {
+              overdueResult.total += overdueApps.length;
+              overdueResult.byRegion[r.key] += overdueApps.length;
+            }
           }
         }
       } catch (e) { console.error(`[${r.key} 마감 미제출 조회 오류]`, e.message); }
