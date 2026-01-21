@@ -177,18 +177,27 @@ exports.handler = async (event) => {
     const dateStr = `${start.getMonth() + 1}/${start.getDate()}`;
     const todayStr = getTodayDateStr();
 
-    // 1. 캠페인 현황
+    // 1. 캠페인 현황 (각 리전별 DB에서 조회)
     const campaignResult = { total: { active: 0, new: 0 }, byRegion: { korea: { active: 0 }, japan: { active: 0 }, us: { active: 0 } } };
-    try {
-      const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, status, country, region, created_at');
-      for (const c of (campaigns || [])) {
-        const isActive = ['active', 'recruiting', 'in_progress'].includes(c.status);
-        const isNew = new Date(c.created_at) >= start && new Date(c.created_at) <= end;
-        const region = getRegionKey(c.country || c.region);
-        if (isActive) { campaignResult.total.active++; campaignResult.byRegion[region].active++; }
-        if (isNew) campaignResult.total.new++;
-      }
-    } catch (e) { console.error('[캠페인 조회 오류]', e.message); }
+    const allCampaigns = []; // 영상 제출/마감 미제출 조회용
+    const regionClients = [
+      { key: 'korea', client: supabaseKorea },
+      { key: 'japan', client: supabaseJapan },
+      { key: 'us', client: supabaseUS }
+    ];
+    for (const r of regionClients) {
+      if (!r.client) continue;
+      try {
+        const { data: campaigns } = await r.client.from('campaigns').select('id, status, title, created_at, content_submission_deadline');
+        for (const c of (campaigns || [])) {
+          const isActive = ['active', 'recruiting', 'in_progress', 'approved'].includes(c.status);
+          const isNew = new Date(c.created_at) >= start && new Date(c.created_at) <= end;
+          if (isActive) { campaignResult.total.active++; campaignResult.byRegion[r.key].active++; }
+          if (isNew) campaignResult.total.new++;
+          allCampaigns.push({ ...c, region: r.key, client: r.client });
+        }
+      } catch (e) { console.error(`[${r.key} 캠페인 조회 오류]`, e.message); }
+    }
 
     // 2. 신규 기업
     let newCompanies = 0;
@@ -209,55 +218,53 @@ exports.handler = async (event) => {
       } catch (e) { console.error(`[${r.key} 크리에이터 조회 오류]`, e.message); }
     }
 
-    // 4. 영상 제출 현황
+    // 4. 영상 제출 현황 (각 리전별 DB에서 조회)
     const videoResult = { total: { count: 0, submitted: 0, completed: 0 }, byRegion: { korea: { count: 0 }, japan: { count: 0 }, us: { count: 0 } } };
-    try {
-      const { data: submissions } = await supabaseBiz
-        .from('applications')
-        .select('id, status, campaign_id')
-        .in('status', ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
-        .gte('updated_at', start.toISOString())
-        .lte('updated_at', end.toISOString());
+    for (const r of regionClients) {
+      if (!r.client) continue;
+      try {
+        const { data: submissions } = await r.client
+          .from('applications')
+          .select('id, status, campaign_id')
+          .in('status', ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
+          .gte('updated_at', start.toISOString())
+          .lte('updated_at', end.toISOString());
 
-      if (submissions && submissions.length > 0) {
-        const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))];
-        const { data: campaignData } = await supabaseBiz.from('campaigns').select('id, country, region').in('id', campaignIds);
-        const campaignMap = new Map((campaignData || []).map(c => [c.id, c]));
-
-        for (const s of submissions) {
-          const campaign = campaignMap.get(s.campaign_id) || {};
-          const region = getRegionKey(campaign.country || campaign.region);
+        for (const s of (submissions || [])) {
           videoResult.total.count++;
-          videoResult.byRegion[region].count++;
+          videoResult.byRegion[r.key].count++;
           if (s.status === 'video_submitted') videoResult.total.submitted++;
           if (s.status === 'completed') videoResult.total.completed++;
         }
-      }
-    } catch (e) { console.error('[영상 제출 조회 오류]', e.message); }
+      } catch (e) { console.error(`[${r.key} 영상 제출 조회 오류]`, e.message); }
+    }
 
-    // 5. 마감 미제출
+    // 5. 마감 미제출 (각 리전별 DB에서 조회)
     const overdueResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
-    try {
-      const { data: deadlineCampaigns } = await supabaseBiz
-        .from('campaigns')
-        .select('id, title, country, region')
-        .eq('content_submission_deadline', todayStr)
-        .in('status', ['active', 'in_progress', 'recruiting']);
+    for (const r of regionClients) {
+      if (!r.client) continue;
+      try {
+        // 오늘 마감인 캠페인 조회
+        const { data: deadlineCampaigns } = await r.client
+          .from('campaigns')
+          .select('id, title')
+          .eq('content_submission_deadline', todayStr)
+          .in('status', ['active', 'in_progress', 'recruiting', 'approved']);
 
-      for (const campaign of (deadlineCampaigns || [])) {
-        const { data: overdueApps } = await supabaseBiz
-          .from('applications')
-          .select('id')
-          .eq('campaign_id', campaign.id)
-          .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation']);
+        for (const campaign of (deadlineCampaigns || [])) {
+          const { data: overdueApps } = await r.client
+            .from('applications')
+            .select('id')
+            .eq('campaign_id', campaign.id)
+            .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation']);
 
-        if (overdueApps && overdueApps.length > 0) {
-          const region = getRegionKey(campaign.country || campaign.region);
-          overdueResult.total += overdueApps.length;
-          overdueResult.byRegion[region] += overdueApps.length;
+          if (overdueApps && overdueApps.length > 0) {
+            overdueResult.total += overdueApps.length;
+            overdueResult.byRegion[r.key] += overdueApps.length;
+          }
         }
-      }
-    } catch (e) { console.error('[마감 미제출 조회 오류]', e.message); }
+      } catch (e) { console.error(`[${r.key} 마감 미제출 조회 오류]`, e.message); }
+    }
 
     // 6. 네이버웍스 메시지
     const nwMessage = `📊 일일리포트 (${dateStr})
