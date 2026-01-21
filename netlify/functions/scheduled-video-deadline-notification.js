@@ -434,6 +434,25 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
 기한 내 미제출 시 패널티가 부과됩니다.
 특별한 사유가 있는 경우 관리자에게 문의해주세요.
 
+문의: 1833-6025`,
+      '025100001021': `[CNEC] 참여하신 캠페인 제출 기한 지연
+
+#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 지연되었습니다.
+
+캠페인: #{캠페인명}
+제출 기한: #{제출기한}
+
+패널티예정
+1일 지연시 보상금의 10% 차감
+3일 지연시 보상금의 30% 차감
+5일 지연시 캠페인 취소 및 제품값 배상
+
+빠른 시일 내에 영상을 제출해 주세요.
+추가 지연 시 패널티가 증가합니다.
+
+사유가 있으실 경우 관리자에게 별도 기간 연장 요청을 해주세요.
+특별한 사유 없이 지연 될 경우 패널티 부과 됩니다.
+
 문의: 1833-6025`
     };
 
@@ -558,12 +577,15 @@ exports.handler = async (event, context) => {
         const regionConfig = regions.find(r => r.name === campaign.region);
         const supabase = createClient(regionConfig.url, regionConfig.key);
 
+        // filming: 촬영 중 (영상 미제출)
+        // selected: 선정됨 (가이드 전달 전)
+        // guide_approved: 가이드 승인됨
+        // video_submitted, sns_uploaded, completed 제외 (이미 제출 완료)
         const { data: applications, error: appError } = await supabase
           .from('applications')
           .select('id, user_id, campaign_id, status')
           .eq('campaign_id', campaign.id)
-          .neq('status', 'completed')
-          .in('status', ['selected', 'approved', 'guide_approved']);
+          .in('status', ['filming', 'selected', 'guide_approved']);
 
         if (appError) {
           console.error(`Applications 조회 오류 (campaign ${campaign.id}):`, appError);
