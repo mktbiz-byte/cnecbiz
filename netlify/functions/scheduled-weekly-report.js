@@ -389,12 +389,23 @@ ${stoppedCount > 0 ? `⚠️ 업로드중단 ${stoppedCount}명` : '✅ 이상�
   </p>
 </body></html>`;
 
-    await sendEmail('mkt@howlab.co.kr', `[CNEC] 주간 리포트 (${startStr}~${endStr})`, emailHtml);
-    console.log('[주간리포트] 이메일 발송 완료');
+    // 이메일 발송 (실패해도 전체 성공 처리)
+    let emailSent = false;
+    try {
+      if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+        await sendEmail('mkt@howlab.co.kr', `[CNEC] 주간 리포트 (${startStr}~${endStr})`, emailHtml);
+        emailSent = true;
+        console.log('[주간리포트] 이메일 발송 완료');
+      } else {
+        console.log('[주간리포트] Gmail 자격증명 없음 - 이메일 발송 생략');
+      }
+    } catch (emailErr) {
+      console.error('[주간리포트] 이메일 발송 실패:', emailErr.message);
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, withdrawals: withdrawals.length, creators: creators.length, uploads: totalUploads })
+      body: JSON.stringify({ success: true, withdrawals: withdrawals.length, creators: creators.length, uploads: totalUploads, emailSent })
     };
 
   } catch (error) {
