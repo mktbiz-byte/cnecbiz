@@ -12,8 +12,8 @@ const supabaseKorea = createClient(
 )
 
 exports.handler = async (event) => {
-  // POST 요청만 허용
-  if (event.httpMethod !== 'POST') {
+  // GET 또는 POST 허용
+  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
       body: JSON.stringify({ error: 'Method not allowed' })
