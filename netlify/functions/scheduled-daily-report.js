@@ -5,16 +5,12 @@ const nodemailer = require('nodemailer');
 
 /**
  * 통합 일일 리포트 - 매일 10시 (KST)
- * - 캠페인 현황
- * - 신규 회원
- * - 영상 제출 현황 (applications 테이블 기반)
- * - 마감 예정일 영상 미제출 크리에이터
- *
- * 네이버웍스: 5~10줄 요약
- * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
  */
 
-const supabaseBiz = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Supabase 클라이언트
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseBiz = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
@@ -136,12 +132,12 @@ exports.handler = async (event) => {
   const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
   console.log(`[일일리포트] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
-  // 환경변수 체크
-  if (!process.env.VITE_SUPABASE_BIZ_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('[일일리포트] 필수 환경변수 누락');
+  // Supabase 클라이언트 체크
+  if (!supabaseBiz) {
+    console.error('[일일리포트] Supabase 클라이언트 없음');
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Missing required environment variables' })
+      body: JSON.stringify({ error: 'Supabase client not initialized' })
     };
   }
 
@@ -169,7 +165,7 @@ exports.handler = async (event) => {
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString());
 
-    // 3. 영상 제출 현황 (applications 테이블에서 video_submitted 상태 조회)
+    // 3. 영상 제출 현황
     console.log('[일일리포트] 영상 제출 데이터 수집...');
     const videoStatuses = ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'];
     const { data: videoSubmissions } = await supabaseBiz
@@ -184,16 +180,18 @@ exports.handler = async (event) => {
     let videoList = [];
     if (videoSubmissions && videoSubmissions.length > 0) {
       const campaignIds = [...new Set(videoSubmissions.map(s => s.campaign_id).filter(Boolean))];
-      const { data: campaignData } = await supabaseBiz
-        .from('campaigns')
-        .select('id, title')
-        .in('id', campaignIds);
-      const campaignMap = new Map((campaignData || []).map(c => [c.id, c.title]));
+      if (campaignIds.length > 0) {
+        const { data: campaignData } = await supabaseBiz
+          .from('campaigns')
+          .select('id, title')
+          .in('id', campaignIds);
+        const campaignMap = new Map((campaignData || []).map(c => [c.id, c.title]));
 
-      videoList = videoSubmissions.map(v => ({
-        ...v,
-        campaign_title: campaignMap.get(v.campaign_id) || '-'
-      }));
+        videoList = videoSubmissions.map(v => ({
+          ...v,
+          campaign_title: campaignMap.get(v.campaign_id) || '-'
+        }));
+      }
     }
 
     const submittedCount = videoList.filter(v => v.status === 'video_submitted').length;
@@ -267,7 +265,6 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
       <td style="padding:6px;border:1px solid #ddd">${new Date(v.updated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</td>
     </tr>`).join('');
 
-    // 마감 미제출 섹션
     let overdueHtml = '';
     if (overdueCreators.length > 0) {
       overdueHtml = overdueCreators.map(campaign => `
@@ -282,8 +279,7 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
       overdueHtml = '<p style="color:#16a34a">✅ 오늘 마감인 캠페인 중 미제출 크리에이터가 없습니다.</p>';
     }
 
-    const emailHtml = `
-<!DOCTYPE html>
+    const emailHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px">
   <h2 style="border-bottom:2px solid #333;padding-bottom:10px">📊 일일 리포트 (${dateStr})</h2>
@@ -333,8 +329,6 @@ ${totalOverdue > 0 ? `⚠️ 마감 미제출: ${totalOverdue}명` : '✅ 마감
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
         emailSent = true;
         console.log('[일일리포트] 이메일 발송 완료');
-      } else {
-        console.log('[일일리포트] GMAIL_APP_PASSWORD 없음 - 이메일 발송 생략');
       }
     } catch (emailErr) {
       console.error('[일일리포트] 이메일 발송 실패:', emailErr.message);
