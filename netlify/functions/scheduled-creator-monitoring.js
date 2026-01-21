@@ -1,8 +1,10 @@
 /**
- * 매일 오전 10시(한국시간) 실행되는 소속 크리에이터 주간 리포트
+ * 매주 월요일 오전 10시(한국시간) 실행되는 소속 크리에이터 주간 리포트
  * Netlify Scheduled Function
  *
- * Cron: 0 1 * * * (UTC 1시 = 한국시간 10시)
+ * Cron: 0 1 * * 1 (매주 월요일 UTC 1시 = 한국시간 10시)
+ *
+ * 수동 테스트: GET/POST /.netlify/functions/scheduled-creator-monitoring
  *
  * 체크 항목:
  * 1. 각 크리에이터별 최근 7일 업로드 수
@@ -287,7 +289,12 @@ function formatNumber(num) {
  * 메인 핸들러
  */
 exports.handler = async (event, context) => {
+  // HTTP 요청 정보 로깅 (수동 테스트 확인용)
+  const httpMethod = event.httpMethod || 'SCHEDULED';
+  const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
+
   console.log('🔔 [CREATOR-MONITORING] 소속 크리에이터 주간 리포트 시작');
+  console.log(`📌 실행 방식: ${isManualTest ? `수동 테스트 (${httpMethod})` : '스케줄 자동 실행'}`);
 
   try {
     // 한국시간
@@ -445,8 +452,11 @@ exports.handler = async (event, context) => {
 
     // 메시지 작성
     let message = `📊 소속 크리에이터 주간 리포트\n`;
-    message += `📅 ${koreanDate}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `📅 ${koreanDate}\n`;
+    if (isManualTest) {
+      message += `🔧 수동 테스트 실행\n`;
+    }
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     // 요약 통계
     const activeCreators = creatorStats.filter(c => c.status === 'active');
@@ -551,9 +561,11 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
+        executionType: isManualTest ? 'manual' : 'scheduled',
         creatorCount: affiliatedCreators.length,
         totalWeeklyUploads: totalWeeklyUploads,
         alertCount: alerts.length,
+        creatorStats: creatorStats.slice(0, 5), // 처음 5개만 반환 (디버깅용)
         message: '주간 리포트 완료'
       })
     };
@@ -568,4 +580,9 @@ exports.handler = async (event, context) => {
       })
     };
   }
+};
+
+// Netlify Scheduled Function 설정 - 매주 월요일 오전 10시 (한국시간)
+exports.config = {
+  schedule: '0 1 * * 1'  // 매주 월요일 UTC 1시 = 한국시간 10시
 };
