@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, CheckCircle, XCircle, Clock, Search, Building2 } from 'lucide-react'
+import { RefreshCw, Search, Building2 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function HowlabDepositsTab() {
@@ -15,7 +15,7 @@ export default function HowlabDepositsTab() {
   })
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('1') // 1: 입금만, 2: 출금만, all: 전체
+  const [filterType, setFilterType] = useState('input') // input: 입금만, output: 출금만, all: 전체
   const [stats, setStats] = useState({ total: 0, deposits: 0, withdrawals: 0, depositAmount: 0, withdrawalAmount: 0 })
 
   useEffect(() => {
@@ -25,16 +25,23 @@ export default function HowlabDepositsTab() {
   const fetchDeposits = async () => {
     setLoading(true)
     try {
-      let query = supabaseBiz
-        .from('bankda_deposits')
-        .select('*')
-        .gte('inoutdate', startDate)
-        .lte('inoutdate', endDate)
-        .order('inoutdate', { ascending: false })
-        .order('inouttime', { ascending: false })
+      // 날짜를 YYYYMMDD 형식으로 변환
+      const startDateStr = startDate.replace(/-/g, '')
+      const endDateStr = endDate.replace(/-/g, '')
 
-      if (filterType !== 'all') {
-        query = query.eq('inouttype', filterType)
+      let query = supabaseBiz
+        .from('tblbank')
+        .select('*')
+        .gte('bkdate', startDateStr)
+        .lte('bkdate', endDateStr)
+        .order('bkdate', { ascending: false })
+        .order('bktime', { ascending: false })
+
+      // 필터 적용
+      if (filterType === 'input') {
+        query = query.gt('bkinput', 0)
+      } else if (filterType === 'output') {
+        query = query.gt('bkoutput', 0)
       }
 
       const { data, error } = await query
@@ -44,14 +51,14 @@ export default function HowlabDepositsTab() {
       setDeposits(data || [])
 
       // 통계 계산
-      const depositItems = (data || []).filter(d => d.inouttype === '1')
-      const withdrawalItems = (data || []).filter(d => d.inouttype === '2')
+      const depositItems = (data || []).filter(d => d.bkinput > 0)
+      const withdrawalItems = (data || []).filter(d => d.bkoutput > 0)
       setStats({
         total: data?.length || 0,
         deposits: depositItems.length,
         withdrawals: withdrawalItems.length,
-        depositAmount: depositItems.reduce((sum, d) => sum + (d.inoutamount || 0), 0),
-        withdrawalAmount: withdrawalItems.reduce((sum, d) => sum + (d.inoutamount || 0), 0)
+        depositAmount: depositItems.reduce((sum, d) => sum + (d.bkinput || 0), 0),
+        withdrawalAmount: withdrawalItems.reduce((sum, d) => sum + (d.bkoutput || 0), 0)
       })
     } catch (error) {
       console.error('입출금 내역 조회 오류:', error)
@@ -65,27 +72,30 @@ export default function HowlabDepositsTab() {
     if (!searchTerm) return true
     const search = searchTerm.toLowerCase()
     return (
-      (d.briefs && d.briefs.toLowerCase().includes(search)) ||
-      (d.memo && d.memo.toLowerCase().includes(search)) ||
-      (d.inoutamount && d.inoutamount.toString().includes(search))
+      (d.bkjukyo && d.bkjukyo.toLowerCase().includes(search)) ||
+      (d.bkcontent && d.bkcontent.toLowerCase().includes(search)) ||
+      (d.bkinput && d.bkinput.toString().includes(search)) ||
+      (d.bkoutput && d.bkoutput.toString().includes(search))
     )
   })
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '-'
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('ko-KR')
+    if (!dateStr || dateStr.length !== 8) return '-'
+    // YYYYMMDD -> YYYY.MM.DD
+    return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6, 8)}`
   }
 
   const formatTime = (timeStr) => {
-    if (!timeStr) return ''
-    // HH:MM:SS 형식
-    return timeStr.slice(0, 5)
+    if (!timeStr || timeStr.length < 4) return ''
+    // HHMMSS -> HH:MM
+    return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`
   }
 
   const formatAmount = (amount) => {
     return (amount || 0).toLocaleString('ko-KR')
   }
+
+  const isDeposit = (item) => item.bkinput > 0
 
   return (
     <div className="space-y-4">
@@ -158,8 +168,8 @@ export default function HowlabDepositsTab() {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="w-32 h-10 px-3 border rounded-md"
               >
-                <option value="1">입금만</option>
-                <option value="2">출금만</option>
+                <option value="input">입금만</option>
+                <option value="output">출금만</option>
                 <option value="all">전체</option>
               </select>
             </div>
@@ -205,51 +215,43 @@ export default function HowlabDepositsTab() {
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">일시</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">유형</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">입금자명</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">적요(입금자명)</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">금액</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">잔액</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">매칭</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">메모</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">내용</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredDeposits.map((deposit) => (
-                    <tr key={deposit.bkcode} className="hover:bg-gray-50">
+                  {filteredDeposits.map((item) => (
+                    <tr key={item.bkid} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm">
-                        {formatDate(deposit.inoutdate)}
-                        {deposit.inouttime && (
-                          <span className="text-gray-400 ml-1">{formatTime(deposit.inouttime)}</span>
+                        {formatDate(item.bkdate)}
+                        {item.bktime && (
+                          <span className="text-gray-400 ml-1">{formatTime(item.bktime)}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          deposit.inouttype === '1'
+                          isDeposit(item)
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {deposit.inouttype === '1' ? '입금' : '출금'}
+                          {isDeposit(item) ? '입금' : '출금'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {deposit.briefs || '-'}
+                        {item.bkjukyo || '-'}
                       </td>
                       <td className={`px-4 py-3 text-sm text-right font-medium ${
-                        deposit.inouttype === '1' ? 'text-green-600' : 'text-red-600'
+                        isDeposit(item) ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {deposit.inouttype === '1' ? '+' : '-'}{formatAmount(deposit.inoutamount)}원
+                        {isDeposit(item) ? '+' : '-'}{formatAmount(isDeposit(item) ? item.bkinput : item.bkoutput)}원
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-gray-500">
-                        {formatAmount(deposit.balance)}원
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {deposit.is_matched ? (
-                          <CheckCircle className="w-5 h-5 text-green-500 inline" />
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
+                        {formatAmount(item.bkjango)}원
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                        {deposit.memo || deposit.notes || '-'}
+                        {item.bkcontent || item.bketc || '-'}
                       </td>
                     </tr>
                   ))}
