@@ -116,6 +116,7 @@ import TestNaverWorks from './pages/TestNaverWorks'
 import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
+import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -239,6 +240,7 @@ function App() {
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/newsletters" element={<NewsletterShowcaseManagement />} />
+        <Route path="/admin/update-history" element={<GitUpdateHistory />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
         <Route path="/admin/line-messages" element={<LineMessagesManagement />} />
