@@ -81,7 +81,7 @@ ${snsUrls}
 
       // 프로필 분석: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

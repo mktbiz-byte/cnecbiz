@@ -161,7 +161,7 @@ JSON 형식으로만 응답해주세요.`
 
         // 올리브영 가이드 모달: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

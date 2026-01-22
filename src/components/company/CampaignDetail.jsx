@@ -1330,7 +1330,7 @@ JSON만 출력.`
 
         // 씬 가이드 생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1378,7 +1378,7 @@ JSON만 출력.`
         try {
           // 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
           const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
