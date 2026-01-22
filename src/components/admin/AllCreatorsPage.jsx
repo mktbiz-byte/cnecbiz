@@ -274,6 +274,74 @@ export default function AllCreatorsPage() {
     setCurrentPage(1)
   }, [activeTab, searchTerm, gradeFilter, accountStatusFilter])
 
+  // 필터별 인원 수 계산
+  const filterCounts = useMemo(() => {
+    // 현재 탭에 해당하는 크리에이터 목록
+    let baseCreators = []
+    if (activeTab === 'all') {
+      baseCreators = [
+        ...creators.korea.map(c => ({ ...c, region: '한국', dbRegion: 'korea' })),
+        ...creators.japan.map(c => ({ ...c, region: '일본', dbRegion: 'japan' })),
+        ...creators.us.map(c => ({ ...c, region: '미국', dbRegion: 'us' })),
+        ...creators.taiwan.map(c => ({ ...c, region: '대만', dbRegion: 'taiwan' }))
+      ]
+    } else {
+      baseCreators = creators[activeTab]?.map(c => ({
+        ...c,
+        region: activeTab === 'korea' ? '한국' : activeTab === 'japan' ? '일본' : activeTab === 'us' ? '미국' : '대만',
+        dbRegion: activeTab
+      })) || []
+    }
+
+    // 검색어 필터 적용
+    let searchFiltered = baseCreators
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      searchFiltered = baseCreators.filter(creator =>
+        creator.name?.toLowerCase().includes(term) ||
+        creator.email?.toLowerCase().includes(term) ||
+        creator.channel_name?.toLowerCase().includes(term) ||
+        creator.phone?.includes(term)
+      )
+    }
+
+    // 등급 카운트 계산
+    const gradeCounts = {
+      all: searchFiltered.length,
+      none: 0,
+      1: 0, 2: 0, 3: 0, 4: 0, 5: 0
+    }
+
+    // 계정 상태 카운트 계산
+    const accountCounts = {
+      all: searchFiltered.length,
+      verified: 0,
+      warning_1: 0,
+      warning_2: 0,
+      warning_3: 0,
+      unclassified: 0
+    }
+
+    searchFiltered.forEach(creator => {
+      // 등급 카운트
+      const grade = featuredCreators.find(fc => fc.user_id === creator.id)
+      if (grade && grade.cnec_grade_level) {
+        gradeCounts[grade.cnec_grade_level] = (gradeCounts[grade.cnec_grade_level] || 0) + 1
+      } else {
+        gradeCounts.none++
+      }
+
+      // 계정 상태 카운트
+      if (creator.account_status) {
+        accountCounts[creator.account_status] = (accountCounts[creator.account_status] || 0) + 1
+      } else {
+        accountCounts.unclassified++
+      }
+    })
+
+    return { gradeCounts, accountCounts, total: searchFiltered.length }
+  }, [activeTab, creators, searchTerm, featuredCreators])
+
   const checkAuth = async () => {
     const { data: { user } } = await supabaseBiz.auth.getUser()
     if (!user) {
@@ -1799,7 +1867,7 @@ export default function AllCreatorsPage() {
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
-                      전체
+                      전체 ({filterCounts.gradeCounts.all})
                     </button>
                     {Object.entries(GRADE_LEVELS).map(([level, info]) => (
                       <button
@@ -1813,7 +1881,7 @@ export default function AllCreatorsPage() {
                       >
                         {level === '5' && <Crown className="w-3 h-3" />}
                         {level === '4' && <Sparkles className="w-3 h-3" />}
-                        {info.name}
+                        {info.name} ({filterCounts.gradeCounts[level] || 0})
                       </button>
                     ))}
                     <button
@@ -1824,7 +1892,7 @@ export default function AllCreatorsPage() {
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
-                      미등록
+                      미등록 ({filterCounts.gradeCounts.none})
                     </button>
                   </div>
                 </div>
@@ -1843,7 +1911,7 @@ export default function AllCreatorsPage() {
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
-                      전체
+                      전체 ({filterCounts.accountCounts.all})
                     </button>
                     <button
                       onClick={() => setAccountStatusFilter('verified')}
@@ -1853,7 +1921,7 @@ export default function AllCreatorsPage() {
                           : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                       }`}
                     >
-                      <ShieldCheck className="w-3 h-3" /> 찐계정
+                      <ShieldCheck className="w-3 h-3" /> 찐계정 ({filterCounts.accountCounts.verified})
                     </button>
                     <button
                       onClick={() => setAccountStatusFilter('warning_1')}
@@ -1863,7 +1931,7 @@ export default function AllCreatorsPage() {
                           : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
                       }`}
                     >
-                      <AlertTriangle className="w-3 h-3" /> 주의
+                      <AlertTriangle className="w-3 h-3" /> 주의 ({filterCounts.accountCounts.warning_1})
                     </button>
                     <button
                       onClick={() => setAccountStatusFilter('warning_2')}
@@ -1873,7 +1941,7 @@ export default function AllCreatorsPage() {
                           : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
                       }`}
                     >
-                      <ShieldAlert className="w-3 h-3" /> 경고
+                      <ShieldAlert className="w-3 h-3" /> 경고 ({filterCounts.accountCounts.warning_2})
                     </button>
                     <button
                       onClick={() => setAccountStatusFilter('warning_3')}
@@ -1883,7 +1951,7 @@ export default function AllCreatorsPage() {
                           : 'bg-red-50 text-red-700 hover:bg-red-100'
                       }`}
                     >
-                      <ShieldX className="w-3 h-3" /> 위험
+                      <ShieldX className="w-3 h-3" /> 위험 ({filterCounts.accountCounts.warning_3})
                     </button>
                     <button
                       onClick={() => setAccountStatusFilter('unclassified')}
@@ -1893,7 +1961,7 @@ export default function AllCreatorsPage() {
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
-                      미분류
+                      미분류 ({filterCounts.accountCounts.unclassified})
                     </button>
                   </div>
                 </div>
