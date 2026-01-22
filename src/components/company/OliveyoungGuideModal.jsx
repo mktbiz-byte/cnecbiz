@@ -26,6 +26,9 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
   const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
   const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
 
+  console.log('[OliveyoungGuideModal] Raw campaign.oliveyoung_step1_guide_ai:', campaign.oliveyoung_step1_guide_ai)
+  console.log('[OliveyoungGuideModal] Parsed step1Data:', step1Data)
+
   // 외부 가이드 정보
   const getExternalGuide = (stepNum) => {
     const mode = campaign[`step${stepNum}_guide_mode`]
@@ -74,6 +77,9 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
 
   const handleEdit = () => {
     const currentData = activeStep === 'step1' ? step1Data : step2Data
+    console.log('[OliveyoungGuideModal] handleEdit - activeStep:', activeStep)
+    console.log('[OliveyoungGuideModal] handleEdit - currentData:', currentData)
+    console.log('[OliveyoungGuideModal] handleEdit - currentData.text_guide:', currentData?.text_guide)
     // 캠페인 정보를 기본값으로 사용
     const defaultProductInfo = campaign.brand && campaign.product_name
       ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
