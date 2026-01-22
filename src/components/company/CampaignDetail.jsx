@@ -39,7 +39,8 @@ import {
   ShieldAlert,
   ShieldX,
   Filter,
-  Info
+  Info,
+  Search
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -137,9 +138,9 @@ const normalizeSnsUrl = (url, platform) => {
 // 계정 인증 상태 정보
 const ACCOUNT_STATUS = {
   verified: {
-    name: '인증됨',
-    label: '찐계정',
-    description: '100% 순수 계정으로 확인된 안전한 크리에이터입니다.',
+    name: '인증완료',
+    label: '인증완료',
+    description: '활동 이력이 확인된 크리에이터입니다.',
     icon: 'ShieldCheck',
     bgClass: 'bg-emerald-500',
     textClass: 'text-white',
@@ -148,31 +149,31 @@ const ACCOUNT_STATUS = {
     borderClass: 'border-emerald-300'
   },
   warning_1: {
-    name: '주의',
-    label: 'Level 1',
-    description: '일부 지표가 의심스러운 계정입니다. 가계정 위험도 낮음.',
-    icon: 'AlertTriangle',
+    name: '확인중',
+    label: '확인중',
+    description: '일부 지표를 검토 중인 크리에이터입니다.',
+    icon: 'Search',
+    bgClass: 'bg-blue-500',
+    textClass: 'text-white',
+    lightBg: 'bg-blue-50',
+    lightText: 'text-blue-700',
+    borderClass: 'border-blue-300'
+  },
+  warning_2: {
+    name: '확인필요',
+    label: '확인필요',
+    description: '추가 검토가 권장되는 크리에이터입니다.',
+    icon: 'AlertCircle',
     bgClass: 'bg-yellow-500',
     textClass: 'text-white',
     lightBg: 'bg-yellow-50',
     lightText: 'text-yellow-700',
     borderClass: 'border-yellow-300'
   },
-  warning_2: {
-    name: '경고',
-    label: 'Level 2',
-    description: '다수 지표가 의심스러운 계정입니다. 가계정 위험도 중간.',
-    icon: 'ShieldAlert',
-    bgClass: 'bg-orange-500',
-    textClass: 'text-white',
-    lightBg: 'bg-orange-50',
-    lightText: 'text-orange-700',
-    borderClass: 'border-orange-300'
-  },
   warning_3: {
-    name: '위험',
-    label: 'Level 3',
-    description: '가계정으로 의심되는 계정입니다. 가계정 위험도 높음.',
+    name: '가계정 의심',
+    label: '가계정 의심',
+    description: '가계정 가능성이 높은 계정입니다.',
     icon: 'ShieldX',
     bgClass: 'bg-red-500',
     textClass: 'text-white',
@@ -5757,27 +5758,27 @@ JSON만 출력.`
                               : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-300'
                           }`}
                         >
-                          <ShieldCheck className="w-3 h-3" /> 인증됨
+                          <ShieldCheck className="w-3 h-3" /> 인증완료
                         </button>
                         <button
                           onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_1' }))}
                           className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
                             applicantFilters.accountStatus === 'warning_1'
-                              ? 'bg-yellow-500 text-white'
-                              : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-300'
                           }`}
                         >
-                          <AlertTriangle className="w-3 h-3" /> 주의
+                          <Search className="w-3 h-3" /> 확인중
                         </button>
                         <button
                           onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_2' }))}
                           className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
                             applicantFilters.accountStatus === 'warning_2'
-                              ? 'bg-orange-500 text-white'
-                              : 'bg-white text-orange-700 hover:bg-orange-50 border border-orange-300'
+                              ? 'bg-yellow-500 text-white'
+                              : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300'
                           }`}
                         >
-                          <ShieldAlert className="w-3 h-3" /> 경고
+                          <AlertCircle className="w-3 h-3" /> 확인필요
                         </button>
                         <button
                           onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_3' }))}
@@ -5787,7 +5788,7 @@ JSON만 출력.`
                               : 'bg-white text-red-700 hover:bg-red-50 border border-red-300'
                           }`}
                         >
-                          <ShieldX className="w-3 h-3" /> 위험
+                          <ShieldX className="w-3 h-3" /> 가계정 의심
                         </button>
                         <button
                           onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'unclassified' }))}
@@ -5802,53 +5803,63 @@ JSON만 출력.`
                       </div>
                     </div>
 
-                    {/* 계정 상태 설명 레전드 */}
-                    <div className="p-4 bg-gradient-to-r from-emerald-50 to-red-50 rounded-lg border border-gray-200">
+                    {/* 계정 인증 상태 설명 */}
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
                       <div className="flex items-center gap-2 mb-3">
-                        <Info className="w-4 h-4 text-gray-600" />
-                        <span className="text-sm font-semibold text-gray-700">계정 인증 상태 안내</span>
-                        <span className="text-xs text-gray-500">(가계정 위험 단계)</span>
+                        <Info className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-800">계정 인증 상태는 아래와 같이 평가됩니다</span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
-                          <div className="p-1.5 bg-emerald-500 rounded-full">
-                            <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            크넥 내부 심사단이 대표 콘텐츠 3~5개 리뷰
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-emerald-700">인증됨</p>
-                            <p className="text-xs text-gray-600">100% 순수 계정 확인</p>
-                            <p className="text-xs text-emerald-600 font-medium">✓ 안전한 협업 가능</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            평가 기준: 영상 퀄리티, 스토리텔링, 뷰티 전문성, 브랜드 적합성
                           </div>
-                        </div>
-                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
-                          <div className="p-1.5 bg-yellow-500 rounded-full">
-                            <AlertTriangle className="w-3.5 h-3.5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-yellow-700">주의</p>
-                            <p className="text-xs text-gray-600">일부 지표 의심</p>
-                            <p className="text-xs text-yellow-600">위험도: 낮음</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            품앗이 등 부정적인 시스템 이용 여부 체크
                           </div>
                         </div>
-                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
-                          <div className="p-1.5 bg-orange-500 rounded-full">
-                            <ShieldAlert className="w-3.5 h-3.5 text-white" />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            브랜드 협업 완료율
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-orange-700">경고</p>
-                            <p className="text-xs text-gray-600">다수 지표 의심</p>
-                            <p className="text-xs text-orange-600">위험도: 중간</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            브랜드 재협업 의향률
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            총 협업 횟수 표기
                           </div>
                         </div>
-                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
-                          <div className="p-1.5 bg-red-500 rounded-full">
-                            <ShieldX className="w-3.5 h-3.5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-red-700">위험</p>
-                            <p className="text-xs text-gray-600">가계정 의심</p>
-                            <p className="text-xs text-red-600">위험도: 높음</p>
-                          </div>
+                      </div>
+                      {/* 간단한 상태 범례 */}
+                      <div className="mt-4 pt-3 border-t border-purple-200 flex flex-wrap gap-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                          <span className="text-xs text-gray-600">인증완료</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                          <span className="text-xs text-gray-600">확인중</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-yellow-500 rounded-full" />
+                          <span className="text-xs text-gray-600">확인필요</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                          <span className="text-xs text-gray-600">가계정 의심</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-gray-400 rounded-full" />
+                          <span className="text-xs text-gray-600">검증중</span>
                         </div>
                       </div>
                     </div>
@@ -5964,8 +5975,8 @@ JSON만 출력.`
                               title={ACCOUNT_STATUS[app.account_status].description}
                             >
                               {app.account_status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
-                              {app.account_status === 'warning_1' && <AlertTriangle className="w-3.5 h-3.5 text-yellow-600" />}
-                              {app.account_status === 'warning_2' && <ShieldAlert className="w-3.5 h-3.5 text-orange-600" />}
+                              {app.account_status === 'warning_1' && <Search className="w-3.5 h-3.5 text-blue-600" />}
+                              {app.account_status === 'warning_2' && <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />}
                               {app.account_status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
                               <span className={`text-xs font-bold ${ACCOUNT_STATUS[app.account_status].lightText}`}>
                                 {ACCOUNT_STATUS[app.account_status].name}
