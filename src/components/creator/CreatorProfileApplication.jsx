@@ -79,7 +79,7 @@ ${snsUrls}
 - 카테고리는 beauty, fashion, food, lifestyle, tech, travel, fitness, gaming, education, entertainment 중 선택
 - 통계는 현실적인 범위로 추정`
 
-      // 프로필 분석: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+      // 프로필 분석: 단순 분석 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {

@@ -255,7 +255,7 @@ ${realDataInfo}
 - 카테고리는 beauty, fashion, food, lifestyle, tech, travel, fitness, gaming, education, entertainment 등에서 선택하세요
 - 소개는 기업 담당자가 "이 사람과 일하고 싶다"고 느낄 수 있도록 작성하세요`
 
-      // 프로필 분석: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+      // 프로필 분석: 단순 분석 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
@@ -535,7 +535,7 @@ ${realDataInfo}
 }
 `
 
-        // AI 프로필 생성: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+        // AI 프로필 생성: 단순 분석 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
           {

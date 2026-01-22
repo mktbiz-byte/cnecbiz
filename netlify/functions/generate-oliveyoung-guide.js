@@ -33,7 +33,7 @@ exports.handler = async (event) => {
       step3: { reference_urls: '', required_dialogue: '', required_scenes: '', examples: '' }
     }
 
-    // 올리브영 가이드: 단순 생성 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+    // 올리브영 가이드: 단순 생성 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
     // Generate guide for each step

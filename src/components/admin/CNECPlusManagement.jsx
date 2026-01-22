@@ -87,7 +87,7 @@ export default function CNECPlusManagement() {
         setFormData(prev => ({ ...prev, recent_videos: mediaResult.recentVideos }))
       }
       // Initialize Gemini AI
-      // 프로필 분석: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+      // 프로필 분석: 단순 분석 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
