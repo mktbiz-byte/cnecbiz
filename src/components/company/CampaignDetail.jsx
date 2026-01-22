@@ -33,7 +33,13 @@ import {
   Link,
   ExternalLink,
   Mail,
-  XCircle
+  XCircle,
+  ShieldCheck,
+  AlertTriangle,
+  ShieldAlert,
+  ShieldX,
+  Filter,
+  Info
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -128,6 +134,71 @@ const normalizeSnsUrl = (url, platform) => {
   }
 }
 
+// 계정 인증 상태 정보
+const ACCOUNT_STATUS = {
+  verified: {
+    name: '인증됨',
+    label: '찐계정',
+    description: '100% 순수 계정으로 확인된 안전한 크리에이터입니다.',
+    icon: 'ShieldCheck',
+    bgClass: 'bg-emerald-500',
+    textClass: 'text-white',
+    lightBg: 'bg-emerald-50',
+    lightText: 'text-emerald-700',
+    borderClass: 'border-emerald-300'
+  },
+  warning_1: {
+    name: '주의',
+    label: 'Level 1',
+    description: '일부 지표가 의심스러운 계정입니다. 가계정 위험도 낮음.',
+    icon: 'AlertTriangle',
+    bgClass: 'bg-yellow-500',
+    textClass: 'text-white',
+    lightBg: 'bg-yellow-50',
+    lightText: 'text-yellow-700',
+    borderClass: 'border-yellow-300'
+  },
+  warning_2: {
+    name: '경고',
+    label: 'Level 2',
+    description: '다수 지표가 의심스러운 계정입니다. 가계정 위험도 중간.',
+    icon: 'ShieldAlert',
+    bgClass: 'bg-orange-500',
+    textClass: 'text-white',
+    lightBg: 'bg-orange-50',
+    lightText: 'text-orange-700',
+    borderClass: 'border-orange-300'
+  },
+  warning_3: {
+    name: '위험',
+    label: 'Level 3',
+    description: '가계정으로 의심되는 계정입니다. 가계정 위험도 높음.',
+    icon: 'ShieldX',
+    bgClass: 'bg-red-500',
+    textClass: 'text-white',
+    lightBg: 'bg-red-50',
+    lightText: 'text-red-700',
+    borderClass: 'border-red-300'
+  }
+}
+
+// 피부 타입 매핑
+const SKIN_TYPES = {
+  dry: '건성',
+  oily: '지성',
+  combination: '복합성',
+  sensitive: '민감성',
+  normal: '중성'
+}
+
+// 나이대 범위 정의
+const AGE_RANGES = {
+  '20': { label: '20대', min: 20, max: 29 },
+  '30': { label: '30대', min: 30, max: 39 },
+  '40': { label: '40대', min: 40, max: 49 },
+  '50+': { label: '50대+', min: 50, max: 999 }
+}
+
 // 등급별 추천 배지 정보 생성
 const getGradeRecommendation = (gradeLevel) => {
   if (!gradeLevel) return null
@@ -194,6 +265,12 @@ export default function CampaignDetail() {
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
   const [aiRecommendations, setAiRecommendations] = useState([])
+  // 지원자 필터 상태
+  const [applicantFilters, setApplicantFilters] = useState({
+    skinType: 'all',      // 'all', 'dry', 'oily', 'combination', 'sensitive', 'normal'
+    ageRange: 'all',      // 'all', '20', '30', '40', '50+'
+    accountStatus: 'all'  // 'all', 'verified', 'warning_1', 'warning_2', 'warning_3', 'unclassified'
+  })
   const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
@@ -972,7 +1049,11 @@ export default function CampaignDetail() {
             address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
             shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
             postal_code: profile.postal_code || app.postal_code || '',
-            detail_address: profile.detail_address || profile.address_detail || app.detail_address || ''
+            detail_address: profile.detail_address || profile.address_detail || app.detail_address || '',
+            // 계정 인증 상태 및 프로필 정보
+            account_status: profile.account_status || null,
+            skin_type: profile.skin_type || app.skin_type || null,
+            age: profile.age || app.age || null
           }
           console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
@@ -982,7 +1063,8 @@ export default function CampaignDetail() {
         return {
           ...app,
           ...gradeInfo,
-          applicant_name: resolvedName
+          applicant_name: resolvedName,
+          account_status: null
         }
       })
 
@@ -5552,13 +5634,261 @@ JSON만 출력.`
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
+                {/* 필터 섹션 */}
+                {applications.length > 0 && (
+                  <div className="mb-6 space-y-4">
+                    {/* 필터 컨트롤 */}
+                    <div className="flex items-center gap-2 flex-wrap p-4 bg-gray-50 rounded-lg">
+                      <Filter className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700 mr-2">필터:</span>
+
+                      {/* 피부 타입 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">피부:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.skinType === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {Object.entries(SKIN_TYPES).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: key }))}
+                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                              applicantFilters.skinType === key
+                                ? 'bg-pink-500 text-white'
+                                : 'bg-white text-gray-600 hover:bg-pink-50 border'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-6 bg-gray-300 mx-2" />
+
+                      {/* 나이대 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">나이:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.ageRange === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {Object.entries(AGE_RANGES).map(([key, { label }]) => (
+                          <button
+                            key={key}
+                            onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: key }))}
+                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                              applicantFilters.ageRange === key
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-600 hover:bg-blue-50 border'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-6 bg-gray-300 mx-2" />
+
+                      {/* 계정 상태 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">계정:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.accountStatus === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'verified' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'verified'
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-300'
+                          }`}
+                        >
+                          <ShieldCheck className="w-3 h-3" /> 인증됨
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_1' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_1'
+                              ? 'bg-yellow-500 text-white'
+                              : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300'
+                          }`}
+                        >
+                          <AlertTriangle className="w-3 h-3" /> 주의
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_2' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_2'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-white text-orange-700 hover:bg-orange-50 border border-orange-300'
+                          }`}
+                        >
+                          <ShieldAlert className="w-3 h-3" /> 경고
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_3' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_3'
+                              ? 'bg-red-500 text-white'
+                              : 'bg-white text-red-700 hover:bg-red-50 border border-red-300'
+                          }`}
+                        >
+                          <ShieldX className="w-3 h-3" /> 위험
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'unclassified' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.accountStatus === 'unclassified'
+                              ? 'bg-gray-500 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          미분류
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 계정 상태 설명 레전드 */}
+                    <div className="p-4 bg-gradient-to-r from-emerald-50 to-red-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm font-semibold text-gray-700">계정 인증 상태 안내</span>
+                        <span className="text-xs text-gray-500">(가계정 위험 단계)</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
+                          <div className="p-1.5 bg-emerald-500 rounded-full">
+                            <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-emerald-700">인증됨</p>
+                            <p className="text-xs text-gray-600">100% 순수 계정 확인</p>
+                            <p className="text-xs text-emerald-600 font-medium">✓ 안전한 협업 가능</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
+                          <div className="p-1.5 bg-yellow-500 rounded-full">
+                            <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-yellow-700">주의</p>
+                            <p className="text-xs text-gray-600">일부 지표 의심</p>
+                            <p className="text-xs text-yellow-600">위험도: 낮음</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
+                          <div className="p-1.5 bg-orange-500 rounded-full">
+                            <ShieldAlert className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-orange-700">경고</p>
+                            <p className="text-xs text-gray-600">다수 지표 의심</p>
+                            <p className="text-xs text-orange-600">위험도: 중간</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-md">
+                          <div className="p-1.5 bg-red-500 rounded-full">
+                            <ShieldX className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-red-700">위험</p>
+                            <p className="text-xs text-gray-600">가계정 의심</p>
+                            <p className="text-xs text-red-600">위험도: 높음</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 필터 결과 카운트 */}
+                    {(applicantFilters.skinType !== 'all' || applicantFilters.ageRange !== 'all' || applicantFilters.accountStatus !== 'all') && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          필터 결과: <strong className="text-purple-600">
+                            {applications.filter(app => {
+                              // 피부 타입 필터
+                              if (applicantFilters.skinType !== 'all') {
+                                const appSkinType = app.skin_type?.toLowerCase()
+                                if (appSkinType !== applicantFilters.skinType) return false
+                              }
+                              // 나이대 필터
+                              if (applicantFilters.ageRange !== 'all' && app.age) {
+                                const range = AGE_RANGES[applicantFilters.ageRange]
+                                if (app.age < range.min || app.age > range.max) return false
+                              } else if (applicantFilters.ageRange !== 'all' && !app.age) {
+                                return false
+                              }
+                              // 계정 상태 필터
+                              if (applicantFilters.accountStatus !== 'all') {
+                                if (applicantFilters.accountStatus === 'unclassified') {
+                                  if (app.account_status) return false
+                                } else {
+                                  if (app.account_status !== applicantFilters.accountStatus) return false
+                                }
+                              }
+                              return true
+                            }).length}명
+                          </strong> / 전체 {applications.length}명
+                        </span>
+                        <button
+                          onClick={() => setApplicantFilters({ skinType: 'all', ageRange: 'all', accountStatus: 'all' })}
+                          className="text-xs text-gray-500 hover:text-gray-700 underline"
+                        >
+                          필터 초기화
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {applications.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 지원자가 없습니다.
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {applications.map(app => {
+                    {applications.filter(app => {
+                      // 피부 타입 필터
+                      if (applicantFilters.skinType !== 'all') {
+                        const appSkinType = app.skin_type?.toLowerCase()
+                        if (appSkinType !== applicantFilters.skinType) return false
+                      }
+                      // 나이대 필터
+                      if (applicantFilters.ageRange !== 'all' && app.age) {
+                        const range = AGE_RANGES[applicantFilters.ageRange]
+                        if (app.age < range.min || app.age > range.max) return false
+                      } else if (applicantFilters.ageRange !== 'all' && !app.age) {
+                        return false
+                      }
+                      // 계정 상태 필터
+                      if (applicantFilters.accountStatus !== 'all') {
+                        if (applicantFilters.accountStatus === 'unclassified') {
+                          if (app.account_status) return false
+                        } else {
+                          if (app.account_status !== applicantFilters.accountStatus) return false
+                        }
+                      }
+                      return true
+                    }).map(app => {
                       const isAlreadyParticipant = participants.some(p => p.user_id && app.user_id && p.user_id === app.user_id)
                       const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
                       const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
@@ -5592,6 +5922,22 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
+
+                          {/* 계정 인증 상태 배지 - TOP 크리에이터 배지 위에 배치 */}
+                          {app.account_status && ACCOUNT_STATUS[app.account_status] && (
+                            <div
+                              className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${ACCOUNT_STATUS[app.account_status].lightBg} border ${ACCOUNT_STATUS[app.account_status].borderClass}`}
+                              title={ACCOUNT_STATUS[app.account_status].description}
+                            >
+                              {app.account_status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                              {app.account_status === 'warning_1' && <AlertTriangle className="w-3.5 h-3.5 text-yellow-600" />}
+                              {app.account_status === 'warning_2' && <ShieldAlert className="w-3.5 h-3.5 text-orange-600" />}
+                              {app.account_status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
+                              <span className={`text-xs font-bold ${ACCOUNT_STATUS[app.account_status].lightText}`}>
+                                {ACCOUNT_STATUS[app.account_status].name}
+                              </span>
+                            </div>
+                          )}
 
                           {/* 등급 추천 배지 */}
                           {(() => {
