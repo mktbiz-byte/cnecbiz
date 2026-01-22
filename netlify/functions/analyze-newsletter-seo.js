@@ -397,7 +397,7 @@ JSON 형식으로만 응답해주세요. 한국어로 작성해주세요.
 `
 
   const response = await gemini.chat.completions.create({
-    model: 'gemini-pro',
+    model: 'gemini-2.5-flash-lite',
     messages: [
       {
         role: 'system',

@@ -570,7 +570,7 @@ async function analyzeVideoWithGemini(videoUrl, platform) {
   console.log(`Starting video analysis for: ${videoUrl}`);
   
   // CAPI 프로필 분석: 중간 복잡도 → gemini-1.5-flash (2K RPM, 무제한 RPD)
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
   
   const prompt = `당신은 숏폼 콘텐츠 분석 전문가입니다. 다음 영상을 시청하고 콘텐츠 제작 역량을 평가해주세요.
 
