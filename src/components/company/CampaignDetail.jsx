@@ -5903,8 +5903,8 @@ JSON만 출력.`
                     {applications.filter(app => {
                       // 피부 타입 필터
                       if (applicantFilters.skinType !== 'all') {
-                        const appSkinType = app.skin_type?.toLowerCase()
-                        if (appSkinType !== applicantFilters.skinType) return false
+                        const normalizedSkinType = normalizeSkinType(app.skin_type)
+                        if (normalizedSkinType !== applicantFilters.skinType) return false
                       }
                       // 나이대 필터
                       if (applicantFilters.ageRange !== 'all' && app.age) {
