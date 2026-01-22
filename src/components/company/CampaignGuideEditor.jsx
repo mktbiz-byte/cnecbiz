@@ -53,6 +53,7 @@ const CampaignGuideEditor = () => {
 
   // 해시태그 (자동 생성)
   const [hashtags, setHashtags] = useState(['', '', ''])
+  const [hashtagsManuallyEdited, setHashtagsManuallyEdited] = useState(false) // 수동 수정 여부 추적
 
   // 추가 옵션
   const [referenceUrl, setReferenceUrl] = useState('')
@@ -166,12 +167,12 @@ const CampaignGuideEditor = () => {
     return () => clearTimeout(timer)
   }, [hookingPoint, coreMessage, missions, prohibitions, hashtags, videoLength, videoTempo, referenceUrl, hasNarration, needsPartnershipCode])
 
-  // 해시태그 자동 생성 (hookingPoint, coreMessage 변경시)
+  // 해시태그 자동 생성 (hookingPoint, coreMessage 변경시) - 수동 수정 안 했을 때만
   useEffect(() => {
-    if (hookingPoint || coreMessage) {
+    if ((hookingPoint || coreMessage) && !hashtagsManuallyEdited) {
       generateHashtags()
     }
-  }, [hookingPoint, coreMessage])
+  }, [hookingPoint, coreMessage, hashtagsManuallyEdited])
 
   const loadCampaignGuide = async () => {
     try {
@@ -641,6 +642,7 @@ const CampaignGuideEditor = () => {
                       const newTags = [...hashtags]
                       newTags[index] = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
                       setHashtags(newTags)
+                      setHashtagsManuallyEdited(true) // 수동 수정 표시
                     }}
                     placeholder={`#해시태그${index + 1}`}
                     className="w-40"
