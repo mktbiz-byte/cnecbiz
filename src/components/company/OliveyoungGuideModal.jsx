@@ -427,16 +427,25 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
               ) : hasContent ? (
                 <div className="space-y-6">
                   {/* 텍스트 가이드 (일반 텍스트 형식) */}
-                  {textGuide && (
+                  {(textGuide || isEditing) && (
                     <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-pink-900 mb-3 flex items-center gap-2">
                         <span>📝</span>
                         {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'} 가이드
                       </h4>
                       <div className="bg-white rounded-lg p-4 border border-pink-100">
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {textGuide}
-                        </p>
+                        {isEditing ? (
+                          <textarea
+                            value={editedData?.text_guide || ''}
+                            onChange={(e) => setEditedData({ ...editedData, text_guide: e.target.value })}
+                            className="w-full p-2 border rounded text-sm min-h-[120px]"
+                            placeholder="가이드 내용을 입력하세요"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {textGuide}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
