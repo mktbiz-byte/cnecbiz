@@ -203,11 +203,25 @@ const SKIN_TYPES_REVERSE = {
 // 피부 타입 정규화 함수 (영어 키로 변환)
 const normalizeSkinType = (skinType) => {
   if (!skinType) return null
-  const lower = skinType.toLowerCase()
-  // 이미 영어 키인 경우
+  const trimmed = String(skinType).trim()
+  const lower = trimmed.toLowerCase()
+
+  // 이미 영어 키인 경우 (dry, oily, combination, sensitive, normal)
   if (SKIN_TYPES[lower]) return lower
-  // 한글인 경우 영어로 변환
-  if (SKIN_TYPES_REVERSE[skinType]) return SKIN_TYPES_REVERSE[skinType]
+
+  // 한글인 경우 영어로 변환 (건성, 지성, 복합성, 민감성, 중성)
+  if (SKIN_TYPES_REVERSE[trimmed]) return SKIN_TYPES_REVERSE[trimmed]
+
+  // 부분 매칭 시도 (예: '건성 피부' → '건성' 추출)
+  for (const [korean, english] of Object.entries(SKIN_TYPES_REVERSE)) {
+    if (trimmed.includes(korean)) return english
+  }
+
+  // 영어 부분 매칭 (예: 'Dry Skin' → 'dry')
+  for (const english of Object.keys(SKIN_TYPES)) {
+    if (lower.includes(english)) return english
+  }
+
   return null
 }
 
