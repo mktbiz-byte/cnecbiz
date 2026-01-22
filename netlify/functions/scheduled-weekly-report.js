@@ -6,14 +6,16 @@ const axios = require('axios');
 
 /**
  * 통합 주간 리포트 - 매주 월요일 10시 (KST)
- * - 매출 현황 (payments 테이블)
- * - 신규 가입자 (companies, creators)
- * - 포인트 지급/출금 현황
- * - 출금 신청 현황 (간소화)
- * - 소속 크리에이터 현황
  *
- * 네이버웍스: 요약
- * 이메일: 상세 HTML 리포트 (mkt@howlab.co.kr)
+ * 네이버웍스: 10줄 간소화 요약
+ * 이메일: 상세 HTML 리포트
+ *
+ * 내용:
+ * - 매출 현황 (법인별)
+ * - 크리에이터 주간 가입량 (한국/미국/일본)
+ * - 총 완료된 영상
+ * - 크리에이터 출금 신청
+ * - 소속 크리에이터 영상 현황
  */
 
 // Supabase 클라이언트 (멀티-리전)
@@ -142,24 +144,18 @@ function formatK(num) {
   return num.toLocaleString();
 }
 
-// === 매출 데이터 수집 (revenue_records 테이블 - 월간 매출, 법인별 구분) ===
-async function getRevenueData(monday, sunday) {
+// === 1. 매출 데이터 수집 ===
+async function getRevenueData(monday) {
   const result = {
     total: 0,
-    byCorporation: {
-      haupapa: 0,  // 하우파파
-      haulab: 0,   // 하우랩
-      dan: 0       // 단
-    },
+    byCorporation: { haupapa: 0, haulab: 0, dan: 0 },
     currentMonth: ''
   };
 
   try {
-    // 해당 주의 월 계산 (YYYY-MM 형식)
     const yearMonth = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}`;
     result.currentMonth = yearMonth;
 
-    // BIZ DB에서 해당 월 revenue_records 조회
     const { data: revenues } = await supabaseBiz
       .from('revenue_records')
       .select('corporation_id, amount')
@@ -187,27 +183,10 @@ async function getRevenueData(monday, sunday) {
   return result;
 }
 
-// === 신규 가입자 수집 (크리에이터는 각 리전 user_profiles에서 조회) ===
-async function getNewSignups(monday, sunday) {
-  const result = {
-    companies: { total: 0 },
-    creators: { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } }
-  };
+// === 2. 신규 크리에이터 가입량 (리전별) ===
+async function getNewCreators(monday, sunday) {
+  const result = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
 
-  try {
-    // 신규 기업 (BIZ DB - companies 테이블)
-    const { data: companies } = await supabaseBiz
-      .from('companies')
-      .select('id')
-      .gte('created_at', monday.toISOString())
-      .lte('created_at', sunday.toISOString());
-
-    result.companies.total = companies?.length || 0;
-  } catch (error) {
-    console.error('[신규 기업 조회 오류]', error.message);
-  }
-
-  // 신규 크리에이터 - 각 리전 user_profiles 테이블에서 조회
   const regions = [
     { key: 'korea', client: supabaseKorea, name: '한국' },
     { key: 'japan', client: supabaseJapan, name: '일본' },
@@ -224,8 +203,8 @@ async function getNewSignups(monday, sunday) {
         .lte('created_at', sunday.toISOString());
 
       const count = creators?.length || 0;
-      result.creators.byRegion[region.key] = count;
-      result.creators.total += count;
+      result.byRegion[region.key] = count;
+      result.total += count;
     } catch (error) {
       console.error(`[${region.name}] 신규 크리에이터 조회 오류:`, error.message);
     }
@@ -234,38 +213,48 @@ async function getNewSignups(monday, sunday) {
   return result;
 }
 
-// === 포인트 현황 수집 ===
-async function getPointsData(monday, sunday) {
-  const result = {
-    totalAwarded: 0,
-    totalWithdrawn: 0,
-    awardedCount: 0,
-    withdrawnCount: 0,
-    pendingWithdrawal: 0,
-    pendingCount: 0
-  };
+// === 3. 완료된 영상 수 ===
+async function getCompletedVideos(monday, sunday) {
+  const result = { total: 0, list: [] };
 
   try {
-    // points 테이블에서 지급 내역 조회
-    const { data: pointsAwarded } = await supabaseBiz
-      .from('points')
-      .select('amount, type')
-      .gte('created_at', monday.toISOString())
-      .lte('created_at', sunday.toISOString())
-      .in('type', ['award', 'bonus', 'campaign_reward']);
+    const { data: videos, error } = await supabaseBiz
+      .from('applications')
+      .select('id, campaign_id, status, updated_at')
+      .in('status', ['completed', 'sns_uploaded'])
+      .gte('updated_at', monday.toISOString())
+      .lte('updated_at', sunday.toISOString());
 
-    if (pointsAwarded) {
-      result.awardedCount = pointsAwarded.length;
-      result.totalAwarded = pointsAwarded.reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+    if (!error && videos) {
+      result.total = videos.length;
+
+      // 캠페인별 집계
+      const campaignIds = [...new Set(videos.map(v => v.campaign_id).filter(Boolean))];
+      if (campaignIds.length > 0) {
+        const { data: campaigns } = await supabaseBiz
+          .from('campaigns')
+          .select('id, title')
+          .in('id', campaignIds);
+
+        const campaignMap = new Map((campaigns || []).map(c => [c.id, c.title]));
+
+        const countByCampaign = {};
+        videos.forEach(v => {
+          const title = campaignMap.get(v.campaign_id) || '기타';
+          countByCampaign[title] = (countByCampaign[title] || 0) + 1;
+        });
+
+        result.list = Object.entries(countByCampaign)
+          .map(([title, count]) => ({ title, count }))
+          .sort((a, b) => b.count - a.count);
+      }
     }
-  } catch (e) {
-    console.error('[포인트 지급 조회 오류]', e.message);
-  }
+  } catch (e) { console.error('[완료 영상 조회 오류]', e.message); }
 
   return result;
 }
 
-// === 출금 데이터 수집 (간소화) ===
+// === 4. 출금 신청 현황 ===
 async function getWithdrawalData(monday, sunday) {
   const allWithdrawals = [];
   const existingIds = new Set();
@@ -320,24 +309,21 @@ async function getWithdrawalData(monday, sunday) {
     } catch (e) { console.error('Korea 출금 조회 오류:', e.message); }
   }
 
-  // 집계
   const totalAmount = allWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
   const pendingCount = allWithdrawals.filter(w => w.status === 'pending').length;
-  const approvedCount = allWithdrawals.filter(w => w.status === 'approved').length;
-  const completedCount = allWithdrawals.filter(w => w.status === 'completed').length;
+  const completedCount = allWithdrawals.filter(w => ['approved', 'completed'].includes(w.status)).length;
 
   return {
     count: allWithdrawals.length,
     totalAmount,
-    netAmount: Math.round(totalAmount * 0.967), // 3.3% 세금 공제
+    netAmount: Math.round(totalAmount * 0.967),
     pendingCount,
-    approvedCount,
     completedCount
   };
 }
 
-// === 크리에이터 데이터 수집 ===
-async function getCreatorData() {
+// === 5. 소속 크리에이터 현황 ===
+async function getAffiliatedCreatorStats() {
   const { data: creators } = await supabaseBiz
     .from('affiliated_creators')
     .select('*')
@@ -349,19 +335,21 @@ async function getCreatorData() {
   const alerts = [];
 
   for (const creator of creators) {
-    // 채널 ID 추출 - platform_id 또는 platform_url에서 추출
     let channelId = creator.platform_id;
     if (!channelId && creator.platform_url) {
-      // YouTube URL에서 채널 ID 추출 시도
-      // 형식: /channel/UCxxx 또는 /@username
       const channelMatch = creator.platform_url.match(/channel\/([a-zA-Z0-9_-]+)/);
-      const handleMatch = creator.platform_url.match(/\/@([a-zA-Z0-9_-]+)/);
       if (channelMatch) channelId = channelMatch[1];
-      // @핸들 형식은 직접 API 호출 불가능하므로 platform_id 필요
     }
 
-    if (!channelId) {
-      stats.push({ name: creator.creator_name, status: 'no_channel', weeklyUploads: 0, avgViews: 0, subscriberCount: creator.subscriber_count || 0 });
+    if (!channelId || !YOUTUBE_API_KEY) {
+      stats.push({
+        name: creator.creator_name,
+        status: 'no_channel',
+        weeklyUploads: 0,
+        avgViews: 0,
+        subscriberCount: creator.subscriber_count || 0,
+        daysSinceUpload: null
+      });
       continue;
     }
 
@@ -406,10 +394,15 @@ async function getCreatorData() {
       stats.push({ name: creator.creator_name, status: 'active', weeklyUploads, avgViews, subscriberCount, daysSinceUpload });
 
       // 알림
-      if (daysSinceUpload >= 4) alerts.push({ type: 'stopped', name: creator.creator_name, detail: `${daysSinceUpload}일간 업로드 없음` });
+      if (daysSinceUpload >= 4) {
+        alerts.push({ type: 'stopped', name: creator.creator_name, detail: `${daysSinceUpload}일간 업로드 없음` });
+      }
 
       // DB 업데이트
-      await supabaseBiz.from('affiliated_creators').update({ subscriber_count: subscriberCount, last_checked_at: new Date().toISOString() }).eq('id', creator.id);
+      await supabaseBiz.from('affiliated_creators').update({
+        subscriber_count: subscriberCount,
+        last_checked_at: new Date().toISOString()
+      }).eq('id', creator.id);
 
       await new Promise(resolve => setTimeout(resolve, 500)); // API 제한 방지
     } catch (e) {
@@ -432,46 +425,43 @@ exports.handler = async (event) => {
 
     // 1. 매출 데이터
     console.log('[주간리포트] 매출 데이터 수집...');
-    const revenue = await getRevenueData(monday, sunday);
+    const revenue = await getRevenueData(monday);
 
-    // 2. 신규 가입자
-    console.log('[주간리포트] 신규 가입자 수집...');
-    const signups = await getNewSignups(monday, sunday);
+    // 2. 신규 크리에이터
+    console.log('[주간리포트] 신규 크리에이터 수집...');
+    const creators = await getNewCreators(monday, sunday);
 
-    // 3. 포인트 현황
-    console.log('[주간리포트] 포인트 데이터 수집...');
-    const points = await getPointsData(monday, sunday);
+    // 3. 완료된 영상
+    console.log('[주간리포트] 완료 영상 수집...');
+    const completedVideos = await getCompletedVideos(monday, sunday);
 
     // 4. 출금 데이터
     console.log('[주간리포트] 출금 데이터 수집...');
     const withdrawals = await getWithdrawalData(monday, sunday);
 
-    // 5. 크리에이터 데이터
-    console.log('[주간리포트] 크리에이터 데이터 수집...');
-    const { creators, stats, alerts } = await getCreatorData();
-    const activeStats = stats.filter(s => s.status === 'active');
+    // 5. 소속 크리에이터 현황
+    console.log('[주간리포트] 소속 크리에이터 수집...');
+    const affiliated = await getAffiliatedCreatorStats();
+    const activeStats = affiliated.stats.filter(s => s.status === 'active');
     const totalUploads = activeStats.reduce((sum, s) => sum + s.weeklyUploads, 0);
-    const stoppedCount = alerts.filter(a => a.type === 'stopped').length;
+    const stoppedCount = affiliated.alerts.filter(a => a.type === 'stopped').length;
     const avgViews = activeStats.length > 0 ? Math.round(activeStats.reduce((sum, s) => sum + s.avgViews, 0) / activeStats.length) : 0;
 
-    // 6. 네이버웍스 메시지
+    // 6. 네이버웍스 메시지 (10줄 간소화)
     const nwMessage = `📋 주간리포트 (${startStr}~${endStr})
 
-💰 ${revenue.currentMonth} 월 매출: ${formatNumber(revenue.total)}원
-  • 하우파파: ${formatNumber(revenue.byCorporation.haupapa)}원
-  • 하우랩: ${formatNumber(revenue.byCorporation.haulab)}원
-  • 단: ${formatNumber(revenue.byCorporation.dan)}원
+💰 ${revenue.currentMonth} 매출: ${formatNumber(revenue.total)}원
 
-👥 신규 가입
-• 기업: ${signups.companies.total}개
-• 크리에이터: ${signups.creators.total}명 (한국 ${signups.creators.byRegion.korea} / 일본 ${signups.creators.byRegion.japan} / 미국 ${signups.creators.byRegion.us})
+👥 신규 크리에이터: ${creators.total}명
+   🇰🇷${creators.byRegion.korea} / 🇯🇵${creators.byRegion.japan} / 🇺🇸${creators.byRegion.us}
 
-💵 출금 신청: ${withdrawals.count}건 / ${formatNumber(withdrawals.totalAmount)}원
-  └ 실지급: ${formatNumber(withdrawals.netAmount)}원 (대기 ${withdrawals.pendingCount} | 승인 ${withdrawals.approvedCount})
+🎬 완료된 영상: ${completedVideos.total}건
 
-🎬 소속 크리에이터 (${creators.length}명)
-• 주간 업로드: ${totalUploads}건 / 평균 ${formatK(avgViews)}회
-${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅ 전원 활동중'}`;
+💵 출금 신청: ${withdrawals.count}건 (${formatNumber(withdrawals.totalAmount)}원)
+
+📺 소속 크리에이터 (${affiliated.creators.length}명)
+   주간 업로드: ${totalUploads}건 / 평균 ${formatK(avgViews)}회
+   ${stoppedCount > 0 ? `⚠️ 업로드중단: ${stoppedCount}명` : '✅ 전원 활동중'}`;
 
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
@@ -485,6 +475,10 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
     }
 
     // 7. 이메일 상세 리포트
+    const completedVideoRows = completedVideos.list.map((c, i) =>
+      `<tr><td style="padding:6px;border:1px solid #ddd">${i + 1}</td><td style="padding:6px;border:1px solid #ddd">${c.title}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${c.count}건</td></tr>`
+    ).join('') || '<tr><td colspan="3" style="padding:6px;border:1px solid #ddd;text-align:center">없음</td></tr>';
+
     const creatorRows = activeStats.sort((a, b) => b.weeklyUploads - a.weeklyUploads).map((s, i) => {
       const status = s.daysSinceUpload >= 4 ? '⚠️' : '✅';
       return `<tr>
@@ -497,8 +491,8 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
       </tr>`;
     }).join('');
 
-    const alertsHtml = alerts.length > 0
-      ? alerts.map(a => `<li style="color:#dc2626">${a.name}: ${a.detail}</li>`).join('')
+    const alertsHtml = affiliated.alerts.length > 0
+      ? affiliated.alerts.map(a => `<li style="color:#dc2626">${a.name}: ${a.detail}</li>`).join('')
       : '<li style="color:#16a34a">특이사항 없음</li>';
 
     const emailHtml = `
@@ -509,25 +503,34 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
   ${isManualTest ? '<p style="color:#f59e0b">⚠️ 수동 테스트</p>' : ''}
 
   <!-- 요약 카드 -->
-  <div style="display:flex;gap:15px;margin:20px 0;flex-wrap:wrap">
-    <div style="flex:1;background:#dcfce7;padding:15px;border-radius:8px;text-align:center;min-width:150px">
-      <div style="font-size:12px;color:#166534">💰 ${revenue.currentMonth} 월 매출</div>
-      <div style="font-size:22px;font-weight:bold;color:#166534">${formatNumber(revenue.total)}원</div>
+  <div style="display:flex;gap:10px;margin:20px 0;flex-wrap:wrap">
+    <div style="flex:1;background:#dcfce7;padding:15px;border-radius:8px;text-align:center;min-width:140px">
+      <div style="font-size:11px;color:#166534">💰 ${revenue.currentMonth} 매출</div>
+      <div style="font-size:20px;font-weight:bold;color:#166534">${formatNumber(revenue.total)}원</div>
     </div>
-    <div style="flex:1;background:#dbeafe;padding:15px;border-radius:8px;text-align:center;min-width:150px">
-      <div style="font-size:12px;color:#1e40af">👥 신규 가입</div>
-      <div style="font-size:22px;font-weight:bold;color:#1e40af">${signups.companies.total + signups.creators.total}명</div>
-      <div style="font-size:12px;color:#666">기업 ${signups.companies.total} / 크리에이터 ${signups.creators.total}</div>
+    <div style="flex:1;background:#dbeafe;padding:15px;border-radius:8px;text-align:center;min-width:140px">
+      <div style="font-size:11px;color:#1e40af">👥 신규 크리에이터</div>
+      <div style="font-size:20px;font-weight:bold;color:#1e40af">${creators.total}명</div>
+      <div style="font-size:10px;color:#666">🇰🇷${creators.byRegion.korea} 🇯🇵${creators.byRegion.japan} 🇺🇸${creators.byRegion.us}</div>
     </div>
-    <div style="flex:1;background:#fef3c7;padding:15px;border-radius:8px;text-align:center;min-width:150px">
-      <div style="font-size:12px;color:#92400e">💵 출금 신청</div>
-      <div style="font-size:22px;font-weight:bold;color:#92400e">${withdrawals.count}건</div>
-      <div style="font-size:12px;color:#666">${formatNumber(withdrawals.totalAmount)}원 → 실지급 ${formatNumber(withdrawals.netAmount)}원</div>
+    <div style="flex:1;background:#f3e8ff;padding:15px;border-radius:8px;text-align:center;min-width:140px">
+      <div style="font-size:11px;color:#7c3aed">🎬 완료된 영상</div>
+      <div style="font-size:20px;font-weight:bold;color:#7c3aed">${completedVideos.total}건</div>
+    </div>
+    <div style="flex:1;background:#fef3c7;padding:15px;border-radius:8px;text-align:center;min-width:140px">
+      <div style="font-size:11px;color:#92400e">💵 출금 신청</div>
+      <div style="font-size:20px;font-weight:bold;color:#92400e">${withdrawals.count}건</div>
+      <div style="font-size:10px;color:#666">${formatNumber(withdrawals.totalAmount)}원</div>
+    </div>
+    <div style="flex:1;background:#e0e7ff;padding:15px;border-radius:8px;text-align:center;min-width:140px">
+      <div style="font-size:11px;color:#4338ca">📺 소속 크리에이터</div>
+      <div style="font-size:20px;font-weight:bold;color:#4338ca">${affiliated.creators.length}명</div>
+      <div style="font-size:10px;color:#666">업로드 ${totalUploads}건</div>
     </div>
   </div>
 
-  <!-- 매출 상세 (법인별) -->
-  <h3>💰 ${revenue.currentMonth} 월 매출 상세</h3>
+  <!-- 매출 상세 -->
+  <h3>💰 ${revenue.currentMonth} 매출 상세</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
     <thead>
       <tr style="background:#f1f5f9">
@@ -536,63 +539,40 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td style="padding:8px;border:1px solid #ddd">🔵 하우파파</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.haupapa)}원</td>
-      </tr>
-      <tr>
-        <td style="padding:8px;border:1px solid #ddd">🟢 하우랩</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.haulab)}원</td>
-      </tr>
-      <tr>
-        <td style="padding:8px;border:1px solid #ddd">🟡 단</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.dan)}원</td>
-      </tr>
-      <tr style="background:#f8fafc;font-weight:bold">
-        <td style="padding:8px;border:1px solid #ddd">합계</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.total)}원</td>
-      </tr>
+      <tr><td style="padding:8px;border:1px solid #ddd">🔵 하우파파</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.haupapa)}원</td></tr>
+      <tr><td style="padding:8px;border:1px solid #ddd">🟢 하우랩</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.haulab)}원</td></tr>
+      <tr><td style="padding:8px;border:1px solid #ddd">🟡 단</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.byCorporation.dan)}원</td></tr>
+      <tr style="background:#f8fafc;font-weight:bold"><td style="padding:8px;border:1px solid #ddd">합계</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${formatNumber(revenue.total)}원</td></tr>
     </tbody>
   </table>
 
-  <!-- 신규 가입자 상세 -->
-  <h3>👥 신규 가입자</h3>
-  <div style="display:flex;gap:15px;margin:20px 0;flex-wrap:wrap">
-    <div style="flex:1;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center;min-width:150px">
-      <div style="font-size:12px;color:#666">신규 기업</div>
-      <div style="font-size:22px;font-weight:bold">${signups.companies.total}개</div>
-    </div>
-    <div style="flex:1;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center;min-width:150px">
-      <div style="font-size:12px;color:#666">신규 크리에이터</div>
-      <div style="font-size:22px;font-weight:bold">${signups.creators.total}명</div>
-      <div style="font-size:11px;color:#999;margin-top:5px">
-        🇰🇷 ${signups.creators.byRegion.korea} / 🇯🇵 ${signups.creators.byRegion.japan} / 🇺🇸 ${signups.creators.byRegion.us}
-      </div>
-    </div>
-  </div>
+  <!-- 완료된 영상 상세 -->
+  <h3>🎬 완료된 영상 (${completedVideos.total}건)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+    <thead>
+      <tr style="background:#f1f5f9">
+        <th style="padding:8px;border:1px solid #ddd;width:40px">No</th>
+        <th style="padding:8px;border:1px solid #ddd">캠페인</th>
+        <th style="padding:8px;border:1px solid #ddd;width:80px">완료</th>
+      </tr>
+    </thead>
+    <tbody>${completedVideoRows}</tbody>
+  </table>
 
-  <!-- 출금 요약 -->
-  <h3>💵 출금 신청 요약</h3>
+  <!-- 출금 현황 -->
+  <h3>💵 출금 신청 현황</h3>
   <div style="background:#fef3c7;padding:15px;border-radius:8px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div>
-        <strong>총 ${withdrawals.count}건</strong> / ${formatNumber(withdrawals.totalAmount)}원
-      </div>
-      <div>
-        대기 <strong>${withdrawals.pendingCount}</strong>건 |
-        승인 <strong>${withdrawals.approvedCount}</strong>건 |
-        완료 <strong>${withdrawals.completedCount}</strong>건
-      </div>
-      <div>
-        실지급액: <strong>${formatNumber(withdrawals.netAmount)}원</strong> (3.3% 세금 공제)
-      </div>
+      <div><strong>총 ${withdrawals.count}건</strong> / ${formatNumber(withdrawals.totalAmount)}원</div>
+      <div>대기 <strong>${withdrawals.pendingCount}</strong>건 | 완료 <strong>${withdrawals.completedCount}</strong>건</div>
+      <div>실지급액: <strong>${formatNumber(withdrawals.netAmount)}원</strong> (3.3% 세금 공제)</div>
     </div>
   </div>
 
-  <!-- 크리에이터 현황 -->
-  <h3 style="margin-top:30px">🎬 소속 크리에이터 현황</h3>
+  <!-- 소속 크리에이터 현황 -->
+  <h3>📺 소속 크리에이터 현황</h3>
   ${activeStats.length > 0 ? `
-  <table style="width:100%;border-collapse:collapse;font-size:13px">
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
     <thead><tr style="background:#f1f5f9">
       <th style="padding:8px;border:1px solid #ddd">No</th>
       <th style="padding:8px;border:1px solid #ddd">이름</th>
@@ -604,7 +584,7 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
     <tbody>${creatorRows}</tbody>
   </table>` : '<p style="color:#666">크리에이터 데이터 없음</p>'}
 
-  <h3 style="margin-top:30px">⚠️ 주의사항</h3>
+  <h3>⚠️ 주의사항</h3>
   <ul>${alertsHtml}</ul>
 
   <p style="color:#999;font-size:11px;margin-top:40px;text-align:center">
@@ -633,13 +613,10 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
         period: `${startStr}~${endStr}`,
         month: revenue.currentMonth,
         revenue: { total: revenue.total, byCorporation: revenue.byCorporation },
-        signups: {
-          companies: signups.companies.total,
-          creators: signups.creators.total,
-          creatorsByRegion: signups.creators.byRegion
-        },
+        creators: creators,
+        completedVideos: completedVideos.total,
         withdrawals: { count: withdrawals.count, amount: withdrawals.totalAmount },
-        creators: creators.length,
+        affiliatedCreators: affiliated.creators.length,
         uploads: totalUploads,
         emailSent
       })
