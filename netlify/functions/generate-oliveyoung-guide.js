@@ -34,7 +34,7 @@ exports.handler = async (event) => {
     }
 
     // 올리브영 가이드: 단순 생성 → gemini-1.5-flash (4K RPM, 무제한 RPD)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     // Generate guide for each step
     const generatedGuide = {

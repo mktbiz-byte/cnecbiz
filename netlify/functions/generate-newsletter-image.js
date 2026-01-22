@@ -46,7 +46,7 @@ exports.handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey)
 
     // 1단계: 콘텐츠 분석하여 이미지 프롬프트 생성
-    const textModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const textModel = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     // SEO 최적화를 위해 파일명, 대체텍스트, 이미지 프롬프트를 한번에 생성
     const analysisPrompt = `다음 뉴스레터 콘텐츠를 분석하고, SEO 최적화된 이미지 정보를 JSON으로 출력해주세요.
