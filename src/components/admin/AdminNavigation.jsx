@@ -84,7 +84,8 @@ export default function AdminNavigation() {
       icon: Video,
       label: '콘텐츠',
       items: [
-        { path: '/admin/sns-uploads', icon: Upload, label: 'SNS 업로드 완료' },
+        { path: '/admin/sns-uploads', icon: Upload, label: 'SNS 자동 업로드' },
+        { path: '/admin/sns-completed', icon: Video, label: 'SNS 업로드 완료' },
         { path: '/admin/line-chat', icon: MessageCircle, label: 'LINE 채팅' },
         { path: '/admin/guide-templates', icon: FileSignature, label: '가이드 템플릿' },
       ]
