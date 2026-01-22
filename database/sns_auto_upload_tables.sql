@@ -79,15 +79,25 @@ CREATE TABLE IF NOT EXISTS sns_uploads (
   upload_started_at TIMESTAMPTZ,
   upload_completed_at TIMESTAMPTZ,
   uploaded_by UUID, -- admin_users.id
+  scheduled_at TIMESTAMPTZ, -- 예약 업로드 시간 (NULL이면 즉시 업로드)
 
   -- 캠페인/크리에이터 정보 (비정규화)
   campaign_id UUID,
   campaign_name TEXT,
   creator_name TEXT,
 
+  -- 성과 데이터
+  performance_data JSONB DEFAULT '{}',
+  -- { views, likes, comments, shares, collected_at }
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- status에 'scheduled' 추가
+ALTER TABLE sns_uploads DROP CONSTRAINT IF EXISTS sns_uploads_status_check;
+ALTER TABLE sns_uploads ADD CONSTRAINT sns_uploads_status_check
+  CHECK (status IN ('pending', 'scheduled', 'uploading', 'processing', 'completed', 'failed'));
 
 -- 4. 업로드 큐 테이블 (대량 업로드용)
 CREATE TABLE IF NOT EXISTS sns_upload_queue (

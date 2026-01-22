@@ -41,7 +41,7 @@ import {
   RefreshCw, Check, X, AlertCircle, Play, ExternalLink, Loader2,
   FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus, Sparkles
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 // 플랫폼 설정
@@ -96,7 +96,9 @@ export default function SnsAutoUploadPage() {
     templateId: null,
     customTitle: '',
     customDescription: '',
-    customHashtags: ''
+    customHashtags: '',
+    scheduleAt: null, // 예약 업로드 시간 (null이면 즉시)
+    isScheduled: false
   })
 
   useEffect(() => {
@@ -186,29 +188,127 @@ export default function SnsAutoUploadPage() {
     }
   }
 
-  // 업로드 대기 영상 조회 (승인된 영상)
+  // 업로드 대기 영상 조회 (승인/완료된 영상 - video_file_url이 있는 것)
   const fetchPendingVideos = async () => {
     try {
-      // video_submissions에서 승인된 영상 조회
-      const { data: submissions, error } = await supabaseBiz
+      const allVideos = []
+
+      // 캠페인 정보 조회
+      let campaignMap = new Map()
+      try {
+        const { data: bizCampaigns } = await supabaseBiz.from('campaigns').select('*')
+        bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
+      } catch (e) {
+        console.log('campaigns query failed')
+      }
+
+      // 1. BIZ DB - applications에서 video_file_url이 있는 것
+      const { data: bizApps } = await supabaseBiz
+        .from('applications')
+        .select('*')
+        .not('video_file_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      bizApps?.forEach(app => {
+        if (app.video_file_url) {
+          const campaign = campaignMap.get(app.campaign_id)
+          allVideos.push({
+            id: app.id,
+            source_type: 'application',
+            video_file_url: app.video_file_url,
+            campaign_id: app.campaign_id,
+            campaign_name: campaign?.title || app.campaign_name || '-',
+            creator_name: app.applicant_name || app.creator_name || '-',
+            status: app.status,
+            created_at: app.updated_at || app.created_at,
+            sns_upload_url: app.sns_upload_url
+          })
+        }
+      })
+
+      // 2. BIZ DB - video_submissions
+      const { data: bizSubs } = await supabaseBiz
         .from('video_submissions')
         .select('*')
-        .eq('status', 'approved')
-        .order('approved_at', { ascending: false })
-        .limit(50)
+        .not('video_file_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100)
 
-      if (error) throw error
+      bizSubs?.forEach(sub => {
+        if (sub.video_file_url) {
+          const campaign = campaignMap.get(sub.campaign_id)
+          allVideos.push({
+            id: sub.id,
+            source_type: 'video_submission',
+            video_file_url: sub.video_file_url,
+            campaign_id: sub.campaign_id,
+            campaign_name: campaign?.title || sub.campaign_name || '-',
+            creator_name: sub.creator_name || '-',
+            status: sub.status,
+            created_at: sub.approved_at || sub.updated_at || sub.created_at,
+            sns_upload_url: sub.sns_upload_url
+          })
+        }
+      })
+
+      // 3. Korea DB - campaign_participants
+      if (supabaseKorea) {
+        const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
+        const koreaCampaignMap = new Map()
+        koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+
+        const { data: koreaParticipants } = await supabaseKorea
+          .from('campaign_participants')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100)
+
+        koreaParticipants?.forEach(p => {
+          // video_files 배열에서 영상 URL 추출
+          const videoFiles = p.video_files || []
+          const latestVideo = videoFiles[videoFiles.length - 1]
+
+          if (latestVideo?.url || p.video_file_url) {
+            const campaign = koreaCampaignMap.get(p.campaign_id)
+            allVideos.push({
+              id: p.id,
+              source_type: 'campaign_participant',
+              video_file_url: latestVideo?.url || p.video_file_url,
+              campaign_id: p.campaign_id,
+              campaign_name: campaign?.title || '-',
+              creator_name: p.applicant_name || p.creator_name || '-',
+              status: p.status,
+              created_at: p.updated_at || p.created_at,
+              sns_upload_url: p.sns_upload_url
+            })
+          }
+        })
+      }
 
       // 이미 업로드된 영상 제외
       const { data: existingUploads } = await supabaseBiz
         .from('sns_uploads')
-        .select('source_id')
-        .eq('source_type', 'video_submission')
+        .select('source_id, source_type')
 
-      const uploadedIds = new Set(existingUploads?.map(u => u.source_id) || [])
-      const pending = (submissions || []).filter(s => !uploadedIds.has(s.id))
+      const uploadedSet = new Set(
+        existingUploads?.map(u => `${u.source_type}_${u.source_id}`) || []
+      )
 
-      setPendingVideos(pending)
+      const pending = allVideos.filter(v =>
+        !uploadedSet.has(`${v.source_type}_${v.id}`)
+      )
+
+      // 중복 제거 (campaign_id + creator_name 기준)
+      const seen = new Set()
+      const uniquePending = pending.filter(v => {
+        const key = `${v.campaign_id}_${v.creator_name}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+      setPendingVideos(uniquePending)
     } catch (error) {
       console.error('Error fetching pending videos:', error)
     }
@@ -322,20 +422,25 @@ export default function SnsAutoUploadPage() {
             continue
           }
 
+          // 스케줄링 여부에 따라 status 결정
+          const isScheduled = uploadSettings.isScheduled && uploadSettings.scheduleAt
+          const status = isScheduled ? 'scheduled' : 'pending'
+
           // sns_uploads 레코드 생성
           const { data: uploadRecord, error: insertError } = await supabaseBiz
             .from('sns_uploads')
             .insert({
-              source_type: 'video_submission',
+              source_type: video.source_type || 'video_submission',
               source_id: video.id,
               video_url: video.video_file_url,
               platform: platform,
               account_id: account.id,
-              template_id: uploadSettings.templateId,
+              template_id: uploadSettings.templateId || null,
               title: uploadSettings.customTitle || null,
               description: uploadSettings.customDescription || null,
               hashtags: uploadSettings.customHashtags?.split(',').map(t => t.trim()).filter(Boolean) || null,
-              status: 'pending',
+              status: status,
+              scheduled_at: isScheduled ? new Date(uploadSettings.scheduleAt).toISOString() : null,
               campaign_id: video.campaign_id,
               campaign_name: video.campaign_name || '',
               creator_name: video.creator_name || ''
@@ -348,22 +453,27 @@ export default function SnsAutoUploadPage() {
             continue
           }
 
-          // 업로드 Function 호출
-          const functionName = `upload-to-${platform}`
-          const response = await fetch(`/.netlify/functions/${functionName}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uploadId: uploadRecord.id })
-          })
+          // 즉시 업로드인 경우에만 Function 호출
+          if (!isScheduled) {
+            const functionName = `upload-to-${platform}`
+            const response = await fetch(`/.netlify/functions/${functionName}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uploadId: uploadRecord.id })
+            })
 
-          const result = await response.json()
-          if (!result.success) {
-            console.error(`${platform} upload failed:`, result.error)
+            const result = await response.json()
+            if (!result.success) {
+              console.error(`${platform} upload failed:`, result.error)
+            }
           }
         }
       }
 
-      alert('업로드가 시작되었습니다. 업로드 현황 탭에서 진행 상태를 확인하세요.')
+      const message = uploadSettings.isScheduled && uploadSettings.scheduleAt
+        ? `${new Date(uploadSettings.scheduleAt).toLocaleString('ko-KR')}에 업로드가 예약되었습니다.`
+        : '업로드가 시작되었습니다. 업로드 현황 탭에서 진행 상태를 확인하세요.'
+      alert(message)
       setUploadDialogOpen(false)
       setSelectedVideos([])
       setActiveTab('uploads')
@@ -675,6 +785,7 @@ export default function SnsAutoUploadPage() {
                         <TableHead>캠페인</TableHead>
                         <TableHead>상태</TableHead>
                         <TableHead>업로드 일시</TableHead>
+                        <TableHead>성과</TableHead>
                         <TableHead>결과</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -682,6 +793,7 @@ export default function SnsAutoUploadPage() {
                       {uploads.map((upload) => {
                         const platform = PLATFORMS[upload.platform]
                         const Icon = platform?.icon || Upload
+                        const perf = upload.performance_data || {}
 
                         return (
                           <TableRow key={upload.id}>
@@ -692,14 +804,34 @@ export default function SnsAutoUploadPage() {
                               </div>
                             </TableCell>
                             <TableCell>{upload.creator_name || '-'}</TableCell>
-                            <TableCell>{upload.campaign_name || '-'}</TableCell>
+                            <TableCell className="max-w-[150px] truncate">{upload.campaign_name || '-'}</TableCell>
                             <TableCell>{renderStatusBadge(upload.status)}</TableCell>
                             <TableCell>
-                              {upload.upload_completed_at
-                                ? new Date(upload.upload_completed_at).toLocaleString('ko-KR')
-                                : upload.upload_started_at
-                                ? new Date(upload.upload_started_at).toLocaleString('ko-KR')
-                                : '-'}
+                              {upload.scheduled_at && upload.status === 'scheduled' ? (
+                                <span className="text-orange-600 text-sm">
+                                  예약: {new Date(upload.scheduled_at).toLocaleString('ko-KR')}
+                                </span>
+                              ) : upload.upload_completed_at ? (
+                                new Date(upload.upload_completed_at).toLocaleString('ko-KR')
+                              ) : upload.upload_started_at ? (
+                                new Date(upload.upload_started_at).toLocaleString('ko-KR')
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {upload.status === 'completed' && (perf.views !== undefined) ? (
+                                <div className="text-xs space-y-0.5">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-gray-500">조회</span>
+                                    <span className="font-medium">{perf.views?.toLocaleString() || 0}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-pink-500">{perf.likes?.toLocaleString() || 0}</span>
+                                    <span className="text-blue-500">{perf.comments?.toLocaleString() || 0}</span>
+                                  </div>
+                                </div>
+                              ) : upload.status === 'completed' ? (
+                                <span className="text-xs text-gray-400">수집 대기</span>
+                              ) : '-'}
                             </TableCell>
                             <TableCell>
                               {upload.status === 'completed' && upload.platform_video_url ? (
@@ -714,7 +846,7 @@ export default function SnsAutoUploadPage() {
                                 </a>
                               ) : upload.status === 'failed' ? (
                                 <span className="text-red-500 text-sm" title={upload.error_message}>
-                                  {upload.error_message?.substring(0, 30)}...
+                                  {upload.error_message?.substring(0, 20)}...
                                 </span>
                               ) : (
                                 '-'
@@ -985,6 +1117,37 @@ export default function SnsAutoUploadPage() {
                 value={uploadSettings.customHashtags}
                 onChange={(e) => setUploadSettings({ ...uploadSettings, customHashtags: e.target.value })}
               />
+            </div>
+
+            {/* 예약 업로드 */}
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="checkbox"
+                  id="scheduleUpload"
+                  checked={uploadSettings.isScheduled}
+                  onChange={(e) => setUploadSettings({
+                    ...uploadSettings,
+                    isScheduled: e.target.checked
+                  })}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="scheduleUpload" className="cursor-pointer flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  예약 업로드
+                </Label>
+              </div>
+              {uploadSettings.isScheduled && (
+                <Input
+                  type="datetime-local"
+                  value={uploadSettings.scheduleAt || ''}
+                  onChange={(e) => setUploadSettings({
+                    ...uploadSettings,
+                    scheduleAt: e.target.value
+                  })}
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+              )}
             </div>
           </div>
 

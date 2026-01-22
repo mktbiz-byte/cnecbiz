@@ -65,6 +65,21 @@
 [functions."scheduled-weekly-withdrawal-report"]
   schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 출금 신청 주간 보고서
 
+[functions."scheduled-sns-upload"]
+  schedule = "*/30 * * * *"  # 30분마다 - 예약 업로드 처리 및 성과 데이터 수집
+
+[functions."generate-sns-content"]
+  timeout = 60
+
+[functions."upload-to-youtube"]
+  timeout = 300  # 5분 - 영상 업로드
+
+[functions."upload-to-instagram"]
+  timeout = 300
+
+[functions."upload-to-tiktok"]
+  timeout = 300
+
 # SEO: Sitemaps
 [[redirects]]
   from = "/sitemap.xml"
