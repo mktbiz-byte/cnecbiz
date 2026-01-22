@@ -62,8 +62,12 @@
 [functions."auto-confirm-videos"]
   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
 
-[functions."scheduled-weekly-withdrawal-report"]
-  schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 출금 신청 주간 보고서
+[functions."scheduled-weekly-report"]
+  schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 통합 주간 리포트
+
+# 출금 주간 보고서는 scheduled-weekly-report로 통합됨 - 스케줄 비활성화
+# [functions."scheduled-weekly-withdrawal-report"]
+#   schedule = "0 1 * * 1"
 
 [functions."scheduled-sns-upload"]
   schedule = "*/30 * * * *"  # 30분마다 - 예약 업로드 처리 및 성과 데이터 수집

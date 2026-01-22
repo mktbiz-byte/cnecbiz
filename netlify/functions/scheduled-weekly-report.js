@@ -651,4 +651,5 @@ ${stoppedCount > 0 ? `• ⚠️ 업로드중단: ${stoppedCount}명` : '• ✅
   }
 };
 
-exports.config = { schedule: '0 1 * * 1' };
+// 스케줄은 netlify.toml에서 관리 (중복 실행 방지)
+// exports.config = { schedule: '0 1 * * 1' };
