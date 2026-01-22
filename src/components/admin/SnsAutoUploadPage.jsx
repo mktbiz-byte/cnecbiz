@@ -188,7 +188,7 @@ export default function SnsAutoUploadPage() {
     }
   }
 
-  // 업로드 대기 영상 조회 (승인/완료된 영상 - video_file_url이 있는 것)
+  // 업로드 대기 영상 조회 (승인/완료된 영상 - video_file_url 또는 clean_video_url이 있는 것)
   const fetchPendingVideos = async () => {
     try {
       const allVideos = []
@@ -199,118 +199,226 @@ export default function SnsAutoUploadPage() {
         const { data: bizCampaigns } = await supabaseBiz.from('campaigns').select('*')
         bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
       } catch (e) {
-        console.log('campaigns query failed')
+        console.log('[fetchPendingVideos] BIZ campaigns query failed')
       }
 
-      // 1. BIZ DB - applications에서 video_file_url이 있는 것
-      const { data: bizApps } = await supabaseBiz
-        .from('applications')
-        .select('*')
-        .not('video_file_url', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      bizApps?.forEach(app => {
-        if (app.video_file_url) {
-          const campaign = campaignMap.get(app.campaign_id)
-          allVideos.push({
-            id: app.id,
-            source_type: 'application',
-            video_file_url: app.video_file_url,
-            campaign_id: app.campaign_id,
-            campaign_name: campaign?.title || app.campaign_name || '-',
-            creator_name: app.applicant_name || app.creator_name || '-',
-            status: app.status,
-            created_at: app.updated_at || app.created_at,
-            sns_upload_url: app.sns_upload_url
-          })
-        }
-      })
-
-      // 2. BIZ DB - video_submissions
-      const { data: bizSubs } = await supabaseBiz
-        .from('video_submissions')
-        .select('*')
-        .not('video_file_url', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      bizSubs?.forEach(sub => {
-        if (sub.video_file_url) {
-          const campaign = campaignMap.get(sub.campaign_id)
-          allVideos.push({
-            id: sub.id,
-            source_type: 'video_submission',
-            video_file_url: sub.video_file_url,
-            campaign_id: sub.campaign_id,
-            campaign_name: campaign?.title || sub.campaign_name || '-',
-            creator_name: sub.creator_name || '-',
-            status: sub.status,
-            created_at: sub.approved_at || sub.updated_at || sub.created_at,
-            sns_upload_url: sub.sns_upload_url
-          })
-        }
-      })
-
-      // 3. Korea DB - campaign_participants
-      if (supabaseKorea) {
-        const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
-        const koreaCampaignMap = new Map()
-        koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
-
-        const { data: koreaParticipants } = await supabaseKorea
-          .from('campaign_participants')
+      // 1. BIZ DB - video_submissions에서 영상 파일이 있는 것
+      try {
+        const { data: bizSubs, error } = await supabaseBiz
+          .from('video_submissions')
           .select('*')
+          .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
           .order('created_at', { ascending: false })
-          .limit(100)
+          .limit(200)
 
-        koreaParticipants?.forEach(p => {
-          // video_files 배열에서 영상 URL 추출
-          const videoFiles = p.video_files || []
-          const latestVideo = videoFiles[videoFiles.length - 1]
+        if (error) {
+          console.log('[fetchPendingVideos] BIZ video_submissions error:', error.message)
+        }
 
-          if (latestVideo?.url || p.video_file_url) {
-            const campaign = koreaCampaignMap.get(p.campaign_id)
+        bizSubs?.forEach(sub => {
+          // video_file_url 또는 clean_video_url 중 하나라도 있으면 추가
+          const videoUrl = sub.clean_video_url || sub.video_file_url
+          if (videoUrl) {
+            const campaign = campaignMap.get(sub.campaign_id)
             allVideos.push({
-              id: p.id,
-              source_type: 'campaign_participant',
-              video_file_url: latestVideo?.url || p.video_file_url,
-              campaign_id: p.campaign_id,
-              campaign_name: campaign?.title || '-',
-              creator_name: p.applicant_name || p.creator_name || '-',
-              status: p.status,
-              created_at: p.updated_at || p.created_at,
-              sns_upload_url: p.sns_upload_url
+              id: sub.id,
+              source_type: 'video_submission',
+              video_file_url: videoUrl,
+              campaign_id: sub.campaign_id,
+              campaign_name: campaign?.title || sub.campaign_name || '-',
+              creator_name: sub.creator_name || sub.applicant_name || '-',
+              status: sub.status,
+              approved_at: sub.approved_at,
+              created_at: sub.approved_at || sub.updated_at || sub.created_at,
+              sns_upload_url: sub.sns_upload_url,
+              week_number: sub.week_number
             })
           }
         })
+        console.log('[fetchPendingVideos] BIZ video_submissions with video:', allVideos.length)
+      } catch (e) {
+        console.log('[fetchPendingVideos] BIZ video_submissions query failed:', e.message)
       }
 
-      // 이미 업로드된 영상 제외
-      const { data: existingUploads } = await supabaseBiz
-        .from('sns_uploads')
-        .select('source_id, source_type')
+      // 2. BIZ DB - applications에서 영상 파일이 있는 것
+      try {
+        const { data: bizApps, error } = await supabaseBiz
+          .from('applications')
+          .select('*')
+          .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+          .order('created_at', { ascending: false })
+          .limit(200)
 
-      const uploadedSet = new Set(
-        existingUploads?.map(u => `${u.source_type}_${u.source_id}`) || []
-      )
+        if (error) {
+          console.log('[fetchPendingVideos] BIZ applications error:', error.message)
+        }
 
-      const pending = allVideos.filter(v =>
-        !uploadedSet.has(`${v.source_type}_${v.id}`)
-      )
+        bizApps?.forEach(app => {
+          const videoUrl = app.video_file_url
+          if (videoUrl) {
+            // 중복 체크 - video_submissions에 이미 있는지
+            const isDuplicate = allVideos.some(v =>
+              v.campaign_id === app.campaign_id &&
+              (v.creator_name === app.applicant_name || v.creator_name === app.creator_name)
+            )
+            if (!isDuplicate) {
+              const campaign = campaignMap.get(app.campaign_id)
+              allVideos.push({
+                id: app.id,
+                source_type: 'application',
+                video_file_url: videoUrl,
+                campaign_id: app.campaign_id,
+                campaign_name: campaign?.title || app.campaign_name || '-',
+                creator_name: app.applicant_name || app.creator_name || '-',
+                status: app.status,
+                approved_at: app.approved_at,
+                created_at: app.updated_at || app.created_at,
+                sns_upload_url: app.sns_upload_url
+              })
+            }
+          }
+        })
+        console.log('[fetchPendingVideos] Total after applications:', allVideos.length)
+      } catch (e) {
+        console.log('[fetchPendingVideos] BIZ applications query failed:', e.message)
+      }
 
-      // 중복 제거 (campaign_id + creator_name 기준)
-      const seen = new Set()
-      const uniquePending = pending.filter(v => {
-        const key = `${v.campaign_id}_${v.creator_name}`
-        if (seen.has(key)) return false
-        seen.add(key)
+      // 3. Korea DB - video_submissions
+      if (supabaseKorea) {
+        try {
+          const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
+          const koreaCampaignMap = new Map()
+          koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+
+          const { data: koreaSubs, error } = await supabaseKorea
+            .from('video_submissions')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
+            .order('created_at', { ascending: false })
+            .limit(200)
+
+          if (error) {
+            console.log('[fetchPendingVideos] Korea video_submissions error:', error.message)
+          }
+
+          koreaSubs?.forEach(sub => {
+            const videoUrl = sub.clean_video_url || sub.video_file_url
+            if (videoUrl) {
+              const campaign = koreaCampaignMap.get(sub.campaign_id)
+              allVideos.push({
+                id: sub.id,
+                source_type: 'korea_video_submission',
+                video_file_url: videoUrl,
+                campaign_id: sub.campaign_id,
+                campaign_name: campaign?.title || '-',
+                creator_name: sub.creator_name || sub.applicant_name || '-',
+                status: sub.status,
+                approved_at: sub.approved_at,
+                created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                sns_upload_url: sub.sns_upload_url,
+                week_number: sub.week_number
+              })
+            }
+          })
+          console.log('[fetchPendingVideos] Total after Korea:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea query failed:', e.message)
+        }
+      }
+
+      // 4. Korea DB - campaign_participants (video_files 배열 또는 video_file_url)
+      if (supabaseKorea) {
+        try {
+          const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
+          const koreaCampaignMap = new Map()
+          koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+
+          const { data: koreaParticipants } = await supabaseKorea
+            .from('campaign_participants')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .order('created_at', { ascending: false })
+            .limit(200)
+
+          koreaParticipants?.forEach(p => {
+            // video_files 배열에서 영상 URL 추출
+            const videoFiles = p.video_files || []
+            const latestVideo = videoFiles[videoFiles.length - 1]
+            const videoUrl = latestVideo?.url || p.video_file_url
+
+            if (videoUrl) {
+              // 중복 체크
+              const isDuplicate = allVideos.some(v =>
+                v.campaign_id === p.campaign_id &&
+                (v.creator_name === p.applicant_name || v.creator_name === p.creator_name)
+              )
+              if (!isDuplicate) {
+                const campaign = koreaCampaignMap.get(p.campaign_id)
+                allVideos.push({
+                  id: p.id,
+                  source_type: 'campaign_participant',
+                  video_file_url: videoUrl,
+                  campaign_id: p.campaign_id,
+                  campaign_name: campaign?.title || '-',
+                  creator_name: p.applicant_name || p.creator_name || '-',
+                  status: p.status,
+                  approved_at: p.approved_at,
+                  created_at: p.updated_at || p.created_at,
+                  sns_upload_url: p.sns_upload_url
+                })
+              }
+            }
+          })
+          console.log('[fetchPendingVideos] Total after participants:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea participants query failed:', e.message)
+        }
+      }
+
+      // 이미 SNS에 업로드된 영상 제외 (sns_uploads 테이블이 없을 수 있음)
+      let uploadedSet = new Set()
+      try {
+        const { data: existingUploads, error } = await supabaseBiz
+          .from('sns_uploads')
+          .select('source_id, source_type')
+
+        if (!error && existingUploads) {
+          uploadedSet = new Set(
+            existingUploads.map(u => `${u.source_type}_${u.source_id}`)
+          )
+        }
+      } catch (e) {
+        console.log('[fetchPendingVideos] sns_uploads table may not exist yet')
+      }
+
+      // 필터링: 이미 업로드된 영상과 이미 SNS URL이 있는 영상 제외
+      const pending = allVideos.filter(v => {
+        // 이미 sns_uploads에 기록된 영상 제외
+        if (uploadedSet.has(`${v.source_type}_${v.id}`)) return false
+        // 이미 SNS URL이 있으면 완료된 것으로 간주 (선택적)
+        // if (v.sns_upload_url) return false
         return true
       })
 
+      // 중복 제거 (campaign_id + creator_name 기준, 최신 것만 유지)
+      const seen = new Map()
+      pending.forEach(v => {
+        const key = `${v.campaign_id}_${v.creator_name}`
+        const existing = seen.get(key)
+        // 더 최신이거나 없으면 추가
+        if (!existing || new Date(v.created_at) > new Date(existing.created_at)) {
+          seen.set(key, v)
+        }
+      })
+
+      const uniquePending = Array.from(seen.values())
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+      console.log('[fetchPendingVideos] Final pending videos:', uniquePending.length)
       setPendingVideos(uniquePending)
     } catch (error) {
-      console.error('Error fetching pending videos:', error)
+      console.error('[fetchPendingVideos] Error:', error)
+      setPendingVideos([])
     }
   }
 
@@ -674,16 +782,22 @@ export default function SnsAutoUploadPage() {
                 <div>
                   <CardTitle>업로드 대기 영상</CardTitle>
                   <CardDescription>
-                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다
+                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다 ({pendingVideos.length}건)
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={() => setUploadDialogOpen(true)}
-                  disabled={selectedVideos.length === 0}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  선택 영상 업로드 ({selectedVideos.length})
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={fetchPendingVideos}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    새로고침
+                  </Button>
+                  <Button
+                    onClick={() => setUploadDialogOpen(true)}
+                    disabled={selectedVideos.length === 0}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    선택 영상 업로드 ({selectedVideos.length})
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {pendingVideos.length === 0 ? (
@@ -698,7 +812,7 @@ export default function SnsAutoUploadPage() {
                         <TableHead className="w-12">
                           <input
                             type="checkbox"
-                            checked={selectedVideos.length === pendingVideos.length}
+                            checked={selectedVideos.length === pendingVideos.length && pendingVideos.length > 0}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setSelectedVideos(pendingVideos)
@@ -710,31 +824,44 @@ export default function SnsAutoUploadPage() {
                         </TableHead>
                         <TableHead>크리에이터</TableHead>
                         <TableHead>캠페인</TableHead>
+                        <TableHead>상태</TableHead>
                         <TableHead>승인일</TableHead>
                         <TableHead>미리보기</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingVideos.map((video) => (
-                        <TableRow key={video.id}>
+                        <TableRow key={`${video.source_type}_${video.id}`}>
                           <TableCell>
                             <input
                               type="checkbox"
-                              checked={selectedVideos.some(v => v.id === video.id)}
+                              checked={selectedVideos.some(v => v.id === video.id && v.source_type === video.source_type)}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedVideos([...selectedVideos, video])
                                 } else {
-                                  setSelectedVideos(selectedVideos.filter(v => v.id !== video.id))
+                                  setSelectedVideos(selectedVideos.filter(v => !(v.id === video.id && v.source_type === video.source_type)))
                                 }
                               }}
                             />
                           </TableCell>
-                          <TableCell>{video.creator_name || '-'}</TableCell>
-                          <TableCell>{video.campaign_name || '-'}</TableCell>
+                          <TableCell className="font-medium">{video.creator_name || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{video.campaign_name || '-'}</TableCell>
                           <TableCell>
-                            {video.approved_at
-                              ? new Date(video.approved_at).toLocaleDateString('ko-KR')
+                            <Badge variant="outline" className={
+                              video.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
+                              video.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              'bg-gray-50 text-gray-700 border-gray-200'
+                            }>
+                              {video.status === 'approved' ? '승인됨' :
+                               video.status === 'completed' ? '완료' :
+                               video.status === 'video_submitted' ? '영상제출' :
+                               video.status || '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {video.approved_at || video.created_at
+                              ? new Date(video.approved_at || video.created_at).toLocaleDateString('ko-KR')
                               : '-'}
                           </TableCell>
                           <TableCell>
