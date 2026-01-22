@@ -4,11 +4,20 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 /**
- * 일일 리포트 (새 버전) - 매일 10시 (KST)
- * 멀티-리전 지원: 미국/일본/한국
+ * 일일 리포트 - 매일 10시 (KST)
+ *
+ * 네이버웍스: 10줄 간소화 요약
+ * 이메일: 상세 리포트
+ *
+ * 내용:
+ * - 크리에이터 가입량 (한국/미국/일본)
+ * - 마감일 당일 크리에이터 수
+ * - 마감일 안지킨 사람 수
+ * - 신규 문의 수
+ * - 신규 캠페인 수 (한국/미국/일본)
  */
 
-// Supabase 클라이언트 초기화
+// Supabase 클라이언트
 let supabaseBiz = null;
 let supabaseKorea = null;
 let supabaseJapan = null;
@@ -179,40 +188,7 @@ exports.handler = async (event) => {
     const dateStr = `${start.getMonth() + 1}/${start.getDate()}`;
     const todayStr = getTodayDateStr();
 
-    // 1. 캠페인 현황
-    console.log('[report-daily] 캠페인 조회...');
-    const campaignResult = { total: { active: 0, new: 0 }, byRegion: { korea: { active: 0, new: 0 }, japan: { active: 0, new: 0 }, us: { active: 0, new: 0 } } };
-
-    try {
-      const { data: campaigns, error } = await supabaseBiz.from('campaigns').select('id, status, country, region, created_at');
-      if (error) throw error;
-
-      for (const c of (campaigns || [])) {
-        const isActive = ['active', 'recruiting', 'in_progress'].includes(c.status);
-        const isNew = new Date(c.created_at) >= start && new Date(c.created_at) <= end;
-        const region = getRegionKey(c.country || c.region);
-
-        if (isActive) {
-          campaignResult.total.active++;
-          campaignResult.byRegion[region].active++;
-        }
-        if (isNew) {
-          campaignResult.total.new++;
-          campaignResult.byRegion[region].new++;
-        }
-      }
-    } catch (e) { console.error('[캠페인 조회 오류]', e.message); }
-
-    // 2. 신규 기업
-    console.log('[report-daily] 신규 기업 조회...');
-    let newCompanies = 0;
-    try {
-      const { data, error } = await supabaseBiz.from('companies').select('id').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
-      if (error) throw error;
-      newCompanies = data?.length || 0;
-    } catch (e) { console.error('[신규 기업 조회 오류]', e.message); }
-
-    // 3. 신규 크리에이터 (리전별)
+    // 1. 신규 크리에이터 가입량 (리전별)
     console.log('[report-daily] 크리에이터 조회...');
     const creatorResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
     const regions = [
@@ -232,79 +208,111 @@ exports.handler = async (event) => {
       } catch (e) { console.error(`[${r.key} 크리에이터 조회 오류]`, e.message); }
     }
 
-    // 4. 영상 제출 현황
-    console.log('[report-daily] 영상 제출 조회...');
-    const videoResult = { total: { count: 0, submitted: 0, completed: 0 }, byRegion: { korea: { count: 0 }, japan: { count: 0 }, us: { count: 0 } } };
+    // 2. 마감일 당일 크리에이터 수
+    console.log('[report-daily] 마감일 당일 조회...');
+    let deadlineTodayCount = 0;
+    const deadlineTodayCampaigns = [];
 
     try {
-      const { data: submissions, error } = await supabaseBiz
-        .from('applications')
-        .select('id, status, campaign_id')
-        .in('status', ['video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
-        .gte('updated_at', start.toISOString())
-        .lte('updated_at', end.toISOString());
-
-      if (error) throw error;
-
-      if (submissions && submissions.length > 0) {
-        const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))];
-        const { data: campaignData } = await supabaseBiz.from('campaigns').select('id, country, region').in('id', campaignIds);
-        const campaignMap = new Map((campaignData || []).map(c => [c.id, c]));
-
-        for (const s of submissions) {
-          const campaign = campaignMap.get(s.campaign_id) || {};
-          const region = getRegionKey(campaign.country || campaign.region);
-
-          videoResult.total.count++;
-          videoResult.byRegion[region].count++;
-          if (s.status === 'video_submitted') videoResult.total.submitted++;
-          if (s.status === 'completed') videoResult.total.completed++;
-        }
-      }
-    } catch (e) { console.error('[영상 제출 조회 오류]', e.message); }
-
-    // 5. 마감 미제출
-    console.log('[report-daily] 마감 미제출 조회...');
-    const overdueResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
-
-    try {
-      const { data: deadlineCampaigns, error } = await supabaseBiz
+      const { data: todayCampaigns, error } = await supabaseBiz
         .from('campaigns')
         .select('id, title, country, region')
         .eq('content_submission_deadline', todayStr)
         .in('status', ['active', 'in_progress', 'recruiting']);
 
-      if (error) throw error;
+      if (!error && todayCampaigns) {
+        for (const campaign of todayCampaigns) {
+          const { data: apps } = await supabaseBiz
+            .from('applications')
+            .select('id')
+            .eq('campaign_id', campaign.id)
+            .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation', 'guide_approved']);
 
-      for (const campaign of (deadlineCampaigns || [])) {
-        const { data: overdueApps } = await supabaseBiz
-          .from('applications')
-          .select('id')
-          .eq('campaign_id', campaign.id)
-          .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation']);
-
-        if (overdueApps && overdueApps.length > 0) {
-          const region = getRegionKey(campaign.country || campaign.region);
-          overdueResult.total += overdueApps.length;
-          overdueResult.byRegion[region] += overdueApps.length;
+          if (apps && apps.length > 0) {
+            deadlineTodayCount += apps.length;
+            deadlineTodayCampaigns.push({ title: campaign.title, count: apps.length });
+          }
         }
       }
-    } catch (e) { console.error('[마감 미제출 조회 오류]', e.message); }
+    } catch (e) { console.error('[마감일 당일 조회 오류]', e.message); }
 
-    // 6. 네이버웍스 메시지
+    // 3. 마감일 안지킨 크리에이터 수 (어제까지 마감인데 제출 안함)
+    console.log('[report-daily] 마감일 미제출 조회...');
+    let overdueCount = 0;
+    const overdueList = [];
+
+    try {
+      const { data: overdueCampaigns, error } = await supabaseBiz
+        .from('campaigns')
+        .select('id, title, content_submission_deadline')
+        .lt('content_submission_deadline', todayStr)
+        .in('status', ['active', 'in_progress', 'recruiting']);
+
+      if (!error && overdueCampaigns) {
+        for (const campaign of overdueCampaigns) {
+          const { data: overdueApps } = await supabaseBiz
+            .from('applications')
+            .select('id')
+            .eq('campaign_id', campaign.id)
+            .in('status', ['selected', 'virtual_selected', 'approved', 'filming', 'guide_confirmation', 'guide_approved']);
+
+          if (overdueApps && overdueApps.length > 0) {
+            overdueCount += overdueApps.length;
+            overdueList.push({ title: campaign.title, count: overdueApps.length, deadline: campaign.content_submission_deadline });
+          }
+        }
+      }
+    } catch (e) { console.error('[마감일 미제출 조회 오류]', e.message); }
+
+    // 4. 신규 문의 수 (contact_inquiries 테이블)
+    console.log('[report-daily] 신규 문의 조회...');
+    let newInquiryCount = 0;
+
+    try {
+      const { data: inquiries, error } = await supabaseBiz
+        .from('contact_inquiries')
+        .select('id')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      if (!error && inquiries) {
+        newInquiryCount = inquiries.length;
+      }
+    } catch (e) { console.error('[신규 문의 조회 오류]', e.message); }
+
+    // 5. 신규 캠페인 수 (리전별)
+    console.log('[report-daily] 신규 캠페인 조회...');
+    const campaignResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
+
+    try {
+      const { data: campaigns, error } = await supabaseBiz
+        .from('campaigns')
+        .select('id, country, region')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      if (!error && campaigns) {
+        for (const c of campaigns) {
+          const region = getRegionKey(c.country || c.region);
+          campaignResult.total++;
+          campaignResult.byRegion[region]++;
+        }
+      }
+    } catch (e) { console.error('[신규 캠페인 조회 오류]', e.message); }
+
+    // 6. 네이버웍스 메시지 (10줄 간소화)
     const nwMessage = `📊 일일리포트 (${dateStr})
 
-📢 캠페인 (진행중 ${campaignResult.total.active}개 / 신규 ${campaignResult.total.new}개)
-• 🇰🇷 한국: ${campaignResult.byRegion.korea.active}개
-• 🇯🇵 일본: ${campaignResult.byRegion.japan.active}개
-• 🇺🇸 미국: ${campaignResult.byRegion.us.active}개
+👥 신규 크리에이터: ${creatorResult.total}명
+   🇰🇷${creatorResult.byRegion.korea} / 🇯🇵${creatorResult.byRegion.japan} / 🇺🇸${creatorResult.byRegion.us}
 
-👥 신규 회원
-• 기업: ${newCompanies}개
-• 크리에이터: ${creatorResult.total}명 (🇰🇷${creatorResult.byRegion.korea} / 🇯🇵${creatorResult.byRegion.japan} / 🇺🇸${creatorResult.byRegion.us})
+📅 마감일 당일: ${deadlineTodayCount}명
+${overdueCount > 0 ? `🚨 마감 미제출: ${overdueCount}명` : '✅ 마감 미제출: 0명'}
 
-🎬 영상제출: ${videoResult.total.count}건 (제출 ${videoResult.total.submitted} / 완료 ${videoResult.total.completed})
-${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명` : '✅ 마감 미제출 없음'}`;
+📩 신규 문의: ${newInquiryCount}건
+
+📢 신규 캠페인: ${campaignResult.total}개
+   🇰🇷${campaignResult.byRegion.korea} / 🇯🇵${campaignResult.byRegion.japan} / 🇺🇸${campaignResult.byRegion.us}`;
 
     try {
       const clientId = process.env.NAVER_WORKS_CLIENT_ID;
@@ -319,29 +327,83 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
       }
     } catch (e) { console.error('[네이버웍스 발송 오류]', e.message); }
 
-    // 7. 이메일
+    // 7. 이메일 상세 리포트
     let emailSent = false;
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
+        const deadlineTodayRows = deadlineTodayCampaigns.map((c, i) =>
+          `<tr><td style="padding:6px;border:1px solid #ddd">${i + 1}</td><td style="padding:6px;border:1px solid #ddd">${c.title}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${c.count}명</td></tr>`
+        ).join('') || '<tr><td colspan="3" style="padding:6px;border:1px solid #ddd;text-align:center">없음</td></tr>';
+
+        const overdueRows = overdueList.map((c, i) =>
+          `<tr style="background:#fee2e2"><td style="padding:6px;border:1px solid #ddd">${i + 1}</td><td style="padding:6px;border:1px solid #ddd">${c.title}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${c.deadline}</td><td style="padding:6px;border:1px solid #ddd;text-align:center;color:#dc2626;font-weight:bold">${c.count}명</td></tr>`
+        ).join('') || '<tr><td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:center;color:#16a34a">없음 ✅</td></tr>';
+
         const emailHtml = `
-          <h2>📊 일일 리포트 (${dateStr})</h2>
-          ${isManualTest ? '<p style="color:orange">⚠️ 수동 테스트</p>' : ''}
-          <h3>📢 캠페인 현황</h3>
-          <p>진행중: ${campaignResult.total.active}개 / 신규: ${campaignResult.total.new}개</p>
-          <ul>
-            <li>🇰🇷 한국: ${campaignResult.byRegion.korea.active}개</li>
-            <li>🇯🇵 일본: ${campaignResult.byRegion.japan.active}개</li>
-            <li>🇺🇸 미국: ${campaignResult.byRegion.us.active}개</li>
-          </ul>
-          <h3>👥 신규 회원</h3>
-          <p>기업: ${newCompanies}개 / 크리에이터: ${creatorResult.total}명</p>
-          <h3>🎬 영상 제출</h3>
-          <p>총 ${videoResult.total.count}건 (제출 ${videoResult.total.submitted} / 완료 ${videoResult.total.completed})</p>
-          <h3>⚠️ 마감 미제출</h3>
-          <p>${overdueResult.total > 0 ? `${overdueResult.total}명` : '없음'}</p>
-          <hr>
-          <p style="color:gray;font-size:12px">발송: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
-        `;
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:20px">
+  <h2 style="border-bottom:2px solid #333;padding-bottom:10px">📊 일일 리포트 (${dateStr})</h2>
+  ${isManualTest ? '<p style="color:orange">⚠️ 수동 테스트</p>' : ''}
+
+  <!-- 요약 카드 -->
+  <div style="display:flex;gap:10px;margin:20px 0;flex-wrap:wrap">
+    <div style="flex:1;background:#dbeafe;padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:#1e40af">👥 신규 크리에이터</div>
+      <div style="font-size:24px;font-weight:bold;color:#1e40af">${creatorResult.total}명</div>
+      <div style="font-size:10px;color:#666">🇰🇷${creatorResult.byRegion.korea} 🇯🇵${creatorResult.byRegion.japan} 🇺🇸${creatorResult.byRegion.us}</div>
+    </div>
+    <div style="flex:1;background:#fef3c7;padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:#92400e">📅 마감일 당일</div>
+      <div style="font-size:24px;font-weight:bold;color:#92400e">${deadlineTodayCount}명</div>
+    </div>
+    <div style="flex:1;background:${overdueCount > 0 ? '#fee2e2' : '#dcfce7'};padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:${overdueCount > 0 ? '#dc2626' : '#16a34a'}">🚨 마감 미제출</div>
+      <div style="font-size:24px;font-weight:bold;color:${overdueCount > 0 ? '#dc2626' : '#16a34a'}">${overdueCount}명</div>
+    </div>
+    <div style="flex:1;background:#e0e7ff;padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:#4338ca">📩 신규 문의</div>
+      <div style="font-size:24px;font-weight:bold;color:#4338ca">${newInquiryCount}건</div>
+    </div>
+    <div style="flex:1;background:#f3e8ff;padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:#7c3aed">📢 신규 캠페인</div>
+      <div style="font-size:24px;font-weight:bold;color:#7c3aed">${campaignResult.total}개</div>
+      <div style="font-size:10px;color:#666">🇰🇷${campaignResult.byRegion.korea} 🇯🇵${campaignResult.byRegion.japan} 🇺🇸${campaignResult.byRegion.us}</div>
+    </div>
+  </div>
+
+  <!-- 마감일 당일 상세 -->
+  <h3>📅 오늘 마감 캠페인 (${deadlineTodayCount}명)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+    <thead>
+      <tr style="background:#f1f5f9">
+        <th style="padding:8px;border:1px solid #ddd;width:40px">No</th>
+        <th style="padding:8px;border:1px solid #ddd">캠페인</th>
+        <th style="padding:8px;border:1px solid #ddd;width:80px">인원</th>
+      </tr>
+    </thead>
+    <tbody>${deadlineTodayRows}</tbody>
+  </table>
+
+  <!-- 마감 미제출 상세 -->
+  <h3 style="color:${overdueCount > 0 ? '#dc2626' : '#16a34a'}">🚨 마감 미제출 (${overdueCount}명)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+    <thead>
+      <tr style="background:#fef2f2">
+        <th style="padding:8px;border:1px solid #ddd;width:40px">No</th>
+        <th style="padding:8px;border:1px solid #ddd">캠페인</th>
+        <th style="padding:8px;border:1px solid #ddd;width:100px">마감일</th>
+        <th style="padding:8px;border:1px solid #ddd;width:80px">미제출</th>
+      </tr>
+    </thead>
+    <tbody>${overdueRows}</tbody>
+  </table>
+
+  <p style="color:#999;font-size:11px;margin-top:40px;text-align:center">
+    발송: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} | CNEC 자동 리포트
+  </p>
+</body></html>`;
+
         await sendEmail('mkt@howlab.co.kr', `[CNEC] 일일 리포트 (${dateStr})`, emailHtml);
         emailSent = true;
         console.log('[report-daily] 이메일 발송 완료');
@@ -353,11 +415,11 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
       body: JSON.stringify({
         success: true,
         date: dateStr,
-        campaigns: campaignResult,
-        newCompanies,
         creators: creatorResult,
-        videoSubmissions: videoResult,
-        overdueCreators: overdueResult,
+        deadlineToday: deadlineTodayCount,
+        overdue: overdueCount,
+        newInquiries: newInquiryCount,
+        newCampaigns: campaignResult,
         emailSent
       })
     };
@@ -368,4 +430,5 @@ ${overdueResult.total > 0 ? `⚠️ 마감 미제출: ${overdueResult.total}명`
   }
 };
 
-exports.config = { schedule: '0 1 * * *' };
+// 스케줄은 netlify.toml에서 관리 (중복 실행 방지)
+// exports.config = { schedule: '0 1 * * *' };

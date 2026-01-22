@@ -627,6 +627,23 @@ const CampaignCreationKorea = () => {
           }
         }
 
+        // estimated_cost 재계산 (패키지 가격 × 인원 × 1.1 VAT)
+        let recalculatedCost = data.estimated_cost
+        const slots = data.total_slots || 1
+
+        if (data.campaign_type === '4week_challenge') {
+          const pkg = fourWeekPackageOptions.find(p => p.value === data.package_type) || fourWeekPackageOptions[0]
+          recalculatedCost = calculateFinalCost(pkg.price, slots, false)
+        } else if (data.campaign_type === 'oliveyoung') {
+          const pkg = oliveyoungPackageOptions.find(p => p.value === data.package_type) || oliveyoungPackageOptions[0]
+          recalculatedCost = calculateFinalCost(pkg.price, slots)
+        } else {
+          const pkg = packageOptions.find(p => p.value === data.package_type)
+          if (pkg) {
+            recalculatedCost = calculateFinalCost(pkg.price, slots)
+          }
+        }
+
         setCampaignForm({
           ...data,
           target_platforms: targetPlatformsObj,
@@ -635,6 +652,8 @@ const CampaignCreationKorea = () => {
           question3,
           question4,
           category: categoryArray,
+          // estimated_cost 재계산된 값으로 설정
+          estimated_cost: recalculatedCost,
           // 날짜 필드 포맷 변환
           application_deadline: formatDate(data.application_deadline),
           start_date: formatDate(data.start_date),

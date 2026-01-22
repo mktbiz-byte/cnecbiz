@@ -6,7 +6,7 @@ const usUrl = process.env.VITE_SUPABASE_US_URL
 const usServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
 
 // BIZ Supabase (인증 확인용)
-const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL
+const bizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const bizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // 클라이언트 생성 (환경변수 누락 시 null)
@@ -25,7 +25,7 @@ exports.handler = async (event) => {
   console.log('[US API] Environment check:', {
     hasUsUrl: !!process.env.VITE_SUPABASE_US_URL,
     hasUsKey: !!process.env.SUPABASE_US_SERVICE_ROLE_KEY,
-    hasBizUrl: !!(process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL),
+    hasBizUrl: !!process.env.VITE_SUPABASE_BIZ_URL,
     hasBizKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     supabaseUSReady: !!supabaseUS,
     supabaseBizReady: !!supabaseBiz

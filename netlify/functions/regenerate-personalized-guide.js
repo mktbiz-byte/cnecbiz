@@ -25,7 +25,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
     // 아이 제품 여부 판단
     const isChildProduct = (productInfo?.category || '').toLowerCase().includes('아이') ||

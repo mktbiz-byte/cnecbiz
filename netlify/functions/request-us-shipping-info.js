@@ -14,7 +14,7 @@ const usServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
 const supabaseUS = usUrl && usServiceKey ? createClient(usUrl, usServiceKey) : null
 
 // BIZ Supabase (인증용)
-const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL
+const bizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const bizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseBiz = bizUrl && bizServiceKey ? createClient(bizUrl, bizServiceKey) : null
 

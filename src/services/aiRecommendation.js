@@ -126,9 +126,9 @@ ${JSON.stringify(creatorsSummary, null, 2)}
 
 상위 10명만 추천하고, 점수가 높은 순으로 정렬해주세요.`
 
-    // AI 추천: 단순 분석 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
+    // AI 추천: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {

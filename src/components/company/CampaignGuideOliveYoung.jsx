@@ -340,9 +340,9 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
 }
 \`\`\``
 
-        // 올리브영 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
+        // 올리브영 가이드 생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -355,7 +355,9 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
         )
 
         if (!response.ok) {
-          throw new Error('AI 가이드 생성에 실패했습니다.')
+          const errorData = await response.json().catch(() => ({}))
+          console.error('[Gemini API Error]', response.status, errorData)
+          throw new Error(`AI 가이드 생성 실패: ${errorData.error?.message || response.statusText || '알 수 없는 오류'}`)
         }
 
         const result = await response.json()

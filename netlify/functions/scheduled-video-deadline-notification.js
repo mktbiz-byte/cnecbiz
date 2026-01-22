@@ -463,22 +463,25 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
     content = content.replace(/#{캠페인명}/g, campaignName);
     content = content.replace(/#{제출기한}/g, deadline);
 
-    kakaoService.sendATS(
+    // 대체 문자 내용 생성
+    const altContent = content.substring(0, 90); // SMS 길이 제한
+
+    kakaoService.sendATS_one(
       POPBILL_CORP_NUM,
       templateCode,
       POPBILL_SENDER_NUM,
       content,
-      '',  // altContent
-      '',  // altSendType
-      receiverNum,
+      altContent,  // 대체 문자 내용
+      'A',         // altSendType: 'A' = 알림톡 실패시 대체문자 발송
+      '',          // sndDT (즉시 발송)
+      receiverNum.replace(/-/g, ''),  // 전화번호 하이픈 제거
       receiverName,
-      '',  // sndDT (즉시 발송)
-      '',  // requestNum
-      '',  // userID
-      null,  // btns
-      (result) => {
-        console.log(`카카오 알림톡 발송 성공: ${receiverNum} (${templateCode})`, result);
-        resolve(result);
+      '',          // userID
+      '',          // requestNum
+      null,        // btns
+      (receiptNum) => {
+        console.log(`카카오 알림톡 발송 성공: ${receiverNum} (${templateCode})`, receiptNum);
+        resolve({ receiptNum });
       },
       (error) => {
         console.error(`카카오 알림톡 발송 실패: ${receiverNum} (${templateCode})`, error);

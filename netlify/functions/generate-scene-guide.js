@@ -45,7 +45,7 @@ exports.handler = async (event) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    // 씬 가이드/번역: 대량 처리 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+    // 씬 가이드/번역: 대량 처리 → gemini-1.5-flash (4K RPM, 무제한 RPD)
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
     const result = await model.generateContent({

@@ -87,9 +87,9 @@ export default function CNECPlusManagement() {
         setFormData(prev => ({ ...prev, recent_videos: mediaResult.recentVideos }))
       }
       // Initialize Gemini AI
-      // 프로필 분석: 단순 분석 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
+      // 프로필 분석: 단순 분석 → gemini-1.5-flash (4K RPM, 무제한 RPD)
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
       // Prepare prompt
       const prompt = `다음 크리에이터의 프로필을 분석하여 한국어로 마케팅용 소개를 작성해주세요.
