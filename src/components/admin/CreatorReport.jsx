@@ -360,7 +360,7 @@ JSON 형식으로 응답:
   "recommended_shorts": "한국 뷰티 크리에이터 숏폼 3-5개 추천, 각 추천마다 크리에이터명/주제/성공요인/적용방법 포함"
 }`
 
-      // 크리에이터 분석 리포트: 복잡한 분석 → gemini-1.5-flash (품질 중요)
+      // 크리에이터 분석 리포트: 복잡한 분석 → gemini-2.5-flash-lite (품질 중요)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {

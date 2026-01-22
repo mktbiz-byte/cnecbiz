@@ -480,7 +480,7 @@ const CampaignGuideUS = () => {
 
       const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
 
-      // 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+      // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {

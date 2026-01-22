@@ -77,7 +77,7 @@ export default function CampaignGuideReview() {
         
         const hashtagsForSearch = campaignData.required_hashtags.join(' ')
         
-        // 트렌드 분석: 중간 복잡도 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+        // 트렌드 분석: 중간 복잡도 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
         const trendResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
@@ -187,7 +187,7 @@ ${!trendInsights.trend_summary.has_shorts ? '\n⚠️ **주의**: Shorts 형식 
         ? '\n\n**중요:** 이 캠페인은 크리에이터 자율성을 보장합니다. 촬영 장면과 대사는 크리에이터가 자유롭게 결정할 수 있으나, 핵심 소구 포인트는 반드시 포함되어야 합니다.'
         : ''
 
-      // 가이드 리뷰 생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
+      // 가이드 리뷰 생성: 복잡한 콘텐츠 → gemini-2.5-flash-lite (품질 중요)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
@@ -396,7 +396,7 @@ JSON만 응답하세요.`
         ? '\n\n**중요:** 이 캠페인은 크리에이터 자율성을 보장합니다. 촬영 장면과 대사는 크리에이터가 자유롭게 결정할 수 있으나, 핵심 소구 포인트는 반드시 포함되어야 합니다.'
         : ''
 
-      // 가이드 재생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
+      // 가이드 재생성: 복잡한 콘텐츠 → gemini-2.5-flash-lite (품질 중요)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {

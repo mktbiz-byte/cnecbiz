@@ -64,7 +64,7 @@ export async function analyzeCreator(creatorData, campaignData) {
 JSON 형식으로만 응답해주세요.
 `
 
-    // 크리에이터 분석: 복잡한 평가 → gemini-1.5-flash (품질 중요)
+    // 크리에이터 분석: 복잡한 평가 → gemini-2.5-flash-lite (품질 중요)
     const response = await client.chat.completions.create({
       model: 'gemini-2.5-flash-lite',
       messages: [
@@ -188,7 +188,7 @@ export async function generateGuide(creatorData, campaignData, evaluation) {
 JSON 형식으로만 응답해주세요. 가독성 좋게 명확하고 간결하게 작성해주세요.
 `
 
-    // 가이드 생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
+    // 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash-lite (품질 중요)
     const response = await client.chat.completions.create({
       model: 'gemini-2.5-flash-lite',
       messages: [
@@ -243,7 +243,7 @@ ${JSON.stringify(guide, null, 2)}
 번역된 가이드를 동일한 JSON 구조로 응답해주세요.
 `
 
-    // 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+    // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
     const response = await client.chat.completions.create({
       model: 'gemini-2.5-flash-lite',
       messages: [
