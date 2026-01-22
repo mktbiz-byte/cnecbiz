@@ -182,13 +182,33 @@ const ACCOUNT_STATUS = {
   }
 }
 
-// 피부 타입 매핑
+// 피부 타입 매핑 (영어 → 한글)
 const SKIN_TYPES = {
   dry: '건성',
   oily: '지성',
   combination: '복합성',
   sensitive: '민감성',
   normal: '중성'
+}
+
+// 피부 타입 역매핑 (한글 → 영어)
+const SKIN_TYPES_REVERSE = {
+  '건성': 'dry',
+  '지성': 'oily',
+  '복합성': 'combination',
+  '민감성': 'sensitive',
+  '중성': 'normal'
+}
+
+// 피부 타입 정규화 함수 (영어 키로 변환)
+const normalizeSkinType = (skinType) => {
+  if (!skinType) return null
+  const lower = skinType.toLowerCase()
+  // 이미 영어 키인 경우
+  if (SKIN_TYPES[lower]) return lower
+  // 한글인 경우 영어로 변환
+  if (SKIN_TYPES_REVERSE[skinType]) return SKIN_TYPES_REVERSE[skinType]
+  return null
 }
 
 // 나이대 범위 정의
@@ -5827,8 +5847,8 @@ JSON만 출력.`
                             {applications.filter(app => {
                               // 피부 타입 필터
                               if (applicantFilters.skinType !== 'all') {
-                                const appSkinType = app.skin_type?.toLowerCase()
-                                if (appSkinType !== applicantFilters.skinType) return false
+                                const normalizedSkinType = normalizeSkinType(app.skin_type)
+                                if (normalizedSkinType !== applicantFilters.skinType) return false
                               }
                               // 나이대 필터
                               if (applicantFilters.ageRange !== 'all' && app.age) {
