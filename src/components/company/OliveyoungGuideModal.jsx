@@ -214,19 +214,22 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
     return []
   }
 
-  const productInfo = currentStepData?.product_info || campaignProductInfo
+  // 편집 모드일 때는 editedData, 아닐 때는 currentStepData 사용
+  const displayData = isEditing ? editedData : currentStepData
+
+  const productInfo = displayData?.product_info || campaignProductInfo
   // required_dialogues (배열) 또는 required_dialogue (문자열) 둘 다 지원
-  const requiredDialogues = parseToArray(currentStepData?.required_dialogues || currentStepData?.required_dialogue)
+  const requiredDialogues = parseToArray(displayData?.required_dialogues || displayData?.required_dialogue)
   // required_scenes가 배열 또는 문자열일 수 있음
-  const requiredScenes = parseToArray(currentStepData?.required_scenes)
+  const requiredScenes = parseToArray(displayData?.required_scenes)
   // cautions - 캠페인 기본 cautions를 fallback으로 사용
-  const cautions = currentStepData?.cautions || campaign.cautions || ''
+  const cautions = displayData?.cautions || campaign.cautions || ''
   // hashtags - 캠페인 기본 hashtags도 확인
-  const hashtags = parseToArray(currentStepData?.hashtags || campaign.required_hashtags || campaign.hashtags)
-  const referenceUrls = parseToArray(currentStepData?.reference_urls)
-  const textGuide = currentStepData?.text_guide || ''
+  const hashtags = parseToArray(displayData?.hashtags || campaign.required_hashtags || campaign.hashtags)
+  const referenceUrls = parseToArray(displayData?.reference_urls)
+  const textGuide = displayData?.text_guide || ''
   // examples 필드도 지원 (필수 장면이 비어있을 때 fallback)
-  const examples = currentStepData?.examples || ''
+  const examples = displayData?.examples || ''
 
   const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide || examples
   const hasExternalGuide = !!currentExternalGuide
