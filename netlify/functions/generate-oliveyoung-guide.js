@@ -23,7 +23,15 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { campaignInfo, existingData } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+
+    // 프론트엔드에서 campaignData 또는 campaignInfo 둘 다 지원
+    const campaignInfo = body.campaignInfo || body.campaignData || {}
+    const existingData = body.existingData || {
+      step1: { reference_urls: '', required_dialogue: '', required_scenes: '', examples: '' },
+      step2: { reference_urls: '', required_dialogue: '', required_scenes: '', examples: '' },
+      step3: { reference_urls: '', required_dialogue: '', required_scenes: '', examples: '' }
+    }
 
     // 올리브영 가이드: 단순 생성 → gemini-1.5-flash (4K RPM, 무제한 RPD)
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
@@ -51,6 +59,14 @@ exports.handler = async (event) => {
 }
 
 async function generateStepGuide(model, campaignInfo, existingStepData, stepName, stepPurpose) {
+  // existingStepData가 없거나 undefined인 경우 기본값 설정
+  const stepData = existingStepData || {
+    reference_urls: '',
+    required_dialogue: '',
+    required_scenes: '',
+    examples: ''
+  }
+
   const prompt = `당신은 올리브영 세일 캠페인의 크리에이터 가이드를 작성하는 전문가입니다.
 
 **캠페인 정보:**
@@ -63,10 +79,10 @@ async function generateStepGuide(model, campaignInfo, existingStepData, stepName
 **목적:** ${stepPurpose} 영상 가이드
 
 **관리자가 입력한 정보:**
-- 참고 영상 URL: ${existingStepData.reference_urls}
-${existingStepData.required_dialogue ? `- 필수 대사: ${existingStepData.required_dialogue}` : ''}
-${existingStepData.required_scenes ? `- 필수 장면: ${existingStepData.required_scenes}` : ''}
-${existingStepData.examples ? `- 예시: ${existingStepData.examples}` : ''}
+- 참고 영상 URL: ${stepData.reference_urls || '없음'}
+${stepData.required_dialogue ? `- 필수 대사: ${stepData.required_dialogue}` : ''}
+${stepData.required_scenes ? `- 필수 장면: ${stepData.required_scenes}` : ''}
+${stepData.examples ? `- 예시: ${stepData.examples}` : ''}
 
 **작업:**
 관리자가 입력한 정보를 **절대 수정하지 말고 그대로 유지**하면서, 비어있는 필드만 자동으로 생성해주세요.
@@ -91,7 +107,7 @@ ${existingStepData.examples ? `- 예시: ${existingStepData.examples}` : ''}
   "required_dialogue": "관리자가 입력한 내용 또는 새로 생성한 내용",
   "required_scenes": "관리자가 입력한 내용 또는 새로 생성한 내용",
   "examples": "관리자가 입력한 내용 또는 새로 생성한 내용",
-  "reference_urls": "${existingStepData.reference_urls}"
+  "reference_urls": "${stepData.reference_urls || ''}"
 }
 
 **중요:**
@@ -113,9 +129,9 @@ ${existingStepData.examples ? `- 예시: ${existingStepData.examples}` : ''}
   
   // Merge with existing data (prioritize existing data)
   return {
-    reference_urls: existingStepData.reference_urls, // Always keep original
-    required_dialogue: existingStepData.required_dialogue || generatedData.required_dialogue,
-    required_scenes: existingStepData.required_scenes || generatedData.required_scenes,
-    examples: existingStepData.examples || generatedData.examples
+    reference_urls: stepData.reference_urls || '', // Always keep original
+    required_dialogue: stepData.required_dialogue || generatedData.required_dialogue,
+    required_scenes: stepData.required_scenes || generatedData.required_scenes,
+    examples: stepData.examples || generatedData.examples
   }
 }
