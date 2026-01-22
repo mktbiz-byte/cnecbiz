@@ -211,19 +211,22 @@ export default function SnsAutoUploadPage() {
         // user_profiles에서 이름 조회
         if (data.user_id && profileMap) {
           const profile = profileMap.get(data.user_id)
+          if (profile?.channel_name && !profile.channel_name.includes('@')) return profile.channel_name
           if (profile?.name && !profile.name.includes('@')) return profile.name
           if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
         }
-        // 직접 필드에서 조회
+        // 직접 필드에서 조회 (우선순위: channel_name > applicant_name > creator_name > name)
+        if (data.channel_name && !data.channel_name.includes('@')) return data.channel_name
         if (data.applicant_name && !data.applicant_name.includes('@')) return data.applicant_name
         if (data.creator_name && !data.creator_name.includes('@')) return data.creator_name
         if (data.name && !data.name.includes('@')) return data.name
+        if (data.full_name && !data.full_name.includes('@')) return data.full_name
         // 이메일에서 추출
         const emailName = extractNameFromEmail(data.applicant_name) ||
                          extractNameFromEmail(data.creator_name) ||
                          extractNameFromEmail(data.email)
         if (emailName) return emailName
-        return data.applicant_name || data.creator_name || '-'
+        return data.applicant_name || data.creator_name || data.channel_name || '-'
       }
 
       // 멀티비디오 캠페인 체크 함수
@@ -247,7 +250,7 @@ export default function SnsAutoUploadPage() {
       try {
         const { data: bizApps } = await supabaseBiz
           .from('applications')
-          .select('id, user_id, applicant_name, creator_name, email, campaign_id')
+          .select('id, user_id, applicant_name, creator_name, channel_name, name, email, campaign_id')
         bizApps?.forEach(app => {
           if (app.id) bizApplicationMap.set(app.id, app)
           if (app.user_id) {
@@ -403,9 +406,11 @@ export default function SnsAutoUploadPage() {
         try {
           const { data: koreaProfiles } = await supabaseKorea
             .from('user_profiles')
-            .select('id, name, full_name, email')
+            .select('id, user_id, name, full_name, channel_name, email')
           koreaProfiles?.forEach(p => {
+            // id와 user_id 둘 다 매핑
             if (p.id) koreaProfileMap.set(p.id, p)
+            if (p.user_id) koreaProfileMap.set(p.user_id, p)
           })
           console.log('[fetchPendingVideos] Korea user_profiles loaded:', koreaProfileMap.size)
         } catch (e) {
@@ -417,7 +422,7 @@ export default function SnsAutoUploadPage() {
         try {
           const { data: participants } = await supabaseKorea
             .from('campaign_participants')
-            .select('id, user_id, campaign_id, applicant_name, creator_name, email')
+            .select('id, user_id, campaign_id, applicant_name, creator_name, channel_name, name, email')
           participants?.forEach(p => {
             if (p.user_id && p.campaign_id) {
               const key = `${p.user_id}_${p.campaign_id}`
@@ -437,6 +442,7 @@ export default function SnsAutoUploadPage() {
           // 1. user_profiles에서 조회
           if (sub.user_id && koreaProfileMap.has(sub.user_id)) {
             const profile = koreaProfileMap.get(sub.user_id)
+            if (profile?.channel_name && !profile.channel_name.includes('@')) return profile.channel_name
             if (profile?.name && !profile.name.includes('@')) return profile.name
             if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
           }
