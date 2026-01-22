@@ -7,7 +7,7 @@ const supabaseClients = {
     process.env.VITE_SUPABASE_KOREA_ANON_KEY
   ),
   US: createClient(
-    process.env.VITE_SUPABASE_URL,
+    process.env.VITE_SUPABASE_BIZ_URL,
     process.env.VITE_SUPABASE_ANON_KEY
   ),
   JP: createClient(

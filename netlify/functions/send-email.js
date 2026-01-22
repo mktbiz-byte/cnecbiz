@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
