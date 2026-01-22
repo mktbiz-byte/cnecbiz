@@ -96,6 +96,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
     }
 
     const baseData = {
+      text_guide: '',
       product_info: defaultProductInfo,
       required_dialogues: [],
       required_scenes: [],
@@ -115,6 +116,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
       setEditedData({
         ...baseData,
         ...currentData,
+        text_guide: currentData.text_guide || '',
         product_info: currentData.product_info || defaultProductInfo,
         required_dialogues: dialogues.length > 0 ? dialogues : baseData.required_dialogues,
         required_scenes: scenes.length > 0 ? scenes : baseData.required_scenes,
@@ -140,6 +142,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
 
       // 저장할 데이터 구조 확인
       const dataToSave = {
+        text_guide: editedData?.text_guide || '',
         product_info: editedData?.product_info || '',
         required_dialogues: editedData?.required_dialogues || [],
         required_scenes: editedData?.required_scenes || [],
