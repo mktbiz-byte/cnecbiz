@@ -193,178 +193,212 @@ export default function SnsAutoUploadPage() {
     try {
       const allVideos = []
 
+      // 이메일에서 이름 추출 함수
+      const extractNameFromEmail = (email) => {
+        if (!email || !email.includes('@')) return null
+        const localPart = email.split('@')[0]
+        if (/^\d+$/.test(localPart)) return null
+        const nameParts = localPart.split(/[._]/)
+        if (nameParts.length > 1) {
+          return nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        }
+        return localPart.charAt(0).toUpperCase() + localPart.slice(1)
+      }
+
+      // 크리에이터 이름 결정 함수
+      const resolveCreatorName = (data, profileMap) => {
+        if (!data) return '-'
+        // user_profiles에서 이름 조회
+        if (data.user_id && profileMap) {
+          const profile = profileMap.get(data.user_id)
+          if (profile?.name && !profile.name.includes('@')) return profile.name
+          if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+        }
+        // 직접 필드에서 조회
+        if (data.applicant_name && !data.applicant_name.includes('@')) return data.applicant_name
+        if (data.creator_name && !data.creator_name.includes('@')) return data.creator_name
+        if (data.name && !data.name.includes('@')) return data.name
+        // 이메일에서 추출
+        const emailName = extractNameFromEmail(data.applicant_name) ||
+                         extractNameFromEmail(data.creator_name) ||
+                         extractNameFromEmail(data.email)
+        if (emailName) return emailName
+        return data.applicant_name || data.creator_name || '-'
+      }
+
+      // 멀티비디오 캠페인 체크 함수
+      const isMultiVideoCampaign = (campaignType) => {
+        return ['4week_challenge', 'oliveyoung', 'oliveyoung_sale', 'multi_video'].includes(campaignType)
+      }
+
+      // ========== BIZ DB ==========
       // 캠페인 정보 조회
-      let campaignMap = new Map()
+      let bizCampaignMap = new Map()
       try {
         const { data: bizCampaigns } = await supabaseBiz.from('campaigns').select('*')
-        bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
+        bizCampaigns?.forEach(c => bizCampaignMap.set(c.id, c))
       } catch (e) {
         console.log('[fetchPendingVideos] BIZ campaigns query failed')
       }
 
-      // 1. BIZ DB - video_submissions에서 영상 파일이 있는 것
+      // 1. BIZ DB - video_submissions
       try {
         const { data: bizSubs, error } = await supabaseBiz
           .from('video_submissions')
           .select('*')
           .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
           .order('created_at', { ascending: false })
-          .limit(200)
+          .limit(300)
 
-        if (error) {
-          console.log('[fetchPendingVideos] BIZ video_submissions error:', error.message)
-        }
+        if (error) console.log('[fetchPendingVideos] BIZ video_submissions error:', error.message)
 
         bizSubs?.forEach(sub => {
-          // video_file_url 또는 clean_video_url 중 하나라도 있으면 추가
           const videoUrl = sub.clean_video_url || sub.video_file_url
           if (videoUrl) {
-            const campaign = campaignMap.get(sub.campaign_id)
-            allVideos.push({
-              id: sub.id,
-              source_type: 'video_submission',
-              video_file_url: videoUrl,
-              campaign_id: sub.campaign_id,
-              campaign_name: campaign?.title || sub.campaign_name || '-',
-              creator_name: sub.creator_name || sub.applicant_name || '-',
-              status: sub.status,
-              approved_at: sub.approved_at,
-              created_at: sub.approved_at || sub.updated_at || sub.created_at,
-              sns_upload_url: sub.sns_upload_url,
-              week_number: sub.week_number
-            })
-          }
-        })
-        console.log('[fetchPendingVideos] BIZ video_submissions with video:', allVideos.length)
-      } catch (e) {
-        console.log('[fetchPendingVideos] BIZ video_submissions query failed:', e.message)
-      }
+            const campaign = bizCampaignMap.get(sub.campaign_id)
+            const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
 
-      // 2. BIZ DB - applications에서 영상 파일이 있는 것
-      try {
-        const { data: bizApps, error } = await supabaseBiz
-          .from('applications')
-          .select('*')
-          .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
-          .order('created_at', { ascending: false })
-          .limit(200)
-
-        if (error) {
-          console.log('[fetchPendingVideos] BIZ applications error:', error.message)
-        }
-
-        bizApps?.forEach(app => {
-          const videoUrl = app.video_file_url
-          if (videoUrl) {
-            // 중복 체크 - video_submissions에 이미 있는지
-            const isDuplicate = allVideos.some(v =>
-              v.campaign_id === app.campaign_id &&
-              (v.creator_name === app.applicant_name || v.creator_name === app.creator_name)
+            // 멀티비디오가 아닌 경우만 중복 체크
+            const isDuplicate = !isMulti && allVideos.some(v =>
+              v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
             )
+
             if (!isDuplicate) {
-              const campaign = campaignMap.get(app.campaign_id)
               allVideos.push({
-                id: app.id,
-                source_type: 'application',
+                id: sub.id,
+                source_type: 'video_submission',
                 video_file_url: videoUrl,
-                campaign_id: app.campaign_id,
-                campaign_name: campaign?.title || app.campaign_name || '-',
-                creator_name: app.applicant_name || app.creator_name || '-',
-                status: app.status,
-                approved_at: app.approved_at,
-                created_at: app.updated_at || app.created_at,
-                sns_upload_url: app.sns_upload_url
+                campaign_id: sub.campaign_id,
+                campaign_name: campaign?.title || sub.campaign_name || '-',
+                campaign_type: campaign?.campaign_type,
+                creator_name: resolveCreatorName(sub, null),
+                user_id: sub.user_id,
+                status: sub.status,
+                approved_at: sub.approved_at,
+                created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                sns_upload_url: sub.sns_upload_url,
+                week_number: sub.week_number || sub.video_number,
+                is_multi_video: isMulti
               })
             }
           }
         })
-        console.log('[fetchPendingVideos] Total after applications:', allVideos.length)
+        console.log('[fetchPendingVideos] BIZ video_submissions:', allVideos.length)
       } catch (e) {
-        console.log('[fetchPendingVideos] BIZ applications query failed:', e.message)
+        console.log('[fetchPendingVideos] BIZ video_submissions query failed:', e.message)
       }
 
-      // 3. Korea DB - video_submissions
+      // ========== Korea DB ==========
       if (supabaseKorea) {
+        // 캠페인 정보 조회
+        let koreaCampaignMap = new Map()
         try {
-          const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
-          const koreaCampaignMap = new Map()
+          const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('*')
           koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea campaigns query failed')
+        }
 
+        // user_profiles 조회 (크리에이터 이름용)
+        let koreaProfileMap = new Map()
+        try {
+          const { data: koreaProfiles } = await supabaseKorea
+            .from('user_profiles')
+            .select('id, name, full_name, email')
+          koreaProfiles?.forEach(p => {
+            if (p.id) koreaProfileMap.set(p.id, p)
+          })
+          console.log('[fetchPendingVideos] Korea user_profiles loaded:', koreaProfileMap.size)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea user_profiles query failed')
+        }
+
+        // 2. Korea DB - video_submissions
+        try {
           const { data: koreaSubs, error } = await supabaseKorea
             .from('video_submissions')
             .select('*')
             .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
             .order('created_at', { ascending: false })
-            .limit(200)
+            .limit(300)
 
-          if (error) {
-            console.log('[fetchPendingVideos] Korea video_submissions error:', error.message)
-          }
+          if (error) console.log('[fetchPendingVideos] Korea video_submissions error:', error.message)
 
           koreaSubs?.forEach(sub => {
             const videoUrl = sub.clean_video_url || sub.video_file_url
             if (videoUrl) {
               const campaign = koreaCampaignMap.get(sub.campaign_id)
-              allVideos.push({
-                id: sub.id,
-                source_type: 'korea_video_submission',
-                video_file_url: videoUrl,
-                campaign_id: sub.campaign_id,
-                campaign_name: campaign?.title || '-',
-                creator_name: sub.creator_name || sub.applicant_name || '-',
-                status: sub.status,
-                approved_at: sub.approved_at,
-                created_at: sub.approved_at || sub.updated_at || sub.created_at,
-                sns_upload_url: sub.sns_upload_url,
-                week_number: sub.week_number
-              })
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+
+              // 멀티비디오가 아닌 경우만 중복 체크
+              const isDuplicate = !isMulti && allVideos.some(v =>
+                v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+              )
+
+              if (!isDuplicate) {
+                allVideos.push({
+                  id: sub.id,
+                  source_type: 'korea_video_submission',
+                  video_file_url: videoUrl,
+                  campaign_id: sub.campaign_id,
+                  campaign_name: campaign?.title || '-',
+                  campaign_type: campaign?.campaign_type,
+                  creator_name: resolveCreatorName(sub, koreaProfileMap),
+                  user_id: sub.user_id,
+                  status: sub.status,
+                  approved_at: sub.approved_at,
+                  created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                  sns_upload_url: sub.sns_upload_url,
+                  week_number: sub.week_number || sub.video_number,
+                  is_multi_video: isMulti
+                })
+              }
             }
           })
-          console.log('[fetchPendingVideos] Total after Korea:', allVideos.length)
+          console.log('[fetchPendingVideos] Total after Korea video_submissions:', allVideos.length)
         } catch (e) {
-          console.log('[fetchPendingVideos] Korea query failed:', e.message)
+          console.log('[fetchPendingVideos] Korea video_submissions query failed:', e.message)
         }
-      }
 
-      // 4. Korea DB - campaign_participants (video_files 배열 또는 video_file_url)
-      if (supabaseKorea) {
+        // 3. Korea DB - campaign_participants
         try {
-          const { data: koreaCampaigns } = await supabaseKorea.from('campaigns').select('id, title')
-          const koreaCampaignMap = new Map()
-          koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
-
           const { data: koreaParticipants } = await supabaseKorea
             .from('campaign_participants')
             .select('*')
             .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
             .order('created_at', { ascending: false })
-            .limit(200)
+            .limit(300)
 
           koreaParticipants?.forEach(p => {
-            // video_files 배열에서 영상 URL 추출
             const videoFiles = p.video_files || []
             const latestVideo = videoFiles[videoFiles.length - 1]
             const videoUrl = latestVideo?.url || p.video_file_url
 
             if (videoUrl) {
-              // 중복 체크
+              const campaign = koreaCampaignMap.get(p.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+
+              // video_submissions에 이미 있는지 확인 (중복 방지)
               const isDuplicate = allVideos.some(v =>
-                v.campaign_id === p.campaign_id &&
-                (v.creator_name === p.applicant_name || v.creator_name === p.creator_name)
+                v.campaign_id === p.campaign_id && v.user_id === p.user_id
               )
+
               if (!isDuplicate) {
-                const campaign = koreaCampaignMap.get(p.campaign_id)
                 allVideos.push({
                   id: p.id,
                   source_type: 'campaign_participant',
                   video_file_url: videoUrl,
                   campaign_id: p.campaign_id,
                   campaign_name: campaign?.title || '-',
-                  creator_name: p.applicant_name || p.creator_name || '-',
+                  campaign_type: campaign?.campaign_type,
+                  creator_name: resolveCreatorName(p, koreaProfileMap),
+                  user_id: p.user_id,
                   status: p.status,
                   approved_at: p.approved_at,
                   created_at: p.updated_at || p.created_at,
-                  sns_upload_url: p.sns_upload_url
+                  sns_upload_url: p.sns_upload_url,
+                  week_number: null,
+                  is_multi_video: isMulti
                 })
               }
             }
@@ -391,31 +425,26 @@ export default function SnsAutoUploadPage() {
         console.log('[fetchPendingVideos] sns_uploads table may not exist yet')
       }
 
-      // 필터링: 이미 업로드된 영상과 이미 SNS URL이 있는 영상 제외
+      // 필터링: 이미 업로드된 영상 제외
       const pending = allVideos.filter(v => {
-        // 이미 sns_uploads에 기록된 영상 제외
         if (uploadedSet.has(`${v.source_type}_${v.id}`)) return false
-        // 이미 SNS URL이 있으면 완료된 것으로 간주 (선택적)
-        // if (v.sns_upload_url) return false
         return true
       })
 
-      // 중복 제거 (campaign_id + creator_name 기준, 최신 것만 유지)
-      const seen = new Map()
-      pending.forEach(v => {
-        const key = `${v.campaign_id}_${v.creator_name}`
-        const existing = seen.get(key)
-        // 더 최신이거나 없으면 추가
-        if (!existing || new Date(v.created_at) > new Date(existing.created_at)) {
-          seen.set(key, v)
-        }
+      // 정렬: 캠페인명 > 크리에이터명 > week_number 순
+      const sortedPending = pending.sort((a, b) => {
+        // 캠페인명 비교
+        const campaignCompare = (a.campaign_name || '').localeCompare(b.campaign_name || '')
+        if (campaignCompare !== 0) return campaignCompare
+        // 크리에이터명 비교
+        const creatorCompare = (a.creator_name || '').localeCompare(b.creator_name || '')
+        if (creatorCompare !== 0) return creatorCompare
+        // week_number 비교 (오름차순)
+        return (a.week_number || 0) - (b.week_number || 0)
       })
 
-      const uniquePending = Array.from(seen.values())
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
-      console.log('[fetchPendingVideos] Final pending videos:', uniquePending.length)
-      setPendingVideos(uniquePending)
+      console.log('[fetchPendingVideos] Final pending videos:', sortedPending.length)
+      setPendingVideos(sortedPending)
     } catch (error) {
       console.error('[fetchPendingVideos] Error:', error)
       setPendingVideos([])
@@ -824,6 +853,7 @@ export default function SnsAutoUploadPage() {
                         </TableHead>
                         <TableHead>크리에이터</TableHead>
                         <TableHead>캠페인</TableHead>
+                        <TableHead>주차</TableHead>
                         <TableHead>상태</TableHead>
                         <TableHead>승인일</TableHead>
                         <TableHead>미리보기</TableHead>
@@ -846,7 +876,27 @@ export default function SnsAutoUploadPage() {
                             />
                           </TableCell>
                           <TableCell className="font-medium">{video.creator_name || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{video.campaign_name || '-'}</TableCell>
+                          <TableCell className="max-w-[180px] truncate">
+                            <div className="flex flex-col">
+                              <span>{video.campaign_name || '-'}</span>
+                              {video.is_multi_video && (
+                                <span className="text-xs text-purple-500">
+                                  {video.campaign_type === '4week_challenge' ? '4주 챌린지' :
+                                   video.campaign_type === 'oliveyoung' || video.campaign_type === 'oliveyoung_sale' ? '올리브영' :
+                                   '멀티비디오'}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {video.week_number ? (
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                {video.campaign_type === '4week_challenge' ? `${video.week_number}주차` :
+                                 video.campaign_type === 'oliveyoung' || video.campaign_type === 'oliveyoung_sale' ? `Step ${video.week_number}` :
+                                 `#${video.week_number}`}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={
                               video.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
