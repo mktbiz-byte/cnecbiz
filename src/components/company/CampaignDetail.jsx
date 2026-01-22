@@ -5797,7 +5797,7 @@ JSON만 출력.`
                               : 'bg-white text-gray-600 hover:bg-gray-100 border'
                           }`}
                         >
-                          미분류
+                          검증중
                         </button>
                       </div>
                     </div>
