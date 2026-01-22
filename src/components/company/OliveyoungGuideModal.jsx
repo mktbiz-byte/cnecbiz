@@ -80,22 +80,48 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
       ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
       : ''
 
+    // 문자열을 배열로 변환하는 헬퍼 함수
+    const toArray = (value) => {
+      if (!value) return []
+      if (Array.isArray(value)) return value
+      if (typeof value === 'string') {
+        return value.split(/\n|(?:\d+\.\s)/).map(s => s.trim()).filter(s => s && s.length > 0)
+      }
+      return []
+    }
+
+    // 캠페인에서 기본 해시태그 가져오기
+    const defaultHashtags = toArray(campaign.required_hashtags || campaign.hashtags)
+    if (activeStep === 'step2' && !defaultHashtags.includes('#올영세일') && !defaultHashtags.includes('올영세일')) {
+      defaultHashtags.push('올영세일')
+    }
+
     const baseData = {
       product_info: defaultProductInfo,
       required_dialogues: [],
       required_scenes: [],
-      cautions: '',
-      hashtags: activeStep === 'step2' ? ['#올영세일'] : [],
+      cautions: campaign.cautions || '',
+      hashtags: defaultHashtags,
       reference_urls: []
     }
 
     // 기존 데이터가 있으면 병합, 없으면 기본값 사용
     if (currentData && typeof currentData === 'object') {
+      // required_dialogue (단수) → required_dialogues (복수) 변환 지원
+      const dialogues = toArray(currentData.required_dialogues || currentData.required_dialogue)
+      const scenes = toArray(currentData.required_scenes)
+      const tags = toArray(currentData.hashtags)
+      const urls = toArray(currentData.reference_urls)
+
       setEditedData({
         ...baseData,
         ...currentData,
-        // product_info가 비어있으면 캠페인 정보로 채움
-        product_info: currentData.product_info || defaultProductInfo
+        product_info: currentData.product_info || defaultProductInfo,
+        required_dialogues: dialogues.length > 0 ? dialogues : baseData.required_dialogues,
+        required_scenes: scenes.length > 0 ? scenes : baseData.required_scenes,
+        hashtags: tags.length > 0 ? tags : baseData.hashtags,
+        reference_urls: urls.length > 0 ? urls : baseData.reference_urls,
+        cautions: currentData.cautions || baseData.cautions
       })
     } else {
       setEditedData(baseData)
@@ -156,15 +182,32 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
     ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
     : ''
 
-  const productInfo = currentStepData?.product_info || campaignProductInfo
-  const requiredDialogues = currentStepData?.required_dialogues || []
-  const requiredScenes = currentStepData?.required_scenes || []
-  const cautions = currentStepData?.cautions || ''
-  const hashtags = currentStepData?.hashtags || []
-  const referenceUrls = currentStepData?.reference_urls || []
-  const textGuide = currentStepData?.text_guide || ''
+  // 다양한 필드명 형식 지원 (required_dialogue vs required_dialogues 등)
+  const parseToArray = (value) => {
+    if (!value) return []
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string') {
+      // 줄바꿈 또는 번호로 분리된 텍스트를 배열로 변환
+      return value.split(/\n|(?:\d+\.\s)/).map(s => s.trim()).filter(s => s && s.length > 0)
+    }
+    return []
+  }
 
-  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide
+  const productInfo = currentStepData?.product_info || campaignProductInfo
+  // required_dialogues (배열) 또는 required_dialogue (문자열) 둘 다 지원
+  const requiredDialogues = parseToArray(currentStepData?.required_dialogues || currentStepData?.required_dialogue)
+  // required_scenes가 배열 또는 문자열일 수 있음
+  const requiredScenes = parseToArray(currentStepData?.required_scenes)
+  // cautions - 캠페인 기본 cautions를 fallback으로 사용
+  const cautions = currentStepData?.cautions || campaign.cautions || ''
+  // hashtags - 캠페인 기본 hashtags도 확인
+  const hashtags = parseToArray(currentStepData?.hashtags || campaign.required_hashtags || campaign.hashtags)
+  const referenceUrls = parseToArray(currentStepData?.reference_urls)
+  const textGuide = currentStepData?.text_guide || ''
+  // examples 필드도 지원 (필수 장면이 비어있을 때 fallback)
+  const examples = currentStepData?.examples || ''
+
+  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide || examples
   const hasExternalGuide = !!currentExternalGuide
 
   // STEP 3 story URL
@@ -453,7 +496,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                   )}
 
                   {/* 필수 장면 */}
-                  {requiredScenes.length > 0 && (
+                  {(requiredScenes.length > 0 || isEditing) && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
                         <span>🎬</span>
@@ -509,8 +552,23 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                     </div>
                   )}
 
+                  {/* 예시 (examples) */}
+                  {examples && !isEditing && (
+                    <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-teal-900 mb-3 flex items-center gap-2">
+                        <span>💡</span>
+                        예시
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-teal-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {examples}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 주의사항 */}
-                  {cautions && (
+                  {(cautions || isEditing) && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
                         <span>⚠️</span>
