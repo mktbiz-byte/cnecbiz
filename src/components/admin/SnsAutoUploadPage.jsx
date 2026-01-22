@@ -241,6 +241,61 @@ export default function SnsAutoUploadPage() {
         console.log('[fetchPendingVideos] BIZ campaigns query failed')
       }
 
+      // BIZ DB - applications 조회 (크리에이터 정보용)
+      let bizApplicationMap = new Map()
+      let bizUserIdToAppMap = new Map()
+      try {
+        const { data: bizApps } = await supabaseBiz
+          .from('applications')
+          .select('id, user_id, applicant_name, creator_name, email, campaign_id')
+        bizApps?.forEach(app => {
+          if (app.id) bizApplicationMap.set(app.id, app)
+          if (app.user_id) {
+            // user_id + campaign_id로 매핑 (같은 유저가 여러 캠페인 참여 가능)
+            const key = `${app.user_id}_${app.campaign_id}`
+            bizUserIdToAppMap.set(key, app)
+            // user_id만으로도 매핑 (fallback)
+            if (!bizUserIdToAppMap.has(app.user_id)) {
+              bizUserIdToAppMap.set(app.user_id, app)
+            }
+          }
+        })
+        console.log('[fetchPendingVideos] BIZ applications loaded:', bizApplicationMap.size)
+      } catch (e) {
+        console.log('[fetchPendingVideos] BIZ applications query failed')
+      }
+
+      // BIZ 크리에이터 이름 조회 헬퍼
+      const getBizCreatorName = (sub) => {
+        // 1. application_id로 조회
+        if (sub.application_id) {
+          const app = bizApplicationMap.get(sub.application_id)
+          if (app) {
+            const name = resolveCreatorName(app, null)
+            if (name && name !== '-') return name
+          }
+        }
+        // 2. user_id + campaign_id로 조회
+        if (sub.user_id && sub.campaign_id) {
+          const key = `${sub.user_id}_${sub.campaign_id}`
+          const app = bizUserIdToAppMap.get(key)
+          if (app) {
+            const name = resolveCreatorName(app, null)
+            if (name && name !== '-') return name
+          }
+        }
+        // 3. user_id로만 조회
+        if (sub.user_id) {
+          const app = bizUserIdToAppMap.get(sub.user_id)
+          if (app) {
+            const name = resolveCreatorName(app, null)
+            if (name && name !== '-') return name
+          }
+        }
+        // 4. submission 자체에서 조회
+        return resolveCreatorName(sub, null)
+      }
+
       // 1. BIZ DB - video_submissions
       try {
         const { data: bizSubs, error } = await supabaseBiz
@@ -271,7 +326,7 @@ export default function SnsAutoUploadPage() {
                 campaign_id: sub.campaign_id,
                 campaign_name: campaign?.title || sub.campaign_name || '-',
                 campaign_type: campaign?.campaign_type,
-                creator_name: resolveCreatorName(sub, null),
+                creator_name: getBizCreatorName(sub),
                 user_id: sub.user_id,
                 status: sub.status,
                 approved_at: sub.approved_at,
@@ -313,6 +368,55 @@ export default function SnsAutoUploadPage() {
           console.log('[fetchPendingVideos] Korea user_profiles query failed')
         }
 
+        // campaign_participants 조회 (크리에이터 정보 보완용)
+        let koreaParticipantMap = new Map()
+        try {
+          const { data: participants } = await supabaseKorea
+            .from('campaign_participants')
+            .select('id, user_id, campaign_id, applicant_name, creator_name, email')
+          participants?.forEach(p => {
+            if (p.user_id && p.campaign_id) {
+              const key = `${p.user_id}_${p.campaign_id}`
+              koreaParticipantMap.set(key, p)
+            }
+            if (p.user_id && !koreaParticipantMap.has(p.user_id)) {
+              koreaParticipantMap.set(p.user_id, p)
+            }
+          })
+          console.log('[fetchPendingVideos] Korea participants map loaded:', koreaParticipantMap.size)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea participants map query failed')
+        }
+
+        // Korea 크리에이터 이름 조회 헬퍼
+        const getKoreaCreatorName = (sub) => {
+          // 1. user_profiles에서 조회
+          if (sub.user_id && koreaProfileMap.has(sub.user_id)) {
+            const profile = koreaProfileMap.get(sub.user_id)
+            if (profile?.name && !profile.name.includes('@')) return profile.name
+            if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+          }
+          // 2. campaign_participants에서 조회 (user_id + campaign_id)
+          if (sub.user_id && sub.campaign_id) {
+            const key = `${sub.user_id}_${sub.campaign_id}`
+            const participant = koreaParticipantMap.get(key)
+            if (participant) {
+              const name = resolveCreatorName(participant, null)
+              if (name && name !== '-') return name
+            }
+          }
+          // 3. campaign_participants에서 조회 (user_id만)
+          if (sub.user_id && koreaParticipantMap.has(sub.user_id)) {
+            const participant = koreaParticipantMap.get(sub.user_id)
+            if (participant) {
+              const name = resolveCreatorName(participant, null)
+              if (name && name !== '-') return name
+            }
+          }
+          // 4. submission 자체에서 조회
+          return resolveCreatorName(sub, koreaProfileMap)
+        }
+
         // 2. Korea DB - video_submissions
         try {
           const { data: koreaSubs, error } = await supabaseKorea
@@ -343,7 +447,7 @@ export default function SnsAutoUploadPage() {
                   campaign_id: sub.campaign_id,
                   campaign_name: campaign?.title || '-',
                   campaign_type: campaign?.campaign_type,
-                  creator_name: resolveCreatorName(sub, koreaProfileMap),
+                  creator_name: getKoreaCreatorName(sub),
                   user_id: sub.user_id,
                   status: sub.status,
                   approved_at: sub.approved_at,
@@ -360,7 +464,7 @@ export default function SnsAutoUploadPage() {
           console.log('[fetchPendingVideos] Korea video_submissions query failed:', e.message)
         }
 
-        // 3. Korea DB - campaign_participants
+        // 3. Korea DB - campaign_participants (video_files 배열에서 영상 추출)
         try {
           const { data: koreaParticipants } = await supabaseKorea
             .from('campaign_participants')
@@ -391,7 +495,7 @@ export default function SnsAutoUploadPage() {
                   campaign_id: p.campaign_id,
                   campaign_name: campaign?.title || '-',
                   campaign_type: campaign?.campaign_type,
-                  creator_name: resolveCreatorName(p, koreaProfileMap),
+                  creator_name: getKoreaCreatorName(p),
                   user_id: p.user_id,
                   status: p.status,
                   approved_at: p.approved_at,
