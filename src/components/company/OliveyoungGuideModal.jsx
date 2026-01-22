@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
-import { supabase } from '../../lib/supabaseKorea'
 
-export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
+export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supabase }) {
   const [activeStep, setActiveStep] = useState('step1')
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
@@ -130,17 +129,39 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   }
 
   const handleSave = async () => {
+    if (!supabase) {
+      alert('데이터베이스 연결 오류: supabase 클라이언트가 없습니다.')
+      return
+    }
+
     try {
       setSaving(true)
       const fieldName = activeStep === 'step1' ? 'oliveyoung_step1_guide_ai' : 'oliveyoung_step2_guide_ai'
-      
-      const { error } = await supabase
+
+      // 저장할 데이터 구조 확인
+      const dataToSave = {
+        product_info: editedData?.product_info || '',
+        required_dialogues: editedData?.required_dialogues || [],
+        required_scenes: editedData?.required_scenes || [],
+        cautions: editedData?.cautions || '',
+        hashtags: editedData?.hashtags || [],
+        reference_urls: editedData?.reference_urls || []
+      }
+
+      console.log('[OliveyoungGuideModal] 저장 데이터:', { fieldName, dataToSave, campaignId: campaign.id })
+
+      const { data, error } = await supabase
         .from('campaigns')
-        .update({ [fieldName]: JSON.stringify(editedData) })
+        .update({ [fieldName]: JSON.stringify(dataToSave) })
         .eq('id', campaign.id)
+        .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('[OliveyoungGuideModal] 저장 에러:', error)
+        throw error
+      }
 
+      console.log('[OliveyoungGuideModal] 저장 성공:', data)
       alert('수정이 저장되었습니다!')
       setIsEditing(false)
       if (onUpdate) onUpdate()
