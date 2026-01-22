@@ -39,7 +39,7 @@ import {
 import {
   Youtube, Instagram, Music2, Upload, Settings, Link2, Unlink,
   RefreshCw, Check, X, AlertCircle, Play, ExternalLink, Loader2,
-  FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus
+  FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus, Sparkles
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -864,9 +864,80 @@ export default function SnsAutoUploadPage() {
               </div>
             </div>
 
+            {/* AI SEO 최적화 생성 */}
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  <span className="font-medium">AI SEO 최적화</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white"
+                  onClick={async () => {
+                    if (selectedVideos.length === 0) {
+                      alert('영상을 먼저 선택하세요.')
+                      return
+                    }
+                    if (uploadSettings.platforms.length === 0) {
+                      alert('플랫폼을 먼저 선택하세요.')
+                      return
+                    }
+
+                    setUploading(true)
+                    try {
+                      const video = selectedVideos[0]
+                      const response = await fetch('/.netlify/functions/generate-sns-content', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          platform: uploadSettings.platforms[0],
+                          campaignName: video.campaign_name,
+                          creatorName: video.creator_name,
+                          language: 'ko'
+                        })
+                      })
+                      const result = await response.json()
+                      if (result.success) {
+                        const data = result.data
+                        setUploadSettings({
+                          ...uploadSettings,
+                          customTitle: data.title || '',
+                          customDescription: data.description || '',
+                          customHashtags: data.hashtags?.join(', ') || ''
+                        })
+                        alert('AI가 SEO 최적화 콘텐츠를 생성했습니다!')
+                      } else {
+                        throw new Error(result.error)
+                      }
+                    } catch (error) {
+                      console.error('AI 생성 오류:', error)
+                      alert('AI 생성 실패: ' + error.message)
+                    } finally {
+                      setUploading(false)
+                    }
+                  }}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      AI 생성
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                플랫폼별 SEO 최적화된 제목, 설명, 해시태그를 AI가 자동 생성합니다
+              </p>
+            </div>
+
             {/* 템플릿 선택 */}
             <div>
-              <Label className="mb-2 block">템플릿</Label>
+              <Label className="mb-2 block">템플릿 (수동 선택)</Label>
               <Select
                 value={uploadSettings.templateId || ''}
                 onValueChange={(value) => setUploadSettings({ ...uploadSettings, templateId: value })}
