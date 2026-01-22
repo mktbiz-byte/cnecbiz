@@ -239,9 +239,9 @@ const CreateCampaignJapan = () => {
         throw new Error('API 키가 설정되지 않았습니다.')
       }
 
-      // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+      // 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -299,9 +299,9 @@ const CreateCampaignJapan = () => {
 
       const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
 
-      // 일괄 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+      // 일괄 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

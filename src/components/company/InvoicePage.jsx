@@ -480,8 +480,8 @@ const InvoicePage = () => {
       return fourWeekPrices[packageKey]
     }
 
-    // 기획형 패키지 (기본)
-    return generalPrices[packageKey] || 300000
+    // 기획형 패키지 (기본) - basic(200000)이 기본값
+    return generalPrices[packageKey] || 200000
   }
 
   // 가격 계산 (CampaignDetail.jsx와 동일한 방식)

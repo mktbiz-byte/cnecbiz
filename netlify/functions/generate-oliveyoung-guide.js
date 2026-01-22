@@ -25,8 +25,8 @@ exports.handler = async (event) => {
   try {
     const { campaignInfo, existingData } = JSON.parse(event.body)
 
-    // 올리브영 가이드: 단순 생성 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+    // 올리브영 가이드: 단순 생성 → gemini-1.5-flash (4K RPM, 무제한 RPD)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     // Generate guide for each step
     const generatedGuide = {

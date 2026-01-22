@@ -314,9 +314,9 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 
 JSON만 출력하세요.`
 
-      // 씬 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
+      // 씬 가이드 생성: 복잡한 콘텐츠 → gemini-1.5-flash (품질 중요)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -356,9 +356,9 @@ JSON만 출력.`
 
         let translations = []
         try {
-          // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+          // 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
           const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -576,9 +576,9 @@ JSON만 출력하세요.`
 
 JSON만 출력하세요.`
 
-      // 개별 씬 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+      // 개별 씬 번역: 단순, 대량 → gemini-1.5-flash (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
