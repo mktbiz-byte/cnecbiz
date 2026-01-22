@@ -296,7 +296,47 @@ export default function SnsAutoUploadPage() {
         return resolveCreatorName(sub, null)
       }
 
-      // 1. BIZ DB - video_submissions
+      // 1. BIZ DB - applications에서 직접 영상 조회 (크리에이터 정보 포함)
+      try {
+        const { data: bizAppsWithVideo, error } = await supabaseBiz
+          .from('applications')
+          .select('*')
+          .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+          .order('created_at', { ascending: false })
+          .limit(300)
+
+        if (error) console.log('[fetchPendingVideos] BIZ applications error:', error.message)
+
+        bizAppsWithVideo?.forEach(app => {
+          const videoUrl = app.video_file_url
+          if (videoUrl) {
+            const campaign = bizCampaignMap.get(app.campaign_id)
+            const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+
+            allVideos.push({
+              id: app.id,
+              source_type: 'application',
+              video_file_url: videoUrl,
+              campaign_id: app.campaign_id,
+              campaign_name: campaign?.title || app.campaign_name || '-',
+              campaign_type: campaign?.campaign_type,
+              creator_name: resolveCreatorName(app, null),
+              user_id: app.user_id,
+              status: app.status,
+              approved_at: app.approved_at,
+              created_at: app.approved_at || app.updated_at || app.created_at,
+              sns_upload_url: app.sns_upload_url,
+              week_number: null,
+              is_multi_video: isMulti
+            })
+          }
+        })
+        console.log('[fetchPendingVideos] BIZ applications with video:', allVideos.length)
+      } catch (e) {
+        console.log('[fetchPendingVideos] BIZ applications query failed:', e.message)
+      }
+
+      // 2. BIZ DB - video_submissions (applications에 없는 영상 추가)
       try {
         const { data: bizSubs, error } = await supabaseBiz
           .from('video_submissions')
@@ -313,10 +353,14 @@ export default function SnsAutoUploadPage() {
             const campaign = bizCampaignMap.get(sub.campaign_id)
             const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
 
-            // 멀티비디오가 아닌 경우만 중복 체크
-            const isDuplicate = !isMulti && allVideos.some(v =>
-              v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+            // 이미 applications에서 추가된 영상인지 확인
+            const existsInApps = allVideos.some(v =>
+              v.campaign_id === sub.campaign_id &&
+              (v.user_id === sub.user_id || (sub.application_id && v.id === sub.application_id))
             )
+
+            // 멀티비디오가 아닌 경우만 중복 체크
+            const isDuplicate = !isMulti && existsInApps
 
             if (!isDuplicate) {
               allVideos.push({
@@ -417,7 +461,48 @@ export default function SnsAutoUploadPage() {
           return resolveCreatorName(sub, koreaProfileMap)
         }
 
-        // 2. Korea DB - video_submissions
+        // 2. Korea DB - campaign_participants 먼저 조회 (크리에이터 정보 포함)
+        try {
+          const { data: koreaParticipants } = await supabaseKorea
+            .from('campaign_participants')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .order('created_at', { ascending: false })
+            .limit(300)
+
+          koreaParticipants?.forEach(p => {
+            const videoFiles = p.video_files || []
+            const latestVideo = videoFiles[videoFiles.length - 1]
+            const videoUrl = latestVideo?.url || p.video_file_url
+
+            if (videoUrl) {
+              const campaign = koreaCampaignMap.get(p.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+
+              allVideos.push({
+                id: p.id,
+                source_type: 'campaign_participant',
+                video_file_url: videoUrl,
+                campaign_id: p.campaign_id,
+                campaign_name: campaign?.title || '-',
+                campaign_type: campaign?.campaign_type,
+                creator_name: resolveCreatorName(p, koreaProfileMap),
+                user_id: p.user_id,
+                status: p.status,
+                approved_at: p.approved_at,
+                created_at: p.updated_at || p.created_at,
+                sns_upload_url: p.sns_upload_url,
+                week_number: null,
+                is_multi_video: isMulti
+              })
+            }
+          })
+          console.log('[fetchPendingVideos] Korea participants with video:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Korea participants query failed:', e.message)
+        }
+
+        // 3. Korea DB - video_submissions (participants에 없는 영상 추가)
         try {
           const { data: koreaSubs, error } = await supabaseKorea
             .from('video_submissions')
@@ -434,10 +519,13 @@ export default function SnsAutoUploadPage() {
               const campaign = koreaCampaignMap.get(sub.campaign_id)
               const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
 
-              // 멀티비디오가 아닌 경우만 중복 체크
-              const isDuplicate = !isMulti && allVideos.some(v =>
+              // 이미 participants에서 추가된 영상인지 확인
+              const existsInParticipants = allVideos.some(v =>
                 v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
               )
+
+              // 멀티비디오가 아닌 경우만 중복 체크
+              const isDuplicate = !isMulti && existsInParticipants
 
               if (!isDuplicate) {
                 allVideos.push({
@@ -462,54 +550,6 @@ export default function SnsAutoUploadPage() {
           console.log('[fetchPendingVideos] Total after Korea video_submissions:', allVideos.length)
         } catch (e) {
           console.log('[fetchPendingVideos] Korea video_submissions query failed:', e.message)
-        }
-
-        // 3. Korea DB - campaign_participants (video_files 배열에서 영상 추출)
-        try {
-          const { data: koreaParticipants } = await supabaseKorea
-            .from('campaign_participants')
-            .select('*')
-            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
-            .order('created_at', { ascending: false })
-            .limit(300)
-
-          koreaParticipants?.forEach(p => {
-            const videoFiles = p.video_files || []
-            const latestVideo = videoFiles[videoFiles.length - 1]
-            const videoUrl = latestVideo?.url || p.video_file_url
-
-            if (videoUrl) {
-              const campaign = koreaCampaignMap.get(p.campaign_id)
-              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
-
-              // video_submissions에 이미 있는지 확인 (중복 방지)
-              const isDuplicate = allVideos.some(v =>
-                v.campaign_id === p.campaign_id && v.user_id === p.user_id
-              )
-
-              if (!isDuplicate) {
-                allVideos.push({
-                  id: p.id,
-                  source_type: 'campaign_participant',
-                  video_file_url: videoUrl,
-                  campaign_id: p.campaign_id,
-                  campaign_name: campaign?.title || '-',
-                  campaign_type: campaign?.campaign_type,
-                  creator_name: getKoreaCreatorName(p),
-                  user_id: p.user_id,
-                  status: p.status,
-                  approved_at: p.approved_at,
-                  created_at: p.updated_at || p.created_at,
-                  sns_upload_url: p.sns_upload_url,
-                  week_number: null,
-                  is_multi_video: isMulti
-                })
-              }
-            }
-          })
-          console.log('[fetchPendingVideos] Total after participants:', allVideos.length)
-        } catch (e) {
-          console.log('[fetchPendingVideos] Korea participants query failed:', e.message)
         }
       }
 
