@@ -1,44 +1,42 @@
 const { createClient } = require('@supabase/supabase-js')
-const { google } = require('googleapis')
 
 const supabaseBiz = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const supabaseKorea = createClient(
-  process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-)
-
-// OAuth2 클라이언트 생성
-function getOAuth2Client() {
-  return new google.auth.OAuth2(
-    process.env.YOUTUBE_CLIENT_ID,
-    process.env.YOUTUBE_CLIENT_SECRET,
-    process.env.YOUTUBE_REDIRECT_URI || 'https://cnecbiz.com/admin/sns-settings/youtube/callback'
-  )
-}
-
-// 토큰 갱신
+// 토큰 갱신 (REST API 직접 호출)
 async function refreshAccessToken(accountId, refreshToken) {
-  const oauth2Client = getOAuth2Client()
-  oauth2Client.setCredentials({ refresh_token: refreshToken })
-
   try {
-    const { credentials } = await oauth2Client.refreshAccessToken()
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.YOUTUBE_CLIENT_ID,
+        client_secret: process.env.YOUTUBE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token'
+      })
+    })
+
+    const data = await response.json()
+
+    if (data.error) {
+      throw new Error(data.error_description || data.error)
+    }
 
     // DB에 새 토큰 저장
+    const expiresAt = new Date(Date.now() + data.expires_in * 1000)
     await supabaseBiz
       .from('sns_upload_accounts')
       .update({
-        access_token: credentials.access_token,
-        token_expires_at: new Date(credentials.expiry_date).toISOString(),
+        access_token: data.access_token,
+        token_expires_at: expiresAt.toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', accountId)
 
-    return credentials.access_token
+    return data.access_token
   } catch (error) {
     console.error('[upload-to-youtube] Token refresh failed:', error)
     throw new Error('YouTube 토큰 갱신 실패. 재인증이 필요합니다.')
@@ -153,41 +151,70 @@ exports.handler = async (event) => {
       accessToken = await refreshAccessToken(account.id, account.refresh_token)
     }
 
-    // OAuth 클라이언트 설정
-    const oauth2Client = getOAuth2Client()
-    oauth2Client.setCredentials({ access_token: accessToken })
-
-    const youtube = google.youtube({ version: 'v3', auth: oauth2Client })
-
     // 영상 다운로드
     const videoBuffer = await downloadVideo(uploadRecord?.video_url || videoUrl)
 
-    // YouTube 업로드
+    // YouTube Resumable Upload API 사용
     console.log('[upload-to-youtube] Starting upload...')
 
-    const { Readable } = require('stream')
-    const videoStream = Readable.from(videoBuffer)
-
-    const uploadResponse = await youtube.videos.insert({
-      part: ['snippet', 'status'],
-      requestBody: {
-        snippet: {
-          title: finalTitle?.substring(0, 100) || 'CNEC 크리에이터 영상',
-          description: finalDescription || '',
-          tags: finalTags,
-          categoryId: uploadRecord?.sns_upload_templates?.youtube_settings?.category_id || categoryId
-        },
-        status: {
-          privacyStatus: uploadRecord?.sns_upload_templates?.youtube_settings?.privacy_status || privacyStatus,
-          selfDeclaredMadeForKids: false
-        }
+    const metadata = {
+      snippet: {
+        title: finalTitle?.substring(0, 100) || 'CNEC 크리에이터 영상',
+        description: finalDescription || '',
+        tags: finalTags,
+        categoryId: uploadRecord?.sns_upload_templates?.youtube_settings?.category_id || categoryId
       },
-      media: {
-        body: videoStream
+      status: {
+        privacyStatus: uploadRecord?.sns_upload_templates?.youtube_settings?.privacy_status || privacyStatus,
+        selfDeclaredMadeForKids: false
       }
+    }
+
+    // Step 1: Resumable upload 세션 시작
+    const initResponse = await fetch(
+      'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Upload-Content-Type': 'video/*',
+          'X-Upload-Content-Length': videoBuffer.length.toString()
+        },
+        body: JSON.stringify(metadata)
+      }
+    )
+
+    if (!initResponse.ok) {
+      const errorData = await initResponse.json()
+      throw new Error(`YouTube 업로드 초기화 실패: ${errorData.error?.message || initResponse.status}`)
+    }
+
+    const uploadUrl = initResponse.headers.get('location')
+    if (!uploadUrl) {
+      throw new Error('YouTube 업로드 URL을 받지 못했습니다.')
+    }
+
+    console.log('[upload-to-youtube] Upload session created, uploading video...')
+
+    // Step 2: 영상 업로드
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'video/*',
+        'Content-Length': videoBuffer.length.toString()
+      },
+      body: videoBuffer
     })
 
-    const videoId = uploadResponse.data.id
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json()
+      throw new Error(`YouTube 영상 업로드 실패: ${errorData.error?.message || uploadResponse.status}`)
+    }
+
+    const uploadResult = await uploadResponse.json()
+    const videoId = uploadResult.id
     const videoUrlResult = `https://www.youtube.com/watch?v=${videoId}`
 
     console.log('[upload-to-youtube] Upload successful:', videoId)
