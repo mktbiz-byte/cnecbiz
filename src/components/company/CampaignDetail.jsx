@@ -33,7 +33,14 @@ import {
   Link,
   ExternalLink,
   Mail,
-  XCircle
+  XCircle,
+  ShieldCheck,
+  AlertTriangle,
+  ShieldAlert,
+  ShieldX,
+  Filter,
+  Info,
+  Search
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -128,6 +135,105 @@ const normalizeSnsUrl = (url, platform) => {
   }
 }
 
+// 계정 인증 상태 정보
+const ACCOUNT_STATUS = {
+  verified: {
+    name: '인증완료',
+    label: '인증완료',
+    description: '활동 이력이 확인된 크리에이터입니다.',
+    icon: 'ShieldCheck',
+    bgClass: 'bg-emerald-500',
+    textClass: 'text-white',
+    lightBg: 'bg-emerald-50',
+    lightText: 'text-emerald-700',
+    borderClass: 'border-emerald-300'
+  },
+  warning_1: {
+    name: '확인중',
+    label: '확인중',
+    description: '일부 지표를 검토 중인 크리에이터입니다.',
+    icon: 'Search',
+    bgClass: 'bg-blue-500',
+    textClass: 'text-white',
+    lightBg: 'bg-blue-50',
+    lightText: 'text-blue-700',
+    borderClass: 'border-blue-300'
+  },
+  warning_2: {
+    name: '확인필요',
+    label: '확인필요',
+    description: '추가 검토가 권장되는 크리에이터입니다.',
+    icon: 'AlertCircle',
+    bgClass: 'bg-yellow-500',
+    textClass: 'text-white',
+    lightBg: 'bg-yellow-50',
+    lightText: 'text-yellow-700',
+    borderClass: 'border-yellow-300'
+  },
+  warning_3: {
+    name: '가계정 의심',
+    label: '가계정 의심',
+    description: '가계정 가능성이 높은 계정입니다.',
+    icon: 'ShieldX',
+    bgClass: 'bg-red-500',
+    textClass: 'text-white',
+    lightBg: 'bg-red-50',
+    lightText: 'text-red-700',
+    borderClass: 'border-red-300'
+  }
+}
+
+// 피부 타입 매핑 (영어 → 한글)
+const SKIN_TYPES = {
+  dry: '건성',
+  oily: '지성',
+  combination: '복합성',
+  sensitive: '민감성',
+  normal: '중성'
+}
+
+// 피부 타입 역매핑 (한글 → 영어)
+const SKIN_TYPES_REVERSE = {
+  '건성': 'dry',
+  '지성': 'oily',
+  '복합성': 'combination',
+  '민감성': 'sensitive',
+  '중성': 'normal'
+}
+
+// 피부 타입 정규화 함수 (영어 키로 변환)
+const normalizeSkinType = (skinType) => {
+  if (!skinType) return null
+  const trimmed = String(skinType).trim()
+  const lower = trimmed.toLowerCase()
+
+  // 이미 영어 키인 경우 (dry, oily, combination, sensitive, normal)
+  if (SKIN_TYPES[lower]) return lower
+
+  // 한글인 경우 영어로 변환 (건성, 지성, 복합성, 민감성, 중성)
+  if (SKIN_TYPES_REVERSE[trimmed]) return SKIN_TYPES_REVERSE[trimmed]
+
+  // 부분 매칭 시도 (예: '건성 피부' → '건성' 추출)
+  for (const [korean, english] of Object.entries(SKIN_TYPES_REVERSE)) {
+    if (trimmed.includes(korean)) return english
+  }
+
+  // 영어 부분 매칭 (예: 'Dry Skin' → 'dry')
+  for (const english of Object.keys(SKIN_TYPES)) {
+    if (lower.includes(english)) return english
+  }
+
+  return null
+}
+
+// 나이대 범위 정의
+const AGE_RANGES = {
+  '20': { label: '20대', min: 20, max: 29 },
+  '30': { label: '30대', min: 30, max: 39 },
+  '40': { label: '40대', min: 40, max: 49 },
+  '50+': { label: '50대+', min: 50, max: 999 }
+}
+
 // 등급별 추천 배지 정보 생성
 const getGradeRecommendation = (gradeLevel) => {
   if (!gradeLevel) return null
@@ -194,6 +300,12 @@ export default function CampaignDetail() {
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
   const [aiRecommendations, setAiRecommendations] = useState([])
+  // 지원자 필터 상태
+  const [applicantFilters, setApplicantFilters] = useState({
+    skinType: 'all',      // 'all', 'dry', 'oily', 'combination', 'sensitive', 'normal'
+    ageRange: 'all',      // 'all', '20', '30', '40', '50+'
+    accountStatus: 'all'  // 'all', 'verified', 'warning_1', 'warning_2', 'warning_3', 'unclassified'
+  })
   const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
@@ -972,7 +1084,11 @@ export default function CampaignDetail() {
             address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
             shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
             postal_code: profile.postal_code || app.postal_code || '',
-            detail_address: profile.detail_address || profile.address_detail || app.detail_address || ''
+            detail_address: profile.detail_address || profile.address_detail || app.detail_address || '',
+            // 계정 인증 상태 및 프로필 정보
+            account_status: profile.account_status || null,
+            skin_type: profile.skin_type || app.skin_type || null,
+            age: profile.age || app.age || null
           }
           console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
@@ -982,7 +1098,8 @@ export default function CampaignDetail() {
         return {
           ...app,
           ...gradeInfo,
-          applicant_name: resolvedName
+          applicant_name: resolvedName,
+          account_status: null
         }
       })
 
@@ -5552,13 +5669,271 @@ JSON만 출력.`
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
+                {/* 필터 섹션 */}
+                {applications.length > 0 && (
+                  <div className="mb-6 space-y-4">
+                    {/* 필터 컨트롤 */}
+                    <div className="flex items-center gap-2 flex-wrap p-4 bg-gray-50 rounded-lg">
+                      <Filter className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700 mr-2">필터:</span>
+
+                      {/* 피부 타입 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">피부:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.skinType === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {Object.entries(SKIN_TYPES).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: key }))}
+                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                              applicantFilters.skinType === key
+                                ? 'bg-pink-500 text-white'
+                                : 'bg-white text-gray-600 hover:bg-pink-50 border'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-6 bg-gray-300 mx-2" />
+
+                      {/* 나이대 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">나이:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.ageRange === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {Object.entries(AGE_RANGES).map(([key, { label }]) => (
+                          <button
+                            key={key}
+                            onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: key }))}
+                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                              applicantFilters.ageRange === key
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-600 hover:bg-blue-50 border'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-6 bg-gray-300 mx-2" />
+
+                      {/* 계정 상태 필터 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">계정:</span>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'all' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.accountStatus === 'all'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'verified' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'verified'
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-300'
+                          }`}
+                        >
+                          <ShieldCheck className="w-3 h-3" /> 인증완료
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_1' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_1'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-300'
+                          }`}
+                        >
+                          <Search className="w-3 h-3" /> 확인중
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_2' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_2'
+                              ? 'bg-yellow-500 text-white'
+                              : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300'
+                          }`}
+                        >
+                          <AlertCircle className="w-3 h-3" /> 확인필요
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_3' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                            applicantFilters.accountStatus === 'warning_3'
+                              ? 'bg-red-500 text-white'
+                              : 'bg-white text-red-700 hover:bg-red-50 border border-red-300'
+                          }`}
+                        >
+                          <ShieldX className="w-3 h-3" /> 가계정 의심
+                        </button>
+                        <button
+                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'unclassified' }))}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            applicantFilters.accountStatus === 'unclassified'
+                              ? 'bg-gray-500 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          검증중
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 계정 인증 상태 설명 */}
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-800">계정 인증 상태는 아래와 같이 평가됩니다</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            크넥 내부 심사단이 대표 콘텐츠 3~5개 리뷰
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            평가 기준: 영상 퀄리티, 스토리텔링, 뷰티 전문성, 브랜드 적합성
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                            품앗이 등 부정적인 시스템 이용 여부 체크
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            브랜드 협업 완료율
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            브랜드 재협업 의향률
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            총 협업 횟수 표기
+                          </div>
+                        </div>
+                      </div>
+                      {/* 간단한 상태 범례 */}
+                      <div className="mt-4 pt-3 border-t border-purple-200 flex flex-wrap gap-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                          <span className="text-xs text-gray-600">인증완료</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                          <span className="text-xs text-gray-600">확인중</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-yellow-500 rounded-full" />
+                          <span className="text-xs text-gray-600">확인필요</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                          <span className="text-xs text-gray-600">가계정 의심</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 bg-gray-400 rounded-full" />
+                          <span className="text-xs text-gray-600">검증중</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 필터 결과 카운트 */}
+                    {(applicantFilters.skinType !== 'all' || applicantFilters.ageRange !== 'all' || applicantFilters.accountStatus !== 'all') && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          필터 결과: <strong className="text-purple-600">
+                            {applications.filter(app => {
+                              // 피부 타입 필터
+                              if (applicantFilters.skinType !== 'all') {
+                                const normalizedSkinType = normalizeSkinType(app.skin_type)
+                                if (normalizedSkinType !== applicantFilters.skinType) return false
+                              }
+                              // 나이대 필터
+                              if (applicantFilters.ageRange !== 'all' && app.age) {
+                                const range = AGE_RANGES[applicantFilters.ageRange]
+                                if (app.age < range.min || app.age > range.max) return false
+                              } else if (applicantFilters.ageRange !== 'all' && !app.age) {
+                                return false
+                              }
+                              // 계정 상태 필터
+                              if (applicantFilters.accountStatus !== 'all') {
+                                if (applicantFilters.accountStatus === 'unclassified') {
+                                  if (app.account_status) return false
+                                } else {
+                                  if (app.account_status !== applicantFilters.accountStatus) return false
+                                }
+                              }
+                              return true
+                            }).length}명
+                          </strong> / 전체 {applications.length}명
+                        </span>
+                        <button
+                          onClick={() => setApplicantFilters({ skinType: 'all', ageRange: 'all', accountStatus: 'all' })}
+                          className="text-xs text-gray-500 hover:text-gray-700 underline"
+                        >
+                          필터 초기화
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {applications.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 지원자가 없습니다.
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {applications.map(app => {
+                    {applications.filter(app => {
+                      // 피부 타입 필터
+                      if (applicantFilters.skinType !== 'all') {
+                        const normalizedSkinType = normalizeSkinType(app.skin_type)
+                        if (normalizedSkinType !== applicantFilters.skinType) return false
+                      }
+                      // 나이대 필터
+                      if (applicantFilters.ageRange !== 'all' && app.age) {
+                        const range = AGE_RANGES[applicantFilters.ageRange]
+                        if (app.age < range.min || app.age > range.max) return false
+                      } else if (applicantFilters.ageRange !== 'all' && !app.age) {
+                        return false
+                      }
+                      // 계정 상태 필터
+                      if (applicantFilters.accountStatus !== 'all') {
+                        if (applicantFilters.accountStatus === 'unclassified') {
+                          if (app.account_status) return false
+                        } else {
+                          if (app.account_status !== applicantFilters.accountStatus) return false
+                        }
+                      }
+                      return true
+                    }).map(app => {
                       const isAlreadyParticipant = participants.some(p => p.user_id && app.user_id && p.user_id === app.user_id)
                       const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
                       const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
@@ -5592,6 +5967,22 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
+
+                          {/* 계정 인증 상태 배지 - TOP 크리에이터 배지 위에 배치 */}
+                          {app.account_status && ACCOUNT_STATUS[app.account_status] && (
+                            <div
+                              className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${ACCOUNT_STATUS[app.account_status].lightBg} border ${ACCOUNT_STATUS[app.account_status].borderClass}`}
+                              title={ACCOUNT_STATUS[app.account_status].description}
+                            >
+                              {app.account_status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                              {app.account_status === 'warning_1' && <Search className="w-3.5 h-3.5 text-blue-600" />}
+                              {app.account_status === 'warning_2' && <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />}
+                              {app.account_status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
+                              <span className={`text-xs font-bold ${ACCOUNT_STATUS[app.account_status].lightText}`}>
+                                {ACCOUNT_STATUS[app.account_status].name}
+                              </span>
+                            </div>
+                          )}
 
                           {/* 등급 추천 배지 */}
                           {(() => {
@@ -5834,18 +6225,23 @@ JSON만 출력.`
 
           {/* 가상 선정 탭 */}
           <TabsContent value="virtual">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100/50">
                 <div>
-                  <CardTitle>가상 선정한 크리에이터</CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <CardTitle className="flex items-center gap-2 text-purple-800">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-sm">
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    가상 선정한 크리에이터
+                  </CardTitle>
+                  <p className="text-sm text-purple-600/80 mt-1">
                     임시로 기업이 선정한 크리에이터 입니다. 확정 선정이 아니니 자유롭게 최종 선정하여 확정하여 주세요.
                   </p>
                 </div>
-                <Button 
+                <Button
                   onClick={handleBulkConfirm}
                   disabled={applications.filter(app => app.virtual_selected).length === 0}
-                  className="bg-black hover:bg-gray-800 text-white"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md shadow-purple-200 rounded-xl"
                 >
                   가상 선정한 크리에이터 한번에 선정하기
                 </Button>
@@ -6201,38 +6597,38 @@ JSON만 출력.`
                 </div>
               </CardHeader>
               <CardContent>
-                {/* 플랫폼별 필터 탭 - 개선된 디자인 */}
+                {/* 플랫폼별 필터 탭 - 모던 디자인 */}
                 <Tabs defaultValue="all" className="mt-6">
-                  <TabsList className="bg-gray-100/80 p-1 rounded-xl inline-flex gap-1">
+                  <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-md p-1.5 rounded-2xl inline-flex gap-1">
                     <TabsTrigger
                       value="all"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-gray-900 transition-all"
+                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-700 data-[state=active]:to-gray-800 data-[state=active]:text-white data-[state=active]:shadow-md rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
                     >
-                      전체 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-gray-100 px-2 py-0.5 rounded-full">{participants.length}</span>
+                      전체 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="youtube"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-red-600 transition-all flex items-center gap-1.5"
+                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-red-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
                     >
-                      <span>📺</span> 유튜브 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-red-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
+                      <span>📺</span> 유튜브 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('youtube') || platform.includes('유튜브')
                       }).length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="instagram"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-pink-600 transition-all flex items-center gap-1.5"
+                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-pink-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
                     >
-                      <span>📸</span> 인스타 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-pink-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
+                      <span>📸</span> 인스타 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('instagram') || platform.includes('인스타그램')
                       }).length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="tiktok"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-gray-900 transition-all flex items-center gap-1.5"
+                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-800 data-[state=active]:to-black data-[state=active]:text-white data-[state=active]:shadow-md rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
                     >
-                      <span>🎵</span> 틱톡 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-gray-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
+                      <span>🎵</span> 틱톡 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('tiktok') || platform.includes('틱톡')
                       }).length}</span>
@@ -6274,9 +6670,14 @@ JSON만 출력.`
 
           {/* 영상 확인 탭 */}
           <TabsContent value="editing">
-            <Card>
-              <CardHeader>
-                <CardTitle>영상 제출 및 검토</CardTitle>
+            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100/50">
+                <CardTitle className="flex items-center gap-2 text-amber-800">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  영상 제출 및 검토
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {/* 6개월 보관 정책 안내 */}
@@ -6589,8 +6990,8 @@ JSON만 출력.`
 
           {/* 완료 탭 */}
           <TabsContent value="completed">
-            <Card>
-              <CardHeader>
+            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
                 {(() => {
                   // 멀티비디오 캠페인 여부 체크
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
@@ -6618,18 +7019,19 @@ JSON만 출력.`
 
                   return (
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CardTitle className="flex items-center gap-2 text-teal-800">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
                     완료된 크리에이터
-                    <Badge className="bg-green-100 text-green-700 ml-2">
+                    <Badge className="bg-teal-100 text-teal-700 ml-2 rounded-full px-3">
                       {completedSectionParticipants.length}명
                     </Badge>
                   </CardTitle>
                   {completedSectionParticipants.length > 0 && (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                      className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md shadow-teal-200 rounded-xl"
                       onClick={async () => {
                         const completedParticipants = participants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status))
                         const completedSubmissions = videoSubmissions.filter(sub =>
@@ -7526,13 +7928,18 @@ JSON만 출력.`
 
           {/* 뷰수 보고서 탭 */}
           <TabsContent value="views">
-            <Card>
-              <CardHeader>
+            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100/50">
                 <div className="flex items-center justify-between">
-                  <CardTitle>뷰수 보고서</CardTitle>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">총 조회수</p>
-                    <p className="text-2xl font-bold text-blue-600">{totalViews.toLocaleString()}</p>
+                  <CardTitle className="flex items-center gap-2 text-blue-800">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm">
+                      <Eye className="w-4 h-4 text-white" />
+                    </div>
+                    뷰수 보고서
+                  </CardTitle>
+                  <div className="text-right bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-blue-100/50">
+                    <p className="text-xs text-blue-600/80 font-medium">총 조회수</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{totalViews.toLocaleString()}</p>
                   </div>
                 </div>
               </CardHeader>
@@ -7544,23 +7951,23 @@ JSON만 출력.`
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">크리에이터</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">조회수</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마지막 확인</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">작업</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">크리에이터</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">플랫폼</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">조회수</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">콘텐츠 URL</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">마지막 확인</th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">작업</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y divide-gray-100">
                         {participants.map((participant) => (
-                          <tr key={participant.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">{(participant.creator_name || participant.applicant_name || '크리에이터')}</td>
-                            <td className="px-4 py-3">{participant.creator_platform}</td>
-                            <td className="px-4 py-3">
-                              <span className="text-lg font-semibold text-blue-600">
+                          <tr key={participant.id} className="hover:bg-blue-50/50 transition-colors">
+                            <td className="px-4 py-4 font-medium text-gray-900">{(participant.creator_name || participant.applicant_name || '크리에이터')}</td>
+                            <td className="px-4 py-4"><span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">{participant.creator_platform}</span></td>
+                            <td className="px-4 py-4">
+                              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                                 {(participant.views || 0).toLocaleString()}
                               </span>
                             </td>
@@ -7578,13 +7985,13 @@ JSON만 출력.`
                                 <span className="text-gray-400">미등록</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-4 text-sm text-gray-500">
                               {participant.last_view_check ? new Date(participant.last_view_check).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               <Button
                                 size="sm"
-                                variant="outline"
+                                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm rounded-lg text-xs"
                                 onClick={() => handleRefreshViews(participant)}
                                 disabled={refreshingViews[participant.id]}
                               >
@@ -7605,57 +8012,73 @@ JSON만 출력.`
         </Tabs>
 
         {/* Campaign Details */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>캠페인 상세 정보</CardTitle>
+        <Card className="mt-6 border-0 shadow-lg rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-100/50">
+            <CardTitle className="flex items-center gap-2 text-gray-800">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-600 to-slate-700 flex items-center justify-center shadow-sm">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              캠페인 상세 정보
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-medium mb-2">캠페인 요구사항</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{campaign.requirements}</p>
+          <CardContent className="space-y-6 p-6">
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                캠페인 요구사항
+              </h3>
+              <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.requirements}</p>
             </div>
-            
+
             {campaign.creator_guide && (
-              <div>
-                <h3 className="font-medium mb-2">크리에이터 가이드</h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{campaign.creator_guide}</p>
+              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                  크리에이터 가이드
+                </h3>
+                <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.creator_guide}</p>
               </div>
             )}
 
             {campaign.product_name && (
-              <div>
-                <h3 className="font-medium mb-2">상품 정보</h3>
-                <p className="text-gray-700">
-                  <strong>상품명:</strong> {campaign.product_name}
-                </p>
-                {campaign.product_description && (
-                  <p className="text-gray-700 mt-2">
-                    <strong>상품 설명:</strong> {campaign.product_description}
+              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  상품 정보
+                </h3>
+                <div className="space-y-2 text-gray-600">
+                  <p>
+                    <span className="font-medium text-gray-700">상품명:</span> {campaign.product_name}
                   </p>
-                )}
-                {campaign.product_link && (
-                  <p className="text-gray-700 mt-2">
-                    <strong>상품 링크:</strong>{' '}
-                    <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      {campaign.product_link}
-                    </a>
-                  </p>
-                )}
+                  {campaign.product_description && (
+                    <p>
+                      <span className="font-medium text-gray-700">상품 설명:</span> {campaign.product_description}
+                    </p>
+                  )}
+                  {campaign.product_link && (
+                    <p>
+                      <span className="font-medium text-gray-700">상품 링크:</span>{' '}
+                      <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
+                        {campaign.product_link}
+                      </a>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-gray-600">모집 마감일</p>
-                <p className="font-medium">
+            <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-gray-100">
+              <div className="bg-gray-50/50 rounded-xl p-3">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">모집 마감일</p>
+                <p className="font-semibold text-gray-900">
                   {campaign.application_deadline
                     ? new Date(campaign.application_deadline).toLocaleDateString()
                     : <span className="text-red-500">미설정</span>}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">캠페인 기간</p>
-                <p className="font-medium">
+              <div className="bg-gray-50/50 rounded-xl p-3">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">캠페인 기간</p>
+                <p className="font-semibold text-gray-900">
                   {campaign.start_date && campaign.end_date
                     ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
                     : <span className="text-red-500">미설정</span>}
@@ -7664,9 +8087,9 @@ JSON만 출력.`
             </div>
 
             {/* 영상 제출 마감일 */}
-            <div className="pt-4 border-t">
+            <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100/50">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 font-medium">영상 제출 마감일</p>
+                <p className="text-sm text-amber-800 font-medium">영상 제출 마감일</p>
                 {isAdmin ? (
                   <Button
                     variant="ghost"
@@ -7755,9 +8178,9 @@ JSON만 출력.`
             </div>
 
             {/* SNS 업로드 예정일 */}
-            <div className="pt-4 border-t">
+            <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 font-medium">SNS 업로드 예정일</p>
+                <p className="text-sm text-blue-800 font-medium">SNS 업로드 예정일</p>
                 {isAdmin ? (
                   <Button
                     variant="ghost"

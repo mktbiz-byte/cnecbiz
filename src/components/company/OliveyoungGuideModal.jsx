@@ -26,6 +26,9 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
   const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
   const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
 
+  console.log('[OliveyoungGuideModal] Raw campaign.oliveyoung_step1_guide_ai:', campaign.oliveyoung_step1_guide_ai)
+  console.log('[OliveyoungGuideModal] Parsed step1Data:', step1Data)
+
   // 외부 가이드 정보
   const getExternalGuide = (stepNum) => {
     const mode = campaign[`step${stepNum}_guide_mode`]
@@ -74,6 +77,16 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
 
   const handleEdit = () => {
     const currentData = activeStep === 'step1' ? step1Data : step2Data
+    console.log('[OliveyoungGuideModal] handleEdit - activeStep:', activeStep)
+    console.log('[OliveyoungGuideModal] handleEdit - currentData:', currentData)
+    console.log('[OliveyoungGuideModal] handleEdit - currentData.text_guide:', currentData?.text_guide)
+
+    // 캠페인의 원본 가이드 텍스트도 fallback으로 사용
+    const rawGuideText = activeStep === 'step1'
+      ? campaign.oliveyoung_step1_guide
+      : campaign.oliveyoung_step2_guide
+    console.log('[OliveyoungGuideModal] handleEdit - rawGuideText:', rawGuideText)
+
     // 캠페인 정보를 기본값으로 사용
     const defaultProductInfo = campaign.brand && campaign.product_name
       ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
@@ -96,6 +109,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
     }
 
     const baseData = {
+      text_guide: '',
       product_info: defaultProductInfo,
       required_dialogues: [],
       required_scenes: [],
@@ -112,15 +126,26 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
       const tags = toArray(currentData.hashtags)
       const urls = toArray(currentData.reference_urls)
 
+      // text_guide를 여러 소스에서 찾기 (우선순위: currentData > rawGuideText)
+      const textGuideValue = currentData.text_guide || currentData.guide || rawGuideText || ''
+      console.log('[OliveyoungGuideModal] handleEdit - textGuideValue:', textGuideValue)
+
       setEditedData({
         ...baseData,
         ...currentData,
+        text_guide: textGuideValue,
         product_info: currentData.product_info || defaultProductInfo,
         required_dialogues: dialogues.length > 0 ? dialogues : baseData.required_dialogues,
         required_scenes: scenes.length > 0 ? scenes : baseData.required_scenes,
         hashtags: tags.length > 0 ? tags : baseData.hashtags,
         reference_urls: urls.length > 0 ? urls : baseData.reference_urls,
         cautions: currentData.cautions || baseData.cautions
+      })
+    } else if (rawGuideText) {
+      // AI 가이드는 없지만 원본 가이드가 있는 경우
+      setEditedData({
+        ...baseData,
+        text_guide: rawGuideText
       })
     } else {
       setEditedData(baseData)
@@ -140,6 +165,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
 
       // 저장할 데이터 구조 확인
       const dataToSave = {
+        text_guide: editedData?.text_guide || '',
         product_info: editedData?.product_info || '',
         required_dialogues: editedData?.required_dialogues || [],
         required_scenes: editedData?.required_scenes || [],
@@ -227,7 +253,11 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
   // hashtags - 캠페인 기본 hashtags도 확인
   const hashtags = parseToArray(displayData?.hashtags || campaign.required_hashtags || campaign.hashtags)
   const referenceUrls = parseToArray(displayData?.reference_urls)
-  const textGuide = displayData?.text_guide || ''
+  // text_guide를 여러 소스에서 찾기 (displayData > guide > rawGuide)
+  const rawGuideForDisplay = activeStep === 'step1'
+    ? campaign.oliveyoung_step1_guide
+    : campaign.oliveyoung_step2_guide
+  const textGuide = displayData?.text_guide || displayData?.guide || rawGuideForDisplay || ''
   // examples 필드도 지원 (필수 장면이 비어있을 때 fallback)
   const examples = displayData?.examples || ''
 
@@ -424,16 +454,25 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
               ) : hasContent ? (
                 <div className="space-y-6">
                   {/* 텍스트 가이드 (일반 텍스트 형식) */}
-                  {textGuide && (
+                  {(textGuide || isEditing) && (
                     <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-pink-900 mb-3 flex items-center gap-2">
                         <span>📝</span>
                         {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'} 가이드
                       </h4>
                       <div className="bg-white rounded-lg p-4 border border-pink-100">
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {textGuide}
-                        </p>
+                        {isEditing ? (
+                          <textarea
+                            value={editedData?.text_guide || ''}
+                            onChange={(e) => setEditedData({ ...editedData, text_guide: e.target.value })}
+                            className="w-full p-2 border rounded text-sm min-h-[120px]"
+                            placeholder="가이드 내용을 입력하세요"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {textGuide}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

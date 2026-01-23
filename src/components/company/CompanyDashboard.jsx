@@ -365,7 +365,7 @@ export default function CompanyDashboard() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-[#F9FAFB] lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64">
         {/* Main Content */}
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
@@ -378,15 +378,22 @@ export default function CompanyDashboard() {
                   placeholder="캠페인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 rounded-xl border-gray-200 bg-white shadow-sm"
+                  className="pl-12 h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20"
                 />
               </div>
             </div>
 
             {/* Dashboard Header */}
             <div className="mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">대시보드</h1>
-              <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                  <LayoutDashboard className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">대시보드</h1>
+                  <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
+                </div>
+              </div>
             </div>
 
             {/* Stats Cards Grid - 클릭 시 캠페인 목록으로 이동 */}
@@ -394,106 +401,120 @@ export default function CompanyDashboard() {
               {/* 진행 예산 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-indigo-200"
+                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
-                <div className="stats-card-header">
-                  <span className="stats-card-title text-gray-600 font-medium">진행 예산</span>
-                  <div className="stats-card-icon bg-indigo-100 group-hover:bg-indigo-200 transition-colors">
-                    <Wallet className="w-5 h-5 text-indigo-600" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">진행 예산</span>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+                      <Wallet className="w-5 h-5 text-white" />
+                    </div>
                   </div>
+                  <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    {(stats.totalSpent / 10000).toFixed(0)}
+                    <span className="text-base font-medium text-gray-400 ml-1">만원</span>
+                  </div>
+                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-indigo-500 transition-colors">
+                    진행 중 캠페인 예산 합계
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
                 </div>
-                <div className="stats-card-value text-2xl md:text-3xl font-bold text-indigo-600">
-                  {(stats.totalSpent / 10000).toFixed(0)}
-                  <span className="text-base font-medium text-gray-500 ml-1">만원</span>
-                </div>
-                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-indigo-500 transition-colors">
-                  진행 중 캠페인 예산 합계
-                  <ChevronRight className="w-3 h-3" />
-                </span>
               </button>
 
               {/* 진행 캠페인 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-blue-200"
+                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
-                <div className="stats-card-header">
-                  <span className="stats-card-title text-gray-600 font-medium">진행 캠페인</span>
-                  <div className="stats-card-icon bg-blue-100 group-hover:bg-blue-200 transition-colors">
-                    <Play className="w-5 h-5 text-blue-600" />
-                  </div>
-                </div>
-                <div className="stats-card-value text-2xl md:text-3xl font-bold text-blue-600">
-                  {stats.active}
-                  <span className="text-base font-medium text-gray-500 ml-1">개</span>
-                </div>
-                {stats.total > 0 && (
-                  <div className="mt-2">
-                    <div className="progress-bar h-1.5 rounded-full bg-gray-100">
-                      <div
-                        className="progress-bar-fill bg-blue-500 h-full rounded-full transition-all"
-                        style={{ width: `${(stats.active / stats.total) * 100}%` }}
-                      />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">진행 캠페인</span>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                      <Play className="w-5 h-5 text-white" />
                     </div>
                   </div>
-                )}
-                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-blue-500 transition-colors">
-                  전체 {stats.total}개 중
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                  <div className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {stats.active}
+                    <span className="text-base font-medium text-gray-400 ml-1">개</span>
+                  </div>
+                  {stats.total > 0 && (
+                    <div className="mt-2">
+                      <div className="h-1.5 rounded-full bg-gray-100">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all"
+                          style={{ width: `${(stats.active / stats.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-blue-500 transition-colors">
+                    전체 {stats.total}개 중
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
+                </div>
               </button>
 
               {/* 확정 크리에이터 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-green-200"
+                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
-                <div className="stats-card-header">
-                  <span className="stats-card-title text-gray-600 font-medium">확정 크리에이터</span>
-                  <div className="stats-card-icon bg-green-100 group-hover:bg-green-200 transition-colors">
-                    <UserCheck className="w-5 h-5 text-green-600" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">확정 크리에이터</span>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
+                      <UserCheck className="w-5 h-5 text-white" />
+                    </div>
                   </div>
+                  <div className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {stats.confirmedCreators}
+                    <span className="text-base font-medium text-gray-400 ml-1">명</span>
+                  </div>
+                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-emerald-500 transition-colors">
+                    캠페인 선정 완료
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
                 </div>
-                <div className="stats-card-value text-2xl md:text-3xl font-bold text-green-600">
-                  {stats.confirmedCreators}
-                  <span className="text-base font-medium text-gray-500 ml-1">명</span>
-                </div>
-                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-green-500 transition-colors">
-                  캠페인 선정 완료
-                  <ChevronRight className="w-3 h-3" />
-                </span>
               </button>
 
               {/* 확인 필요 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=attention')}
-                className={`stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/50' : 'border-transparent hover:border-orange-200'}`}
+                className={`relative overflow-hidden bg-white rounded-2xl p-5 border shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}
               >
-                <div className="stats-card-header">
-                  <span className="stats-card-title text-gray-600 font-medium">확인 필요</span>
-                  <div className={`stats-card-icon ${stats.needsAttention > 0 ? 'bg-red-100' : 'bg-orange-100'} group-hover:bg-orange-200 transition-colors`}>
-                    <AlertCircle className={`w-5 h-5 ${stats.needsAttention > 0 ? 'text-red-600' : 'text-orange-600'}`} />
+                <div className={`absolute top-0 right-0 w-24 h-24 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 ${stats.needsAttention > 0 ? 'bg-gradient-to-br from-red-100 to-orange-100' : 'bg-gradient-to-br from-amber-100 to-orange-100'}`} />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">확인 필요</span>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${stats.needsAttention > 0 ? 'bg-gradient-to-br from-red-500 to-orange-500' : 'bg-gradient-to-br from-amber-500 to-orange-500'}`}>
+                      <AlertCircle className="w-5 h-5 text-white" />
+                    </div>
                   </div>
+                  <div className={`text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {stats.needsAttention}
+                    <span className="text-base font-medium text-gray-400 ml-1">건</span>
+                  </div>
+                  <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-amber-500'}`}>
+                    {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
                 </div>
-                <div className={`stats-card-value text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                  {stats.needsAttention}
-                  <span className="text-base font-medium text-gray-500 ml-1">건</span>
-                </div>
-                <span className={`text-xs mt-1 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-orange-500'}`}>
-                  {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
-                  <ChevronRight className="w-3 h-3" />
-                </span>
               </button>
             </div>
 
             {/* Recent Campaigns */}
             <div className="mb-6">
-              <div className="dashboard-card">
-                <div className="flex items-center justify-between mb-4 px-1">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
+                <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="section-header !mb-0">
-                      <TrendingUp className="w-5 h-5 text-gray-600" />
-                      <h2 className="section-title">최근 캠페인</h2>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <h2 className="text-lg font-bold text-gray-900">최근 캠페인</h2>
                     </div>
                     {/* 필터 표시 및 리셋 */}
                     {statusFilter && (
@@ -514,14 +535,14 @@ export default function CompanyDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => navigate('/company/campaigns')}
-                      className="text-gray-600 border-gray-200"
+                      className="text-gray-600 border-gray-200 hover:bg-gray-50"
                     >
                       전체보기
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                      className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
                     >
                       <Plus className="w-4 h-4 mr-1" />
                       새 캠페인
@@ -639,36 +660,42 @@ export default function CompanyDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Upcoming Schedules - 2 columns */}
               <div className="lg:col-span-2">
-                <div className="dashboard-card">
-                  <div className="section-header px-1">
-                    <Bell className="w-5 h-5 text-gray-600" />
-                    <h2 className="section-title">다가오는 일정</h2>
-                    <span className="section-count">({upcomingDeadlines.length}개)</span>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                      <Bell className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">다가오는 일정</h2>
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full text-xs font-medium">
+                      {upcomingDeadlines.length}개
+                    </span>
                   </div>
 
                   {upcomingDeadlines.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">다가오는 일정이 없습니다</p>
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
+                        <Calendar className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-gray-500">다가오는 일정이 없습니다</p>
                     </div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {upcomingDeadlines.map((item, index) => (
                         <div
                           key={`${item.id}-${index}`}
-                          className="schedule-item"
+                          className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
-                          <div className={`schedule-item-dot ${item.type.dotColor}`} />
-                          <div className="schedule-item-content">
-                            <span className={`schedule-item-badge ${item.type.color}`}>
+                          <div className={`w-2 h-2 rounded-full ${item.type.dotColor} flex-shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.type.color} mb-1`}>
                               {item.type.label}
                             </span>
-                            <p className="schedule-item-title">{item.title}</p>
-                            <p className="schedule-item-subtitle">{item.subtitle}</p>
-                            <div className="schedule-item-date">
+                            <p className="font-semibold text-gray-900 truncate">{item.title}</p>
+                            <p className="text-sm text-gray-500 truncate">{item.subtitle}</p>
+                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
                               <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
-                              <span className={`schedule-item-dday ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : ''}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600'}`}>
                                 D-{item.daysLeft}
                               </span>
                             </div>
@@ -683,32 +710,42 @@ export default function CompanyDashboard() {
 
               {/* Delayed Items - 1 column */}
               <div className="lg:col-span-1">
-                <div className="warning-card">
-                  <div className="warning-card-header">
-                    <AlertCircle className="w-5 h-5" />
-                    <span>지연된 일정</span>
+                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl border border-red-100 p-5 md:p-6">
+                  <div className="flex items-center gap-2 mb-5 text-red-700">
+                    <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span className="font-bold">지연된 일정</span>
+                    {delayedItems.length > 0 && (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-medium">
+                        {delayedItems.length}건
+                      </span>
+                    )}
                   </div>
 
                   {delayedItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
-                      <p className="text-sm text-gray-600">지연된 일정이 없습니다</p>
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-emerald-500" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600">지연된 일정이 없습니다</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {delayedItems.map((item, index) => (
                         <div
                           key={`delayed-${item.id}-${index}`}
-                          className="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
+                          className="flex items-start gap-3 p-3 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
-                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-4 h-4 text-red-600" />
+                          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-5 h-5 text-red-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                            <p className="text-xs text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
+                            <p className="font-semibold text-gray-900 truncate">{item.title}</p>
+                            <p className="text-sm text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
                           </div>
+                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                         </div>
                       ))}
                     </div>
