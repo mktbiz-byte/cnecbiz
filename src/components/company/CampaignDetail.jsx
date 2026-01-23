@@ -6697,6 +6697,22 @@ JSON만 출력.`
                   </div>
                 </div>
 
+                {/* 영상 수정 요청 시 주의사항 */}
+                <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-blue-800 text-lg mb-2">📝 영상 수정 요청 시 주의사항</h4>
+                      <div className="text-blue-700 space-y-1">
+                        <p className="font-semibold">• 수정은 <span className="text-red-600 font-bold">1회만 가능</span>하며, 가이드에 없는 재촬영 요청은 <span className="text-red-600 font-bold">추가금을 요청</span>할 수 있습니다.</p>
+                        <p className="font-semibold">• 수정 1회 요청 후 수정이 안된 부분은 추가 요청이 가능하니 <span className="text-orange-600 font-bold">꼼꼼히 검수</span> 부탁드립니다.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {(() => {
                   // Group video submissions by user_id only
                   console.log('All video submissions:', videoSubmissions)
