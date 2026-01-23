@@ -44,8 +44,9 @@
 [functions."scheduled-unmatched-deposits-alert"]
   schedule = "0 7 * * *"  # 매일 오후 4시 (한국시간 = UTC+9)
 
-[functions."scheduled-creator-monitoring"]
-  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9)
+# 소속 크리에이터 모니터링은 scheduled-weekly-report에서 통합 처리
+# [functions."scheduled-creator-monitoring"]
+#   schedule = "0 1 * * 1"  # 주간 리포트로 변경 (기존: 매일)
 
 [functions."report-daily"]
   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 일일 리포트
