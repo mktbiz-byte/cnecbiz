@@ -234,51 +234,143 @@ const AGE_RANGES = {
   '50+': { label: '50대+', min: 50, max: 999 }
 }
 
-// 퍼스널 컬러 정의
-const PERSONAL_COLORS = {
-  '봄 웜톤': { label: '봄 웜톤', color: 'bg-orange-100 text-orange-700 border-orange-300' },
-  '여름 쿨톤': { label: '여름 쿨톤', color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  '가을 웜톤': { label: '가을 웜톤', color: 'bg-amber-100 text-amber-700 border-amber-300' },
-  '겨울 쿨톤': { label: '겨울 쿨톤', color: 'bg-purple-100 text-purple-700 border-purple-300' }
+// === 영어 → 한글 변환 매핑 ===
+// 퍼스널 컬러 (DB 값: spring_warm, summer_cool, autumn_warm, winter_cool)
+const PERSONAL_COLOR_MAP = {
+  'spring_warm': '봄 웜톤',
+  'summer_cool': '여름 쿨톤',
+  'autumn_warm': '가을 웜톤',
+  'winter_cool': '겨울 쿨톤',
+  '봄 웜톤': '봄 웜톤',
+  '여름 쿨톤': '여름 쿨톤',
+  '가을 웜톤': '가을 웜톤',
+  '겨울 쿨톤': '겨울 쿨톤'
 }
 
-// 피부 톤 (호수) 정의
-const SKIN_SHADES = {
-  '21호 이하': { label: '21호 이하', description: '밝은 피부' },
-  '21호~23호': { label: '21호~23호', description: '보통 피부' },
-  '23호~25호': { label: '23호~25호', description: '중간 피부' },
-  '25호 이상': { label: '25호 이상', description: '어두운 피부' }
+// 호수 (DB 값: shade_21, shade_21_23, shade_23_25, shade_25)
+const SKIN_SHADE_MAP = {
+  'shade_21': '21호 이하',
+  'shade_21_23': '21호~23호',
+  'shade_23_25': '23호~25호',
+  'shade_25': '25호 이상',
+  '21호 이하': '21호 이하',
+  '21호~23호': '21호~23호',
+  '23호~25호': '23호~25호',
+  '25호 이상': '25호 이상'
 }
 
-// 모발 타입 정의
-const HAIR_TYPES = {
+// 헤어 타입 (DB 값: dry, oily, combination, normal)
+const HAIR_TYPE_MAP = {
+  'dry': '건성',
+  'oily': '지성',
+  'combination': '복합성',
+  'normal': '중성',
   '건성': '건성',
   '지성': '지성',
   '복합성': '복합성',
   '중성': '중성'
 }
 
-// 편집/촬영 레벨 정의
+// 편집/촬영 레벨 (DB 값: beginner, intermediate, advanced)
+const SKILL_LEVEL_MAP = {
+  'beginner': '초급',
+  'intermediate': '중급',
+  'advanced': '고급',
+  '초급': '초급',
+  '중급': '중급',
+  '고급': '고급'
+}
+
+// 성별 (DB 값: male, female)
+const GENDER_MAP = {
+  'male': '남성',
+  'female': '여성',
+  '남성': '남성',
+  '여성': '여성'
+}
+
+// 피부 고민 (DB 값: trouble, pores, pigmentation, inner_dryness, sensitivity 등)
+const SKIN_CONCERN_MAP = {
+  'trouble': '트러블',
+  'pores': '모공',
+  'pigmentation': '기미/잡티',
+  'inner_dryness': '속건조',
+  'sensitivity': '민감성',
+  'wrinkles': '주름',
+  'acne': '여드름',
+  'dryness': '건조함',
+  'oiliness': '번들거림',
+  'dark_circles': '다크서클',
+  'redness': '홍조',
+  'elasticity': '탄력저하',
+  'atopy': '아토피'
+}
+
+// 변환 헬퍼 함수
+const translateValue = (value, map) => {
+  if (!value) return null
+  return map[value] || value
+}
+
+// 퍼스널 컬러 정의 (필터용 - DB 값 기준)
+const PERSONAL_COLORS = {
+  'spring_warm': { label: '봄 웜톤', color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  'summer_cool': { label: '여름 쿨톤', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  'autumn_warm': { label: '가을 웜톤', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  'winter_cool': { label: '겨울 쿨톤', color: 'bg-purple-100 text-purple-700 border-purple-300' }
+}
+
+// 피부 톤 (호수) 정의 (필터용 - DB 값 기준)
+const SKIN_SHADES = {
+  'shade_21': { label: '21호 이하', description: '밝은 피부' },
+  'shade_21_23': { label: '21호~23호', description: '보통 피부' },
+  'shade_23_25': { label: '23호~25호', description: '중간 피부' },
+  'shade_25': { label: '25호 이상', description: '어두운 피부' }
+}
+
+// 모발 타입 정의 (필터용 - DB 값 기준)
+const HAIR_TYPES = {
+  'dry': '건성',
+  'oily': '지성',
+  'combination': '복합성',
+  'normal': '중성'
+}
+
+// 편집/촬영 레벨 정의 (필터용 - DB 값 기준)
 const SKILL_LEVELS = {
-  '초급': { label: '초급', color: 'bg-gray-100 text-gray-600' },
-  '중급': { label: '중급', color: 'bg-blue-100 text-blue-600' },
-  '고급': { label: '고급', color: 'bg-purple-100 text-purple-600' }
+  'beginner': { label: '초급', color: 'bg-gray-100 text-gray-600' },
+  'intermediate': { label: '중급', color: 'bg-blue-100 text-blue-600' },
+  'advanced': { label: '고급', color: 'bg-purple-100 text-purple-600' }
 }
 
-// 성별 정의
+// 성별 정의 (필터용 - DB 값 기준)
 const GENDERS = {
-  '여성': '여성',
-  '남성': '남성'
+  'female': '여성',
+  'male': '남성'
 }
 
-// 피부 고민 키워드
+// 피부 고민 키워드 (필터용 - DB 값 기준, 빈도순 정렬)
 const SKIN_CONCERNS_LIST = [
-  'sensitivity', '기미/잡티', '주름', '여드름', '모공', '건조함', '번들거림', '다크서클', '홍조', '탄력저하'
+  'inner_dryness', 'pigmentation', 'pores', 'wrinkles', 'trouble', 'redness', 'acne', 'oiliness', 'atopy', 'sensitivity'
 ]
+
+// 피부 고민 표시용 (한글 라벨)
+const SKIN_CONCERNS_LABELS = {
+  'inner_dryness': '속건조',
+  'pigmentation': '기미/잡티',
+  'pores': '모공',
+  'wrinkles': '주름',
+  'trouble': '트러블',
+  'redness': '홍조',
+  'acne': '여드름',
+  'oiliness': '번들거림',
+  'atopy': '아토피',
+  'sensitivity': '민감성'
+}
 
 // 활동 관련 키워드
 const ACTIVITY_KEYWORDS = [
-  '아이출연가능', '여아 12세', '가족출연가능', '아내출연', '부모님출연', '오프라인촬영가능'
+  '아이출연가능', '가족출연가능', '오프라인촬영가능'
 ]
 
 // 팔로워 구간 정의
@@ -372,15 +464,15 @@ export default function CampaignDetail() {
     searchText: ''             // 텍스트 검색 (이름, AI 소개글)
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false) // 고급 필터 표시 여부
-  // 카드에 추가 표시할 항목 (최대 5개)
-  const [cardDisplayOptions, setCardDisplayOptions] = useState([])
+  // 카드에 추가 표시할 항목 (최대 5개) - 기본값: 피부고민
+  const [cardDisplayOptions, setCardDisplayOptions] = useState(['skinConcerns'])
   const CARD_DISPLAY_OPTIONS = {
+    skinConcerns: { label: '피부 고민', icon: '🏷️' },
     personalColor: { label: '퍼스널 컬러', icon: '🎨' },
     skinShade: { label: '호수', icon: '💄' },
     hairType: { label: '헤어 타입', icon: '💇' },
     editingLevel: { label: '편집 레벨', icon: '🎬' },
     shootingLevel: { label: '촬영 레벨', icon: '📷' },
-    skinConcerns: { label: '피부 고민', icon: '🏷️' },
     gender: { label: '성별', icon: '👤' },
     job: { label: '직업', icon: '💼' },
     aiProfile: { label: 'AI 소개글', icon: '✨' }
@@ -5735,11 +5827,14 @@ JSON만 출력.`
                                     .select('*')
                                     .eq('id', rec.user_id)
                                     .maybeSingle()
-                                  
+
                                   // applications 데이터 + user_profiles 데이터 병합
+                                  // profile_photo_url은 rec에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
+                                  const photoUrl = rec.profile_photo_url || profile?.profile_photo_url
                                   setSelectedParticipant({
                                     ...rec,
-                                    ...profile
+                                    ...profile,
+                                    profile_photo_url: photoUrl
                                   })
                                   setShowProfileModal(true)
                                 } catch (error) {
@@ -5769,6 +5864,50 @@ JSON만 출력.`
                 {/* 고급 검색 필터 섹션 */}
                 {applications.length > 0 && (
                   <div className="mb-6 space-y-4">
+                    {/* 카드 표시 항목 선택 (필터 밖) */}
+                    <div className="p-3 bg-violet-50 rounded-xl border border-violet-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-bold text-violet-700 flex items-center gap-1.5">
+                          📋 카드에 표시할 정보 선택
+                          <span className="text-[10px] font-normal text-violet-500">(기본: 나이, 피부타입 표시)</span>
+                        </h4>
+                        {cardDisplayOptions.length > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 bg-violet-200 text-violet-700 rounded-full">
+                            {cardDisplayOptions.length}/5 선택
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(CARD_DISPLAY_OPTIONS).map(([key, { label, icon }]) => {
+                          const isSelected = cardDisplayOptions.includes(key)
+                          const isDisabled = !isSelected && cardDisplayOptions.length >= 5
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setCardDisplayOptions(prev => prev.filter(k => k !== key))
+                                } else if (cardDisplayOptions.length < 5) {
+                                  setCardDisplayOptions(prev => [...prev, key])
+                                }
+                              }}
+                              disabled={isDisabled}
+                              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all ${
+                                isSelected
+                                  ? 'bg-violet-600 text-white'
+                                  : isDisabled
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-white text-violet-700 border border-violet-300 hover:bg-violet-100'
+                              }`}
+                            >
+                              <span className="text-[10px]">{icon}</span>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
                     {/* 검색창 + 필터 토글 */}
                     <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
                       <div className="flex-1 relative">
@@ -5833,8 +5972,8 @@ JSON만 출력.`
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
                               >
                                 <option value="all">전체</option>
-                                {Object.keys(PERSONAL_COLORS).map(key => (
-                                  <option key={key} value={key}>{key}</option>
+                                {Object.entries(PERSONAL_COLORS).map(([key, { label }]) => (
+                                  <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
                             </div>
@@ -5893,7 +6032,7 @@ JSON만 출력.`
                                     : 'bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100'
                                 }`}
                               >
-                                {concern}
+                                {SKIN_CONCERNS_LABELS[concern] || concern}
                               </button>
                             ))}
                           </div>
@@ -6011,57 +6150,8 @@ JSON만 출력.`
                           </div>
                         </div>
 
-                        {/* 카드에 표시할 항목 선택 (최대 5개) */}
-                        <div>
-                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gradient-to-br from-violet-400 to-purple-400 rounded-lg flex items-center justify-center text-white text-xs">📋</span>
-                            카드에 추가 표시 (최대 5개)
-                            {cardDisplayOptions.length > 0 && (
-                              <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
-                                {cardDisplayOptions.length}/5 선택됨
-                              </span>
-                            )}
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(CARD_DISPLAY_OPTIONS).map(([key, { label, icon }]) => {
-                              const isSelected = cardDisplayOptions.includes(key)
-                              const isDisabled = !isSelected && cardDisplayOptions.length >= 5
-                              return (
-                                <button
-                                  key={key}
-                                  onClick={() => {
-                                    if (isSelected) {
-                                      setCardDisplayOptions(prev => prev.filter(k => k !== key))
-                                    } else if (cardDisplayOptions.length < 5) {
-                                      setCardDisplayOptions(prev => [...prev, key])
-                                    }
-                                  }}
-                                  disabled={isDisabled}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all ${
-                                    isSelected
-                                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md'
-                                      : isDisabled
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100'
-                                  }`}
-                                >
-                                  <span>{icon}</span>
-                                  {label}
-                                  {isSelected && <span className="ml-1">✓</span>}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-
                         {/* 필터 초기화 버튼 */}
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                          <button
-                            onClick={() => setCardDisplayOptions([])}
-                            className="text-xs text-violet-500 hover:text-violet-700"
-                          >
-                            카드 표시 초기화
-                          </button>
+                        <div className="flex justify-end pt-3 border-t border-gray-100">
                           <button
                             onClick={() => {
                               setApplicantFilters({
@@ -6070,11 +6160,10 @@ JSON만 출력.`
                                 editingLevel: 'all', shootingLevel: 'all', gender: 'all',
                                 followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: ''
                               })
-                              setCardDisplayOptions([])
                             }}
                             className="text-sm text-gray-500 hover:text-purple-600 underline"
                           >
-                            모든 필터 초기화
+                            필터 초기화
                           </button>
                         </div>
                       </div>
@@ -6354,19 +6443,19 @@ JSON만 출력.`
                                   PERSONAL_COLORS[app.personal_color]?.color || 'bg-gray-100 text-gray-700'
                                 }`}>
                                   <span>🎨 퍼스널컬러</span>
-                                  <span className="font-medium">{app.personal_color}</span>
+                                  <span className="font-medium">{PERSONAL_COLOR_MAP[app.personal_color] || app.personal_color}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('skinShade') && app.skin_shade && (
                                 <div className="flex items-center justify-between text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded">
                                   <span>💄 호수</span>
-                                  <span className="font-medium">{app.skin_shade}</span>
+                                  <span className="font-medium">{SKIN_SHADE_MAP[app.skin_shade] || app.skin_shade}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('hairType') && app.hair_type && (
                                 <div className="flex items-center justify-between text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded">
                                   <span>💇 헤어</span>
-                                  <span className="font-medium">{app.hair_type}</span>
+                                  <span className="font-medium">{HAIR_TYPE_MAP[app.hair_type] || app.hair_type}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('editingLevel') && app.editing_level && (
@@ -6374,7 +6463,7 @@ JSON만 출력.`
                                   SKILL_LEVELS[app.editing_level]?.color || 'bg-gray-100 text-gray-600'
                                 }`}>
                                   <span>🎬 편집</span>
-                                  <span className="font-medium">{app.editing_level}</span>
+                                  <span className="font-medium">{SKILL_LEVEL_MAP[app.editing_level] || app.editing_level}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('shootingLevel') && app.shooting_level && (
@@ -6382,14 +6471,14 @@ JSON만 출력.`
                                   SKILL_LEVELS[app.shooting_level]?.color || 'bg-gray-100 text-gray-600'
                                 }`}>
                                   <span>📷 촬영</span>
-                                  <span className="font-medium">{app.shooting_level}</span>
+                                  <span className="font-medium">{SKILL_LEVEL_MAP[app.shooting_level] || app.shooting_level}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('skinConcerns') && app.skin_concerns && app.skin_concerns.length > 0 && (
                                 <div className="flex flex-wrap gap-1 px-1 py-1">
                                   {app.skin_concerns.slice(0, 3).map((concern, idx) => (
                                     <span key={idx} className="px-1.5 py-0.5 text-[10px] bg-pink-100 text-pink-700 rounded-full">
-                                      {concern}
+                                      {SKIN_CONCERNS_LABELS[concern] || concern}
                                     </span>
                                   ))}
                                   {app.skin_concerns.length > 3 && (
@@ -6400,7 +6489,7 @@ JSON만 출력.`
                               {cardDisplayOptions.includes('gender') && app.gender && (
                                 <div className="flex items-center justify-between text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
                                   <span>👤 성별</span>
-                                  <span className="font-medium">{app.gender}</span>
+                                  <span className="font-medium">{GENDER_MAP[app.gender] || app.gender}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('job') && app.job && (
@@ -6455,7 +6544,9 @@ JSON만 출력.`
                               onClick={async () => {
                                 try {
                                   const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
-                                  setSelectedParticipant({ ...app, ...profile })
+                                  // profile_photo_url은 app에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
+                                  const photoUrl = app.profile_photo_url || profile?.profile_photo_url
+                                  setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
                                   setShowProfileModal(true)
                                 } catch (error) {
                                   console.error('Error:', error)
@@ -6751,7 +6842,9 @@ JSON만 출력.`
                               onClick={async () => {
                                 try {
                                   const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
-                                  setSelectedParticipant({ ...app, ...profile })
+                                  // profile_photo_url은 app에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
+                                  const photoUrl = app.profile_photo_url || profile?.profile_photo_url
+                                  setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
                                   setShowProfileModal(true)
                                 } catch (error) {
                                   console.error('Error:', error)
@@ -10044,7 +10137,7 @@ JSON만 출력.`
                   <div className="flex-1 text-white">
                     <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
                     <p className="text-purple-100 mt-1">
-                      {selectedParticipant.gender && `${selectedParticipant.gender} · `}
+                      {selectedParticipant.gender && `${GENDER_MAP[selectedParticipant.gender] || selectedParticipant.gender} · `}
                       {selectedParticipant.age && `${selectedParticipant.age}세`}
                       {selectedParticipant.job && ` · ${selectedParticipant.job}`}
                     </p>
@@ -10123,31 +10216,31 @@ JSON만 출력.`
                       {selectedParticipant.skin_shade && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">호수</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.skin_shade}</p>
+                          <p className="text-sm font-semibold text-gray-800">{SKIN_SHADE_MAP[selectedParticipant.skin_shade] || selectedParticipant.skin_shade}</p>
                         </div>
                       )}
                       {selectedParticipant.personal_color && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">퍼스널컬러</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.personal_color}</p>
+                          <p className="text-sm font-semibold text-gray-800">{PERSONAL_COLOR_MAP[selectedParticipant.personal_color] || selectedParticipant.personal_color}</p>
                         </div>
                       )}
                       {selectedParticipant.hair_type && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">헤어</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.hair_type}</p>
+                          <p className="text-sm font-semibold text-gray-800">{HAIR_TYPE_MAP[selectedParticipant.hair_type] || selectedParticipant.hair_type}</p>
                         </div>
                       )}
                       {selectedParticipant.editing_level && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">편집</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.editing_level}</p>
+                          <p className="text-sm font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.editing_level] || selectedParticipant.editing_level}</p>
                         </div>
                       )}
                       {selectedParticipant.shooting_level && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">촬영</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.shooting_level}</p>
+                          <p className="text-sm font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.shooting_level] || selectedParticipant.shooting_level}</p>
                         </div>
                       )}
                     </div>
@@ -10161,7 +10254,7 @@ JSON만 출력.`
                     <div className="flex flex-wrap gap-2">
                       {selectedParticipant.skin_concerns.map((concern, idx) => (
                         <span key={idx} className="px-3 py-1 text-xs bg-pink-100 text-pink-700 rounded-full border border-pink-200">
-                          {concern}
+                          {SKIN_CONCERN_MAP[concern] || concern}
                         </span>
                       ))}
                     </div>
