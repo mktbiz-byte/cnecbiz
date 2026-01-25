@@ -40,7 +40,9 @@ import {
   ShieldX,
   Filter,
   Info,
-  Search
+  Search,
+  Instagram,
+  Youtube
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -10197,37 +10199,60 @@ JSON만 출력.`
                       alt={selectedParticipant.name}
                       className="w-24 h-24 rounded-xl border-4 border-white shadow-lg object-cover"
                     />
-                    {selectedParticipant.account_status === 'verified' && (
-                      <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1 rounded-full">
-                        <ShieldCheck className="w-4 h-4" />
+                    {selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] && (
+                      <div className={`absolute -bottom-1 -right-1 p-1 rounded-full ${
+                        selectedParticipant.account_status === 'verified' ? 'bg-emerald-500 text-white' :
+                        selectedParticipant.account_status === 'warning_1' ? 'bg-blue-500 text-white' :
+                        selectedParticipant.account_status === 'warning_2' ? 'bg-yellow-500 text-white' :
+                        selectedParticipant.account_status === 'warning_3' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
+                      }`}>
+                        {selectedParticipant.account_status === 'verified' && <ShieldCheck className="w-4 h-4" />}
+                        {selectedParticipant.account_status === 'warning_1' && <Search className="w-4 h-4" />}
+                        {selectedParticipant.account_status === 'warning_2' && <AlertCircle className="w-4 h-4" />}
+                        {selectedParticipant.account_status === 'warning_3' && <ShieldX className="w-4 h-4" />}
                       </div>
                     )}
                   </div>
                   <div className="flex-1 text-white">
-                    <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
+                      {/* 인증 상태 배지 */}
+                      {selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          selectedParticipant.account_status === 'verified' ? 'bg-emerald-400 text-white' :
+                          selectedParticipant.account_status === 'warning_1' ? 'bg-blue-400 text-white' :
+                          selectedParticipant.account_status === 'warning_2' ? 'bg-yellow-400 text-gray-800' :
+                          selectedParticipant.account_status === 'warning_3' ? 'bg-red-400 text-white' : 'bg-gray-400 text-white'
+                        }`}>
+                          {ACCOUNT_STATUS[selectedParticipant.account_status].name}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-purple-100 mt-1">
                       {selectedParticipant.gender && `${GENDER_MAP[selectedParticipant.gender] || selectedParticipant.gender} · `}
                       {selectedParticipant.age && `${selectedParticipant.age}세`}
                       {selectedParticipant.job && ` · ${selectedParticipant.job}`}
                     </p>
                     {/* SNS 채널 아이콘 */}
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-3 mt-3">
                       {selectedParticipant.instagram_url && (
                         <a href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer"
-                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
-                          <span className="text-sm">📷</span>
+                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
+                          <Instagram className="w-5 h-5 text-pink-600" />
                         </a>
                       )}
                       {selectedParticipant.youtube_url && (
                         <a href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer"
-                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
-                          <span className="text-sm">▶️</span>
+                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
+                          <Youtube className="w-5 h-5 text-red-600" />
                         </a>
                       )}
                       {selectedParticipant.tiktok_url && (
                         <a href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer"
-                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
-                          <span className="text-sm">🎵</span>
+                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                          </svg>
                         </a>
                       )}
                     </div>
@@ -10236,38 +10261,76 @@ JSON만 출력.`
               </div>
 
               {/* CHANNEL INFLUENCE - 팔로워 통계 */}
+              {(selectedParticipant.youtube_url || selectedParticipant.instagram_url || selectedParticipant.tiktok_url ||
+                selectedParticipant.youtube_subscribers > 0 || selectedParticipant.instagram_followers > 0 || selectedParticipant.tiktok_followers > 0) && (
               <div className="p-4 bg-gray-50 border-b">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">CHANNEL INFLUENCE</h3>
                 <div className="flex gap-4">
-                  {selectedParticipant.youtube_subscribers > 0 && (
-                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                  {(selectedParticipant.youtube_url || selectedParticipant.youtube_subscribers > 0) && (
+                    <a
+                      href={selectedParticipant.youtube_url ? normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube') : '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    >
                       <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <span className="text-lg">▶️</span>
+                        <Youtube className="w-5 h-5 text-red-600" />
                       </div>
-                      <p className="text-lg font-bold text-red-600">{selectedParticipant.youtube_subscribers >= 10000 ? `${(selectedParticipant.youtube_subscribers / 10000).toFixed(1)}만` : selectedParticipant.youtube_subscribers.toLocaleString()}</p>
+                      <p className="text-lg font-bold text-red-600">
+                        {selectedParticipant.youtube_subscribers > 0
+                          ? (selectedParticipant.youtube_subscribers >= 10000
+                              ? `${(selectedParticipant.youtube_subscribers / 10000).toFixed(1)}만`
+                              : selectedParticipant.youtube_subscribers.toLocaleString())
+                          : '-'}
+                      </p>
                       <p className="text-[10px] text-gray-500 uppercase">YOUTUBE</p>
-                    </div>
+                    </a>
                   )}
-                  {selectedParticipant.instagram_followers > 0 && (
-                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                  {(selectedParticipant.instagram_url || selectedParticipant.instagram_followers > 0) && (
+                    <a
+                      href={selectedParticipant.instagram_url ? normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram') : '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    >
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <span className="text-lg">📷</span>
+                        <Instagram className="w-5 h-5 text-pink-600" />
                       </div>
-                      <p className="text-lg font-bold text-pink-600">{selectedParticipant.instagram_followers >= 10000 ? `${(selectedParticipant.instagram_followers / 10000).toFixed(1)}만` : selectedParticipant.instagram_followers.toLocaleString()}</p>
+                      <p className="text-lg font-bold text-pink-600">
+                        {selectedParticipant.instagram_followers > 0
+                          ? (selectedParticipant.instagram_followers >= 10000
+                              ? `${(selectedParticipant.instagram_followers / 10000).toFixed(1)}만`
+                              : selectedParticipant.instagram_followers.toLocaleString())
+                          : '-'}
+                      </p>
                       <p className="text-[10px] text-gray-500 uppercase">INSTAGRAM</p>
-                    </div>
+                    </a>
                   )}
-                  {selectedParticipant.tiktok_followers > 0 && (
-                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                  {(selectedParticipant.tiktok_url || selectedParticipant.tiktok_followers > 0) && (
+                    <a
+                      href={selectedParticipant.tiktok_url ? normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok') : '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    >
                       <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <span className="text-lg">🎵</span>
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                        </svg>
                       </div>
-                      <p className="text-lg font-bold text-gray-800">{selectedParticipant.tiktok_followers >= 10000 ? `${(selectedParticipant.tiktok_followers / 10000).toFixed(1)}만` : selectedParticipant.tiktok_followers.toLocaleString()}</p>
+                      <p className="text-lg font-bold text-gray-800">
+                        {selectedParticipant.tiktok_followers > 0
+                          ? (selectedParticipant.tiktok_followers >= 10000
+                              ? `${(selectedParticipant.tiktok_followers / 10000).toFixed(1)}만`
+                              : selectedParticipant.tiktok_followers.toLocaleString())
+                          : '-'}
+                      </p>
                       <p className="text-[10px] text-gray-500 uppercase">TIKTOK</p>
-                    </div>
+                    </a>
                   )}
                 </div>
               </div>
+              )}
 
               {/* 모달 컨텐츠 */}
               <div className="p-6 space-y-6">
