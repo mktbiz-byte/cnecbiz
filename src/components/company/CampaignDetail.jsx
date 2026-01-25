@@ -6191,6 +6191,41 @@ JSON만 출력.`
                           </div>
                         </div>
 
+                        {/* 계정 상태 설명 */}
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                          <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <Info className="w-4 h-4 text-gray-500" />
+                            계정 상태 안내
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              <span className="font-medium text-emerald-700">인증완료</span>
+                              <span className="text-gray-500">- 활동 이력 확인됨</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                              <span className="font-medium text-blue-700">확인중</span>
+                              <span className="text-gray-500">- 일부 지표 검토중</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                              <span className="font-medium text-yellow-700">확인필요</span>
+                              <span className="text-gray-500">- 추가 검토 권장</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                              <span className="font-medium text-red-700">가계정 의심</span>
+                              <span className="text-gray-500">- 가계정 가능성 높음</span>
+                            </div>
+                            <div className="flex items-center gap-2 col-span-2">
+                              <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                              <span className="font-medium text-gray-600">검증중</span>
+                              <span className="text-gray-500">- 아직 분류되지 않음</span>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* 활동 키워드 */}
                         <div>
                           <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
