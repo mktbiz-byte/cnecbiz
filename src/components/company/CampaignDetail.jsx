@@ -241,44 +241,110 @@ const PERSONAL_COLOR_MAP = {
   'summer_cool': '여름 쿨톤',
   'autumn_warm': '가을 웜톤',
   'winter_cool': '겨울 쿨톤',
-  '봄 웜톤': '봄 웜톤',
-  '여름 쿨톤': '여름 쿨톤',
-  '가을 웜톤': '가을 웜톤',
-  '겨울 쿨톤': '겨울 쿨톤'
+  'warm_neutral': '웜 뉴트럴',
+  'cool_neutral': '쿨 뉴트럴',
+  'true_neutral': '뉴트럴'
 }
 
-// 호수 (DB 값: shade_21, shade_21_23, shade_23_25, shade_25)
+// 호수 (DB 값: shade_13, shade_17, shade_21, shade_23, shade_25)
 const SKIN_SHADE_MAP = {
-  'shade_21': '21호 이하',
-  'shade_21_23': '21호~23호',
-  'shade_23_25': '23호~25호',
-  'shade_25': '25호 이상',
-  '21호 이하': '21호 이하',
-  '21호~23호': '21호~23호',
-  '23호~25호': '23호~25호',
-  '25호 이상': '25호 이상'
+  'shade_13': '13호',
+  'shade_17': '17호',
+  'shade_21': '21호',
+  'shade_23': '23호',
+  'shade_25': '25호 이상'
 }
 
-// 헤어 타입 (DB 값: dry, oily, combination, normal)
+// 헤어 타입 (DB 값: dry, oily, normal)
 const HAIR_TYPE_MAP = {
   'dry': '건성',
   'oily': '지성',
-  'combination': '복합성',
-  'normal': '중성',
-  '건성': '건성',
-  '지성': '지성',
-  '복합성': '복합성',
-  '중성': '중성'
+  'normal': '보통'
 }
 
-// 편집/촬영 레벨 (DB 값: beginner, intermediate, advanced)
+// 편집/촬영 레벨 (DB 값: beginner, intermediate, expert)
 const SKILL_LEVEL_MAP = {
   'beginner': '초급',
   'intermediate': '중급',
-  'advanced': '고급',
-  '초급': '초급',
-  '중급': '중급',
-  '고급': '고급'
+  'expert': '고급'
+}
+
+// 채널 주요 컨텐츠 (primary_interest)
+const PRIMARY_INTEREST_MAP = {
+  'skincare': '피부 미용',
+  'haircare': '헤어 케어',
+  'diet_fitness': '다이어트/피트니스',
+  'makeup': '메이크업',
+  'wellness': '웰니스',
+  'fashion': '패션',
+  'travel': '여행',
+  'parenting': '육아'
+}
+
+// 영상 길이 스타일 (video_length_style)
+const VIDEO_LENGTH_STYLE_MAP = {
+  'longform': '롱폼',
+  'shortform': '숏폼',
+  'both': '둘 다 가능'
+}
+
+// 숏폼 템포 (shortform_tempo_style)
+const SHORTFORM_TEMPO_MAP = {
+  'fast': '빠름',
+  'normal': '보통',
+  'slow': '느림'
+}
+
+// 팔로워 규모 (follower_range)
+const FOLLOWER_RANGE_MAP = {
+  '1k_10k': '1K~10K',
+  '10k_100k': '10K~100K',
+  '100k_1m': '100K~1M',
+  '1m_plus': '1M+'
+}
+
+// 업로드 빈도 (upload_frequency)
+const UPLOAD_FREQUENCY_MAP = {
+  'weekly': '주 1회 이상',
+  'biweekly': '월 2~3회',
+  'monthly': '월 1회 이하'
+}
+
+// 네일/렌즈/안경 사용 (nail_usage, circle_lens_usage, glasses_usage)
+const USAGE_FREQUENCY_MAP = {
+  'always': '항상',
+  'sometimes': '가끔',
+  'never': '안함'
+}
+
+// 가능/불가능 옵션 (child_appearance, family_appearance, offline_visit 등)
+const POSSIBILITY_MAP = {
+  'possible': '가능',
+  'impossible': '불가능'
+}
+
+// 헤어 고민 (hair_concerns)
+const HAIR_CONCERN_MAP = {
+  'damaged': '손상모',
+  'weak': '약한 모발',
+  'dandruff': '비듬',
+  'oily_scalp': '지성 두피',
+  'sensitive_scalp': '민감 두피',
+  'frizzy': '곱슬/부스스',
+  'perm_damage': '펌 손상',
+  'bleach_damage': '탈색 손상'
+}
+
+// 영상 스타일 (video_styles)
+const VIDEO_STYLE_MAP = {
+  'emotional': '감성적',
+  'review': '리뷰',
+  'tutorial': '튜토리얼',
+  'vlog': '브이로그',
+  'unboxing': '언박싱',
+  'comparison': '비교',
+  'haul': '하울',
+  'asmr': 'ASMR'
 }
 
 // 성별 (DB 값: male, female)
@@ -317,14 +383,18 @@ const PERSONAL_COLORS = {
   'spring_warm': { label: '봄 웜톤', color: 'bg-orange-100 text-orange-700 border-orange-300' },
   'summer_cool': { label: '여름 쿨톤', color: 'bg-blue-100 text-blue-700 border-blue-300' },
   'autumn_warm': { label: '가을 웜톤', color: 'bg-amber-100 text-amber-700 border-amber-300' },
-  'winter_cool': { label: '겨울 쿨톤', color: 'bg-purple-100 text-purple-700 border-purple-300' }
+  'winter_cool': { label: '겨울 쿨톤', color: 'bg-purple-100 text-purple-700 border-purple-300' },
+  'warm_neutral': { label: '웜 뉴트럴', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  'cool_neutral': { label: '쿨 뉴트럴', color: 'bg-cyan-100 text-cyan-700 border-cyan-300' },
+  'true_neutral': { label: '뉴트럴', color: 'bg-gray-100 text-gray-700 border-gray-300' }
 }
 
 // 피부 톤 (호수) 정의 (필터용 - DB 값 기준)
 const SKIN_SHADES = {
-  'shade_21': { label: '21호 이하', description: '밝은 피부' },
-  'shade_21_23': { label: '21호~23호', description: '보통 피부' },
-  'shade_23_25': { label: '23호~25호', description: '중간 피부' },
+  'shade_13': { label: '13호', description: '밝은 피부' },
+  'shade_17': { label: '17호', description: '밝은 피부' },
+  'shade_21': { label: '21호', description: '보통 피부' },
+  'shade_23': { label: '23호', description: '어두운 피부' },
   'shade_25': { label: '25호 이상', description: '어두운 피부' }
 }
 
@@ -332,15 +402,14 @@ const SKIN_SHADES = {
 const HAIR_TYPES = {
   'dry': '건성',
   'oily': '지성',
-  'combination': '복합성',
-  'normal': '중성'
+  'normal': '보통'
 }
 
 // 편집/촬영 레벨 정의 (필터용 - DB 값 기준)
 const SKILL_LEVELS = {
   'beginner': { label: '초급', color: 'bg-gray-100 text-gray-600' },
   'intermediate': { label: '중급', color: 'bg-blue-100 text-blue-600' },
-  'advanced': { label: '고급', color: 'bg-purple-100 text-purple-600' }
+  'expert': { label: '고급', color: 'bg-purple-100 text-purple-600' }
 }
 
 // 성별 정의 (필터용 - DB 값 기준)
@@ -10250,13 +10319,98 @@ JSON만 출력.`
                 {/* CONCERNS */}
                 {selectedParticipant.skin_concerns && selectedParticipant.skin_concerns.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">CONCERNS</h3>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">피부 고민</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedParticipant.skin_concerns.map((concern, idx) => (
                         <span key={idx} className="px-3 py-1 text-xs bg-pink-100 text-pink-700 rounded-full border border-pink-200">
                           {SKIN_CONCERN_MAP[concern] || concern}
                         </span>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 헤어 고민 */}
+                {selectedParticipant.hair_concerns && selectedParticipant.hair_concerns.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">헤어 고민</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedParticipant.hair_concerns.map((concern, idx) => (
+                        <span key={idx} className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full border border-amber-200">
+                          {HAIR_CONCERN_MAP[concern] || concern}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 콘텐츠 스타일 */}
+                {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency) && (
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200">
+                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">콘텐츠 스타일</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {selectedParticipant.primary_interest && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">주요 콘텐츠</p>
+                          <p className="text-sm font-semibold text-gray-800">{PRIMARY_INTEREST_MAP[selectedParticipant.primary_interest] || selectedParticipant.primary_interest}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.video_length_style && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">영상 길이</p>
+                          <p className="text-sm font-semibold text-gray-800">{VIDEO_LENGTH_STYLE_MAP[selectedParticipant.video_length_style] || selectedParticipant.video_length_style}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.shortform_tempo_style && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">숏폼 템포</p>
+                          <p className="text-sm font-semibold text-gray-800">{SHORTFORM_TEMPO_MAP[selectedParticipant.shortform_tempo_style] || selectedParticipant.shortform_tempo_style}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.upload_frequency && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">업로드 빈도</p>
+                          <p className="text-sm font-semibold text-gray-800">{UPLOAD_FREQUENCY_MAP[selectedParticipant.upload_frequency] || selectedParticipant.upload_frequency}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 영상 스타일 */}
+                {selectedParticipant.video_styles && selectedParticipant.video_styles.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">영상 스타일</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedParticipant.video_styles.map((style, idx) => (
+                        <span key={idx} className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+                          {VIDEO_STYLE_MAP[style] || style}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 뷰티 아이템 사용 */}
+                {(selectedParticipant.nail_usage || selectedParticipant.circle_lens_usage || selectedParticipant.glasses_usage) && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">뷰티 아이템</h3>
+                    <div className="flex flex-wrap gap-3">
+                      {selectedParticipant.nail_usage && (
+                        <span className="px-3 py-1 text-xs bg-rose-50 text-rose-700 rounded-full border border-rose-200">
+                          💅 네일: {USAGE_FREQUENCY_MAP[selectedParticipant.nail_usage] || selectedParticipant.nail_usage}
+                        </span>
+                      )}
+                      {selectedParticipant.circle_lens_usage && (
+                        <span className="px-3 py-1 text-xs bg-purple-50 text-purple-700 rounded-full border border-purple-200">
+                          👁️ 렌즈: {USAGE_FREQUENCY_MAP[selectedParticipant.circle_lens_usage] || selectedParticipant.circle_lens_usage}
+                        </span>
+                      )}
+                      {selectedParticipant.glasses_usage && (
+                        <span className="px-3 py-1 text-xs bg-gray-50 text-gray-700 rounded-full border border-gray-200">
+                          👓 안경: {USAGE_FREQUENCY_MAP[selectedParticipant.glasses_usage] || selectedParticipant.glasses_usage}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
