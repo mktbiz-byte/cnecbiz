@@ -182,6 +182,17 @@ const ACCOUNT_STATUS = {
     lightBg: 'bg-red-50',
     lightText: 'text-red-700',
     borderClass: 'border-red-300'
+  },
+  unclassified: {
+    name: '검증중',
+    label: '검증중',
+    description: '아직 분류되지 않은 크리에이터입니다.',
+    icon: 'Clock',
+    bgClass: 'bg-gray-500',
+    textClass: 'text-white',
+    lightBg: 'bg-gray-50',
+    lightText: 'text-gray-600',
+    borderClass: 'border-gray-300'
   }
 }
 
@@ -6507,20 +6518,25 @@ JSON만 출력.`
                           </div>
 
                           {/* 계정 인증 상태 배지 - 항상 표시 */}
-                          {app.account_status && ACCOUNT_STATUS[app.account_status] && (
-                            <div
-                              className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${ACCOUNT_STATUS[app.account_status].lightBg} border ${ACCOUNT_STATUS[app.account_status].borderClass}`}
-                              title={ACCOUNT_STATUS[app.account_status].description}
-                            >
-                              {app.account_status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
-                              {app.account_status === 'warning_1' && <Search className="w-3.5 h-3.5 text-blue-600" />}
-                              {app.account_status === 'warning_2' && <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />}
-                              {app.account_status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
-                              <span className={`text-xs font-bold ${ACCOUNT_STATUS[app.account_status].lightText}`}>
-                                {ACCOUNT_STATUS[app.account_status].name}
-                              </span>
-                            </div>
-                          )}
+                          {(() => {
+                            const status = app.account_status && ACCOUNT_STATUS[app.account_status] ? app.account_status : 'unclassified'
+                            const statusInfo = ACCOUNT_STATUS[status]
+                            return (
+                              <div
+                                className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${statusInfo.lightBg} border ${statusInfo.borderClass}`}
+                                title={statusInfo.description}
+                              >
+                                {status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                                {status === 'warning_1' && <Search className="w-3.5 h-3.5 text-blue-600" />}
+                                {status === 'warning_2' && <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />}
+                                {status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
+                                {status === 'unclassified' && <Clock className="w-3.5 h-3.5 text-gray-500" />}
+                                <span className={`text-xs font-bold ${statusInfo.lightText}`}>
+                                  {statusInfo.name}
+                                </span>
+                              </div>
+                            )
+                          })()}
 
                           {/* 등급 추천 배지 - 항상 표시 */}
                           {(() => {
@@ -10234,34 +10250,41 @@ JSON만 출력.`
                       alt={selectedParticipant.name}
                       className="w-24 h-24 rounded-xl border-4 border-white shadow-lg object-cover"
                     />
-                    {selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] && (
-                      <div className={`absolute -bottom-1 -right-1 p-1 rounded-full ${
-                        selectedParticipant.account_status === 'verified' ? 'bg-emerald-500 text-white' :
-                        selectedParticipant.account_status === 'warning_1' ? 'bg-blue-500 text-white' :
-                        selectedParticipant.account_status === 'warning_2' ? 'bg-yellow-500 text-white' :
-                        selectedParticipant.account_status === 'warning_3' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                      }`}>
-                        {selectedParticipant.account_status === 'verified' && <ShieldCheck className="w-4 h-4" />}
-                        {selectedParticipant.account_status === 'warning_1' && <Search className="w-4 h-4" />}
-                        {selectedParticipant.account_status === 'warning_2' && <AlertCircle className="w-4 h-4" />}
-                        {selectedParticipant.account_status === 'warning_3' && <ShieldX className="w-4 h-4" />}
-                      </div>
-                    )}
+                    {(() => {
+                      const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
+                      return (
+                        <div className={`absolute -bottom-1 -right-1 p-1 rounded-full ${
+                          status === 'verified' ? 'bg-emerald-500 text-white' :
+                          status === 'warning_1' ? 'bg-blue-500 text-white' :
+                          status === 'warning_2' ? 'bg-yellow-500 text-white' :
+                          status === 'warning_3' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
+                        }`}>
+                          {status === 'verified' && <ShieldCheck className="w-4 h-4" />}
+                          {status === 'warning_1' && <Search className="w-4 h-4" />}
+                          {status === 'warning_2' && <AlertCircle className="w-4 h-4" />}
+                          {status === 'warning_3' && <ShieldX className="w-4 h-4" />}
+                          {status === 'unclassified' && <Clock className="w-4 h-4" />}
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className="flex-1 text-white">
                     <div className="flex items-center gap-2">
                       <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
                       {/* 인증 상태 배지 */}
-                      {selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] && (
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          selectedParticipant.account_status === 'verified' ? 'bg-emerald-400 text-white' :
-                          selectedParticipant.account_status === 'warning_1' ? 'bg-blue-400 text-white' :
-                          selectedParticipant.account_status === 'warning_2' ? 'bg-yellow-400 text-gray-800' :
-                          selectedParticipant.account_status === 'warning_3' ? 'bg-red-400 text-white' : 'bg-gray-400 text-white'
-                        }`}>
-                          {ACCOUNT_STATUS[selectedParticipant.account_status].name}
-                        </span>
-                      )}
+                      {(() => {
+                        const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
+                        return (
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                            status === 'verified' ? 'bg-emerald-400 text-white' :
+                            status === 'warning_1' ? 'bg-blue-400 text-white' :
+                            status === 'warning_2' ? 'bg-yellow-400 text-gray-800' :
+                            status === 'warning_3' ? 'bg-red-400 text-white' : 'bg-gray-400 text-white'
+                          }`}>
+                            {ACCOUNT_STATUS[status].name}
+                          </span>
+                        )
+                      })()}
                     </div>
                     <p className="text-purple-100 mt-1">
                       {selectedParticipant.gender && `${GENDER_MAP[selectedParticipant.gender] || selectedParticipant.gender} · `}
