@@ -234,6 +234,61 @@ const AGE_RANGES = {
   '50+': { label: '50대+', min: 50, max: 999 }
 }
 
+// 퍼스널 컬러 정의
+const PERSONAL_COLORS = {
+  '봄 웜톤': { label: '봄 웜톤', color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  '여름 쿨톤': { label: '여름 쿨톤', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  '가을 웜톤': { label: '가을 웜톤', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  '겨울 쿨톤': { label: '겨울 쿨톤', color: 'bg-purple-100 text-purple-700 border-purple-300' }
+}
+
+// 피부 톤 (호수) 정의
+const SKIN_SHADES = {
+  '21호 이하': { label: '21호 이하', description: '밝은 피부' },
+  '21호~23호': { label: '21호~23호', description: '보통 피부' },
+  '23호~25호': { label: '23호~25호', description: '중간 피부' },
+  '25호 이상': { label: '25호 이상', description: '어두운 피부' }
+}
+
+// 모발 타입 정의
+const HAIR_TYPES = {
+  '건성': '건성',
+  '지성': '지성',
+  '복합성': '복합성',
+  '중성': '중성'
+}
+
+// 편집/촬영 레벨 정의
+const SKILL_LEVELS = {
+  '초급': { label: '초급', color: 'bg-gray-100 text-gray-600' },
+  '중급': { label: '중급', color: 'bg-blue-100 text-blue-600' },
+  '고급': { label: '고급', color: 'bg-purple-100 text-purple-600' }
+}
+
+// 성별 정의
+const GENDERS = {
+  '여성': '여성',
+  '남성': '남성'
+}
+
+// 피부 고민 키워드
+const SKIN_CONCERNS_LIST = [
+  'sensitivity', '기미/잡티', '주름', '여드름', '모공', '건조함', '번들거림', '다크서클', '홍조', '탄력저하'
+]
+
+// 활동 관련 키워드
+const ACTIVITY_KEYWORDS = [
+  '아이출연가능', '여아 12세', '가족출연가능', '아내출연', '부모님출연', '오프라인촬영가능'
+]
+
+// 팔로워 구간 정의
+const FOLLOWER_RANGES = {
+  '1K~10K': { label: '1K~10K', min: 1000, max: 10000 },
+  '10K~50K': { label: '10K~50K', min: 10000, max: 50000 },
+  '50K~100K': { label: '50K~100K', min: 50000, max: 100000 },
+  '100K+': { label: '100K+', min: 100000, max: 999999999 }
+}
+
 // 등급별 추천 배지 정보 생성
 const getGradeRecommendation = (gradeLevel) => {
   if (!gradeLevel) return null
@@ -300,12 +355,36 @@ export default function CampaignDetail() {
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
   const [aiRecommendations, setAiRecommendations] = useState([])
-  // 지원자 필터 상태
+  // 지원자 필터 상태 (고급 검색)
   const [applicantFilters, setApplicantFilters] = useState({
-    skinType: 'all',      // 'all', 'dry', 'oily', 'combination', 'sensitive', 'normal'
-    ageRange: 'all',      // 'all', '20', '30', '40', '50+'
-    accountStatus: 'all'  // 'all', 'verified', 'warning_1', 'warning_2', 'warning_3', 'unclassified'
+    skinType: 'all',           // 피부 타입
+    ageRange: 'all',           // 나이대
+    accountStatus: 'all',      // 계정 상태
+    personalColor: 'all',      // 퍼스널 컬러
+    skinShade: 'all',          // 피부 톤 (호수)
+    hairType: 'all',           // 모발 타입
+    editingLevel: 'all',       // 편집 레벨
+    shootingLevel: 'all',      // 촬영 레벨
+    gender: 'all',             // 성별
+    followerRange: 'all',      // 팔로워 구간
+    skinConcerns: [],          // 피부 고민 (다중 선택)
+    activityKeywords: [],      // 활동 키워드 (다중 선택)
+    searchText: ''             // 텍스트 검색 (이름, AI 소개글)
   })
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false) // 고급 필터 표시 여부
+  // 카드에 추가 표시할 항목 (최대 5개)
+  const [cardDisplayOptions, setCardDisplayOptions] = useState([])
+  const CARD_DISPLAY_OPTIONS = {
+    personalColor: { label: '퍼스널 컬러', icon: '🎨' },
+    skinShade: { label: '호수', icon: '💄' },
+    hairType: { label: '헤어 타입', icon: '💇' },
+    editingLevel: { label: '편집 레벨', icon: '🎬' },
+    shootingLevel: { label: '촬영 레벨', icon: '📷' },
+    skinConcerns: { label: '피부 고민', icon: '🏷️' },
+    gender: { label: '성별', icon: '👤' },
+    job: { label: '직업', icon: '💼' },
+    aiProfile: { label: 'AI 소개글', icon: '✨' }
+  }
   const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
@@ -1076,21 +1155,39 @@ export default function CampaignDetail() {
             instagram_url: profile.instagram_url || app.instagram_url,
             youtube_url: profile.youtube_url || app.youtube_url,
             tiktok_url: profile.tiktok_url || app.tiktok_url,
-            // 연락처/주소 정보 병합 (US 등 해외 지역용)
-            phone: profile.phone || profile.phone_number || app.phone || app.phone_number || '',
-            phone_number: profile.phone_number || profile.phone || app.phone_number || app.phone || '',
-            shipping_phone: profile.phone || profile.phone_number || app.shipping_phone || app.phone || '',
-            creator_phone: profile.phone || profile.phone_number || app.creator_phone || '',
-            address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
-            shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
-            postal_code: profile.postal_code || app.postal_code || '',
-            detail_address: profile.detail_address || profile.address_detail || app.detail_address || '',
+            // 연락처/주소 정보 병합 (US 등 해외 지역용) - 개인정보 노출 방지로 제외
             // 계정 인증 상태 및 프로필 정보
             account_status: profile.account_status || null,
             skin_type: profile.skin_type || app.skin_type || null,
-            age: profile.age || app.age || null
+            age: profile.age || app.age || null,
+            // BEAUTY SPEC 필드들 (검색기용)
+            skin_tone: profile.skin_tone || null,
+            skin_shade: profile.skin_shade || null,
+            personal_color: profile.personal_color || null,
+            hair_type: profile.hair_type || null,
+            editing_level: profile.editing_level || null,
+            shooting_level: profile.shooting_level || null,
+            gender: profile.gender || null,
+            // KEYWORDS/CONCERNS 필드들 (jsonb)
+            skin_concerns: profile.skin_concerns || [],
+            hair_concerns: profile.hair_concerns || [],
+            diet_concerns: profile.diet_concerns || [],
+            // 활동 관련 필드들
+            child_appearance: profile.child_appearance || null,
+            family_appearance: profile.family_appearance || null,
+            offline_visit: profile.offline_visit || null,
+            offline_region: profile.offline_region || null,
+            offline_locations: profile.offline_locations || [],
+            children: profile.children || [],
+            family_members: profile.family_members || [],
+            languages: profile.languages || [],
+            // AI 프로필 및 기타
+            ai_profile_text: profile.ai_profile_text || null,
+            bio: profile.bio || null,
+            job: profile.job || null,
+            channel_name: profile.channel_name || null,
+            avg_views: profile.avg_views || null
           }
-          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
         }
 
@@ -5669,239 +5766,433 @@ JSON만 출력.`
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
-                {/* 필터 섹션 */}
+                {/* 고급 검색 필터 섹션 */}
                 {applications.length > 0 && (
                   <div className="mb-6 space-y-4">
-                    {/* 필터 컨트롤 */}
-                    <div className="flex items-center gap-2 flex-wrap p-4 bg-gray-50 rounded-lg">
-                      <Filter className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700 mr-2">필터:</span>
-
-                      {/* 피부 타입 필터 */}
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500 mr-1">피부:</span>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: 'all' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                            applicantFilters.skinType === 'all'
-                              ? 'bg-gray-800 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
-                          }`}
-                        >
-                          전체
-                        </button>
-                        {Object.entries(SKIN_TYPES).map(([key, label]) => (
-                          <button
-                            key={key}
-                            onClick={() => setApplicantFilters(prev => ({ ...prev, skinType: key }))}
-                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                              applicantFilters.skinType === key
-                                ? 'bg-pink-500 text-white'
-                                : 'bg-white text-gray-600 hover:bg-pink-50 border'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
+                    {/* 검색창 + 필터 토글 */}
+                    <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="크리에이터 이름 또는 키워드 검색..."
+                          value={applicantFilters.searchText}
+                          onChange={(e) => setApplicantFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                          className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                        />
                       </div>
-
-                      <div className="w-px h-6 bg-gray-300 mx-2" />
-
-                      {/* 나이대 필터 */}
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500 mr-1">나이:</span>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: 'all' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                            applicantFilters.ageRange === 'all'
-                              ? 'bg-gray-800 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
-                          }`}
-                        >
-                          전체
-                        </button>
-                        {Object.entries(AGE_RANGES).map(([key, { label }]) => (
-                          <button
-                            key={key}
-                            onClick={() => setApplicantFilters(prev => ({ ...prev, ageRange: key }))}
-                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                              applicantFilters.ageRange === key
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-600 hover:bg-blue-50 border'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="w-px h-6 bg-gray-300 mx-2" />
-
-                      {/* 계정 상태 필터 */}
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500 mr-1">계정:</span>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'all' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                            applicantFilters.accountStatus === 'all'
-                              ? 'bg-gray-800 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
-                          }`}
-                        >
-                          전체
-                        </button>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'verified' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
-                            applicantFilters.accountStatus === 'verified'
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-300'
-                          }`}
-                        >
-                          <ShieldCheck className="w-3 h-3" /> 인증완료
-                        </button>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_1' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
-                            applicantFilters.accountStatus === 'warning_1'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-300'
-                          }`}
-                        >
-                          <Search className="w-3 h-3" /> 확인중
-                        </button>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_2' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
-                            applicantFilters.accountStatus === 'warning_2'
-                              ? 'bg-yellow-500 text-white'
-                              : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300'
-                          }`}
-                        >
-                          <AlertCircle className="w-3 h-3" /> 확인필요
-                        </button>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'warning_3' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
-                            applicantFilters.accountStatus === 'warning_3'
-                              ? 'bg-red-500 text-white'
-                              : 'bg-white text-red-700 hover:bg-red-50 border border-red-300'
-                          }`}
-                        >
-                          <ShieldX className="w-3 h-3" /> 가계정 의심
-                        </button>
-                        <button
-                          onClick={() => setApplicantFilters(prev => ({ ...prev, accountStatus: 'unclassified' }))}
-                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                            applicantFilters.accountStatus === 'unclassified'
-                              ? 'bg-gray-500 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-100 border'
-                          }`}
-                        >
-                          검증중
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          showAdvancedFilters
+                            ? 'bg-purple-600 text-white shadow-md'
+                            : 'bg-white text-purple-700 border border-purple-300 hover:bg-purple-50'
+                        }`}
+                      >
+                        <Filter className="w-4 h-4" />
+                        고급 필터
+                        {(applicantFilters.skinType !== 'all' || applicantFilters.personalColor !== 'all' ||
+                          applicantFilters.skinShade !== 'all' || applicantFilters.skinConcerns.length > 0) && (
+                          <span className="ml-1 w-5 h-5 bg-pink-500 text-white text-xs rounded-full flex items-center justify-center">
+                            !
+                          </span>
+                        )}
+                      </button>
                     </div>
 
-                    {/* 계정 인증 상태 설명 */}
-                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Info className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm font-semibold text-purple-800">계정 인증 상태는 아래와 같이 평가됩니다</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                            크넥 내부 심사단이 대표 콘텐츠 3~5개 리뷰
+                    {/* 고급 필터 패널 */}
+                    {showAdvancedFilters && (
+                      <div className="p-5 bg-white rounded-xl border-2 border-purple-200 shadow-lg space-y-5">
+                        {/* BEAUTY SPEC 필터 */}
+                        <div>
+                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gradient-to-br from-pink-400 to-purple-400 rounded-lg flex items-center justify-center text-white text-xs">✨</span>
+                            BEAUTY SPEC
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {/* 피부 타입 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">피부 타입</label>
+                              <select
+                                value={applicantFilters.skinType}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, skinType: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(SKIN_TYPES).map(([key, label]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 퍼스널 컬러 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">퍼스널 컬러</label>
+                              <select
+                                value={applicantFilters.personalColor}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, personalColor: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.keys(PERSONAL_COLORS).map(key => (
+                                  <option key={key} value={key}>{key}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 피부 톤 (호수) */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">호수</label>
+                              <select
+                                value={applicantFilters.skinShade}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, skinShade: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(SKIN_SHADES).map(([key, { label }]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 모발 타입 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">헤어</label>
+                              <select
+                                value={applicantFilters.hairType}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, hairType: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(HAIR_TYPES).map(([key, label]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                            평가 기준: 영상 퀄리티, 스토리텔링, 뷰티 전문성, 브랜드 적합성
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                            품앗이 등 부정적인 시스템 이용 여부 체크
-                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                            브랜드 협업 완료율
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                            브랜드 재협업 의향률
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                            총 협업 횟수 표기
-                          </div>
-                        </div>
-                      </div>
-                      {/* 간단한 상태 범례 */}
-                      <div className="mt-4 pt-3 border-t border-purple-200 flex flex-wrap gap-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
-                          <span className="text-xs text-gray-600">인증완료</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
-                          <span className="text-xs text-gray-600">확인중</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 bg-yellow-500 rounded-full" />
-                          <span className="text-xs text-gray-600">확인필요</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                          <span className="text-xs text-gray-600">가계정 의심</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 bg-gray-400 rounded-full" />
-                          <span className="text-xs text-gray-600">검증중</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* 필터 결과 카운트 */}
-                    {(applicantFilters.skinType !== 'all' || applicantFilters.ageRange !== 'all' || applicantFilters.accountStatus !== 'all') && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">
-                          필터 결과: <strong className="text-purple-600">
-                            {applications.filter(app => {
-                              // 피부 타입 필터
-                              if (applicantFilters.skinType !== 'all') {
-                                const normalizedSkinType = normalizeSkinType(app.skin_type)
-                                if (normalizedSkinType !== applicantFilters.skinType) return false
-                              }
-                              // 나이대 필터
-                              if (applicantFilters.ageRange !== 'all' && app.age) {
-                                const range = AGE_RANGES[applicantFilters.ageRange]
-                                if (app.age < range.min || app.age > range.max) return false
-                              } else if (applicantFilters.ageRange !== 'all' && !app.age) {
-                                return false
-                              }
-                              // 계정 상태 필터
-                              if (applicantFilters.accountStatus !== 'all') {
-                                if (applicantFilters.accountStatus === 'unclassified') {
-                                  if (app.account_status) return false
-                                } else {
-                                  if (app.account_status !== applicantFilters.accountStatus) return false
-                                }
-                              }
-                              return true
-                            }).length}명
-                          </strong> / 전체 {applications.length}명
-                        </span>
-                        <button
-                          onClick={() => setApplicantFilters({ skinType: 'all', ageRange: 'all', accountStatus: 'all' })}
-                          className="text-xs text-gray-500 hover:text-gray-700 underline"
-                        >
-                          필터 초기화
-                        </button>
+                        {/* 피부 고민 CONCERNS 키워드 필터 */}
+                        <div>
+                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gradient-to-br from-rose-400 to-pink-400 rounded-lg flex items-center justify-center text-white text-xs">🏷️</span>
+                            CONCERNS (복수 선택)
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {SKIN_CONCERNS_LIST.map(concern => (
+                              <button
+                                key={concern}
+                                onClick={() => {
+                                  setApplicantFilters(prev => ({
+                                    ...prev,
+                                    skinConcerns: prev.skinConcerns.includes(concern)
+                                      ? prev.skinConcerns.filter(c => c !== concern)
+                                      : [...prev.skinConcerns, concern]
+                                  }))
+                                }}
+                                className={`px-3 py-1.5 text-xs rounded-full transition-all ${
+                                  applicantFilters.skinConcerns.includes(concern)
+                                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
+                                    : 'bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100'
+                                }`}
+                              >
+                                {concern}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 채널 & 기타 필터 */}
+                        <div>
+                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center text-white text-xs">📺</span>
+                            채널 & 기타
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            {/* 나이대 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">나이대</label>
+                              <select
+                                value={applicantFilters.ageRange}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, ageRange: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(AGE_RANGES).map(([key, { label }]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 성별 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">성별</label>
+                              <select
+                                value={applicantFilters.gender}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, gender: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(GENDERS).map(([key, label]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 편집 레벨 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">편집</label>
+                              <select
+                                value={applicantFilters.editingLevel}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, editingLevel: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(SKILL_LEVELS).map(([key, { label }]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 촬영 레벨 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">촬영</label>
+                              <select
+                                value={applicantFilters.shootingLevel}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, shootingLevel: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                {Object.entries(SKILL_LEVELS).map(([key, { label }]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 계정 상태 */}
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">계정 상태</label>
+                              <select
+                                value={applicantFilters.accountStatus}
+                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, accountStatus: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                              >
+                                <option value="all">전체</option>
+                                <option value="verified">인증완료</option>
+                                <option value="warning_1">확인중</option>
+                                <option value="warning_2">확인필요</option>
+                                <option value="warning_3">가계정 의심</option>
+                                <option value="unclassified">검증중</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 활동 키워드 */}
+                        <div>
+                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center text-white text-xs">🎬</span>
+                            활동 (복수 선택)
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {ACTIVITY_KEYWORDS.map(keyword => (
+                              <button
+                                key={keyword}
+                                onClick={() => {
+                                  setApplicantFilters(prev => ({
+                                    ...prev,
+                                    activityKeywords: prev.activityKeywords.includes(keyword)
+                                      ? prev.activityKeywords.filter(k => k !== keyword)
+                                      : [...prev.activityKeywords, keyword]
+                                  }))
+                                }}
+                                className={`px-3 py-1.5 text-xs rounded-full transition-all ${
+                                  applicantFilters.activityKeywords.includes(keyword)
+                                    ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md'
+                                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                                }`}
+                              >
+                                {keyword}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 카드에 표시할 항목 선택 (최대 5개) */}
+                        <div>
+                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gradient-to-br from-violet-400 to-purple-400 rounded-lg flex items-center justify-center text-white text-xs">📋</span>
+                            카드에 추가 표시 (최대 5개)
+                            {cardDisplayOptions.length > 0 && (
+                              <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                {cardDisplayOptions.length}/5 선택됨
+                              </span>
+                            )}
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(CARD_DISPLAY_OPTIONS).map(([key, { label, icon }]) => {
+                              const isSelected = cardDisplayOptions.includes(key)
+                              const isDisabled = !isSelected && cardDisplayOptions.length >= 5
+                              return (
+                                <button
+                                  key={key}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setCardDisplayOptions(prev => prev.filter(k => k !== key))
+                                    } else if (cardDisplayOptions.length < 5) {
+                                      setCardDisplayOptions(prev => [...prev, key])
+                                    }
+                                  }}
+                                  disabled={isDisabled}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all ${
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md'
+                                      : isDisabled
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100'
+                                  }`}
+                                >
+                                  <span>{icon}</span>
+                                  {label}
+                                  {isSelected && <span className="ml-1">✓</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 필터 초기화 버튼 */}
+                        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                          <button
+                            onClick={() => setCardDisplayOptions([])}
+                            className="text-xs text-violet-500 hover:text-violet-700"
+                          >
+                            카드 표시 초기화
+                          </button>
+                          <button
+                            onClick={() => {
+                              setApplicantFilters({
+                                skinType: 'all', ageRange: 'all', accountStatus: 'all',
+                                personalColor: 'all', skinShade: 'all', hairType: 'all',
+                                editingLevel: 'all', shootingLevel: 'all', gender: 'all',
+                                followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: ''
+                              })
+                              setCardDisplayOptions([])
+                            }}
+                            className="text-sm text-gray-500 hover:text-purple-600 underline"
+                          >
+                            모든 필터 초기화
+                          </button>
+                        </div>
                       </div>
                     )}
+
+                    {/* 필터 결과 카운트 */}
+                    {(() => {
+                      const hasActiveFilters = applicantFilters.skinType !== 'all' ||
+                        applicantFilters.ageRange !== 'all' ||
+                        applicantFilters.accountStatus !== 'all' ||
+                        applicantFilters.personalColor !== 'all' ||
+                        applicantFilters.skinShade !== 'all' ||
+                        applicantFilters.hairType !== 'all' ||
+                        applicantFilters.editingLevel !== 'all' ||
+                        applicantFilters.shootingLevel !== 'all' ||
+                        applicantFilters.gender !== 'all' ||
+                        applicantFilters.skinConcerns.length > 0 ||
+                        applicantFilters.activityKeywords.length > 0 ||
+                        applicantFilters.searchText !== ''
+
+                      if (!hasActiveFilters) return null
+
+                      const filteredCount = applications.filter(app => {
+                        // 텍스트 검색
+                        if (applicantFilters.searchText) {
+                          const searchLower = applicantFilters.searchText.toLowerCase()
+                          const nameMatch = (app.applicant_name || '').toLowerCase().includes(searchLower)
+                          const bioMatch = (app.bio || '').toLowerCase().includes(searchLower)
+                          const aiMatch = (app.ai_profile_text || '').toLowerCase().includes(searchLower)
+                          if (!nameMatch && !bioMatch && !aiMatch) return false
+                        }
+                        // 피부 타입 필터
+                        if (applicantFilters.skinType !== 'all') {
+                          const normalizedSkinType = normalizeSkinType(app.skin_type)
+                          if (normalizedSkinType !== applicantFilters.skinType) return false
+                        }
+                        // 퍼스널 컬러 필터
+                        if (applicantFilters.personalColor !== 'all') {
+                          if (app.personal_color !== applicantFilters.personalColor) return false
+                        }
+                        // 피부 톤 (호수) 필터
+                        if (applicantFilters.skinShade !== 'all') {
+                          if (app.skin_shade !== applicantFilters.skinShade) return false
+                        }
+                        // 모발 타입 필터
+                        if (applicantFilters.hairType !== 'all') {
+                          if (app.hair_type !== applicantFilters.hairType) return false
+                        }
+                        // 나이대 필터
+                        if (applicantFilters.ageRange !== 'all') {
+                          if (!app.age) return false
+                          const range = AGE_RANGES[applicantFilters.ageRange]
+                          if (app.age < range.min || app.age > range.max) return false
+                        }
+                        // 성별 필터
+                        if (applicantFilters.gender !== 'all') {
+                          if (app.gender !== applicantFilters.gender) return false
+                        }
+                        // 편집 레벨 필터
+                        if (applicantFilters.editingLevel !== 'all') {
+                          if (app.editing_level !== applicantFilters.editingLevel) return false
+                        }
+                        // 촬영 레벨 필터
+                        if (applicantFilters.shootingLevel !== 'all') {
+                          if (app.shooting_level !== applicantFilters.shootingLevel) return false
+                        }
+                        // 계정 상태 필터
+                        if (applicantFilters.accountStatus !== 'all') {
+                          if (applicantFilters.accountStatus === 'unclassified') {
+                            if (app.account_status) return false
+                          } else {
+                            if (app.account_status !== applicantFilters.accountStatus) return false
+                          }
+                        }
+                        // 피부 고민 필터 (복수 선택 - OR 조건)
+                        if (applicantFilters.skinConcerns.length > 0) {
+                          const appConcerns = app.skin_concerns || []
+                          const hasMatchingConcern = applicantFilters.skinConcerns.some(concern =>
+                            appConcerns.includes(concern)
+                          )
+                          if (!hasMatchingConcern) return false
+                        }
+                        // 활동 키워드 필터 (복수 선택)
+                        if (applicantFilters.activityKeywords.length > 0) {
+                          const hasChildAppearance = app.child_appearance === '가능' || app.child_appearance === 'possible'
+                          const hasFamilyAppearance = app.family_appearance === '가능' || app.family_appearance === 'possible'
+                          const hasOfflineVisit = app.offline_visit === '가능' || app.offline_visit === 'possible'
+
+                          const matchKeyword = applicantFilters.activityKeywords.every(keyword => {
+                            if (keyword === '아이출연가능') return hasChildAppearance
+                            if (keyword === '가족출연가능') return hasFamilyAppearance
+                            if (keyword === '오프라인촬영가능') return hasOfflineVisit
+                            return true
+                          })
+                          if (!matchKeyword) return false
+                        }
+                        return true
+                      }).length
+
+                      return (
+                        <div className="flex items-center justify-between text-sm px-4 py-2 bg-purple-50 rounded-lg">
+                          <span className="text-gray-600">
+                            필터 결과: <strong className="text-purple-600">{filteredCount}명</strong> / 전체 {applications.length}명
+                          </span>
+                          <button
+                            onClick={() => setApplicantFilters({
+                              skinType: 'all', ageRange: 'all', accountStatus: 'all',
+                              personalColor: 'all', skinShade: 'all', hairType: 'all',
+                              editingLevel: 'all', shootingLevel: 'all', gender: 'all',
+                              followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: ''
+                            })}
+                            className="text-xs text-gray-500 hover:text-purple-600 underline"
+                          >
+                            필터 초기화
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
@@ -5912,17 +6203,48 @@ JSON만 출력.`
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {applications.filter(app => {
+                      // 텍스트 검색
+                      if (applicantFilters.searchText) {
+                        const searchLower = applicantFilters.searchText.toLowerCase()
+                        const nameMatch = (app.applicant_name || '').toLowerCase().includes(searchLower)
+                        const bioMatch = (app.bio || '').toLowerCase().includes(searchLower)
+                        const aiMatch = (app.ai_profile_text || '').toLowerCase().includes(searchLower)
+                        if (!nameMatch && !bioMatch && !aiMatch) return false
+                      }
                       // 피부 타입 필터
                       if (applicantFilters.skinType !== 'all') {
                         const normalizedSkinType = normalizeSkinType(app.skin_type)
                         if (normalizedSkinType !== applicantFilters.skinType) return false
                       }
+                      // 퍼스널 컬러 필터
+                      if (applicantFilters.personalColor !== 'all') {
+                        if (app.personal_color !== applicantFilters.personalColor) return false
+                      }
+                      // 피부 톤 (호수) 필터
+                      if (applicantFilters.skinShade !== 'all') {
+                        if (app.skin_shade !== applicantFilters.skinShade) return false
+                      }
+                      // 모발 타입 필터
+                      if (applicantFilters.hairType !== 'all') {
+                        if (app.hair_type !== applicantFilters.hairType) return false
+                      }
                       // 나이대 필터
-                      if (applicantFilters.ageRange !== 'all' && app.age) {
+                      if (applicantFilters.ageRange !== 'all') {
+                        if (!app.age) return false
                         const range = AGE_RANGES[applicantFilters.ageRange]
                         if (app.age < range.min || app.age > range.max) return false
-                      } else if (applicantFilters.ageRange !== 'all' && !app.age) {
-                        return false
+                      }
+                      // 성별 필터
+                      if (applicantFilters.gender !== 'all') {
+                        if (app.gender !== applicantFilters.gender) return false
+                      }
+                      // 편집 레벨 필터
+                      if (applicantFilters.editingLevel !== 'all') {
+                        if (app.editing_level !== applicantFilters.editingLevel) return false
+                      }
+                      // 촬영 레벨 필터
+                      if (applicantFilters.shootingLevel !== 'all') {
+                        if (app.shooting_level !== applicantFilters.shootingLevel) return false
                       }
                       // 계정 상태 필터
                       if (applicantFilters.accountStatus !== 'all') {
@@ -5931,6 +6253,27 @@ JSON만 출력.`
                         } else {
                           if (app.account_status !== applicantFilters.accountStatus) return false
                         }
+                      }
+                      // 피부 고민 필터 (복수 선택 - OR 조건)
+                      if (applicantFilters.skinConcerns.length > 0) {
+                        const appConcerns = app.skin_concerns || []
+                        const hasMatchingConcern = applicantFilters.skinConcerns.some(concern =>
+                          appConcerns.includes(concern)
+                        )
+                        if (!hasMatchingConcern) return false
+                      }
+                      // 활동 키워드 필터
+                      if (applicantFilters.activityKeywords.length > 0) {
+                        const hasChildAppearance = app.child_appearance === '가능' || app.child_appearance === 'possible'
+                        const hasFamilyAppearance = app.family_appearance === '가능' || app.family_appearance === 'possible'
+                        const hasOfflineVisit = app.offline_visit === '가능' || app.offline_visit === 'possible'
+                        const matchKeyword = applicantFilters.activityKeywords.every(keyword => {
+                          if (keyword === '아이출연가능') return hasChildAppearance
+                          if (keyword === '가족출연가능') return hasFamilyAppearance
+                          if (keyword === '오프라인촬영가능') return hasOfflineVisit
+                          return true
+                        })
+                        if (!matchKeyword) return false
                       }
                       return true
                     }).map(app => {
@@ -5968,7 +6311,7 @@ JSON만 출력.`
                             </div>
                           </div>
 
-                          {/* 계정 인증 상태 배지 - TOP 크리에이터 배지 위에 배치 */}
+                          {/* 계정 인증 상태 배지 - 항상 표시 */}
                           {app.account_status && ACCOUNT_STATUS[app.account_status] && (
                             <div
                               className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${ACCOUNT_STATUS[app.account_status].lightBg} border ${ACCOUNT_STATUS[app.account_status].borderClass}`}
@@ -5984,7 +6327,7 @@ JSON만 출력.`
                             </div>
                           )}
 
-                          {/* 등급 추천 배지 */}
+                          {/* 등급 추천 배지 - 항상 표시 */}
                           {(() => {
                             const gradeRec = getGradeRecommendation(app.cnec_grade_level)
                             if (!gradeRec) return null
@@ -6002,6 +6345,77 @@ JSON만 출력.`
                             <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
                             <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
                           </div>
+
+                          {/* 선택된 추가 표시 항목 */}
+                          {cardDisplayOptions.length > 0 && (
+                            <div className="mb-2 space-y-1">
+                              {cardDisplayOptions.includes('personalColor') && app.personal_color && (
+                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
+                                  PERSONAL_COLORS[app.personal_color]?.color || 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  <span>🎨 퍼스널컬러</span>
+                                  <span className="font-medium">{app.personal_color}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('skinShade') && app.skin_shade && (
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded">
+                                  <span>💄 호수</span>
+                                  <span className="font-medium">{app.skin_shade}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('hairType') && app.hair_type && (
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded">
+                                  <span>💇 헤어</span>
+                                  <span className="font-medium">{app.hair_type}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('editingLevel') && app.editing_level && (
+                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
+                                  SKILL_LEVELS[app.editing_level]?.color || 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  <span>🎬 편집</span>
+                                  <span className="font-medium">{app.editing_level}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('shootingLevel') && app.shooting_level && (
+                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
+                                  SKILL_LEVELS[app.shooting_level]?.color || 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  <span>📷 촬영</span>
+                                  <span className="font-medium">{app.shooting_level}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('skinConcerns') && app.skin_concerns && app.skin_concerns.length > 0 && (
+                                <div className="flex flex-wrap gap-1 px-1 py-1">
+                                  {app.skin_concerns.slice(0, 3).map((concern, idx) => (
+                                    <span key={idx} className="px-1.5 py-0.5 text-[10px] bg-pink-100 text-pink-700 rounded-full">
+                                      {concern}
+                                    </span>
+                                  ))}
+                                  {app.skin_concerns.length > 3 && (
+                                    <span className="text-[10px] text-gray-400">+{app.skin_concerns.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('gender') && app.gender && (
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
+                                  <span>👤 성별</span>
+                                  <span className="font-medium">{app.gender}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('job') && app.job && (
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
+                                  <span>💼 직업</span>
+                                  <span className="font-medium truncate max-w-[80px]">{app.job}</span>
+                                </div>
+                              )}
+                              {cardDisplayOptions.includes('aiProfile') && app.ai_profile_text && (
+                                <div className="text-xs px-2 py-1 bg-violet-50 text-violet-700 rounded">
+                                  <p className="line-clamp-2">{app.ai_profile_text}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* 채널 & 팔로워 */}
                           <div className="space-y-1 mb-2">
@@ -9592,13 +10006,13 @@ JSON만 출력.`
         </div>
       )}
 
-      {/* 크리에이터 프로필 모달 */}
+      {/* 크리에이터 프로필 모달 - 개편 */}
       {showProfileModal && selectedParticipant && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
             {/* 고정 헤더 */}
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-20">
-              <h2 className="text-xl font-bold text-gray-900">지원서 보기</h2>
+              <h2 className="text-xl font-bold text-gray-900">크리에이터 프로필</h2>
               <button
                 onClick={() => {
                   setShowProfileModal(false)
@@ -9606,169 +10020,245 @@ JSON만 출력.`
                 }}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-6 h-6 text-gray-600" />
               </button>
             </div>
 
             {/* 스크롤 가능한 컨텐츠 */}
             <div className="overflow-y-auto flex-1">
-              {/* 프로필 상단 */}
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-8 text-center">
-                <img
-                  src={selectedParticipant.profile_photo_url || '/default-avatar.png'}
-                  alt={selectedParticipant.name}
-                  className="w-32 h-32 rounded-full mx-auto border-4 border-white shadow-lg object-cover"
-                />
-                <h2 className="text-2xl font-bold text-white mt-4">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
-                {selectedParticipant.age && (
-                  <p className="text-blue-100 mt-1">{selectedParticipant.age}세</p>
-                )}
+              {/* 프로필 상단 - 컴팩트 */}
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img
+                      src={selectedParticipant.profile_photo_url || '/default-avatar.png'}
+                      alt={selectedParticipant.name}
+                      className="w-24 h-24 rounded-xl border-4 border-white shadow-lg object-cover"
+                    />
+                    {selectedParticipant.account_status === 'verified' && (
+                      <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1 rounded-full">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 text-white">
+                    <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
+                    <p className="text-purple-100 mt-1">
+                      {selectedParticipant.gender && `${selectedParticipant.gender} · `}
+                      {selectedParticipant.age && `${selectedParticipant.age}세`}
+                      {selectedParticipant.job && ` · ${selectedParticipant.job}`}
+                    </p>
+                    {/* SNS 채널 아이콘 */}
+                    <div className="flex gap-2 mt-2">
+                      {selectedParticipant.instagram_url && (
+                        <a href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer"
+                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
+                          <span className="text-sm">📷</span>
+                        </a>
+                      )}
+                      {selectedParticipant.youtube_url && (
+                        <a href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer"
+                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
+                          <span className="text-sm">▶️</span>
+                        </a>
+                      )}
+                      {selectedParticipant.tiktok_url && (
+                        <a href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer"
+                           className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
+                          <span className="text-sm">🎵</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-            {/* 모달 컨텐츠 */}
-            <div className="p-6 space-y-6">
-              {/* Bio */}
-              {selectedParticipant.bio && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">크리에이터 소개</h3>
-                  <p className="text-gray-600 leading-relaxed">{selectedParticipant.bio}</p>
-                </div>
-              )}
-
-              {/* 팔로워 통계 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">팔로워 통계</h3>
-                <div className="grid grid-cols-2 gap-4">
+              {/* CHANNEL INFLUENCE - 팔로워 통계 */}
+              <div className="p-4 bg-gray-50 border-b">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">CHANNEL INFLUENCE</h3>
+                <div className="flex gap-4">
                   {selectedParticipant.youtube_subscribers > 0 && (
-                    <div className="bg-red-50 p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                        </svg>
-                        <span className="font-semibold text-red-700">YouTube</span>
+                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                      <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                        <span className="text-lg">▶️</span>
                       </div>
-                      <p className="text-2xl font-bold text-red-600">{selectedParticipant.youtube_subscribers.toLocaleString()}</p>
-                      <p className="text-xs text-red-600 mt-1">구독자</p>
+                      <p className="text-lg font-bold text-red-600">{selectedParticipant.youtube_subscribers >= 10000 ? `${(selectedParticipant.youtube_subscribers / 10000).toFixed(1)}만` : selectedParticipant.youtube_subscribers.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">YOUTUBE</p>
                     </div>
                   )}
                   {selectedParticipant.instagram_followers > 0 && (
-                    <div className="bg-pink-50 p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                        </svg>
-                        <span className="font-semibold text-pink-700">Instagram</span>
+                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                        <span className="text-lg">📷</span>
                       </div>
-                      <p className="text-2xl font-bold text-pink-600">{selectedParticipant.instagram_followers.toLocaleString()}</p>
-                      <p className="text-xs text-pink-600 mt-1">팔로워</p>
+                      <p className="text-lg font-bold text-pink-600">{selectedParticipant.instagram_followers >= 10000 ? `${(selectedParticipant.instagram_followers / 10000).toFixed(1)}만` : selectedParticipant.instagram_followers.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">INSTAGRAM</p>
                     </div>
                   )}
                   {selectedParticipant.tiktok_followers > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-5 h-5 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-                        </svg>
-                        <span className="font-semibold text-gray-700">TikTok</span>
+                    <div className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm">
+                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                        <span className="text-lg">🎵</span>
                       </div>
-                      <p className="text-2xl font-bold text-gray-800">{selectedParticipant.tiktok_followers.toLocaleString()}</p>
-                      <p className="text-xs text-gray-600 mt-1">팔로워</p>
+                      <p className="text-lg font-bold text-gray-800">{selectedParticipant.tiktok_followers >= 10000 ? `${(selectedParticipant.tiktok_followers / 10000).toFixed(1)}만` : selectedParticipant.tiktok_followers.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">TIKTOK</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* SNS 링크 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">SNS 채널</h3>
-                <div className="flex gap-3">
-                  {selectedParticipant.youtube_url && (
-                    <a
-                      href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                      </svg>
-                      YouTube
-                    </a>
-                  )}
-                  {selectedParticipant.instagram_url && (
-                    <a
-                      href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                      </svg>
-                      Instagram
-                    </a>
-                  )}
-                  {selectedParticipant.tiktok_url && (
-                    <a
-                      href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-gray-800 hover:bg-gray-900 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-                      </svg>
-                      TikTok
-                    </a>
-                  )}
-                </div>
+              {/* 모달 컨텐츠 */}
+              <div className="p-6 space-y-6">
+                {/* BEAUTY SPEC */}
+                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type) && (
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-xl border border-pink-200">
+                    <h3 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3">BEAUTY SPEC</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {selectedParticipant.skin_type && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">피부</p>
+                          <p className="text-sm font-semibold text-gray-800">{SKIN_TYPES[selectedParticipant.skin_type?.toLowerCase()] || selectedParticipant.skin_type}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.skin_shade && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">호수</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.skin_shade}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.personal_color && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">퍼스널컬러</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.personal_color}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.hair_type && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">헤어</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.hair_type}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.editing_level && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">편집</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.editing_level}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.shooting_level && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase">촬영</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedParticipant.shooting_level}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* CONCERNS */}
+                {selectedParticipant.skin_concerns && selectedParticipant.skin_concerns.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">CONCERNS</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedParticipant.skin_concerns.map((concern, idx) => (
+                        <span key={idx} className="px-3 py-1 text-xs bg-pink-100 text-pink-700 rounded-full border border-pink-200">
+                          {concern}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI 소개글 */}
+                {selectedParticipant.ai_profile_text && (
+                  <div className="bg-violet-50 p-4 rounded-xl border border-violet-200">
+                    <h3 className="text-xs font-bold text-violet-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> AI 소개글
+                    </h3>
+                    <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.ai_profile_text}</p>
+                  </div>
+                )}
+
+                {/* Bio */}
+                {selectedParticipant.bio && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-800 mb-2">크리에이터 소개</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{selectedParticipant.bio}</p>
+                  </div>
+                )}
+
+                {/* 구분선 */}
+                <hr className="border-gray-200" />
+
+                {/* 지원서 답변 */}
+                {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      지원서 질문 & 답변
+                    </h3>
+                    <div className="space-y-4">
+                      {selectedParticipant.answer_1 && (
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question1 || campaign?.questions?.[0]?.question || '질문 1'}</div>
+                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_1}</div>
+                        </div>
+                      )}
+                      {selectedParticipant.answer_2 && (
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question2 || campaign?.questions?.[1]?.question || '질문 2'}</div>
+                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_2}</div>
+                        </div>
+                      )}
+                      {selectedParticipant.answer_3 && (
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question3 || campaign?.questions?.[2]?.question || '질문 3'}</div>
+                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_3}</div>
+                        </div>
+                      )}
+                      {selectedParticipant.answer_4 && (
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question4 || campaign?.questions?.[3]?.question || '질문 4'}</div>
+                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_4}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 지원자 한마디 */}
+                {selectedParticipant.additional_info && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-purple-600" />
+                      지원자 한마디
+                    </h3>
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl text-sm text-gray-800 whitespace-pre-wrap border border-purple-200">
+                      {selectedParticipant.additional_info}
+                    </div>
+                  </div>
+                )}
+
+                {/* 활동 정보 */}
+                {(selectedParticipant.child_appearance || selectedParticipant.family_appearance || selectedParticipant.offline_visit || selectedParticipant.languages?.length > 0) && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">활동 정보</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedParticipant.child_appearance === '가능' && (
+                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">아이출연가능</span>
+                      )}
+                      {selectedParticipant.family_appearance === '가능' && (
+                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">가족출연가능</span>
+                      )}
+                      {selectedParticipant.offline_visit === '가능' && (
+                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">오프라인촬영가능</span>
+                      )}
+                      {selectedParticipant.languages && selectedParticipant.languages.map((lang, idx) => (
+                        <span key={idx} className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">{lang}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* 지원서 답변 */}
-              {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원서 질문 & 답변</h3>
-                  <div className="space-y-4">
-                    {selectedParticipant.answer_1 && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question1 || campaign?.questions?.[0]?.question || '질문 1'}</div>
-                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_1}</div>
-                      </div>
-                    )}
-                    {selectedParticipant.answer_2 && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question2 || campaign?.questions?.[1]?.question || '질문 2'}</div>
-                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_2}</div>
-                      </div>
-                    )}
-                    {selectedParticipant.answer_3 && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question3 || campaign?.questions?.[2]?.question || '질문 3'}</div>
-                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_3}</div>
-                      </div>
-                    )}
-                    {selectedParticipant.answer_4 && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question4 || campaign?.questions?.[3]?.question || '질문 4'}</div>
-                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_4}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 지원자 한마디 */}
-              {selectedParticipant.additional_info && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원자 한마디</h3>
-                  <div className="p-4 bg-blue-50 rounded-lg text-gray-800 whitespace-pre-wrap">
-                    {selectedParticipant.additional_info}
-                  </div>
-                </div>
-              )}
-            </div>
             </div>{/* 스크롤 컨테이너 닫기 */}
           </div>
         </div>
