@@ -292,6 +292,73 @@ ${data.stepInfo ? `<p style="color:#92400e;margin:10px 0 0;">📌 ${data.stepInf
 </html>`
   }),
 
+  // 영상 수정 요청
+  video_review_request: (data) => ({
+    line: `📹 영상 수정 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인에서 영상 수정 요청이 있습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}피드백: ${data.feedback || '상세 내용을 확인해주세요.'}\n\n수정 후 다시 제출해주세요.\n${data.reviewUrl || 'https://cnec.jp/creator/mypage'}`,
+    sms: `[CNEC] "${data.campaignName}" 영상 수정 요청이 있습니다. 확인 후 다시 제출해주세요.`,
+    emailSubject: `[CNEC] 📹 영상 수정 요청 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">📹 動画修正リクエスト</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#fef2f2;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #fca5a5;">
+<p style="font-size:18px;font-weight:bold;color:#dc2626;margin:0 0 15px;">${data.campaignName}</p>
+${data.stepInfo ? `<p style="color:#991b1b;font-weight:bold;margin:0 0 10px;">📌 ${data.stepInfo}</p>` : ''}
+<div style="background:#fff;border-radius:6px;padding:15px;margin:15px 0;">
+<p style="font-size:14px;color:#374151;margin:0 0 10px;"><strong>フィードバック：</strong></p>
+<p style="font-size:14px;color:#6b7280;margin:0;white-space:pre-wrap;">${data.feedback || '詳細をご確認ください。'}</p>
+</div>
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="${data.reviewUrl || 'https://cnec.jp/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">動画を修正して再提出</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // 출금 완료 알림
+  withdrawal_complete: (data) => ({
+    line: `💸 출금 완료!\n\n${data.creatorName}님, 출금 신청이 완료되었습니다.\n\n출금 금액: ¥${data.amount?.toLocaleString() || 0}\n입금 예정일: ${data.expectedDate || '영업일 기준 3-5일 이내'}\n\n등록하신 계좌로 입금될 예정입니다.\n감사합니다! 🙏`,
+    sms: `[CNEC] 출금 완료! ¥${data.amount?.toLocaleString() || 0}이 등록 계좌로 입금 예정입니다.`,
+    emailSubject: `[CNEC] 💸 출금 완료 안내`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#22c55e,#16a34a);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">💸 出金完了</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#f0fdf4;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #86efac;text-align:center;">
+<p style="font-size:14px;color:#166534;margin:0 0 10px;">出金金額</p>
+<p style="font-size:32px;font-weight:bold;color:#16a34a;margin:0;">¥${data.amount?.toLocaleString() || 0}</p>
+<p style="font-size:14px;color:#166534;margin:15px 0 0;">入金予定日：${data.expectedDate || '営業日基準3〜5日以内'}</p>
+</div>
+<p style="font-size:14px;color:#666;line-height:1.6;text-align:center;">ご登録の口座へ入金されます。<br>ありがとうございます！</p>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
   // 일반 알림
   general: (data) => ({
     line: data.message || '알림이 있습니다.',
