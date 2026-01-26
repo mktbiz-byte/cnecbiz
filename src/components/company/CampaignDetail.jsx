@@ -567,6 +567,7 @@ export default function CampaignDetail() {
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
+  const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved'
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -5897,6 +5898,7 @@ JSON만 출력.`
             >
               <FileText className="w-4 h-4" />
               <span>영상 확인</span>
+              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
             </TabsTrigger>
             <TabsTrigger
               value="completed"
@@ -5904,6 +5906,12 @@ JSON만 출력.`
             >
               <CheckCircle className="w-4 h-4" />
               <span>완료</span>
+              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
+                if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
+                if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                if (p.step1_url || p.step2_url || p.step3_url) return true
+                return videoSubmissions.some(v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+              }).length}명</span>
             </TabsTrigger>
           </TabsList>
 
@@ -7523,12 +7531,40 @@ JSON만 출력.`
           <TabsContent value="editing">
             <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100/50">
-                <CardTitle className="flex items-center gap-2 text-amber-800">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
-                    <FileText className="w-4 h-4 text-white" />
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+                      <FileText className="w-4 h-4 text-white" />
+                    </div>
+                    영상 제출 및 검토
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'all' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'all' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
+                      onClick={() => setVideoReviewFilter('all')}
+                    >
+                      전체 ({new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'pending' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'pending' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}
+                      onClick={() => setVideoReviewFilter('pending')}
+                    >
+                      검수 미완료 ({new Set(videoSubmissions.filter(v => v.status === 'pending' || v.status === 'submitted' || v.status === 'revision_requested').map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'approved' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-300 text-green-700 hover:bg-green-50'}
+                      onClick={() => setVideoReviewFilter('approved')}
+                    >
+                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status)).map(v => v.user_id)).size})
+                    </Button>
                   </div>
-                  영상 제출 및 검토
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 {/* 6개월 보관 정책 안내 */}
@@ -7576,7 +7612,16 @@ JSON만 출력.`
 
                   // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
                   // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+                  let filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+
+                  // 필터에 따라 추가 필터링
+                  if (videoReviewFilter === 'pending') {
+                    // 검수 미완료: pending, submitted, revision_requested 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['pending', 'submitted', 'revision_requested'].includes(v.status))
+                  } else if (videoReviewFilter === 'approved') {
+                    // 검수 완료: approved, sns_uploaded, final_confirmed 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                  }
 
                   // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
