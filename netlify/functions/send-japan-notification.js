@@ -153,6 +153,145 @@ const MESSAGE_TEMPLATES = {
 </html>`
   }),
 
+  // 영상 제출 마감 임박 알림
+  video_deadline_reminder: (data) => ({
+    line: `⏰ 영상 제출 마감 알림\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 영상 제출 마감일이 다가왔습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnec.jp/creator/mypage'}`,
+    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" ${data.stepInfo || '영상'} 마감일: ${data.deadline}. 기한 내 제출 부탁드립니다.`,
+    emailSubject: `[CNEC] ⏰ 영상 제출 마감 알림 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">⏰ 動画提出締切</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#fffbeb;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #fcd34d;">
+<p style="font-size:18px;font-weight:bold;color:#d97706;margin:0 0 15px;">${data.campaignName}</p>
+${data.stepInfo ? `<p style="color:#92400e;font-weight:bold;margin:0 0 10px;">📌 ${data.stepInfo}</p>` : ''}
+<p style="font-size:16px;color:#92400e;margin:0;"><strong>締切日：${data.deadline}</strong></p>
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="${data.submitUrl || 'https://cnec.jp/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">動画を提出</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // 가이드 확인 요청
+  guide_confirm_request: (data) => ({
+    line: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName || '-'}\n\n가이드를 확인하시고 촬영을 시작해주세요.\n${data.guideUrl || 'https://cnec.jp/creator/mypage'}`,
+    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" 가이드가 등록되었습니다. 확인 후 촬영을 시작해주세요.`,
+    emailSubject: `[CNEC] 📋 가이드 확인 요청 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#10b981,#059669);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">📋 ガイド確認</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#ecfdf5;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #6ee7b7;">
+<p style="font-size:18px;font-weight:bold;color:#059669;margin:0 0 15px;">${data.campaignName}</p>
+<p style="color:#047857;margin:0;">ブランド：${data.brandName || '-'}</p>
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="${data.guideUrl || 'https://cnec.jp/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">ガイドを確認</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // SNS 업로드 요청
+  sns_upload_request: (data) => ({
+    line: `📤 SNS 업로드 요청\n\n${data.creatorName}님, "${data.campaignName}" 영상이 승인되었습니다!\n\n이제 SNS에 업로드하시고 아래 정보를 등록해주세요:\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n✅ SNS URL\n✅ 광고 코드\n✅ 클린 영상 (자막 없는 버전)\n\n마감일: ${data.deadline || '캠페인 종료일까지'}\n${data.uploadUrl || 'https://cnec.jp/creator/mypage'}`,
+    sms: `[CNEC] "${data.campaignName}" 영상 승인! SNS 업로드 후 URL, 광고코드, 클린영상을 등록해주세요.`,
+    emailSubject: `[CNEC] 📤 SNS 업로드 요청 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">📤 SNSアップロード</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#f5f3ff;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #c4b5fd;">
+<p style="font-size:18px;font-weight:bold;color:#7c3aed;margin:0 0 15px;">${data.campaignName}</p>
+${data.stepInfo ? `<p style="color:#6d28d9;font-weight:bold;margin:0 0 10px;">📌 ${data.stepInfo}</p>` : ''}
+<div style="background:#fff;border-radius:6px;padding:15px;margin:15px 0;">
+<p style="font-size:14px;color:#374151;margin:0 0 10px;"><strong>提出必要項目：</strong></p>
+<ul style="margin:0;padding-left:20px;color:#4b5563;">
+<li>SNS URL</li>
+<li>広告コード</li>
+<li>クリーン動画（字幕なし版）</li>
+</ul>
+</div>
+<p style="color:#6d28d9;margin:0;"><strong>締切日：${data.deadline || 'キャンペーン終了まで'}</strong></p>
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="${data.uploadUrl || 'https://cnec.jp/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">アップロード</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // 포인트 지급 완료
+  points_awarded: (data) => ({
+    line: `🎁 포인트 지급 완료!\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 보상이 지급되었습니다.\n\n지급 금액: ¥${data.points?.toLocaleString() || 0}\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n마이페이지에서 확인해주세요!`,
+    sms: `[CNEC] "${data.campaignName}" 보상 ¥${data.points?.toLocaleString() || 0} 지급 완료! 마이페이지에서 확인하세요.`,
+    emailSubject: `[CNEC] 🎁 보상 지급 완료 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#eab308,#ca8a04);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">🎁 報酬支給完了</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#fefce8;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #fde047;text-align:center;">
+<p style="font-size:16px;color:#854d0e;margin:0 0 10px;">${data.campaignName}</p>
+<p style="font-size:32px;font-weight:bold;color:#ca8a04;margin:0;">¥${data.points?.toLocaleString() || 0}</p>
+${data.stepInfo ? `<p style="color:#92400e;margin:10px 0 0;">📌 ${data.stepInfo}</p>` : ''}
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="https://cnec.jp/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#eab308,#ca8a04);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">マイページを確認</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
   // 일반 알림
   general: (data) => ({
     line: data.message || '알림이 있습니다.',

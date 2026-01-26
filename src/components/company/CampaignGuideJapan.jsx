@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Checkbox } from '../ui/checkbox'
-import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe } from 'lucide-react'
+import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe, Upload, Wand2, Send, Loader2 } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideJapan = () => {
@@ -22,6 +22,25 @@ const CampaignGuideJapan = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [autoSaving, setAutoSaving] = useState(false)
+
+  // 캠페인 타입 및 가이드 타입
+  const [campaignType, setCampaignType] = useState('regular') // 'regular', 'megawari', '4week_challenge'
+  const [guideType, setGuideType] = useState('manual') // 'manual', 'ai', 'pdf'
+  const [currentStep, setCurrentStep] = useState(1) // 현재 선택된 스텝/주차
+
+  // 스텝별 가이드 데이터
+  const [stepGuides, setStepGuides] = useState({})
+
+  // AI 가이드 생성 상태
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiGuide, setAiGuide] = useState(null)
+
+  // PDF 업로드 상태
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfUploading, setPdfUploading] = useState(false)
+
+  // 가이드 발송 상태
+  const [delivering, setDelivering] = useState(false)
 
   // 가이드 상세 필드
   const [requiredDialogues, setRequiredDialogues] = useState([''])
@@ -108,6 +127,7 @@ const CampaignGuideJapan = () => {
         .from('campaigns')
         .select(`
           title,
+          campaign_type,
           brand_name,
           product_name,
           product_description,
@@ -144,7 +164,18 @@ const CampaignGuideJapan = () => {
           video_tone_ja,
           additional_details_ja,
           additional_shooting_requests_ja,
-          shooting_scenes_ja
+          shooting_scenes_ja,
+          guide_type,
+          guide_pdf_url,
+          ai_guide,
+          step_guides,
+          week1_deadline,
+          week2_deadline,
+          week3_deadline,
+          week4_deadline,
+          step1_deadline,
+          step2_deadline,
+          video_deadline
         `)
         .eq('id', campaignId)
         .single()
@@ -153,6 +184,14 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
+
+        // 캠페인 타입 및 가이드 타입
+        if (data.campaign_type) setCampaignType(data.campaign_type)
+        if (data.guide_type) setGuideType(data.guide_type)
+        if (data.guide_pdf_url) setPdfUrl(data.guide_pdf_url)
+        if (data.ai_guide) setAiGuide(data.ai_guide)
+        if (data.step_guides) setStepGuides(data.step_guides)
+
         // 제품 정보
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
@@ -263,6 +302,12 @@ const CampaignGuideJapan = () => {
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
+      // 가이드 타입 및 관련 데이터 저장
+      updateData.guide_type = guideType
+      if (guideType === 'pdf' && pdfUrl) updateData.guide_pdf_url = pdfUrl
+      if (guideType === 'ai' && aiGuide) updateData.ai_guide = aiGuide
+      if (Object.keys(stepGuides).length > 0) updateData.step_guides = stepGuides
+
       const { error } = await supabase
         .from('campaigns')
         .update(updateData)
@@ -327,6 +372,12 @@ const CampaignGuideJapan = () => {
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
+      // 가이드 타입 및 관련 데이터 저장
+      updateData.guide_type = guideType
+      if (guideType === 'pdf' && pdfUrl) updateData.guide_pdf_url = pdfUrl
+      if (guideType === 'ai' && aiGuide) updateData.ai_guide = aiGuide
+      if (Object.keys(stepGuides).length > 0) updateData.step_guides = stepGuides
+
       const { error } = await supabase
         .from('campaigns')
         .update(updateData)
@@ -348,6 +399,178 @@ const CampaignGuideJapan = () => {
 
   const handleSkip = () => {
     navigate('/company/campaigns')
+  }
+
+  // 스텝 수 계산
+  const getStepCount = () => {
+    if (campaignType === '4week_challenge') return 4
+    if (campaignType === 'megawari') return 2
+    return 1
+  }
+
+  // 스텝 라벨 생성
+  const getStepLabel = (stepNum) => {
+    if (campaignType === '4week_challenge') return `${stepNum}주차`
+    if (campaignType === 'megawari') return `스텝${stepNum}`
+    return '메인 가이드'
+  }
+
+  // AI 가이드 생성
+  const handleGenerateAIGuide = async (stepNumber = null) => {
+    setAiGenerating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/generate-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: stepNumber ? 'generate_step' : 'generate',
+          campaign_type: campaignType,
+          brand_name: brandName,
+          product_name: productName,
+          product_description: productDescription,
+          category: 'beauty',
+          platforms: ['Instagram', 'TikTok'],
+          additional_requirements: additionalDetails,
+          step_number: stepNumber
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'AI 가이드 생성 실패')
+      }
+
+      if (stepNumber) {
+        // 스텝별 가이드 저장
+        setStepGuides(prev => ({
+          ...prev,
+          [stepNumber]: result.step_guide || result.raw_text
+        }))
+      } else {
+        setAiGuide(result.guide || result.raw_text)
+      }
+
+      setSuccess('AI 가이드가 생성되었습니다!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('AI 가이드 생성 오류:', err)
+      setError(err.message || 'AI 가이드 생성 중 오류가 발생했습니다.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // 모든 스텝 가이드 일괄 생성
+  const handleGenerateAllSteps = async () => {
+    setAiGenerating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/generate-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_all_steps',
+          campaign_type: campaignType,
+          brand_name: brandName,
+          product_name: productName,
+          product_description: productDescription
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'AI 가이드 일괄 생성 실패')
+      }
+
+      // 모든 스텝 가이드 저장
+      const newStepGuides = {}
+      result.guides.forEach(g => {
+        newStepGuides[g.step_number] = g.guide || g.raw_text
+      })
+      setStepGuides(newStepGuides)
+
+      setSuccess(`${result.total_steps}개의 가이드가 생성되었습니다!`)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('AI 가이드 일괄 생성 오류:', err)
+      setError(err.message || 'AI 가이드 일괄 생성 중 오류가 발생했습니다.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // PDF 업로드
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setPdfUploading(true)
+    setError('')
+
+    try {
+      const fileName = `guides/${campaignId}/${Date.now()}_${file.name}`
+      const { data, error: uploadError } = await supabase.storage
+        .from('campaign-files')
+        .upload(fileName, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('campaign-files')
+        .getPublicUrl(fileName)
+
+      setPdfUrl(publicUrl)
+      setSuccess('PDF가 업로드되었습니다!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('PDF 업로드 오류:', err)
+      setError('PDF 업로드 중 오류가 발생했습니다.')
+    } finally {
+      setPdfUploading(false)
+    }
+  }
+
+  // 가이드 발송
+  const handleDeliverGuide = async (stepNumber = null) => {
+    setDelivering(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/deliver-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_id: campaignId,
+          campaign_type: campaignType,
+          step_number: stepNumber || currentStep,
+          guide_content: guideType === 'ai'
+            ? (stepNumber ? stepGuides[stepNumber] : aiGuide)
+            : null,
+          guide_url: guideType === 'pdf' ? pdfUrl : null,
+          send_line: true,
+          send_email: true
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '가이드 발송 실패')
+      }
+
+      setSuccess(`가이드가 ${result.results?.total || 0}명에게 발송되었습니다!`)
+      setTimeout(() => setSuccess(''), 5000)
+    } catch (err) {
+      console.error('가이드 발송 오류:', err)
+      setError(err.message || '가이드 발송 중 오류가 발생했습니다.')
+    } finally {
+      setDelivering(false)
+    }
   }
 
   // 일괄 번역 함수
@@ -593,6 +816,43 @@ const CampaignGuideJapan = () => {
             </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* 캠페인 타입 표시 */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+              {campaignType === '4week_challenge' && '🗓️ 4주 챌린지'}
+              {campaignType === 'megawari' && '🎯 메가와리'}
+              {campaignType === 'regular' && '📹 기획형'}
+            </div>
+          </div>
+
+          {/* 멀티스텝 캠페인: 스텝/주차 탭 */}
+          {(campaignType === '4week_challenge' || campaignType === 'megawari') && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <Label className="text-lg font-bold text-orange-900 mb-3 block">
+                {campaignType === '4week_challenge' ? '📅 주차별 가이드' : '🎯 스텝별 가이드'}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: getStepCount() }, (_, i) => i + 1).map(stepNum => (
+                  <button
+                    key={stepNum}
+                    type="button"
+                    onClick={() => setCurrentStep(stepNum)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      currentStep === stepNum
+                        ? 'bg-orange-500 text-white shadow-md'
+                        : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-100'
+                    }`}
+                  >
+                    {getStepLabel(stepNum)}
+                    {stepGuides[stepNum] && (
+                      <CheckCircle2 className="w-4 h-4 inline ml-1 text-green-500" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* 제품 정보 */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <Label className="text-lg font-bold text-blue-900 mb-4 block">📦 제품 정보</Label>
@@ -1012,7 +1272,7 @@ const CampaignGuideJapan = () => {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">クリエイターガイド</CardTitle>
+            <CardTitle className="text-3xl font-bold">🇯🇵 クリエイターガイド</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
             {campaignTitle || 'キャンペーンタイトル'}
@@ -1283,7 +1543,7 @@ const CampaignGuideJapan = () => {
                 <p className="text-sm text-purple-700 mb-4 ml-8">
                   Meta(Facebook/Instagram)広告コードを発行いたします
                 </p>
-                
+
                 {/* 발급 방법 안내 */}
                 <div className="ml-8 mt-4 p-3 bg-white border border-purple-100 rounded-lg">
                   <p className="text-xs font-bold text-purple-900 mb-2">📝 発行方法</p>
@@ -1305,7 +1565,7 @@ const CampaignGuideJapan = () => {
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
               <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
-              <p className="text-sm text-gray-400">左側に韓国語で入力し、「今翻訳」ボタンをクリックしてください</p>
+              <p className="text-sm text-gray-400">左側に韓国語で入力し、「AI翻訳」ボタンをクリックしてください</p>
             </div>
           )}
         </CardContent>

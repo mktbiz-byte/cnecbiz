@@ -567,6 +567,10 @@ export default function CampaignDetail() {
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
+  const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved', 'not_submitted'
+  const [notSubmittedStep, setNotSubmittedStep] = useState(null) // 미제출자 조회 차수 (올리브영: 1/2, 4주: 1~4)
+  const [selectedNotSubmitted, setSelectedNotSubmitted] = useState([]) // 미제출자 선택 (user_id 배열)
+  const [sendingAlimtalk, setSendingAlimtalk] = useState(false) // 알림톡 발송 중
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -981,6 +985,10 @@ export default function CampaignDetail() {
           profile_photo_url: profileImage || null,
           // 이메일 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           email: profile?.email || app.email || app.applicant_email,
+          // 연락처 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
+          phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+          phone_number: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+          creator_phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
@@ -5693,21 +5701,21 @@ JSON만 출력.`
   const totalViews = participants.reduce((sum, p) => sum + (p.views || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate(isAdmin ? '/admin/campaigns' : '/company/campaigns')}>
+        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Button variant="outline" size="sm" onClick={() => navigate(isAdmin ? '/admin/campaigns' : '/company/campaigns')} className="w-fit">
               <ArrowLeft className="w-4 h-4 mr-2" />
               뒤로가기
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">{campaign.title}</h1>
-              <p className="text-gray-600 mt-1">{campaign.brand} • {campaign.product_name}</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold break-words">{campaign.title}</h1>
+              <p className="text-sm text-gray-600 mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {getApprovalStatusBadge(campaign.approval_status)}
             {/* 수정 버튼: draft, pending_payment, rejected 상태에서 표시 (취소되지 않은 경우만) */}
             {(campaign.status === 'draft' || ['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status)) && !campaign.is_cancelled && (
@@ -5812,13 +5820,13 @@ JSON만 출력.`
         </div>
 
         {/* Campaign Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">패키지</p>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-xs sm:text-sm text-gray-600">패키지</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
                     {campaign.package_type === 'junior' ? '초급' :
                      campaign.package_type === 'standard' ? '스탠다드' :
                      campaign.package_type === 'intermediate' ? '스탠다드' :
@@ -5836,23 +5844,23 @@ JSON만 출력.`
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">모집 인원</p>
-                  <p className="text-2xl font-bold mt-2">{campaign.total_slots}명</p>
+                  <p className="text-xs sm:text-sm text-gray-600">모집 인원</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">{campaign.total_slots}명</p>
                 </div>
-                <Users className="w-8 h-8 text-blue-600" />
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">결제 예상 금액 <span className="text-xs text-gray-500">(VAT 포함)</span></p>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
                     {campaign.package_type && campaign.total_slots ?
                       `₩${(getPackagePrice(campaign.package_type, campaign.campaign_type) * campaign.total_slots * 1.1).toLocaleString()}`
                       : '-'
@@ -5864,48 +5872,61 @@ JSON만 출력.`
           </Card>
         </div>
 
-        {/* Tabs - 개선된 디자인 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1.5 rounded-2xl inline-flex">
-            <TabsTrigger
-              value="applications"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <Users className="w-4 h-4" />
-              <span>지원 크리에이터</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.length}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="virtual"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>가상 선정</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="confirmed"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>선정 크리에이터</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{participants.length}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="editing"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <FileText className="w-4 h-4" />
-              <span>영상 확인</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="completed"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>완료</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs - 개선된 디자인 (모바일 스크롤 지원) */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-2">
+            <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex min-w-max">
+              <TabsTrigger
+                value="applications"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">지원 크리에이터</span>
+                <span className="sm:hidden">지원</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="virtual"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">가상 선정</span>
+                <span className="sm:hidden">가선</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="confirmed"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">선정 크리에이터</span>
+                <span className="sm:hidden">선정</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="editing"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">영상 확인</span>
+                <span className="sm:hidden">영상</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="completed"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>완료</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
+                  if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
+                  if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                  if (p.step1_url || p.step2_url || p.step3_url) return true
+                  return videoSubmissions.some(v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                }).length}명</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
@@ -7523,12 +7544,48 @@ JSON만 출력.`
           <TabsContent value="editing">
             <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100/50">
-                <CardTitle className="flex items-center gap-2 text-amber-800">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
-                    <FileText className="w-4 h-4 text-white" />
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+                      <FileText className="w-4 h-4 text-white" />
+                    </div>
+                    영상 제출 및 검토
+                  </CardTitle>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'all' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'all' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
+                      onClick={() => setVideoReviewFilter('all')}
+                    >
+                      전체 ({new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'pending' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'pending' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}
+                      onClick={() => setVideoReviewFilter('pending')}
+                    >
+                      검수 미완료 ({new Set(videoSubmissions.filter(v => v.status === 'pending' || v.status === 'submitted' || v.status === 'revision_requested').map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'approved' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-300 text-green-700 hover:bg-green-50'}
+                      onClick={() => setVideoReviewFilter('approved')}
+                    >
+                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status)).map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'not_submitted' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'not_submitted' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
+                      onClick={() => setVideoReviewFilter('not_submitted')}
+                    >
+                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id)).length})
+                    </Button>
                   </div>
-                  영상 제출 및 검토
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 {/* 6개월 보관 정책 안내 */}
@@ -7564,7 +7621,342 @@ JSON만 출력.`
                   </div>
                 </div>
 
-                {(() => {
+                {/* 미제출자 목록 */}
+                {videoReviewFilter === 'not_submitted' && (() => {
+                  // 캠페인 타입 확인
+                  const campaignType = (campaign.campaign_type || '').toLowerCase()
+                  const isOliveyoung = campaignType.includes('oliveyoung') || campaignType.includes('올리브')
+                  const is4WeekChallenge = campaignType.includes('4week') || campaignType.includes('challenge')
+                  const isMultiStep = isOliveyoung || is4WeekChallenge
+
+                  // 각 차수별 마감일 정보 생성
+                  let stepOptions = []
+                  let stepFieldName = 'video_number'
+
+                  if (isOliveyoung) {
+                    stepOptions = [
+                      { num: 1, label: '1차 영상', date: campaign.step1_deadline },
+                      { num: 2, label: '2차 영상', date: campaign.step2_deadline }
+                    ].filter(d => d.date)
+                  } else if (is4WeekChallenge) {
+                    stepFieldName = 'week_number'
+                    stepOptions = [
+                      { num: 1, label: '1주차', date: campaign.week1_deadline },
+                      { num: 2, label: '2주차', date: campaign.week2_deadline },
+                      { num: 3, label: '3주차', date: campaign.week3_deadline },
+                      { num: 4, label: '4주차', date: campaign.week4_deadline }
+                    ].filter(d => d.date)
+                  }
+
+                  // 현재 선택된 차수 (없으면 가장 가까운 미래 마감일 자동 선택)
+                  let currentStepNumber = notSubmittedStep
+                  if (!currentStepNumber && stepOptions.length > 0) {
+                    const today = new Date().toISOString().split('T')[0]
+                    const futureSteps = stepOptions.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+                    if (futureSteps.length > 0) {
+                      currentStepNumber = futureSteps[0].num
+                    } else {
+                      currentStepNumber = stepOptions[stepOptions.length - 1].num
+                    }
+                  }
+                  const currentStepInfo = stepOptions.find(s => s.num === currentStepNumber)
+                  const currentStepDeadline = currentStepInfo?.date
+
+                  // 미제출자 필터링
+                  let notSubmittedParticipants
+                  if (isMultiStep && currentStepNumber) {
+                    // 올리브영/4주챌린지: 해당 차수 영상이 없는 참가자
+                    notSubmittedParticipants = participants.filter(p => {
+                      const hasSubmitted = videoSubmissions.some(v =>
+                        v.user_id === p.user_id &&
+                        (v[stepFieldName] === currentStepNumber || v.video_number === currentStepNumber || v.week_number === currentStepNumber)
+                      )
+                      return !hasSubmitted
+                    })
+                  } else {
+                    // 일반 캠페인: 영상이 없는 참가자
+                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+                  }
+
+                  // 연락처 가져오기 헬퍼 함수
+                  const getPhone = (p) => p.phone || p.phone_number || p.creator_phone || ''
+
+                  // 알림톡 보내기 함수
+                  const handleSendAlimtalk = async () => {
+                    if (selectedNotSubmitted.length === 0) {
+                      alert('알림톡을 보낼 크리에이터를 선택해주세요.')
+                      return
+                    }
+
+                    const selectedParticipantsData = notSubmittedParticipants.filter(p => selectedNotSubmitted.includes(p.user_id))
+                    const withPhone = selectedParticipantsData.filter(p => getPhone(p))
+                    const withoutPhone = selectedParticipantsData.filter(p => !getPhone(p))
+
+                    if (withPhone.length === 0) {
+                      alert('선택한 크리에이터 중 연락처가 등록된 크리에이터가 없습니다.')
+                      return
+                    }
+
+                    let confirmMsg = `선택한 ${selectedNotSubmitted.length}명 중 ${withPhone.length}명에게 알림톡을 보내시겠습니까?`
+                    if (withoutPhone.length > 0) {
+                      confirmMsg += `\n(연락처 미등록: ${withoutPhone.length}명)`
+                    }
+                    if (isMultiStep && currentStepNumber) {
+                      const stepLabel = currentStepInfo?.label || `${currentStepNumber}차`
+                      confirmMsg += `\n\n[${stepLabel}] 마감일: ${currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}`
+                    }
+
+                    if (!confirm(confirmMsg)) return
+
+                    setSendingAlimtalk(true)
+                    let successCount = 0
+                    let failCount = 0
+
+                    // 선택된 차수의 마감일 사용
+                    const videoDeadline = currentStepDeadline || campaign.video_deadline || campaign.content_submission_deadline
+
+                    for (const participant of withPhone) {
+                      try {
+                        const phoneNum = getPhone(participant)
+                        const response = await fetch('/.netlify/functions/send-kakao-notification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            receiverNum: phoneNum.replace(/-/g, ''),
+                            receiverName: participant.creator_name || participant.applicant_name || '',
+                            templateCode: '025100001015',
+                            variables: {
+                              '크리에이터명': participant.creator_name || participant.applicant_name || '크리에이터',
+                              '캠페인명': campaign.title || campaign.name || '캠페인',
+                              '제출기한': videoDeadline ? new Date(videoDeadline).toLocaleDateString('ko-KR') : '미정'
+                            }
+                          })
+                        })
+
+                        const result = await response.json()
+                        if (result.success) {
+                          successCount++
+                        } else {
+                          console.error('알림톡 발송 실패:', participant.creator_name, result.error)
+                          failCount++
+                        }
+                      } catch (error) {
+                        console.error('알림톡 발송 오류:', participant.creator_name, error)
+                        failCount++
+                      }
+                    }
+
+                    setSendingAlimtalk(false)
+                    setSelectedNotSubmitted([])
+                    alert(`알림톡 발송 완료\n성공: ${successCount}명\n실패: ${failCount}명`)
+                  }
+
+                  // 전체 선택 핸들러
+                  const handleSelectAll = (checked) => {
+                    if (checked) {
+                      setSelectedNotSubmitted(notSubmittedParticipants.map(p => p.user_id))
+                    } else {
+                      setSelectedNotSubmitted([])
+                    }
+                  }
+
+                  // 개별 선택 핸들러
+                  const handleSelectOne = (userId, checked) => {
+                    if (checked) {
+                      setSelectedNotSubmitted([...selectedNotSubmitted, userId])
+                    } else {
+                      setSelectedNotSubmitted(selectedNotSubmitted.filter(id => id !== userId))
+                    }
+                  }
+
+                  // 차수 변경 핸들러
+                  const handleStepChange = (newStep) => {
+                    setNotSubmittedStep(newStep)
+                    setSelectedNotSubmitted([]) // 차수 변경 시 선택 초기화
+                  }
+
+                  if (notSubmittedParticipants.length === 0 && !isMultiStep) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                        <p className="text-lg font-medium text-green-600">모든 선정 크리에이터가 영상을 제출했습니다!</p>
+                      </div>
+                    )
+                  }
+
+                  const isAllSelected = selectedNotSubmitted.length === notSubmittedParticipants.length && notSubmittedParticipants.length > 0
+
+                  return (
+                    <div className="space-y-4">
+                      {/* 차수 선택 버튼 (올리브영/4주 챌린지) */}
+                      {isMultiStep && stepOptions.length > 0 && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <span className="text-sm font-medium text-purple-800 mr-2">차수 선택:</span>
+                          <div className="flex gap-2 flex-wrap">
+                            {stepOptions.map((step) => {
+                              const stepNotSubmitted = participants.filter(p => {
+                                const hasSubmitted = videoSubmissions.some(v =>
+                                  v.user_id === p.user_id &&
+                                  (v[stepFieldName] === step.num || v.video_number === step.num || v.week_number === step.num)
+                                )
+                                return !hasSubmitted
+                              }).length
+                              return (
+                                <Button
+                                  key={step.num}
+                                  size="sm"
+                                  variant={currentStepNumber === step.num ? 'default' : 'outline'}
+                                  className={currentStepNumber === step.num
+                                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                    : 'border-purple-300 text-purple-700 hover:bg-purple-50'}
+                                  onClick={() => handleStepChange(step.num)}
+                                >
+                                  {step.label}
+                                  <span className="ml-1 text-xs">
+                                    ({stepNotSubmitted}명 미제출)
+                                  </span>
+                                </Button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isAllSelected}
+                              onChange={(e) => handleSelectAll(e.target.checked)}
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                              disabled={notSubmittedParticipants.length === 0}
+                            />
+                            <span className="text-sm font-medium text-gray-700">전체 선택</span>
+                          </label>
+                          <div className="text-sm text-gray-600">
+                            {isMultiStep && currentStepNumber ? (
+                              <>
+                                <span className="font-bold text-purple-600">{currentStepInfo?.label || `${currentStepNumber}차 영상`}</span>
+                                <span className="mx-1">·</span>
+                                <span className="text-gray-500">마감일: {currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}</span>
+                                <span className="mx-2">|</span>
+                              </>
+                            ) : null}
+                            선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
+                            <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 미제출
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleSendAlimtalk}
+                          disabled={selectedNotSubmitted.length === 0 || sendingAlimtalk}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white flex items-center gap-2"
+                        >
+                          {sendingAlimtalk ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              발송 중...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 01-3.476.383.39.39 0 00-.297.17l-2.755 4.133a.75.75 0 01-1.248 0l-2.755-4.133a.39.39 0 00-.297-.17 48.9 48.9 0 01-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97z" clipRule="evenodd" />
+                              </svg>
+                              알림톡 보내기 ({selectedNotSubmitted.length}명)
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {selectedNotSubmitted.length > 0 && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                          <strong>{selectedNotSubmitted.length}명</strong> 선택됨 ·
+                          {isMultiStep && currentStepNumber
+                            ? ` [${currentStepInfo?.label || `${currentStepNumber}차`}] 마감일: ${currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'} `
+                            : ' '}
+                          알림톡이 발송됩니다.
+                        </div>
+                      )}
+
+                      {/* 해당 차수 모든 크리에이터가 제출 완료 */}
+                      {notSubmittedParticipants.length === 0 && isMultiStep && (
+                        <div className="text-center py-8 text-gray-500 bg-green-50 rounded-lg border border-green-200">
+                          <CheckCircle className="w-10 h-10 mx-auto mb-3 text-green-500" />
+                          <p className="text-base font-medium text-green-600">
+                            [{currentStepInfo?.label || `${currentStepNumber}차`}] 모든 선정 크리에이터가 영상을 제출했습니다!
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">다른 차수를 선택하여 미제출자를 확인하세요.</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {notSubmittedParticipants.map((participant) => (
+                          <div
+                            key={participant.id}
+                            className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+                              selectedNotSubmitted.includes(participant.user_id)
+                                ? 'border-yellow-400 ring-2 ring-yellow-200'
+                                : 'border-red-200'
+                            }`}
+                            onClick={() => handleSelectOne(participant.user_id, !selectedNotSubmitted.includes(participant.user_id))}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedNotSubmitted.includes(participant.user_id)}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  handleSelectOne(participant.user_id, e.target.checked)
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                              />
+                              <img
+                                src={participant.profile_photo_url || participant.creator_profile_photo || '/default-avatar.png'}
+                                alt={participant.creator_name || participant.applicant_name}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-red-200"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">
+                                  {participant.creator_name || participant.applicant_name || '이름 없음'}
+                                </h4>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {participant.creator_platform || participant.main_channel || '플랫폼 정보 없음'}
+                                </p>
+                                {participant.creator_channel_url && (
+                                  <a
+                                    href={participant.creator_channel_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-500 hover:underline truncate block"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    채널 바로가기
+                                  </a>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge className="bg-red-100 text-red-700 text-xs">미제출</Badge>
+                                {getPhone(participant) ? (
+                                  <span className="text-xs text-green-600 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                    </svg>
+                                    연락처
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">연락처 없음</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* 영상 제출 목록 */}
+                {videoReviewFilter !== 'not_submitted' && (() => {
                   // Group video submissions by user_id only
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
@@ -7576,7 +7968,16 @@ JSON만 출력.`
 
                   // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
                   // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+                  let filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+
+                  // 필터에 따라 추가 필터링
+                  if (videoReviewFilter === 'pending') {
+                    // 검수 미완료: pending, submitted, revision_requested 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['pending', 'submitted', 'revision_requested'].includes(v.status))
+                  } else if (videoReviewFilter === 'approved') {
+                    // 검수 완료: approved, sns_uploaded, final_confirmed 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                  }
 
                   // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
