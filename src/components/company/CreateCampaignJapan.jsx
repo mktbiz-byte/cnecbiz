@@ -5,7 +5,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Label } from '../ui/label'
-import { Loader2, Globe, ChevronRight } from 'lucide-react'
+import { Loader2, Globe, ChevronRight, Sparkles, Languages } from 'lucide-react'
 
 const CreateCampaignJapan = () => {
   const supabase = getSupabaseClient('japan')
@@ -52,7 +52,7 @@ const CreateCampaignJapan = () => {
     remaining_slots: 10,
     estimated_cost: 220000,
     reward_points: 0,
-    bonus_amount: 0,  // 인센티브 옵션 추가
+    bonus_amount: 0,
     week1_deadline: '',
     week2_deadline: '',
     week3_deadline: '',
@@ -61,7 +61,12 @@ const CreateCampaignJapan = () => {
     step2_deadline: '',
     video_deadline: '',
     requires_ad_code: true,
-    requires_clean_video: true
+    requires_clean_video: true,
+    // 일본어 번역된 필드들
+    title_ja: '',
+    brand_ja: '',
+    description_ja: '',
+    requirements_ja: ''
   })
 
   const [processing, setProcessing] = useState(false)
@@ -70,6 +75,7 @@ const CreateCampaignJapan = () => {
   const [uploadingImage, setUploadingImage] = useState(false)
   const thumbnailInputRef = useRef(null)
   const [isTranslating, setIsTranslating] = useState(false)
+  const [translationComplete, setTranslationComplete] = useState(false)
 
   useEffect(() => {
     if (editId) {
@@ -131,12 +137,20 @@ const CreateCampaignJapan = () => {
           step2_deadline: data.step2_deadline ? data.step2_deadline.split('T')[0] : '',
           video_deadline: data.video_deadline ? data.video_deadline.split('T')[0] : '',
           requires_ad_code: data.requires_ad_code !== false,
-          requires_clean_video: data.requires_clean_video !== false
+          requires_clean_video: data.requires_clean_video !== false,
+          title_ja: data.title_ja || '',
+          brand_ja: data.brand_ja || '',
+          description_ja: data.description_ja || '',
+          requirements_ja: data.requirements_ja || ''
         })
+        // 이미 번역된 내용이 있으면 번역 완료 상태로 설정
+        if (data.title_ja || data.description_ja) {
+          setTranslationComplete(true)
+        }
       }
     } catch (err) {
       console.error('캠페인 로드 실패:', err)
-      setError('キャンペーンデータの読み込みに失敗しました: ' + err.message)
+      setError('캠페인 데이터를 불러오는데 실패했습니다: ' + err.message)
     }
   }
 
@@ -282,7 +296,7 @@ const CreateCampaignJapan = () => {
     if (!file) return
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('画像ファイルは5MB以下にしてください。')
+      setError('이미지 파일은 5MB 이하로 업로드해주세요.')
       return
     }
 
@@ -305,20 +319,20 @@ const CreateCampaignJapan = () => {
         .getPublicUrl(filePath)
 
       setCampaignForm(prev => ({ ...prev, image_url: publicUrl }))
-      setSuccess('サムネイル画像がアップロードされました！')
+      setSuccess('썸네일 이미지가 업로드되었습니다!')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       console.error('이미지 업로드 실패:', err)
-      setError('画像のアップロードに失敗しました: ' + err.message)
+      setError('이미지 업로드에 실패했습니다: ' + err.message)
     } finally {
       setUploadingImage(false)
     }
   }
 
-  // 일괄 번역
+  // AI 일괄 번역 (한국어 → 일본어)
   const translateAllFields = async () => {
     if (!campaignForm.title && !campaignForm.brand && !campaignForm.description && !campaignForm.requirements) {
-      setError('翻訳するコンテンツがありません。')
+      setError('번역할 내용이 없습니다. 캠페인 정보를 먼저 입력해주세요.')
       return
     }
 
@@ -327,7 +341,7 @@ const CreateCampaignJapan = () => {
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API キーが設定されていません。')
+      if (!apiKey) throw new Error('API 키가 설정되어 있지 않습니다.')
 
       const fieldsToTranslate = [
         { key: 'title', label: '제목', value: campaignForm.title },
@@ -336,26 +350,33 @@ const CreateCampaignJapan = () => {
         { key: 'requirements', label: '참가조건', value: campaignForm.requirements }
       ].filter(f => f.value && f.value.trim())
 
+      if (fieldsToTranslate.length === 0) {
+        setError('번역할 내용이 없습니다.')
+        setIsTranslating(false)
+        return
+      }
+
       const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `다음 한국어를 일본어로 자연스럽게 번역해주세요. 각 필드 형식을 유지하고 번역 결과만 출력:\n\n${textToTranslate}` }] }],
+            contents: [{ parts: [{ text: `다음 한국어를 일본어로 자연스럽게 번역해주세요. 마케팅 콘텐츠에 적합하도록 번역하고, 각 필드 형식을 유지하며 번역 결과만 출력해주세요:\n\n${textToTranslate}` }] }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
           })
         }
       )
 
-      if (!response.ok) throw new Error(`API エラー: ${response.status}`)
+      if (!response.ok) throw new Error(`API 에러: ${response.status}`)
 
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
       const cleanText = translatedText.replace(/\*\*/g, '')
 
+      // 번역 결과 파싱
       const titleMatch = cleanText.match(/\[(제목|タイトル)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const brandMatch = cleanText.match(/\[(브랜드|ブランド)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const descMatch = cleanText.match(/\[(설명|説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
@@ -363,17 +384,18 @@ const CreateCampaignJapan = () => {
 
       setCampaignForm(prev => ({
         ...prev,
-        title: titleMatch ? titleMatch[2].trim() : prev.title,
-        brand: brandMatch ? brandMatch[2].trim() : prev.brand,
-        description: descMatch ? descMatch[2].trim() : prev.description,
-        requirements: reqMatch ? reqMatch[2].trim() : prev.requirements
+        title_ja: titleMatch ? titleMatch[2].trim() : prev.title,
+        brand_ja: brandMatch ? brandMatch[2].trim() : prev.brand,
+        description_ja: descMatch ? descMatch[2].trim() : prev.description,
+        requirements_ja: reqMatch ? reqMatch[2].trim() : prev.requirements
       }))
 
-      setSuccess('翻訳が完了しました！')
-      setTimeout(() => setSuccess(''), 3000)
+      setTranslationComplete(true)
+      setSuccess('일본어 번역이 완료되었습니다! 이제 다음 단계로 진행할 수 있습니다.')
+      setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
       console.error('번역 오류:', err)
-      setError(err.message || '翻訳中にエラーが発生しました。')
+      setError('번역 중 오류가 발생했습니다: ' + err.message)
     } finally {
       setIsTranslating(false)
     }
@@ -388,64 +410,76 @@ const CreateCampaignJapan = () => {
 
     try {
       if (!campaignForm.title || !campaignForm.brand || !campaignForm.requirements) {
-        throw new Error('タイトル、ブランド、参加条件は必須項目です。')
+        throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
       }
 
       if (!campaignForm.application_deadline || !campaignForm.start_date || !campaignForm.end_date) {
-        throw new Error('募集締切日、発表日、撮影締切日をすべて入力してください。')
+        throw new Error('모집마감일, 발표일, 촬영마감일을 모두 입력해주세요.')
       }
 
       const hasSelectedPlatform = Object.values(campaignForm.target_platforms).some(Boolean)
       if (!hasSelectedPlatform) {
-        throw new Error('SNSプラットフォームを1つ以上選択してください。')
+        throw new Error('하나 이상의 SNS 플랫폼을 선택해주세요.')
       }
 
-      let userEmail = null
-      try {
-        const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (user) userEmail = user.email
-      } catch (authError) {
-        console.warn('로그인 정보를 가져올 수 없습니다:', authError)
+      // 번역 확인
+      if (!translationComplete && !campaignForm.title_ja) {
+        const confirmWithoutTranslation = confirm('일본어 번역을 하지 않고 진행하시겠습니까?\n\n"AI 일본어 번역" 버튼을 눌러 번역을 먼저 진행하는 것을 권장합니다.')
+        if (!confirmWithoutTranslation) {
+          setProcessing(false)
+          return
+        }
       }
+
+      const campaignType = campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)
+      const packageType = packageOptions.find(p => p.value === campaignForm.package_type)
+      const price = pricing.total
 
       const campaignData = {
-        title: campaignForm.title,
-        brand: campaignForm.brand,
-        description: campaignForm.description || '',
-        requirements: campaignForm.requirements || '',
+        title: campaignForm.title_ja || campaignForm.title,  // 일본어 번역 우선
+        brand: campaignForm.brand_ja || campaignForm.brand,
+        description: campaignForm.description_ja || campaignForm.description,
+        requirements: campaignForm.requirements_ja || campaignForm.requirements,
+        // 원본 한국어 필드 저장
+        title_ko: campaignForm.title,
+        brand_ko: campaignForm.brand,
+        description_ko: campaignForm.description,
+        requirements_ko: campaignForm.requirements,
+        // 일본어 번역 필드 저장
+        title_ja: campaignForm.title_ja,
+        brand_ja: campaignForm.brand_ja,
+        description_ja: campaignForm.description_ja,
+        requirements_ja: campaignForm.requirements_ja,
         category: campaignForm.category,
-        package_type: campaignForm.package_type,
-        campaign_type: campaignForm.campaign_type || 'regular',
-        image_url: campaignForm.image_url || '',
-        reward_amount: packageOptions.find(p => p.value === campaignForm.package_type)?.rewardYen || 12000,
+        image_url: campaignForm.image_url,
+        reward_amount: packageType?.rewardYen || 12000,
         max_participants: campaignForm.total_slots,
-        total_slots: campaignForm.total_slots,
-        remaining_slots: campaignForm.total_slots,
-        estimated_cost: pricing.total,
-        bonus_amount: campaignForm.bonus_amount || 0,
         application_deadline: campaignForm.application_deadline,
         start_date: campaignForm.start_date,
         end_date: campaignForm.end_date,
         status: 'draft',
         target_platforms: campaignForm.target_platforms,
-        question1: campaignForm.question1 || '',
-        question1_type: campaignForm.question1_type || 'short',
-        question2: campaignForm.question2 || '',
-        question2_type: campaignForm.question2_type || 'short',
-        question3: campaignForm.question3 || '',
-        question3_type: campaignForm.question3_type || 'short',
-        question4: campaignForm.question4 || '',
-        question4_type: campaignForm.question4_type || 'short',
-        company_email: userEmail,
-        week1_deadline: campaignForm.week1_deadline || null,
-        week2_deadline: campaignForm.week2_deadline || null,
-        week3_deadline: campaignForm.week3_deadline || null,
-        week4_deadline: campaignForm.week4_deadline || null,
-        step1_deadline: campaignForm.step1_deadline || null,
-        step2_deadline: campaignForm.step2_deadline || null,
-        video_deadline: campaignForm.video_deadline || null,
+        package_type: campaignForm.package_type,
+        campaign_type: campaignForm.campaign_type,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.total_slots,
+        estimated_cost: price,
+        bonus_amount: campaignForm.bonus_amount,
         requires_ad_code: campaignForm.requires_ad_code,
         requires_clean_video: campaignForm.requires_clean_video
+      }
+
+      // 캠페인 타입별 마감일
+      if (campaignForm.campaign_type === '4week_challenge') {
+        campaignData.week1_deadline = campaignForm.week1_deadline || null
+        campaignData.week2_deadline = campaignForm.week2_deadline || null
+        campaignData.week3_deadline = campaignForm.week3_deadline || null
+        campaignData.week4_deadline = campaignForm.week4_deadline || null
+      } else if (campaignForm.campaign_type === 'megawari') {
+        campaignData.step1_deadline = campaignForm.step1_deadline || null
+        campaignData.step2_deadline = campaignForm.step2_deadline || null
+      } else {
+        campaignData.video_deadline = campaignForm.video_deadline || null
       }
 
       if (editId) {
@@ -456,7 +490,7 @@ const CreateCampaignJapan = () => {
 
         if (error) throw error
 
-        setSuccess('キャンペーンが更新されました！')
+        setSuccess('캠페인이 업데이트되었습니다!')
         setTimeout(() => navigate(`/company/campaigns/guide/japan?id=${editId}`), 1500)
       } else {
         const { data, error } = await supabase
@@ -466,7 +500,7 @@ const CreateCampaignJapan = () => {
 
         if (error) throw error
 
-        setSuccess('キャンペーンが作成されました！')
+        setSuccess('캠페인이 생성되었습니다!')
         setTimeout(() => navigate(`/company/campaigns/guide/japan?id=${data[0].id}`), 1500)
       }
     } catch (err) {
@@ -489,16 +523,17 @@ const CreateCampaignJapan = () => {
       <div className="bg-gray-50 py-8 lg:py-12">
         <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/campaigns')} className="text-gray-500 hover:text-gray-700">
-            ← キャンペーン一覧へ
+            ← 캠페인 목록으로
           </Button>
         </div>
 
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className="text-2xl">🇯🇵</span>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">日本キャンペーン作成</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">일본 캠페인 생성</h1>
           </div>
-          <p className="text-gray-500 text-sm lg:text-base">日本市場向けのインフルエンサーマーケティングキャンペーン</p>
+          <p className="text-gray-500 text-sm lg:text-base">일본 시장 대상 인플루언서 마케팅 캠페인</p>
+          <p className="text-indigo-600 text-sm mt-2 font-medium">💡 한국어로 작성 후 마지막에 AI 번역 버튼으로 일본어로 변환됩니다</p>
         </div>
 
         {/* 캠페인 타입 선택 */}
@@ -523,7 +558,7 @@ const CreateCampaignJapan = () => {
                   {type.value === 'regular' && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                        ✨ 人気
+                        ✨ 인기
                       </span>
                     </div>
                   )}
@@ -532,14 +567,14 @@ const CreateCampaignJapan = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-2xl">{type.icon}</span>
                       <h3 className={`text-base font-bold ${isSelected ? colors.text : 'text-gray-900'}`}>
-                        {type.labelJa}
+                        {type.label}
                       </h3>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl lg:text-3xl font-bold text-gray-900">₩{displayPrice.toLocaleString()}</span>
-                      <span className="text-gray-500 text-sm">/名</span>
+                      <span className="text-gray-500 text-sm">/명</span>
                     </div>
-                    <p className="text-gray-500 text-xs mt-2">{type.descriptionJa}</p>
+                    <p className="text-gray-500 text-xs mt-2">{type.description}</p>
                   </div>
 
                   <button
@@ -550,11 +585,11 @@ const CreateCampaignJapan = () => {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    選択する
+                    선택하기
                   </button>
 
                   <ul className="space-y-2 text-sm flex-1">
-                    {type.featuresJa.map((feature, idx) => (
+                    {type.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-2">
                         <svg className={`w-4 h-4 ${colors.text} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
@@ -593,8 +628,8 @@ const CreateCampaignJapan = () => {
               <div className="lg:col-span-2 space-y-8">
                 {/* 크리에이터 등급 선택 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">クリエイター等級選択</h2>
-                  <p className="text-gray-500 mb-6 text-sm">予算に応じてクリエイターのクオリティが変わります。</p>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">크리에이터 등급 선택</h2>
+                  <p className="text-gray-500 mb-6 text-sm">예산에 따라 크리에이터의 퀄리티가 달라집니다.</p>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     {packageOptions.map((pkg) => {
@@ -613,15 +648,15 @@ const CreateCampaignJapan = () => {
                           }`}
                         >
                           {pkg.value === 'intermediate' && (
-                            <span className="absolute -top-2.5 right-3 bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded">BEST</span>
+                            <span className="absolute -top-2.5 right-3 bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded">추천</span>
                           )}
                           <div className={`text-sm font-medium mb-1 ${isSelected ? 'text-indigo-600' : 'text-gray-600'}`}>
-                            {pkg.labelJa}
+                            {pkg.label}
                           </div>
                           <div className="text-xl font-bold text-gray-900 mb-2">
                             ₩{displayPrice.toLocaleString()}
                           </div>
-                          <div className="text-xs text-gray-500">{pkg.descriptionJa}</div>
+                          <div className="text-xs text-gray-500">{pkg.description}</div>
                         </div>
                       )
                     })}
@@ -630,8 +665,8 @@ const CreateCampaignJapan = () => {
                   {/* 모집 인원 슬라이더 */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <Label className="text-sm font-semibold text-gray-700">募集人数</Label>
-                      <span className="text-indigo-600 font-bold text-lg">{campaignForm.total_slots}名</span>
+                      <Label className="text-sm font-semibold text-gray-700">모집 인원</Label>
+                      <span className="text-indigo-600 font-bold text-lg">{campaignForm.total_slots}명</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <input
@@ -677,10 +712,10 @@ const CreateCampaignJapan = () => {
                         </div>
                         <div>
                           <p className="text-sm text-gray-700">
-                            <span className="font-semibold text-indigo-600">AI予測:</span>{' '}
-                            現在の設定で約{' '}
-                            <span className="font-bold text-indigo-700">{expectedApplicants.min}~{expectedApplicants.max}名</span>
-                            のクリエイターが応募する見込みです。
+                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
+                            현재 설정으로 약{' '}
+                            <span className="font-bold text-indigo-700">{expectedApplicants.min}~{expectedApplicants.max}명</span>
+                            의 크리에이터가 지원할 것으로 예상됩니다.
                           </p>
                         </div>
                       </div>
@@ -690,8 +725,8 @@ const CreateCampaignJapan = () => {
 
                 {/* 인센티브 옵션 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">インセンティブオプション</h2>
-                  <p className="text-gray-500 mb-6 text-sm">インセンティブを追加して優秀なクリエイターの応募を促進</p>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">인센티브 옵션</h2>
+                  <p className="text-gray-500 mb-6 text-sm">인센티브를 추가하여 우수 크리에이터의 지원을 유도하세요</p>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {bonusOptions.map((option) => (
@@ -705,7 +740,7 @@ const CreateCampaignJapan = () => {
                         }`}
                       >
                         {option.value === 100000 && (
-                          <span className="absolute -top-2 right-2 bg-purple-500 text-white text-xs px-2 py-0.5 rounded">推奨</span>
+                          <span className="absolute -top-2 right-2 bg-purple-500 text-white text-xs px-2 py-0.5 rounded">추천</span>
                         )}
                         <div className={`text-lg font-bold mb-1 ${campaignForm.bonus_amount === option.value ? 'text-purple-600' : 'text-gray-900'}`}>
                           {option.label}
@@ -720,12 +755,12 @@ const CreateCampaignJapan = () => {
                 {campaignForm.campaign_type === '4week_challenge' && (
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-purple-200">
                     <h3 className="font-bold text-purple-800 mb-4 flex items-center gap-2">
-                      🗓️ 4週チャレンジスケジュール
+                      🗓️ 4주 챌린지 스케줄
                     </h3>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {[1, 2, 3, 4].map(week => (
                         <div key={week}>
-                          <Label className="text-sm">第{week}週締切</Label>
+                          <Label className="text-sm">{week}주차 마감일</Label>
                           <Input
                             type="date"
                             value={campaignForm[`week${week}_deadline`]}
@@ -740,11 +775,11 @@ const CreateCampaignJapan = () => {
                 {campaignForm.campaign_type === 'megawari' && (
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-orange-200">
                     <h3 className="font-bold text-orange-800 mb-4 flex items-center gap-2">
-                      🎯 メガ割スケジュール
+                      🎯 메가와리 스케줄
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-sm">ステップ1 締切</Label>
+                        <Label className="text-sm">스텝1 마감일</Label>
                         <Input
                           type="date"
                           value={campaignForm.step1_deadline}
@@ -752,7 +787,7 @@ const CreateCampaignJapan = () => {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">ステップ2 締切</Label>
+                        <Label className="text-sm">스텝2 마감일</Label>
                         <Input
                           type="date"
                           value={campaignForm.step2_deadline}
@@ -766,10 +801,10 @@ const CreateCampaignJapan = () => {
                 {campaignForm.campaign_type === 'regular' && (
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-green-200">
                     <h3 className="font-bold text-green-800 mb-4 flex items-center gap-2">
-                      📹 動画提出締切
+                      📹 영상 제출 마감일
                     </h3>
                     <div>
-                      <Label className="text-sm">動画提出締切日</Label>
+                      <Label className="text-sm">영상 제출 마감일</Label>
                       <Input
                         type="date"
                         value={campaignForm.video_deadline}
@@ -782,69 +817,58 @@ const CreateCampaignJapan = () => {
                 {/* 캠페인 기본 정보 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">キャンペーン情報</h2>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={translateAllFields}
-                      disabled={isTranslating}
-                      className="flex items-center gap-2"
-                    >
-                      {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-                      韓→日 一括翻訳
-                    </Button>
+                    <h2 className="text-xl font-bold text-gray-900">캠페인 정보 (한국어로 작성)</h2>
                   </div>
 
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="title">キャンペーンタイトル *</Label>
+                        <Label htmlFor="title">캠페인 제목 *</Label>
                         <Input
                           id="title"
                           value={campaignForm.title}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, title: e.target.value }))}
-                          placeholder="キャンペーンタイトルを入力"
+                          placeholder="캠페인 제목을 입력하세요"
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="brand">ブランド *</Label>
+                        <Label htmlFor="brand">브랜드 *</Label>
                         <Input
                           id="brand"
                           value={campaignForm.brand}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                          placeholder="ブランド名を入力"
+                          placeholder="브랜드명을 입력하세요"
                           required
                         />
                       </div>
                     </div>
 
                     <div>
-                      <Label htmlFor="description">キャンペーン説明</Label>
+                      <Label htmlFor="description">캠페인 설명</Label>
                       <Textarea
                         id="description"
                         value={campaignForm.description}
                         onChange={(e) => setCampaignForm(prev => ({ ...prev, description: e.target.value }))}
                         rows={3}
-                        placeholder="キャンペーンの説明を入力"
+                        placeholder="캠페인에 대한 설명을 입력하세요"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="requirements">参加条件 *</Label>
+                      <Label htmlFor="requirements">참가 조건 *</Label>
                       <Textarea
                         id="requirements"
                         value={campaignForm.requirements}
                         onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
                         rows={3}
-                        placeholder="参加条件を入力"
+                        placeholder="참가 조건을 입력하세요"
                         required
                       />
                     </div>
 
                     <div>
-                      <Label>サムネイル画像</Label>
+                      <Label>썸네일 이미지</Label>
                       <input
                         type="file"
                         ref={thumbnailInputRef}
@@ -853,7 +877,7 @@ const CreateCampaignJapan = () => {
                         disabled={uploadingImage}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
-                      {uploadingImage && <p className="text-sm text-blue-600 mt-1">アップロード中...</p>}
+                      {uploadingImage && <p className="text-sm text-blue-600 mt-1">업로드 중...</p>}
                       {campaignForm.image_url && (
                         <img src={campaignForm.image_url} alt="Preview" className="h-24 w-auto mt-2 rounded border" />
                       )}
@@ -863,11 +887,11 @@ const CreateCampaignJapan = () => {
 
                 {/* 일정 및 플랫폼 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">スケジュール & プラットフォーム</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">일정 & 플랫폼</h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
-                      <Label>募集締切日 *</Label>
+                      <Label>모집 마감일 *</Label>
                       <Input
                         type="date"
                         value={campaignForm.application_deadline}
@@ -876,7 +900,7 @@ const CreateCampaignJapan = () => {
                       />
                     </div>
                     <div>
-                      <Label>発表日 *</Label>
+                      <Label>선정 발표일 *</Label>
                       <Input
                         type="date"
                         value={campaignForm.start_date}
@@ -885,7 +909,7 @@ const CreateCampaignJapan = () => {
                       />
                     </div>
                     <div>
-                      <Label>撮影締切日 *</Label>
+                      <Label>촬영 마감일 *</Label>
                       <Input
                         type="date"
                         value={campaignForm.end_date}
@@ -896,7 +920,7 @@ const CreateCampaignJapan = () => {
                   </div>
 
                   <div>
-                    <Label className="mb-3">SNSプラットフォーム *</Label>
+                    <Label className="mb-3">SNS 플랫폼 *</Label>
                     <div className="flex flex-wrap gap-4">
                       {[
                         { key: 'instagram', label: '📷 Instagram' },
@@ -922,7 +946,7 @@ const CreateCampaignJapan = () => {
 
                 {/* 추가 옵션 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">追加オプション</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">추가 옵션</h2>
                   <div className="space-y-4">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
@@ -932,8 +956,8 @@ const CreateCampaignJapan = () => {
                         className="w-5 h-5 text-indigo-600 rounded"
                       />
                       <div>
-                        <span className="font-medium">広告コード要求</span>
-                        <p className="text-xs text-gray-500">クリエイターに広告コードの提出を要求</p>
+                        <span className="font-medium">광고 코드 요청</span>
+                        <p className="text-xs text-gray-500">크리에이터에게 광고 코드 제출을 요청합니다</p>
                       </div>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -944,11 +968,81 @@ const CreateCampaignJapan = () => {
                         className="w-5 h-5 text-indigo-600 rounded"
                       />
                       <div>
-                        <span className="font-medium">クリーン動画要求</span>
-                        <p className="text-xs text-gray-500">字幕なしバージョンの動画も提出</p>
+                        <span className="font-medium">클린 영상 요청</span>
+                        <p className="text-xs text-gray-500">자막 없는 버전의 영상도 함께 제출받습니다</p>
                       </div>
                     </label>
                   </div>
+                </div>
+
+                {/* AI 번역 섹션 */}
+                <div className={`rounded-2xl p-6 lg:p-8 shadow-sm border-2 ${translationComplete ? 'bg-green-50 border-green-300' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${translationComplete ? 'bg-green-500' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+                        <Languages className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className={`text-lg font-bold ${translationComplete ? 'text-green-800' : 'text-blue-900'}`}>
+                          {translationComplete ? '✅ 일본어 번역 완료!' : '🌏 AI 일본어 번역'}
+                        </h3>
+                        <p className={`text-sm ${translationComplete ? 'text-green-600' : 'text-blue-700'}`}>
+                          {translationComplete
+                            ? '한국어 내용이 일본어로 번역되었습니다'
+                            : '작성한 한국어 내용을 일본어로 자동 번역합니다'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={translateAllFields}
+                      disabled={isTranslating}
+                      className={`flex items-center gap-2 ${translationComplete ? 'bg-green-600 hover:bg-green-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'} text-white px-6 py-3 text-base`}
+                    >
+                      {isTranslating ? (
+                        <><Loader2 className="w-5 h-5 animate-spin" /> 번역 중...</>
+                      ) : translationComplete ? (
+                        <><Sparkles className="w-5 h-5" /> 다시 번역하기</>
+                      ) : (
+                        <><Sparkles className="w-5 h-5" /> AI 일본어 번역</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* 번역 결과 미리보기 */}
+                  {translationComplete && (campaignForm.title_ja || campaignForm.description_ja) && (
+                    <div className="mt-4 p-4 bg-white rounded-xl border border-green-200">
+                      <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <span>🇯🇵</span> 번역된 일본어 내용
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        {campaignForm.title_ja && (
+                          <div>
+                            <span className="text-gray-500">제목:</span>{' '}
+                            <span className="text-gray-800">{campaignForm.title_ja}</span>
+                          </div>
+                        )}
+                        {campaignForm.brand_ja && (
+                          <div>
+                            <span className="text-gray-500">브랜드:</span>{' '}
+                            <span className="text-gray-800">{campaignForm.brand_ja}</span>
+                          </div>
+                        )}
+                        {campaignForm.description_ja && (
+                          <div>
+                            <span className="text-gray-500">설명:</span>{' '}
+                            <span className="text-gray-800">{campaignForm.description_ja}</span>
+                          </div>
+                        )}
+                        {campaignForm.requirements_ja && (
+                          <div>
+                            <span className="text-gray-500">참가조건:</span>{' '}
+                            <span className="text-gray-800">{campaignForm.requirements_ja}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -956,7 +1050,7 @@ const CreateCampaignJapan = () => {
               <div className="lg:col-span-1">
                 <div className="sticky top-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-6 shadow-xl">
                   <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    📋 見積もり
+                    📋 견적서
                   </h3>
 
                   {/* AI 예측 */}
@@ -965,14 +1059,14 @@ const CreateCampaignJapan = () => {
                       <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      <span className="text-sm text-gray-300">AI予測応募者数</span>
+                      <span className="text-sm text-gray-300">AI 예상 지원자 수</span>
                     </div>
                     <div className="text-2xl font-bold text-yellow-400">
-                      {expectedApplicants.min}~{expectedApplicants.max}名
+                      {expectedApplicants.min}~{expectedApplicants.max}명
                     </div>
                     {campaignForm.bonus_amount > 0 && (
                       <div className="text-xs text-green-400 mt-1">
-                        +{Math.floor(campaignForm.bonus_amount / 100000) * 3}~{Math.floor(campaignForm.bonus_amount / 100000) * 5}名 増加見込み
+                        +{Math.floor(campaignForm.bonus_amount / 100000) * 3}~{Math.floor(campaignForm.bonus_amount / 100000) * 5}명 증가 예상
                       </div>
                     )}
                   </div>
@@ -980,34 +1074,34 @@ const CreateCampaignJapan = () => {
                   {/* 상세 내역 */}
                   <div className="space-y-3 text-sm mb-6">
                     <div className="flex justify-between">
-                      <span className="text-gray-400">キャンペーンタイプ</span>
-                      <span>{campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)?.labelJa}</span>
+                      <span className="text-gray-400">캠페인 타입</span>
+                      <span>{campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)?.label}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">クリエイター等級</span>
-                      <span>{packageOptions.find(p => p.value === campaignForm.package_type)?.labelJa}</span>
+                      <span className="text-gray-400">크리에이터 등급</span>
+                      <span>{packageOptions.find(p => p.value === campaignForm.package_type)?.label}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">単価</span>
+                      <span className="text-gray-400">단가</span>
                       <span>₩{pricing.unitPrice?.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">人数</span>
-                      <span>x {campaignForm.total_slots}名</span>
+                      <span className="text-gray-400">인원</span>
+                      <span>x {campaignForm.total_slots}명</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">小計</span>
+                      <span className="text-gray-400">소계</span>
                       <span>₩{pricing.subtotal?.toLocaleString()}</span>
                     </div>
                     {pricing.bonus > 0 && (
                       <div className="flex justify-between text-green-400">
-                        <span>インセンティブ</span>
+                        <span>인센티브</span>
                         <span>+₩{pricing.bonus.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="border-t border-slate-700 pt-3">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">付加価値税 (10%)</span>
+                        <span className="text-gray-400">부가가치세 (10%)</span>
                         <span>₩{pricing.vat?.toLocaleString()}</span>
                       </div>
                     </div>
@@ -1016,12 +1110,29 @@ const CreateCampaignJapan = () => {
                   {/* 총액 */}
                   <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">総額</span>
+                      <span className="text-gray-400">총액</span>
                       <div className="text-right">
                         <span className="text-3xl font-bold">₩{pricing.total?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* 번역 상태 표시 */}
+                  {!translationComplete && (
+                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 mb-4">
+                      <p className="text-yellow-300 text-xs text-center">
+                        ⚠️ 아래 "AI 일본어 번역" 버튼을 눌러<br/>번역을 완료해주세요
+                      </p>
+                    </div>
+                  )}
+
+                  {translationComplete && (
+                    <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 mb-4">
+                      <p className="text-green-300 text-xs text-center">
+                        ✅ 일본어 번역 완료
+                      </p>
+                    </div>
+                  )}
 
                   {/* 제출 버튼 */}
                   <Button
@@ -1030,14 +1141,14 @@ const CreateCampaignJapan = () => {
                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white py-3 rounded-xl font-semibold"
                   >
                     {processing ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 処理中...</>
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 처리 중...</>
                     ) : (
-                      <>次へ進む <ChevronRight className="w-4 h-4 ml-1" /></>
+                      <>다음 단계로 <ChevronRight className="w-4 h-4 ml-1" /></>
                     )}
                   </Button>
 
                   <p className="text-xs text-gray-400 text-center mt-4">
-                    次のステップでクリエイターガイドを作成します
+                    다음 단계에서 크리에이터 가이드를 작성합니다
                   </p>
                 </div>
               </div>
