@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Checkbox } from '../ui/checkbox'
-import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe } from 'lucide-react'
+import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe, Upload, Wand2, Send, Loader2 } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideJapan = () => {
@@ -22,6 +22,25 @@ const CampaignGuideJapan = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [autoSaving, setAutoSaving] = useState(false)
+
+  // 캠페인 타입 및 가이드 타입
+  const [campaignType, setCampaignType] = useState('regular') // 'regular', 'megawari', '4week_challenge'
+  const [guideType, setGuideType] = useState('manual') // 'manual', 'ai', 'pdf'
+  const [currentStep, setCurrentStep] = useState(1) // 현재 선택된 스텝/주차
+
+  // 스텝별 가이드 데이터
+  const [stepGuides, setStepGuides] = useState({})
+
+  // AI 가이드 생성 상태
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiGuide, setAiGuide] = useState(null)
+
+  // PDF 업로드 상태
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfUploading, setPdfUploading] = useState(false)
+
+  // 가이드 발송 상태
+  const [delivering, setDelivering] = useState(false)
 
   // 가이드 상세 필드
   const [requiredDialogues, setRequiredDialogues] = useState([''])
@@ -108,6 +127,7 @@ const CampaignGuideJapan = () => {
         .from('campaigns')
         .select(`
           title,
+          campaign_type,
           brand_name,
           product_name,
           product_description,
@@ -144,7 +164,18 @@ const CampaignGuideJapan = () => {
           video_tone_ja,
           additional_details_ja,
           additional_shooting_requests_ja,
-          shooting_scenes_ja
+          shooting_scenes_ja,
+          guide_type,
+          guide_pdf_url,
+          ai_guide,
+          step_guides,
+          week1_deadline,
+          week2_deadline,
+          week3_deadline,
+          week4_deadline,
+          step1_deadline,
+          step2_deadline,
+          video_deadline
         `)
         .eq('id', campaignId)
         .single()
@@ -153,6 +184,14 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
+
+        // 캠페인 타입 및 가이드 타입
+        if (data.campaign_type) setCampaignType(data.campaign_type)
+        if (data.guide_type) setGuideType(data.guide_type)
+        if (data.guide_pdf_url) setPdfUrl(data.guide_pdf_url)
+        if (data.ai_guide) setAiGuide(data.ai_guide)
+        if (data.step_guides) setStepGuides(data.step_guides)
+
         // 제품 정보
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
@@ -263,6 +302,12 @@ const CampaignGuideJapan = () => {
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
+      // 가이드 타입 및 관련 데이터 저장
+      updateData.guide_type = guideType
+      if (guideType === 'pdf' && pdfUrl) updateData.guide_pdf_url = pdfUrl
+      if (guideType === 'ai' && aiGuide) updateData.ai_guide = aiGuide
+      if (Object.keys(stepGuides).length > 0) updateData.step_guides = stepGuides
+
       const { error } = await supabase
         .from('campaigns')
         .update(updateData)
@@ -327,6 +372,12 @@ const CampaignGuideJapan = () => {
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
+      // 가이드 타입 및 관련 데이터 저장
+      updateData.guide_type = guideType
+      if (guideType === 'pdf' && pdfUrl) updateData.guide_pdf_url = pdfUrl
+      if (guideType === 'ai' && aiGuide) updateData.ai_guide = aiGuide
+      if (Object.keys(stepGuides).length > 0) updateData.step_guides = stepGuides
+
       const { error } = await supabase
         .from('campaigns')
         .update(updateData)
@@ -334,7 +385,7 @@ const CampaignGuideJapan = () => {
 
       if (error) throw error
 
-      setSuccess('크리에이터 가이드가 저장되었습니다!')
+      setSuccess('クリエイターガイドが保存されました!')
       setTimeout(() => {
         navigate(`/company/campaigns/payment?id=${campaignId}&region=japan`)
       }, 1500)
@@ -348,6 +399,178 @@ const CampaignGuideJapan = () => {
 
   const handleSkip = () => {
     navigate('/company/campaigns')
+  }
+
+  // 스텝 수 계산
+  const getStepCount = () => {
+    if (campaignType === '4week_challenge') return 4
+    if (campaignType === 'megawari') return 2
+    return 1
+  }
+
+  // 스텝 라벨 생성
+  const getStepLabel = (stepNum) => {
+    if (campaignType === '4week_challenge') return `第${stepNum}週`
+    if (campaignType === 'megawari') return `ステップ${stepNum}`
+    return 'メインガイド'
+  }
+
+  // AI 가이드 생성
+  const handleGenerateAIGuide = async (stepNumber = null) => {
+    setAiGenerating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/generate-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: stepNumber ? 'generate_step' : 'generate',
+          campaign_type: campaignType,
+          brand_name: brandName,
+          product_name: productName,
+          product_description: productDescription,
+          category: 'beauty',
+          platforms: ['Instagram', 'TikTok'],
+          additional_requirements: additionalDetails,
+          step_number: stepNumber
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'AI 가이드 생성 실패')
+      }
+
+      if (stepNumber) {
+        // 스텝별 가이드 저장
+        setStepGuides(prev => ({
+          ...prev,
+          [stepNumber]: result.step_guide || result.raw_text
+        }))
+      } else {
+        setAiGuide(result.guide || result.raw_text)
+      }
+
+      setSuccess('AI 가이드가 생성되었습니다!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('AI 가이드 생성 오류:', err)
+      setError(err.message || 'AI 가이드 생성 중 오류가 발생했습니다.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // 모든 스텝 가이드 일괄 생성
+  const handleGenerateAllSteps = async () => {
+    setAiGenerating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/generate-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_all_steps',
+          campaign_type: campaignType,
+          brand_name: brandName,
+          product_name: productName,
+          product_description: productDescription
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'AI 가이드 일괄 생성 실패')
+      }
+
+      // 모든 스텝 가이드 저장
+      const newStepGuides = {}
+      result.guides.forEach(g => {
+        newStepGuides[g.step_number] = g.guide || g.raw_text
+      })
+      setStepGuides(newStepGuides)
+
+      setSuccess(`${result.total_steps}개의 가이드가 생성되었습니다!`)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('AI 가이드 일괄 생성 오류:', err)
+      setError(err.message || 'AI 가이드 일괄 생성 중 오류가 발생했습니다.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // PDF 업로드
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setPdfUploading(true)
+    setError('')
+
+    try {
+      const fileName = `guides/${campaignId}/${Date.now()}_${file.name}`
+      const { data, error: uploadError } = await supabase.storage
+        .from('campaign-files')
+        .upload(fileName, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('campaign-files')
+        .getPublicUrl(fileName)
+
+      setPdfUrl(publicUrl)
+      setSuccess('PDF가 업로드되었습니다!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('PDF 업로드 오류:', err)
+      setError('PDF 업로드 중 오류가 발생했습니다.')
+    } finally {
+      setPdfUploading(false)
+    }
+  }
+
+  // 가이드 발송
+  const handleDeliverGuide = async (stepNumber = null) => {
+    setDelivering(true)
+    setError('')
+
+    try {
+      const response = await fetch('/.netlify/functions/deliver-japan-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_id: campaignId,
+          campaign_type: campaignType,
+          step_number: stepNumber || currentStep,
+          guide_content: guideType === 'ai'
+            ? (stepNumber ? stepGuides[stepNumber] : aiGuide)
+            : null,
+          guide_url: guideType === 'pdf' ? pdfUrl : null,
+          send_line: true,
+          send_email: true
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '가이드 발송 실패')
+      }
+
+      setSuccess(`가이드가 ${result.results?.total || 0}명에게 발송되었습니다!`)
+      setTimeout(() => setSuccess(''), 5000)
+    } catch (err) {
+      console.error('가이드 발송 오류:', err)
+      setError(err.message || '가이드 발송 중 오류가 발생했습니다.')
+    } finally {
+      setDelivering(false)
+    }
   }
 
   // 일괄 번역 함수
@@ -593,6 +816,233 @@ const CampaignGuideJapan = () => {
             </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* 캠페인 타입 표시 */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+              {campaignType === '4week_challenge' && '🗓️ 4週チャレンジ'}
+              {campaignType === 'megawari' && '🎯 メガ割'}
+              {campaignType === 'regular' && '📹 企画型'}
+            </div>
+          </div>
+
+          {/* 가이드 타입 선택 */}
+          <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
+            <Label className="text-lg font-bold text-purple-900 mb-3 block">📋 ガイドタイプ選択</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setGuideType('manual')}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  guideType === 'manual'
+                    ? 'border-purple-500 bg-purple-100 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-300'
+                }`}
+              >
+                <FileText className="w-6 h-6 mx-auto mb-1" />
+                <div className="text-sm font-medium">手動作成</div>
+                <div className="text-xs text-gray-500">직접 입력</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuideType('ai')}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  guideType === 'ai'
+                    ? 'border-purple-500 bg-purple-100 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-300'
+                }`}
+              >
+                <Wand2 className="w-6 h-6 mx-auto mb-1" />
+                <div className="text-sm font-medium">AI生成</div>
+                <div className="text-xs text-gray-500">자동 생성</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuideType('pdf')}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  guideType === 'pdf'
+                    ? 'border-purple-500 bg-purple-100 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-300'
+                }`}
+              >
+                <Upload className="w-6 h-6 mx-auto mb-1" />
+                <div className="text-sm font-medium">PDF Upload</div>
+                <div className="text-xs text-gray-500">PDF 업로드</div>
+              </button>
+            </div>
+          </div>
+
+          {/* 멀티스텝 캠페인: 스텝/주차 탭 */}
+          {(campaignType === '4week_challenge' || campaignType === 'megawari') && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <Label className="text-lg font-bold text-orange-900 mb-3 block">
+                {campaignType === '4week_challenge' ? '📅 週別ガイド' : '🎯 ステップ別ガイド'}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: getStepCount() }, (_, i) => i + 1).map(stepNum => (
+                  <button
+                    key={stepNum}
+                    type="button"
+                    onClick={() => setCurrentStep(stepNum)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      currentStep === stepNum
+                        ? 'bg-orange-500 text-white shadow-md'
+                        : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-100'
+                    }`}
+                  >
+                    {getStepLabel(stepNum)}
+                    {stepGuides[stepNum] && (
+                      <CheckCircle2 className="w-4 h-4 inline ml-1 text-green-500" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {guideType === 'ai' && (
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    onClick={() => handleGenerateAIGuide(currentStep)}
+                    disabled={aiGenerating}
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {aiGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        生成中...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4 mr-1" />
+                        {getStepLabel(currentStep)} AI生成
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleGenerateAllSteps}
+                    disabled={aiGenerating}
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-500 text-orange-700 hover:bg-orange-50"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    全て一括生成
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AI 가이드 생성 버튼 (일반 캠페인용) */}
+          {guideType === 'ai' && campaignType === 'regular' && (
+            <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-lg font-bold text-indigo-900">🤖 AI ガイド生成</Label>
+                  <p className="text-sm text-indigo-700 mt-1">
+                    製品情報を元にAIがガイドを自動生成します
+                  </p>
+                </div>
+                <Button
+                  onClick={() => handleGenerateAIGuide()}
+                  disabled={aiGenerating}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      AI ガイド生成
+                    </>
+                  )}
+                </Button>
+              </div>
+              {aiGuide && (
+                <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-200 max-h-64 overflow-y-auto">
+                  <pre className="text-sm whitespace-pre-wrap text-gray-700">
+                    {typeof aiGuide === 'object' ? JSON.stringify(aiGuide, null, 2) : aiGuide}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PDF 업로드 (PDF 타입 선택시) */}
+          {guideType === 'pdf' && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <Label className="text-lg font-bold text-green-900 mb-3 block">📄 PDF ガイドアップロード</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                  id="pdf-upload"
+                />
+                <label
+                  htmlFor="pdf-upload"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition-colors"
+                >
+                  {pdfUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      アップロード中...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      PDFをアップロード
+                    </>
+                  )}
+                </label>
+                {pdfUrl && (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-700 underline text-sm"
+                  >
+                    アップロード済みPDFを確認
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 가이드 발송 버튼 */}
+          <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                <div className="text-lg font-bold flex items-center gap-2">
+                  <Send className="w-5 h-5" />
+                  ガイド発送
+                </div>
+                <p className="text-sm text-blue-100 mt-1">
+                  選定されたクリエイターにLINE/メールでガイドを発送します
+                </p>
+              </div>
+              <Button
+                onClick={() => handleDeliverGuide(campaignType !== 'regular' ? currentStep : null)}
+                disabled={delivering}
+                className="bg-white text-blue-700 hover:bg-blue-50"
+              >
+                {delivering ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    発送中...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    {campaignType !== 'regular' ? `${getStepLabel(currentStep)} 発送` : 'ガイド発送'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
           {/* 제품 정보 */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <Label className="text-lg font-bold text-blue-900 mb-4 block">📦 제품 정보</Label>
