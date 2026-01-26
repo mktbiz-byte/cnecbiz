@@ -90,7 +90,7 @@ const MESSAGE_TEMPLATES = {
   // 캠페인 선정 알림
   campaign_selected: (data) => ({
     line: `🎉 축하합니다!\n\n${data.creatorName}님, "${data.campaignName}" 캠페인에 선정되셨습니다!\n\n브랜드: ${data.brandName || '-'}\n보상: ${data.reward || '협의'}\n마감일: ${data.deadline || '추후 안내'}\n\n자세한 내용은 아래 링크에서 확인해주세요:\n${data.guideUrl || 'https://cnec.jp'}\n\n감사합니다! 🙏`,
-    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" 캠페인에 선정되셨습니다! 상세: ${data.guideUrl || 'https://cnec.jp'}`,
+    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" 캠페인에 선정! 상세: ${data.guideUrl || 'https://cnec.jp'} LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] 🎉 캠페인 선정 안내 - ${data.campaignName}`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -126,7 +126,7 @@ const MESSAGE_TEMPLATES = {
   // 프로필 등록 요청
   profile_request: (data) => ({
     line: `📝 프로필 등록 요청\n\n${data.creatorName}님, CNEC BIZ에서 프로필 등록을 요청드립니다.\n\n프로필 등록 후 다양한 캠페인에 참여하실 수 있습니다.\n\n아래 링크에서 등록해주세요:\n${data.profileUrl || 'https://cnec.jp/register'}\n\n감사합니다! 🙏`,
-    sms: `[CNEC] ${data.creatorName}님, 프로필 등록 후 캠페인에 참여하세요: ${data.profileUrl || 'https://cnec.jp/register'}`,
+    sms: `[CNEC] ${data.creatorName}님, 프로필 등록 후 캠페인에 참여하세요: ${data.profileUrl || 'https://cnec.jp/register'} LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] 프로필 등록 안내`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -156,7 +156,7 @@ const MESSAGE_TEMPLATES = {
   // 영상 제출 마감 임박 알림
   video_deadline_reminder: (data) => ({
     line: `⏰ 영상 제출 마감 알림\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 영상 제출 마감일이 다가왔습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnec.jp/creator/mypage'}`,
-    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" ${data.stepInfo || '영상'} 마감일: ${data.deadline}. 기한 내 제출 부탁드립니다.`,
+    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" ${data.stepInfo || '영상'} 마감일: ${data.deadline}. 기한 내 제출 부탁드립니다. LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] ⏰ 영상 제출 마감 알림 - ${data.campaignName}`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -189,7 +189,7 @@ ${data.stepInfo ? `<p style="color:#92400e;font-weight:bold;margin:0 0 10px;">�
   // 가이드 확인 요청
   guide_confirm_request: (data) => ({
     line: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName || '-'}\n\n가이드를 확인하시고 촬영을 시작해주세요.\n${data.guideUrl || 'https://cnec.jp/creator/mypage'}`,
-    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" 가이드가 등록되었습니다. 확인 후 촬영을 시작해주세요.`,
+    sms: `[CNEC] ${data.creatorName}님, "${data.campaignName}" 가이드가 등록되었습니다. 확인 후 촬영을 시작해주세요. LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] 📋 가이드 확인 요청 - ${data.campaignName}`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -221,7 +221,7 @@ ${data.stepInfo ? `<p style="color:#92400e;font-weight:bold;margin:0 0 10px;">�
   // SNS 업로드 요청
   sns_upload_request: (data) => ({
     line: `📤 SNS 업로드 요청\n\n${data.creatorName}님, "${data.campaignName}" 영상이 승인되었습니다!\n\n이제 SNS에 업로드하시고 아래 정보를 등록해주세요:\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n✅ SNS URL\n✅ 광고 코드\n✅ 클린 영상 (자막 없는 버전)\n\n마감일: ${data.deadline || '캠페인 종료일까지'}\n${data.uploadUrl || 'https://cnec.jp/creator/mypage'}`,
-    sms: `[CNEC] "${data.campaignName}" 영상 승인! SNS 업로드 후 URL, 광고코드, 클린영상을 등록해주세요.`,
+    sms: `[CNEC] "${data.campaignName}" 영상 승인! SNS 업로드 후 URL, 광고코드, 클린영상을 등록해주세요. LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] 📤 SNS 업로드 요청 - ${data.campaignName}`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -262,7 +262,7 @@ ${data.stepInfo ? `<p style="color:#6d28d9;font-weight:bold;margin:0 0 10px;">�
   // 포인트 지급 완료
   points_awarded: (data) => ({
     line: `🎁 포인트 지급 완료!\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 보상이 지급되었습니다.\n\n지급 금액: ¥${data.points?.toLocaleString() || 0}\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n마이페이지에서 확인해주세요!`,
-    sms: `[CNEC] "${data.campaignName}" 보상 ¥${data.points?.toLocaleString() || 0} 지급 완료! 마이페이지에서 확인하세요.`,
+    sms: `[CNEC] "${data.campaignName}" 보상 ¥${data.points?.toLocaleString() || 0} 지급 완료! 마이페이지에서 확인하세요. LINE친구추가: https://lin.ee/GuwmxOH`,
     emailSubject: `[CNEC] 🎁 보상 지급 완료 - ${data.campaignName}`,
     emailHtml: (translated) => `
 <!DOCTYPE html>
@@ -283,6 +283,73 @@ ${data.stepInfo ? `<p style="color:#92400e;margin:10px 0 0;">📌 ${data.stepInf
 <div style="text-align:center;margin:30px 0;">
 <a href="https://cnec.jp/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#eab308,#ca8a04);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">マイページを確認</a>
 </div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // 영상 수정 요청
+  video_review_request: (data) => ({
+    line: `📹 영상 수정 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인에서 영상 수정 요청이 있습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}피드백: ${data.feedback || '상세 내용을 확인해주세요.'}\n\n수정 후 다시 제출해주세요.\n${data.reviewUrl || 'https://cnec.jp/creator/mypage'}`,
+    sms: `[CNEC] "${data.campaignName}" 영상 수정 요청이 있습니다. 확인 후 다시 제출해주세요. LINE친구추가: https://lin.ee/GuwmxOH`,
+    emailSubject: `[CNEC] 📹 영상 수정 요청 - ${data.campaignName}`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">📹 動画修正リクエスト</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#fef2f2;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #fca5a5;">
+<p style="font-size:18px;font-weight:bold;color:#dc2626;margin:0 0 15px;">${data.campaignName}</p>
+${data.stepInfo ? `<p style="color:#991b1b;font-weight:bold;margin:0 0 10px;">📌 ${data.stepInfo}</p>` : ''}
+<div style="background:#fff;border-radius:6px;padding:15px;margin:15px 0;">
+<p style="font-size:14px;color:#374151;margin:0 0 10px;"><strong>フィードバック：</strong></p>
+<p style="font-size:14px;color:#6b7280;margin:0;white-space:pre-wrap;">${data.feedback || '詳細をご確認ください。'}</p>
+</div>
+</div>
+<div style="text-align:center;margin:30px 0;">
+<a href="${data.reviewUrl || 'https://cnec.jp/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">動画を修正して再提出</a>
+</div>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
+  // 출금 완료 알림
+  withdrawal_complete: (data) => ({
+    line: `💸 출금 완료!\n\n${data.creatorName}님, 출금 신청이 완료되었습니다.\n\n출금 금액: ¥${data.amount?.toLocaleString() || 0}\n입금 예정일: ${data.expectedDate || '영업일 기준 3-5일 이내'}\n\n등록하신 계좌로 입금될 예정입니다.\n감사합니다! 🙏`,
+    sms: `[CNEC] 출금 완료! ¥${data.amount?.toLocaleString() || 0}이 등록 계좌로 입금 예정입니다. LINE친구추가: https://lin.ee/GuwmxOH`,
+    emailSubject: `[CNEC] 💸 출금 완료 안내`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#22c55e,#16a34a);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">💸 出金完了</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#f0fdf4;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #86efac;text-align:center;">
+<p style="font-size:14px;color:#166534;margin:0 0 10px;">出金金額</p>
+<p style="font-size:32px;font-weight:bold;color:#16a34a;margin:0;">¥${data.amount?.toLocaleString() || 0}</p>
+<p style="font-size:14px;color:#166534;margin:15px 0 0;">入金予定日：${data.expectedDate || '営業日基準3〜5日以内'}</p>
+</div>
+<p style="font-size:14px;color:#666;line-height:1.6;text-align:center;">ご登録の口座へ入金されます。<br>ありがとうございます！</p>
 </td></tr>
 <tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
 <p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
