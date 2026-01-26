@@ -2295,6 +2295,34 @@ JSON만 출력.`
     }
   }
 
+  // 지원자 채널만 설정 (가상선정 없이)
+  const handleSetApplicationChannel = async (applicationId, channel) => {
+    try {
+      if (region === 'us') {
+        await callUSCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({ main_channel: channel })
+          .eq('id', applicationId)
+
+        if (error) throw error
+      }
+
+      // 지원자 목록 업데이트
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === applicationId
+            ? { ...app, main_channel: channel }
+            : app
+        )
+      )
+    } catch (error) {
+      console.error('Error setting channel:', error)
+      alert('채널 설정에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 가상 선정 토글
   const handleVirtualSelect = async (applicationId, selected, mainChannel = null) => {
     try {
@@ -2331,6 +2359,44 @@ JSON만 출력.`
     } catch (error) {
       console.error('Error updating virtual selection:', error)
       alert('가상 선정 처리에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 선정 크리에이터 채널 변경
+  const handleChangeParticipantChannel = async (participantId, newChannel) => {
+    try {
+      // US 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us') {
+        await callUSCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({ main_channel: newChannel })
+          .eq('id', participantId)
+
+        if (error) throw error
+      }
+
+      // 참가자 목록 업데이트
+      setParticipants(prev =>
+        prev.map(p =>
+          p.id === participantId
+            ? { ...p, main_channel: newChannel }
+            : p
+        )
+      )
+
+      // Applications도 업데이트 (혹시 같은 데이터가 있다면)
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === participantId
+            ? { ...app, main_channel: newChannel }
+            : app
+        )
+      )
+    } catch (error) {
+      console.error('Error changing participant channel:', error)
+      alert('채널 변경에 실패했습니다: ' + error.message)
     }
   }
 
@@ -4868,23 +4934,64 @@ JSON만 출력.`
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
-                        {snsUrl ? (
-                          <a
-                            href={snsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1 hover:opacity-80 cursor-pointer transition-opacity`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span>{platformConfig.icon}</span>
-                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
-                          </a>
-                        ) : (
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1`}>
-                            <span>{platformConfig.icon}</span>
-                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
-                          </span>
-                        )}
+                        {/* 채널 선택 - 클릭하면 업로드 채널 변경 */}
+                        <div className="flex items-center gap-1">
+                          {participant.instagram_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'instagram')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'instagram'
+                                  ? 'bg-pink-200 text-pink-700 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 text-pink-600 hover:bg-pink-100'
+                              }`}
+                              title="인스타그램으로 업로드 채널 설정"
+                            >
+                              <span>📸</span>
+                              {(participant.main_channel || '').toLowerCase() === 'instagram' && <span>✓</span>}
+                            </button>
+                          )}
+                          {participant.youtube_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'youtube')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'youtube'
+                                  ? 'bg-red-200 text-red-700 ring-2 ring-red-400'
+                                  : 'bg-red-50 text-red-600 hover:bg-red-100'
+                              }`}
+                              title="유튜브로 업로드 채널 설정"
+                            >
+                              <span>📺</span>
+                              {(participant.main_channel || '').toLowerCase() === 'youtube' && <span>✓</span>}
+                            </button>
+                          )}
+                          {participant.tiktok_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'tiktok')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'tiktok'
+                                  ? 'bg-gray-300 text-gray-800 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                              title="틱톡으로 업로드 채널 설정"
+                            >
+                              <span>🎵</span>
+                              {(participant.main_channel || '').toLowerCase() === 'tiktok' && <span>✓</span>}
+                            </button>
+                          )}
+                          {/* SNS URL 바로가기 */}
+                          {snsUrl && (
+                            <a
+                              href={snsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded text-[10px] font-medium border border-blue-300"
+                              title="SNS 바로가기"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              🔗 바로가기
+                            </a>
+                          )}
+                        </div>
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusConfig.bgClass} ${statusConfig.textClass} ${participant.status === 'video_submitted' ? 'cursor-pointer hover:opacity-80' : ''}`}
                           onClick={() => {
@@ -6628,31 +6735,92 @@ JSON만 출력.`
                             </div>
                           )}
 
-                          {/* 채널 & 팔로워 */}
+                          {/* 채널 & 팔로워 - 클릭하면 채널 설정 */}
                           <div className="space-y-1 mb-2">
+                            {/* 업로드 채널 선택 라벨 */}
+                            {!isAlreadyParticipant && app.status !== 'selected' && (
+                              <p className="text-[10px] text-purple-600 font-semibold text-center mb-1">⬇️ 업로드 채널 선택</p>
+                            )}
                             {app.instagram_url && (
-                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
-                                <span className="text-pink-600">📷 Instagram</span>
-                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'instagram'
+                                  ? 'bg-pink-200 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 hover:bg-pink-100'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'instagram')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-pink-600">📷 Instagram</span>
+                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
+                                  title="인스타그램 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                             {app.youtube_url && (
-                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
-                                <span className="text-red-600">▶️ YouTube</span>
-                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'youtube'
+                                  ? 'bg-red-200 ring-2 ring-red-400'
+                                  : 'bg-red-50 hover:bg-red-100'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'youtube')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-red-600">▶️ YouTube</span>
+                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
+                                  title="유튜브 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                             {app.tiktok_url && (
-                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
-                                <span className="text-gray-700">🎵 TikTok</span>
-                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'tiktok'
+                                  ? 'bg-gray-300 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'tiktok')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-gray-700">🎵 TikTok</span>
+                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
+                                  title="틱톡 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                           </div>
 
@@ -6926,31 +7094,85 @@ JSON만 출력.`
                             <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
                           </div>
 
-                          {/* 채널 & 팔로워 */}
+                          {/* 채널 & 팔로워 - 클릭하면 채널 변경 */}
                           <div className="space-y-1 mb-2">
                             {app.instagram_url && (
-                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
-                                <span className="text-pink-600">📷 Instagram</span>
-                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'instagram'
+                                  ? 'bg-pink-200 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 hover:bg-pink-100'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'instagram')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-pink-600">📷 Instagram</span>
+                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
+                                  title="인스타그램 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                             {app.youtube_url && (
-                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
-                                <span className="text-red-600">▶️ YouTube</span>
-                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'youtube'
+                                  ? 'bg-red-200 ring-2 ring-red-400'
+                                  : 'bg-red-50 hover:bg-red-100'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'youtube')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-red-600">▶️ YouTube</span>
+                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
+                                  title="유튜브 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                             {app.tiktok_url && (
-                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
-                                <span className="text-gray-700">🎵 TikTok</span>
-                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'tiktok'
+                                  ? 'bg-gray-300 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'tiktok')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-gray-700">🎵 TikTok</span>
+                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
+                                  title="틱톡 바로가기"
+                                >
+                                  🔗
+                                </a>
+                              </div>
                             )}
                           </div>
 

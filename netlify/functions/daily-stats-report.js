@@ -268,4 +268,5 @@ ${rejectedVideos.length > 0 ? `• ⚠️ 반려: ${rejectedVideos.length}건` :
   }
 };
 
-exports.config = { schedule: '0 1 * * *' };
+// 스케줄은 netlify.toml의 report-daily에서 관리 (중복 실행 방지)
+// exports.config = { schedule: '0 1 * * *' };
