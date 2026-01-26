@@ -69,12 +69,40 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: '초대장이 만료되었습니다.' }) };
     }
 
-    // 2. 크리에이터 정보
-    const { data: creator } = await supabase
+    // 2. 크리에이터 정보 (featured_creators 또는 user_profiles에서)
+    let creator = null;
+
+    // 먼저 featured_creators에서 조회
+    const { data: featuredCreator } = await supabase
       .from('featured_creators')
       .select('*')
       .eq('id', creatorId)
       .single();
+
+    if (featuredCreator) {
+      creator = featuredCreator;
+    } else {
+      // featured_creators에 없으면 user_profiles (Korea DB)에서 조회 (MUSE 크리에이터용)
+      const koreaClient = supabaseKorea || supabase;
+      const { data: userProfile } = await koreaClient
+        .from('user_profiles')
+        .select('*')
+        .eq('id', creatorId)
+        .single();
+
+      if (userProfile) {
+        creator = {
+          ...userProfile,
+          name: userProfile.name || userProfile.full_name || userProfile.display_name,
+          email: userProfile.email,
+          phone: userProfile.phone || userProfile.phone_number,
+          instagram_handle: userProfile.instagram_url || userProfile.instagram_handle,
+          youtube_handle: userProfile.youtube_url || userProfile.youtube_handle,
+          tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle,
+          followers: userProfile.followers_count || userProfile.followers
+        };
+      }
+    }
 
     if (!creator) {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '크리에이터 정보를 찾을 수 없습니다.' }) };
