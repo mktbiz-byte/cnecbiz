@@ -7644,6 +7644,27 @@ JSON만 출력.`
                     let successCount = 0
                     let failCount = 0
 
+                    // 캠페인 타입에 따른 마감일 가져오기
+                    const getVideoDeadline = () => {
+                      const type = (campaign.campaign_type || '').toLowerCase()
+                      if (type.includes('oliveyoung') || type.includes('올리브')) {
+                        // 올리브영: step1_deadline, step2_deadline 중 가장 가까운 미래 날짜
+                        const deadlines = [campaign.step1_deadline, campaign.step2_deadline].filter(Boolean)
+                        const today = new Date().toISOString().split('T')[0]
+                        const futureDeadlines = deadlines.filter(d => d >= today).sort()
+                        return futureDeadlines[0] || deadlines[deadlines.length - 1]
+                      } else if (type.includes('4week') || type.includes('challenge')) {
+                        // 4주 챌린지: week1~4_deadline 중 가장 가까운 미래 날짜
+                        const deadlines = [campaign.week1_deadline, campaign.week2_deadline, campaign.week3_deadline, campaign.week4_deadline].filter(Boolean)
+                        const today = new Date().toISOString().split('T')[0]
+                        const futureDeadlines = deadlines.filter(d => d >= today).sort()
+                        return futureDeadlines[0] || deadlines[deadlines.length - 1]
+                      }
+                      // 일반 캠페인
+                      return campaign.video_deadline || campaign.content_submission_deadline
+                    }
+                    const videoDeadline = getVideoDeadline()
+
                     for (const participant of withPhone) {
                       try {
                         const phoneNum = getPhone(participant)
@@ -7657,7 +7678,7 @@ JSON만 출력.`
                             variables: {
                               '크리에이터명': participant.creator_name || participant.applicant_name || '크리에이터',
                               '캠페인명': campaign.title || campaign.name || '캠페인',
-                              '제출기한': campaign.video_deadline ? new Date(campaign.video_deadline).toLocaleDateString('ko-KR') : '미정'
+                              '제출기한': videoDeadline ? new Date(videoDeadline).toLocaleDateString('ko-KR') : '미정'
                             }
                           })
                         })
