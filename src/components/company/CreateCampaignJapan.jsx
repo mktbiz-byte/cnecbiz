@@ -743,19 +743,38 @@ const CreateCampaignJapan = () => {
                   </div>
                 </div>
 
-                {/* 제품 발송일 (모든 타입 공통) */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-blue-200">
-                  <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
-                    📦 제품 발송일
-                  </h3>
-                  <div>
-                    <Label className="text-sm">제품 발송 예정일</Label>
-                    <Input
-                      type="date"
-                      value={campaignForm.product_shipping_date}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_shipping_date: e.target.value }))}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">크리에이터에게 제품을 발송하는 예정 날짜</p>
+                {/* 캠페인 일정 통합 섹션 */}
+                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">📅 캠페인 일정</h2>
+
+                  {/* 기본 일정 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <Label className="text-sm font-semibold">모집 마감일 *</Label>
+                      <Input
+                        type="date"
+                        value={campaignForm.application_deadline}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">선정 발표일 *</Label>
+                      <Input
+                        type="date"
+                        value={campaignForm.start_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">제품 발송일</Label>
+                      <Input
+                        type="date"
+                        value={campaignForm.product_shipping_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_shipping_date: e.target.value }))}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -953,53 +972,28 @@ const CreateCampaignJapan = () => {
                   </div>
                 </div>
 
-                {/* 일정 및 플랫폼 */}
+                {/* SNS 플랫폼 */}
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">일정 & 플랫폼</h2>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <Label>모집 마감일 *</Label>
-                      <Input
-                        type="date"
-                        value={campaignForm.application_deadline}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>선정 발표일 *</Label>
-                      <Input
-                        type="date"
-                        value={campaignForm.start_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="mb-3">SNS 플랫폼 *</Label>
-                    <div className="flex flex-wrap gap-4">
-                      {[
-                        { key: 'instagram', label: '📷 Instagram' },
-                        { key: 'youtube', label: '🎥 YouTube' },
-                        { key: 'tiktok', label: '🎵 TikTok' }
-                      ].map(platform => (
-                        <label key={platform.key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={campaignForm.target_platforms[platform.key]}
-                            onChange={(e) => setCampaignForm(prev => ({
-                              ...prev,
-                              target_platforms: { ...prev.target_platforms, [platform.key]: e.target.checked }
-                            }))}
-                            className="w-5 h-5 text-indigo-600 rounded"
-                          />
-                          <span>{platform.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">📱 SNS 플랫폼</h2>
+                  <div className="flex flex-wrap gap-4">
+                    {[
+                      { key: 'instagram', label: '📷 Instagram' },
+                      { key: 'youtube', label: '🎥 YouTube' },
+                      { key: 'tiktok', label: '🎵 TikTok' }
+                    ].map(platform => (
+                      <label key={platform.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={campaignForm.target_platforms[platform.key]}
+                          onChange={(e) => setCampaignForm(prev => ({
+                            ...prev,
+                            target_platforms: { ...prev.target_platforms, [platform.key]: e.target.checked }
+                          }))}
+                          className="w-5 h-5 text-indigo-600 rounded"
+                        />
+                        <span>{platform.label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
