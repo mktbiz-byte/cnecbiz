@@ -27,6 +27,48 @@ try {
 }
 
 /**
+ * 크리에이터 포인트 계산 함수 (프론트엔드 로직과 동일)
+ */
+const calculateCreatorPoints = (campaign) => {
+  if (!campaign) return 0;
+
+  // 수동 설정값이 있으면 우선 사용
+  if (campaign.creator_points_override) {
+    return campaign.creator_points_override;
+  }
+
+  const campaignType = campaign.campaign_type;
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1;
+
+  // 4주 챌린지
+  if (campaignType === '4week_challenge' || campaignType === '4week') {
+    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
+                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0);
+    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0);
+    return Math.round((totalReward * 0.7) / totalSlots);
+  }
+
+  // 기획형
+  if (campaignType === 'planned' || campaignType === 'regular') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0);
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0);
+    return Math.round((totalReward * 0.6) / totalSlots);
+  }
+
+  // 올리브영
+  if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0);
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0);
+    return Math.round((totalReward * 0.7) / totalSlots);
+  }
+
+  // 기본: reward_amount 또는 reward_points 사용
+  return campaign.reward_amount || Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots);
+};
+
+/**
  * 크리에이터에게 캠페인 초대장 발송
  * - 카카오톡 알림톡 (템플릿: 025110001005)
  * - 이메일 발송
@@ -246,10 +288,10 @@ exports.handler = async (event) => {
     const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const invitationUrl = `${baseUrl}/invitation/${invitation.id}`;
 
-    // 크리에이터 포인트
-    const creatorPoints = campaign.creator_points_override;
+    // 크리에이터 포인트 (계산 함수 사용)
+    const creatorPoints = calculateCreatorPoints(campaign);
     const formattedPoints = creatorPoints ? creatorPoints.toLocaleString() + '원' : '협의';
-    console.log('[INFO] Creator points:', { creator_points_override: campaign.creator_points_override, using: creatorPoints });
+    console.log('[INFO] Creator points:', { campaign_type: campaign.campaign_type, calculated: creatorPoints });
 
     // 8. 카카오톡 발송
     if (sendKakao && creator.phone) {
