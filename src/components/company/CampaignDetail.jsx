@@ -2024,6 +2024,34 @@ JSON만 출력.`
     }
   }
 
+  // 지원자 채널만 설정 (가상선정 없이)
+  const handleSetApplicationChannel = async (applicationId, channel) => {
+    try {
+      if (region === 'us') {
+        await callUSCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({ main_channel: channel })
+          .eq('id', applicationId)
+
+        if (error) throw error
+      }
+
+      // 지원자 목록 업데이트
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === applicationId
+            ? { ...app, main_channel: channel }
+            : app
+        )
+      )
+    } catch (error) {
+      console.error('Error setting channel:', error)
+      alert('채널 설정에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 가상 선정 토글
   const handleVirtualSelect = async (applicationId, selected, mainChannel = null) => {
     try {
@@ -6086,22 +6114,22 @@ JSON만 출력.`
                           <div className="space-y-1 mb-2">
                             {/* 업로드 채널 선택 라벨 */}
                             {!isAlreadyParticipant && app.status !== 'selected' && (
-                              <p className="text-[10px] text-purple-600 font-semibold text-center mb-1">⬇️ 업로드 채널 선택 (클릭)</p>
+                              <p className="text-[10px] text-purple-600 font-semibold text-center mb-1">⬇️ 업로드 채널 선택</p>
                             )}
                             {app.instagram_url && (
                               <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.virtual_selected && app.main_channel === 'instagram'
+                                app.main_channel === 'instagram'
                                   ? 'bg-pink-200 ring-2 ring-pink-400'
                                   : 'bg-pink-50 hover:bg-pink-100'
                               }`}>
                                 <button
-                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'instagram')}
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'instagram')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
                                   <span className="text-pink-600">📷 Instagram</span>
                                   <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                                  {app.virtual_selected && app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
                                 </button>
                                 <a
                                   href={normalizeSnsUrl(app.instagram_url, 'instagram')}
@@ -6117,18 +6145,18 @@ JSON만 출력.`
                             )}
                             {app.youtube_url && (
                               <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.virtual_selected && app.main_channel === 'youtube'
+                                app.main_channel === 'youtube'
                                   ? 'bg-red-200 ring-2 ring-red-400'
                                   : 'bg-red-50 hover:bg-red-100'
                               }`}>
                                 <button
-                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'youtube')}
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'youtube')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
                                   <span className="text-red-600">▶️ YouTube</span>
                                   <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                                  {app.virtual_selected && app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
                                 </button>
                                 <a
                                   href={normalizeSnsUrl(app.youtube_url, 'youtube')}
@@ -6144,18 +6172,18 @@ JSON만 출력.`
                             )}
                             {app.tiktok_url && (
                               <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.virtual_selected && app.main_channel === 'tiktok'
+                                app.main_channel === 'tiktok'
                                   ? 'bg-gray-300 ring-2 ring-gray-500'
                                   : 'bg-gray-100 hover:bg-gray-200'
                               }`}>
                                 <button
-                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'tiktok')}
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'tiktok')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
                                   <span className="text-gray-700">🎵 TikTok</span>
                                   <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                                  {app.virtual_selected && app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
                                 </button>
                                 <a
                                   href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
