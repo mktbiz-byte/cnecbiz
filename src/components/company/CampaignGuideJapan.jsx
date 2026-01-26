@@ -385,7 +385,7 @@ const CampaignGuideJapan = () => {
 
       if (error) throw error
 
-      setSuccess('クリエイターガイドが保存されました!')
+      setSuccess('크리에이터 가이드가 저장되었습니다!')
       setTimeout(() => {
         navigate(`/company/campaigns/payment?id=${campaignId}&region=japan`)
       }, 1500)
@@ -410,9 +410,9 @@ const CampaignGuideJapan = () => {
 
   // 스텝 라벨 생성
   const getStepLabel = (stepNum) => {
-    if (campaignType === '4week_challenge') return `第${stepNum}週`
-    if (campaignType === 'megawari') return `ステップ${stepNum}`
-    return 'メインガイド'
+    if (campaignType === '4week_challenge') return `${stepNum}주차`
+    if (campaignType === 'megawari') return `스텝${stepNum}`
+    return '메인 가이드'
   }
 
   // AI 가이드 생성
@@ -819,55 +819,9 @@ const CampaignGuideJapan = () => {
           {/* 캠페인 타입 표시 */}
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-              {campaignType === '4week_challenge' && '🗓️ 4週チャレンジ'}
-              {campaignType === 'megawari' && '🎯 メガ割'}
-              {campaignType === 'regular' && '📹 企画型'}
-            </div>
-          </div>
-
-          {/* 가이드 타입 선택 */}
-          <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
-            <Label className="text-lg font-bold text-purple-900 mb-3 block">📋 ガイドタイプ選択</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setGuideType('manual')}
-                className={`p-3 rounded-lg border-2 transition-all ${
-                  guideType === 'manual'
-                    ? 'border-purple-500 bg-purple-100 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-300'
-                }`}
-              >
-                <FileText className="w-6 h-6 mx-auto mb-1" />
-                <div className="text-sm font-medium">手動作成</div>
-                <div className="text-xs text-gray-500">직접 입력</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGuideType('ai')}
-                className={`p-3 rounded-lg border-2 transition-all ${
-                  guideType === 'ai'
-                    ? 'border-purple-500 bg-purple-100 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-300'
-                }`}
-              >
-                <Wand2 className="w-6 h-6 mx-auto mb-1" />
-                <div className="text-sm font-medium">AI生成</div>
-                <div className="text-xs text-gray-500">자동 생성</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGuideType('pdf')}
-                className={`p-3 rounded-lg border-2 transition-all ${
-                  guideType === 'pdf'
-                    ? 'border-purple-500 bg-purple-100 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-300'
-                }`}
-              >
-                <Upload className="w-6 h-6 mx-auto mb-1" />
-                <div className="text-sm font-medium">PDF Upload</div>
-                <div className="text-xs text-gray-500">PDF 업로드</div>
-              </button>
+              {campaignType === '4week_challenge' && '🗓️ 4주 챌린지'}
+              {campaignType === 'megawari' && '🎯 메가와리'}
+              {campaignType === 'regular' && '📹 기획형'}
             </div>
           </div>
 
@@ -875,7 +829,7 @@ const CampaignGuideJapan = () => {
           {(campaignType === '4week_challenge' || campaignType === 'megawari') && (
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <Label className="text-lg font-bold text-orange-900 mb-3 block">
-                {campaignType === '4week_challenge' ? '📅 週別ガイド' : '🎯 ステップ別ガイド'}
+                {campaignType === '4week_challenge' ? '📅 주차별 가이드' : '🎯 스텝별 가이드'}
               </Label>
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: getStepCount() }, (_, i) => i + 1).map(stepNum => (
@@ -896,152 +850,8 @@ const CampaignGuideJapan = () => {
                   </button>
                 ))}
               </div>
-              {guideType === 'ai' && (
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    onClick={() => handleGenerateAIGuide(currentStep)}
-                    disabled={aiGenerating}
-                    size="sm"
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    {aiGenerating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        生成中...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-4 h-4 mr-1" />
-                        {getStepLabel(currentStep)} AI生成
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleGenerateAllSteps}
-                    disabled={aiGenerating}
-                    size="sm"
-                    variant="outline"
-                    className="border-orange-500 text-orange-700 hover:bg-orange-50"
-                  >
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    全て一括生成
-                  </Button>
-                </div>
-              )}
             </div>
           )}
-
-          {/* AI 가이드 생성 버튼 (일반 캠페인용) */}
-          {guideType === 'ai' && campaignType === 'regular' && (
-            <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-lg font-bold text-indigo-900">🤖 AI ガイド生成</Label>
-                  <p className="text-sm text-indigo-700 mt-1">
-                    製品情報を元にAIがガイドを自動生成します
-                  </p>
-                </div>
-                <Button
-                  onClick={() => handleGenerateAIGuide()}
-                  disabled={aiGenerating}
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                >
-                  {aiGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      生成中...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-4 h-4 mr-2" />
-                      AI ガイド生成
-                    </>
-                  )}
-                </Button>
-              </div>
-              {aiGuide && (
-                <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-200 max-h-64 overflow-y-auto">
-                  <pre className="text-sm whitespace-pre-wrap text-gray-700">
-                    {typeof aiGuide === 'object' ? JSON.stringify(aiGuide, null, 2) : aiGuide}
-                  </pre>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* PDF 업로드 (PDF 타입 선택시) */}
-          {guideType === 'pdf' && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <Label className="text-lg font-bold text-green-900 mb-3 block">📄 PDF ガイドアップロード</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                  id="pdf-upload"
-                />
-                <label
-                  htmlFor="pdf-upload"
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition-colors"
-                >
-                  {pdfUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      アップロード中...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      PDFをアップロード
-                    </>
-                  )}
-                </label>
-                {pdfUrl && (
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-green-700 underline text-sm"
-                  >
-                    アップロード済みPDFを確認
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 가이드 발송 버튼 */}
-          <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="text-white">
-                <div className="text-lg font-bold flex items-center gap-2">
-                  <Send className="w-5 h-5" />
-                  ガイド発送
-                </div>
-                <p className="text-sm text-blue-100 mt-1">
-                  選定されたクリエイターにLINE/メールでガイドを発送します
-                </p>
-              </div>
-              <Button
-                onClick={() => handleDeliverGuide(campaignType !== 'regular' ? currentStep : null)}
-                disabled={delivering}
-                className="bg-white text-blue-700 hover:bg-blue-50"
-              >
-                {delivering ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    発送中...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    {campaignType !== 'regular' ? `${getStepLabel(currentStep)} 発送` : 'ガイド発送'}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
 
           {/* 제품 정보 */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1462,10 +1272,10 @@ const CampaignGuideJapan = () => {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">クリエイターガイド</CardTitle>
+            <CardTitle className="text-3xl font-bold">일본어 번역 미리보기</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
-            {campaignTitle || 'キャンペーンタイトル'}
+            {campaignTitle || '캠페인 제목'}
           </p>
         </CardHeader>
 
@@ -1475,12 +1285,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-indigo-500 pl-4">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📦</span>
-                <Label className="text-xl font-bold text-gray-800">製品情報</Label>
+                <Label className="text-xl font-bold text-gray-800">제품 정보 (日)</Label>
               </div>
               <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
                 {translatedBrandName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">브랜드명</Label>
                     <Input
                       value={translatedBrandName}
                       onChange={(e) => setTranslatedBrandName(e.target.value)}
@@ -1490,7 +1300,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品名</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">제품명</Label>
                     <Input
                       value={translatedProductName}
                       onChange={(e) => setTranslatedProductName(e.target.value)}
@@ -1500,7 +1310,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductDesc && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品説明</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">제품 설명</Label>
                     <Textarea
                       value={translatedProductDesc}
                       onChange={(e) => setTranslatedProductDesc(e.target.value)}
@@ -1511,7 +1321,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductFeatures.length > 0 && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-2">제품 특징</Label>
                     <div className="space-y-2">
                       {translatedProductFeatures.map((feature, index) => (
                         <div key={index} className="flex items-start gap-2">
@@ -1539,7 +1349,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">💬</span>
-                <Label className="text-xl font-bold text-gray-800">必須セリフ</Label>
+                <Label className="text-xl font-bold text-gray-800">필수 대사 (日)</Label>
               </div>
               <div className="space-y-3">
                 {translatedDialogues.map((dialogue, index) => (
@@ -1568,7 +1378,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎥</span>
-                <Label className="text-xl font-bold text-gray-800">必須シーン</Label>
+                <Label className="text-xl font-bold text-gray-800">필수 장면 (日)</Label>
               </div>
               <div className="space-y-3">
                 {translatedScenes.map((scene, index) => (
@@ -1597,7 +1407,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-purple-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">#️⃣</span>
-                <Label className="text-xl font-bold text-gray-800">必須ハッシュタグ</Label>
+                <Label className="text-xl font-bold text-gray-800">필수 해시태그 (日)</Label>
               </div>
               <div className="space-y-2">
                 {translatedHashtags.map((hashtag, index) => (
@@ -1623,7 +1433,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-teal-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📷</span>
-                <Label className="text-xl font-bold text-gray-800">必須撮影シーン</Label>
+                <Label className="text-xl font-bold text-gray-800">필수 촬영 장면 (日)</Label>
               </div>
               <div className="space-y-2">
                 {translatedShootingScenes.map((scene, index) => (
@@ -1649,12 +1459,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-orange-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎬</span>
-                <Label className="text-xl font-bold text-gray-800">動画仕様</Label>
+                <Label className="text-xl font-bold text-gray-800">영상 사양 (日)</Label>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {translatedDuration && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">希望時間</Label>
+                    <Label className="text-xs text-gray-600 mb-2">희망 시간</Label>
                     <Input
                       value={translatedDuration}
                       onChange={(e) => setTranslatedDuration(e.target.value)}
@@ -1664,7 +1474,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTempo && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">テンポ</Label>
+                    <Label className="text-xs text-gray-600 mb-2">템포</Label>
                     <Input
                       value={translatedTempo}
                       onChange={(e) => setTranslatedTempo(e.target.value)}
@@ -1674,7 +1484,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTone && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">トーン</Label>
+                    <Label className="text-xs text-gray-600 mb-2">톤</Label>
                     <Input
                       value={translatedTone}
                       onChange={(e) => setTranslatedTone(e.target.value)}
@@ -1691,7 +1501,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-yellow-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📝</span>
-                <Label className="text-xl font-bold text-gray-800">追加伝達事項</Label>
+                <Label className="text-xl font-bold text-gray-800">추가 전달 사항 (日)</Label>
               </div>
               <Textarea
                 value={translatedAdditionalDetails}
@@ -1707,7 +1517,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-red-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📸</span>
-                <Label className="text-xl font-bold text-gray-800">追加撮影リクエスト</Label>
+                <Label className="text-xl font-bold text-gray-800">추가 촬영 요청 (日)</Label>
               </div>
               <Textarea
                 value={translatedShootingRequests}
@@ -1727,24 +1537,24 @@ const CampaignGuideJapan = () => {
                     <span className="text-white text-xs">✓</span>
                   </div>
                   <label className="text-base font-bold text-purple-900">
-                    📱 Meta広告コード発行リクエスト
+                    📱 Meta 광고 코드 발급 요청
                   </label>
                 </div>
                 <p className="text-sm text-purple-700 mb-4 ml-8">
-                  Meta(Facebook/Instagram)広告コードを発行いたします
+                  Meta(Facebook/Instagram) 광고 코드를 발급합니다
                 </p>
-                
+
                 {/* 발급 방법 안내 */}
                 <div className="ml-8 mt-4 p-3 bg-white border border-purple-100 rounded-lg">
-                  <p className="text-xs font-bold text-purple-900 mb-2">📝 発行方法</p>
+                  <p className="text-xs font-bold text-purple-900 mb-2">📝 발급 방법 (일본어로 안내됨)</p>
                   <ol className="text-xs text-gray-700 space-y-1.5 list-decimal list-inside">
-                    <li>プロフィール→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」で使用設定</li>
-                    <li>投稿の「…」ボタン→「パートナーシップラベルと広告」選択</li>
-                    <li>「パートナーシップ広告コードを取得」トグルON</li>
-                    <li>「コピー」ボタンでコードをコピーして企業に提供</li>
+                    <li>프로필→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」설정</li>
+                    <li>게시물「…」버튼→「パートナーシップラベルと広告」선택</li>
+                    <li>「パートナーシップ広告コードを取得」토글 ON</li>
+                    <li>「コピー」버튼으로 코드를 복사하여 기업에 제공</li>
                   </ol>
                   <p className="text-xs text-red-600 mt-3 font-semibold">
-                    ⚠️ 注意：Instagram内蔵音楽の使用は不可（外部編集で著作権フリー音源を使用）
+                    ⚠️ 주의: Instagram 내장 음악 사용 불가 (외부 편집으로 저작권 프리 음원 사용)
                   </p>
                 </div>
               </div>
@@ -1754,8 +1564,8 @@ const CampaignGuideJapan = () => {
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
-              <p className="text-sm text-gray-400">左側に韓国語で入力し、「今翻訳」ボタンをクリックしてください</p>
+              <p className="text-lg text-gray-500 mb-2">가이드를 작성해주세요</p>
+              <p className="text-sm text-gray-400">왼쪽에 한국어로 입력 후 "AI 번역" 버튼을 클릭하세요</p>
             </div>
           )}
         </CardContent>
