@@ -479,28 +479,30 @@ ${textToTranslate}
       const packageType = packageOptions.find(p => p.value === campaignForm.package_type)
       const price = pricing.total
 
+      // 빈 문자열을 null로 변환하는 헬퍼 함수
+      const toNullIfEmpty = (val) => (val && val.trim() !== '') ? val : null
+
       const campaignData = {
         title: campaignForm.title_ja || campaignForm.title,  // 일본어 번역 우선
         brand: campaignForm.brand_ja || campaignForm.brand,
-        description: campaignForm.description_ja || campaignForm.description,
+        description: toNullIfEmpty(campaignForm.description_ja || campaignForm.description),
         requirements: campaignForm.requirements_ja || campaignForm.requirements,
         // 원본 한국어 필드 저장
-        title_ko: campaignForm.title,
-        brand_ko: campaignForm.brand,
-        description_ko: campaignForm.description,
-        requirements_ko: campaignForm.requirements,
+        title_ko: toNullIfEmpty(campaignForm.title),
+        brand_ko: toNullIfEmpty(campaignForm.brand),
+        description_ko: toNullIfEmpty(campaignForm.description),
+        requirements_ko: toNullIfEmpty(campaignForm.requirements),
         // 일본어 번역 필드 저장
-        title_ja: campaignForm.title_ja,
-        brand_ja: campaignForm.brand_ja,
-        description_ja: campaignForm.description_ja,
-        requirements_ja: campaignForm.requirements_ja,
+        title_ja: toNullIfEmpty(campaignForm.title_ja),
+        brand_ja: toNullIfEmpty(campaignForm.brand_ja),
+        description_ja: toNullIfEmpty(campaignForm.description_ja),
+        requirements_ja: toNullIfEmpty(campaignForm.requirements_ja),
         category: campaignForm.category,
-        image_url: campaignForm.image_url,
+        image_url: toNullIfEmpty(campaignForm.image_url),
         reward_amount: packageType?.rewardYen || 12000,
         max_participants: campaignForm.total_slots,
-        application_deadline: campaignForm.application_deadline,
-        start_date: campaignForm.start_date,
-        end_date: campaignForm.end_date,
+        application_deadline: toNullIfEmpty(campaignForm.application_deadline),
+        start_date: toNullIfEmpty(campaignForm.start_date),
         status: 'draft',
         target_platforms: campaignForm.target_platforms,
         package_type: campaignForm.package_type,
@@ -508,34 +510,33 @@ ${textToTranslate}
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
         estimated_cost: price,
-        bonus_amount: campaignForm.bonus_amount,
         requires_ad_code: campaignForm.requires_ad_code,
         requires_clean_video: campaignForm.requires_clean_video,
-        question1: campaignForm.question1 || null,
-        question2: campaignForm.question2 || null,
-        question3: campaignForm.question3 || null,
-        question4: campaignForm.question4 || null,
-        product_shipping_date: campaignForm.product_shipping_date || null
+        question1: toNullIfEmpty(campaignForm.question1),
+        question2: toNullIfEmpty(campaignForm.question2),
+        question3: toNullIfEmpty(campaignForm.question3),
+        question4: toNullIfEmpty(campaignForm.question4),
+        product_shipping_date: toNullIfEmpty(campaignForm.product_shipping_date)
       }
 
       // 캠페인 타입별 마감일
       if (campaignForm.campaign_type === '4week_challenge') {
-        campaignData.week1_deadline = campaignForm.week1_deadline || null
-        campaignData.week2_deadline = campaignForm.week2_deadline || null
-        campaignData.week3_deadline = campaignForm.week3_deadline || null
-        campaignData.week4_deadline = campaignForm.week4_deadline || null
-        campaignData.week1_sns_deadline = campaignForm.week1_sns_deadline || null
-        campaignData.week2_sns_deadline = campaignForm.week2_sns_deadline || null
-        campaignData.week3_sns_deadline = campaignForm.week3_sns_deadline || null
-        campaignData.week4_sns_deadline = campaignForm.week4_sns_deadline || null
+        campaignData.week1_deadline = toNullIfEmpty(campaignForm.week1_deadline)
+        campaignData.week2_deadline = toNullIfEmpty(campaignForm.week2_deadline)
+        campaignData.week3_deadline = toNullIfEmpty(campaignForm.week3_deadline)
+        campaignData.week4_deadline = toNullIfEmpty(campaignForm.week4_deadline)
+        campaignData.week1_sns_deadline = toNullIfEmpty(campaignForm.week1_sns_deadline)
+        campaignData.week2_sns_deadline = toNullIfEmpty(campaignForm.week2_sns_deadline)
+        campaignData.week3_sns_deadline = toNullIfEmpty(campaignForm.week3_sns_deadline)
+        campaignData.week4_sns_deadline = toNullIfEmpty(campaignForm.week4_sns_deadline)
       } else if (campaignForm.campaign_type === 'megawari') {
-        campaignData.step1_deadline = campaignForm.step1_deadline || null
-        campaignData.step2_deadline = campaignForm.step2_deadline || null
-        campaignData.step1_sns_deadline = campaignForm.step1_sns_deadline || null
-        campaignData.step2_sns_deadline = campaignForm.step2_sns_deadline || null
+        campaignData.step1_deadline = toNullIfEmpty(campaignForm.step1_deadline)
+        campaignData.step2_deadline = toNullIfEmpty(campaignForm.step2_deadline)
+        campaignData.step1_sns_deadline = toNullIfEmpty(campaignForm.step1_sns_deadline)
+        campaignData.step2_sns_deadline = toNullIfEmpty(campaignForm.step2_sns_deadline)
       } else {
-        campaignData.video_deadline = campaignForm.video_deadline || null
-        campaignData.sns_deadline = campaignForm.sns_deadline || null
+        campaignData.video_deadline = toNullIfEmpty(campaignForm.video_deadline)
+        campaignData.sns_deadline = toNullIfEmpty(campaignForm.sns_deadline)
       }
 
       if (editId) {
