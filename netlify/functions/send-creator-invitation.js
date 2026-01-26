@@ -132,11 +132,16 @@ exports.handler = async (event) => {
         campaign = {
           ...koreaCampaign,
           // 통일된 필드명으로 매핑
-          deadline: koreaCampaign.application_deadline || koreaCampaign.recruitment_deadline || koreaCampaign.deadline,
-          creator_points_override: koreaCampaign.creator_points_override || koreaCampaign.reward_amount
+          deadline: koreaCampaign.application_deadline || koreaCampaign.recruitment_deadline || koreaCampaign.deadline
         };
         campaignClient = supabaseKorea;
-        console.log('[INFO] Campaign found in Korea DB:', { title: campaign.title, company_email: campaign.company_email, creator_points: campaign.creator_points_override });
+        console.log('[INFO] Campaign found in Korea DB:', {
+          title: campaign.title,
+          company_email: campaign.company_email,
+          creator_points_override: campaign.creator_points_override,
+          reward_points: campaign.reward_points,
+          campaign_type: campaign.campaign_type
+        });
       }
     } else {
       console.log('[DEBUG] Korea Supabase client not available');
@@ -156,11 +161,16 @@ exports.handler = async (event) => {
         campaign = {
           ...bizCampaign,
           // 통일된 필드명으로 매핑
-          deadline: bizCampaign.deadline || bizCampaign.application_deadline || bizCampaign.recruitment_deadline,
-          creator_points_override: bizCampaign.creator_points_override || bizCampaign.reward_amount
+          deadline: bizCampaign.deadline || bizCampaign.application_deadline || bizCampaign.recruitment_deadline
         };
         campaignClient = supabase;
-        console.log('[INFO] Campaign found in BIZ DB:', { title: campaign.title, company_email: campaign.company_email, creator_points: campaign.creator_points_override });
+        console.log('[INFO] Campaign found in BIZ DB:', {
+          title: campaign.title,
+          company_email: campaign.company_email,
+          creator_points_override: campaign.creator_points_override,
+          reward_amount: campaign.reward_amount,
+          campaign_type: campaign.campaign_type
+        });
       }
     }
 
