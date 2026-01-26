@@ -63,14 +63,41 @@ exports.handler = async (event) => {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다.' }) };
     }
 
-    // 3. 크리에이터 정보 조회
-    const { data: creator, error: creatorError } = await supabase
+    // 3. 크리에이터 정보 조회 (featured_creators 또는 user_profiles에서)
+    let creator = null;
+
+    // 먼저 featured_creators에서 조회
+    const { data: featuredCreator } = await supabase
       .from('featured_creators')
       .select('id, name, creator_name, email, phone, instagram_handle, youtube_handle, followers')
       .eq('id', creatorId)
       .single();
 
-    if (creatorError || !creator) {
+    if (featuredCreator) {
+      creator = featuredCreator;
+    } else {
+      // featured_creators에 없으면 user_profiles (Korea DB)에서 조회 (MUSE 크리에이터용)
+      const koreaClient = supabaseKorea || supabase;
+      const { data: userProfile } = await koreaClient
+        .from('user_profiles')
+        .select('id, name, full_name, email, phone, instagram_url, youtube_url, tiktok_url, followers_count')
+        .eq('id', creatorId)
+        .single();
+
+      if (userProfile) {
+        creator = {
+          id: userProfile.id,
+          name: userProfile.name || userProfile.full_name,
+          email: userProfile.email,
+          phone: userProfile.phone,
+          instagram_handle: userProfile.instagram_url,
+          youtube_handle: userProfile.youtube_url,
+          followers: userProfile.followers_count
+        };
+      }
+    }
+
+    if (!creator) {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '크리에이터를 찾을 수 없습니다.' }) };
     }
 

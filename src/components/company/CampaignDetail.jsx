@@ -5981,14 +5981,9 @@ JSON만 출력.`
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                       campaignId: id,
-                                      creatorEmail: creator.email,
-                                      creatorName: creator.name || creator.channel_name,
-                                      creatorPhone: creator.phone,
+                                      creatorId: creator.id,
                                       invitedBy: currentUser.id,
-                                      campaignTitle: campaign?.title,
-                                      brandName: campaign?.brand_name,
-                                      reward: campaign?.reward_amount || campaign?.budget,
-                                      deadline: campaign?.deadline
+                                      companyEmail: currentUser.email
                                     })
                                   })
 
@@ -6010,38 +6005,58 @@ JSON만 출력.`
                               <Send className="w-3 h-3 mr-1" />
                               초대장 발송
                             </Button>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 text-[10px] h-6"
-                                onClick={() => {
-                                  const urls = []
-                                  if (creator.instagram_url) urls.push(creator.instagram_url)
-                                  if (creator.youtube_url) urls.push(creator.youtube_url)
-                                  if (creator.tiktok_url) urls.push(creator.tiktok_url)
-
-                                  if (urls.length > 0) {
-                                    window.open(urls[0], '_blank')
-                                  } else {
-                                    alert('SNS 채널 정보가 없습니다.')
-                                  }
-                                }}
-                              >
-                                SNS
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="flex-1 text-[10px] h-6"
-                                onClick={() => {
-                                  setSelectedParticipant(creator)
-                                  setShowProfileModal(true)
-                                }}
-                              >
-                                프로필
-                              </Button>
+                            {/* SNS 링크 아이콘들 */}
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                              {creator.instagram_url && (
+                                <a
+                                  href={creator.instagram_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-pink-500 hover:text-pink-600 transition-colors"
+                                  title="Instagram"
+                                >
+                                  <Instagram className="w-4 h-4" />
+                                </a>
+                              )}
+                              {creator.youtube_url && (
+                                <a
+                                  href={creator.youtube_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                  title="YouTube"
+                                >
+                                  <Youtube className="w-4 h-4" />
+                                </a>
+                              )}
+                              {creator.tiktok_url && (
+                                <a
+                                  href={creator.tiktok_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-gray-800 hover:text-black transition-colors"
+                                  title="TikTok"
+                                >
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                                  </svg>
+                                </a>
+                              )}
+                              {!creator.instagram_url && !creator.youtube_url && !creator.tiktok_url && (
+                                <span className="text-xs text-gray-400">SNS 없음</span>
+                              )}
                             </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full text-[10px] h-6"
+                              onClick={() => {
+                                setSelectedParticipant(creator)
+                                setShowProfileModal(true)
+                              }}
+                            >
+                              프로필 보기
+                            </Button>
                           </div>
                         </div>
                       </div>
