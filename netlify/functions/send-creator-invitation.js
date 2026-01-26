@@ -54,7 +54,7 @@ exports.handler = async (event) => {
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
+        .select('id, title, reward_amount, creator_points_override, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
@@ -69,7 +69,7 @@ exports.handler = async (event) => {
     if (!campaign) {
       const { data: bizCampaign, error: bizError } = await supabase
         .from('campaigns')
-        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
+        .select('id, title, reward_amount, creator_points_override, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
@@ -191,6 +191,11 @@ exports.handler = async (event) => {
     const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const invitationUrl = `${baseUrl}/invitation/${invitation.id}`;
 
+    // 크리에이터 포인트 (creator_points_override 우선, 없으면 reward_amount)
+    const creatorPoints = campaign.creator_points_override || campaign.reward_amount;
+    const formattedPoints = creatorPoints ? creatorPoints.toLocaleString() + '원' : '협의';
+    console.log('[INFO] Creator points:', { creator_points_override: campaign.creator_points_override, reward_amount: campaign.reward_amount, using: creatorPoints });
+
     // 8. 카카오톡 발송
     if (sendKakao && creator.phone) {
       try {
@@ -206,7 +211,7 @@ exports.handler = async (event) => {
               '기업명': companyName,
               '캠페인명': campaign.title,
               '패키지타입': campaign.package_type || '기본',
-              '보상금액': campaign.reward_amount ? campaign.reward_amount.toLocaleString() : '협의',
+              '보상금액': formattedPoints,
               '마감일': formattedDeadline,
               '캠페인링크': invitationUrl,
               '만료일': formattedExpiration
@@ -243,7 +248,7 @@ exports.handler = async (event) => {
 <p style="font-size:12px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;">캠페인 정보</p>
 <p style="font-size:18px;font-weight:600;color:#1f2937;margin:0 0 16px;">${campaign.title}</p>
 <table width="100%">
-<tr><td style="padding:4px 0;font-size:14px;color:#6b7280;">보상금</td><td style="padding:4px 0;font-size:14px;color:#7c3aed;font-weight:600;text-align:right;">${campaign.reward_amount ? campaign.reward_amount.toLocaleString() + '원' : '협의'}</td></tr>
+<tr><td style="padding:4px 0;font-size:14px;color:#6b7280;">보상금</td><td style="padding:4px 0;font-size:14px;color:#7c3aed;font-weight:600;text-align:right;">${formattedPoints}</td></tr>
 <tr><td style="padding:4px 0;font-size:14px;color:#6b7280;">모집 마감</td><td style="padding:4px 0;font-size:14px;color:#1f2937;text-align:right;">${formattedDeadline}</td></tr>
 </table>
 </td></tr></table>
