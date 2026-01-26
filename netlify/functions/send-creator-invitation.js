@@ -137,26 +137,30 @@ exports.handler = async (event) => {
     // 3. 크리에이터 정보 조회 (featured_creators 또는 user_profiles에서)
     let creator = null;
 
-    // 먼저 featured_creators에서 조회
+    // 먼저 featured_creators에서 조회 (select * 사용)
     console.log('[DEBUG] Checking featured_creators for creator:', creatorId);
     const { data: featuredCreator, error: featuredError } = await supabase
       .from('featured_creators')
-      .select('id, name, creator_name, email, phone, instagram_handle, youtube_handle, followers')
+      .select('*')
       .eq('id', creatorId)
       .single();
 
     console.log('[DEBUG] featured_creators result:', { found: !!featuredCreator, error: featuredError?.message });
 
     if (featuredCreator) {
-      creator = featuredCreator;
-      console.log('[INFO] Creator found in featured_creators:', { name: creator.name || creator.creator_name });
+      creator = {
+        ...featuredCreator,
+        name: featuredCreator.name || featuredCreator.creator_name,
+        followers: featuredCreator.followers || featuredCreator.followers_count
+      };
+      console.log('[INFO] Creator found in featured_creators:', { name: creator.name });
     } else {
       // featured_creators에 없으면 user_profiles (Korea DB)에서 조회 (MUSE 크리에이터용)
       const koreaClient = supabaseKorea || supabase;
       console.log('[DEBUG] Checking user_profiles for MUSE creator:', creatorId);
       const { data: userProfile, error: profileError } = await koreaClient
         .from('user_profiles')
-        .select('id, name, full_name, email, phone, instagram_url, youtube_url, tiktok_url, followers_count')
+        .select('*')
         .eq('id', creatorId)
         .single();
 
@@ -164,15 +168,16 @@ exports.handler = async (event) => {
 
       if (userProfile) {
         creator = {
-          id: userProfile.id,
-          name: userProfile.name || userProfile.full_name,
+          ...userProfile,
+          name: userProfile.name || userProfile.full_name || userProfile.display_name,
           email: userProfile.email,
-          phone: userProfile.phone,
-          instagram_handle: userProfile.instagram_url,
-          youtube_handle: userProfile.youtube_url,
-          followers: userProfile.followers_count
+          phone: userProfile.phone || userProfile.phone_number,
+          instagram_handle: userProfile.instagram_url || userProfile.instagram_handle || userProfile.instagram,
+          youtube_handle: userProfile.youtube_url || userProfile.youtube_handle || userProfile.youtube,
+          tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle || userProfile.tiktok,
+          followers: userProfile.followers_count || userProfile.followers || userProfile.total_followers
         };
-        console.log('[INFO] Creator found in user_profiles (MUSE):', { name: creator.name });
+        console.log('[INFO] Creator found in user_profiles (MUSE):', { name: creator.name, email: creator.email });
       }
     }
 
