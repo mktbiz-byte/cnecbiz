@@ -772,11 +772,11 @@ export default function CampaignDetail() {
 
     setLoadingMuseCreators(true)
     try {
-      // 한국 DB에서 MUSE 등급 (grade_level = 5) 크리에이터 조회
+      // 한국 DB에서 MUSE 등급 (cnec_grade_level = 5) 크리에이터 조회
       const { data, error } = await supabaseKorea
         .from('user_profiles')
         .select('*')
-        .eq('grade_level', 5)
+        .eq('cnec_grade_level', 5)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -940,26 +940,10 @@ export default function CampaignDetail() {
 
       if (profilesError) {
         console.error('Error fetching all profiles:', profilesError)
-      } else {
-        console.log('Fetched all profiles count:', allProfiles?.length || 0)
-        if (allProfiles && allProfiles.length > 0) {
-          console.log('Sample profile columns:', Object.keys(allProfiles[0]))
-        }
       }
 
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
       const enrichedData = combinedData.map((app) => {
-        // 먼저 app에 이미 있는 프로필 사진 확인
-        console.log('App fields for', app.applicant_name, ':', {
-          user_id: app.user_id,
-          email: app.email,
-          profile_photo_url: app.profile_photo_url,
-          profile_image_url: app.profile_image_url,
-          profile_image: app.profile_image,
-          creator_profile_image: app.creator_profile_image,
-          avatar_url: app.avatar_url
-        })
-
         let profile = null
 
         if (app.user_id && allProfiles && allProfiles.length > 0) {
@@ -969,17 +953,6 @@ export default function CampaignDetail() {
             p.user_id === app.user_id ||
             (app.email && p.email === app.email)
           )
-
-          if (profile) {
-            console.log('Found profile for', app.applicant_name, ':', {
-              matched_by: p => p.id === app.user_id ? 'id' : (p.user_id === app.user_id ? 'user_id' : 'email'),
-              profile_image: profile.profile_image,
-              profile_photo_url: profile.profile_photo_url,
-              avatar_url: profile.avatar_url
-            })
-          } else {
-            console.log('No profile match found for', app.applicant_name, 'user_id:', app.user_id)
-          }
         }
 
         // user_profiles에서 먼저, 없으면 application에서 프로필 이미지 가져오기
@@ -1130,8 +1103,8 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched participants:', finalData)
-      console.log('Participants count:', finalData?.length || 0)
+      // 개인정보 보호를 위해 상세 데이터 로그 제거
+      console.log('[fetchParticipants] Loaded:', finalData?.length || 0, 'participants')
       setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
@@ -1257,20 +1230,9 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      // US 지역 디버깅: applications 테이블의 실제 필드 구조 확인
+      // 개인정보 보호를 위해 디버그 로그 제거
       if (data && data.length > 0) {
-        console.log('[DEBUG US] applications 테이블 필드 목록:', Object.keys(data[0]))
-        console.log('[DEBUG US] 첫 번째 application 전체 데이터:', JSON.stringify(data[0], null, 2))
-        console.log('[DEBUG US] 주소/연락처 관련 필드 확인:', {
-          phone: data[0].phone,
-          phone_number: data[0].phone_number,
-          creator_phone: data[0].creator_phone,
-          shipping_phone: data[0].shipping_phone,
-          address: data[0].address,
-          shipping_address: data[0].shipping_address,
-          postal_code: data[0].postal_code,
-          detail_address: data[0].detail_address
-        })
+        console.log('[fetchApplications] Loaded:', data.length, 'applications')
       }
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
@@ -1305,8 +1267,6 @@ export default function CampaignDetail() {
 
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
       const enrichedData = (data || []).map((app) => {
-        console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
-
         let profile = null
 
         if (app.user_id && allProfiles && allProfiles.length > 0) {
@@ -1326,8 +1286,6 @@ export default function CampaignDetail() {
           cnec_total_score: featuredCreator?.cnec_total_score || null,
           is_cnec_recommended: featuredCreator?.is_cnec_recommended || false
         }
-
-        console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
         // 이메일에서 이름 추출 함수
         const extractNameFromEmail = (email) => {
@@ -1412,7 +1370,6 @@ export default function CampaignDetail() {
           return enriched
         }
 
-        console.log('Returning original app data for:', app.applicant_name)
         return {
           ...app,
           ...gradeInfo,
@@ -1421,7 +1378,6 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -1885,9 +1841,8 @@ JSON만 출력.`
           if (error) throw error
         }
         successCount++
-        console.log('[Bulk Guide] 성공 - participant:', participant.applicant_name || participant.creator_name)
       } catch (err) {
-        console.error(`[Bulk Guide] 실패 - ${participant.applicant_name || participant.creator_name}:`, err.message, err)
+        console.error('[Bulk Guide] 실패:', err.message)
         failCount++
       }
 
@@ -2219,13 +2174,6 @@ JSON만 출력.`
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-      console.log('[DEBUG] Uploaded tracking data:', jsonData)
-      console.log('[DEBUG] Current participants:', participants.map(p => ({
-        id: p.id,
-        creator_name: p.creator_name,
-        applicant_name: p.applicant_name
-      })))
-
       // 지역별 컬럼명 매핑 (여러 언어 지원)
       const nameKeys = ['크리에이터명', 'クリエイター名', 'Creator Name', 'Name', 'name']
       const trackingKeys = ['송장번호', '送り状番号', 'Tracking Number', 'Tracking', 'tracking']
@@ -2240,20 +2188,15 @@ JSON만 출력.`
         const trackingNumber = trackingKeys.reduce((val, key) => val || row[key], null)
         const courier = courierKeys.reduce((val, key) => val || row[key], null)
 
-        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber, courier })
-
         if (!creatorName || !trackingNumber) {
-          console.log('[DEBUG] Skipping row - missing name or tracking number')
           continue
         }
 
         const participant = participants.find(p =>
           p.creator_name === creatorName || p.applicant_name === creatorName
         )
-        console.log('[DEBUG] Found participant:', participant)
 
         if (!participant) {
-          console.log('[DEBUG] No matching participant found for:', creatorName)
           failCount++
           continue
         }
@@ -2270,14 +2213,12 @@ JSON만 출력.`
             .eq('id', participant.id)
 
           if (error) {
-            console.error(`[ERROR] Failed to update tracking for ${creatorName}:`, error)
             failCount++
           } else {
-            console.log(`[SUCCESS] Updated tracking for ${creatorName}`)
             successCount++
           }
         } catch (error) {
-          console.error(`[ERROR] Exception updating ${creatorName}:`, error)
+          console.error('[ERROR] Exception updating tracking:', error)
           failCount++
         }
       }
@@ -3300,18 +3241,11 @@ JSON만 출력.`
 
           // 이미 영상 제출 이후 단계인 경우 건너뛰기 (재전달은 허용)
           if (['video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)) {
-            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already in ${participant.status} status, skipping guide delivery`)
             errorCount++
             continue
           }
-          
-          // 가이드 재전달 로그
-          if (participant.personalized_guide) {
-            console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
-          }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
-          console.log('[DEBUG] Updating application status to filming:', participantId)
 
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
@@ -3546,11 +3480,8 @@ JSON만 출력.`
           }
         }
 
-        console.log('알림톡 발송 정보:', { phone, email, creatorName, source: participant.phone_number ? 'applications' : 'user_profiles' })
-
         if (phone) {
           try {
-            console.log('알림톡 발송 시도:', { phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
             const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3576,8 +3507,6 @@ JSON만 출력.`
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
-        } else {
-          console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: participant?.user_id, phone_number: participant?.phone_number, phone: participant?.phone })
         }
 
         // 이메일 발송
@@ -4583,10 +4512,8 @@ JSON만 출력.`
                   language: 'ja'
                 })
               })
-
-              console.log(`[Japan] Notification sent to: ${participant.creator_name}`)
             } catch (notifError) {
-              console.error(`[Japan] Notification error for ${participant.creator_name}:`, notifError)
+              console.error('[Japan] Notification error:', notifError.message)
             }
           }
         }
@@ -10726,8 +10653,6 @@ JSON만 출력.`
                       }
                     }
 
-                    console.log('알림톡 발송 정보:', { phone, email, creatorName, source: selectedParticipant.phone_number ? 'applications' : 'user_profiles' })
-
                     if (phone) {
                       try {
                         await fetch('/.netlify/functions/send-kakao-notification', {
@@ -10754,8 +10679,6 @@ JSON만 출력.`
                       } catch (kakaoError) {
                         console.error('알림톡 발송 실패:', kakaoError)
                       }
-                    } else {
-                      console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: selectedParticipant?.user_id, phone_number: selectedParticipant?.phone_number, phone: selectedParticipant?.phone })
                     }
 
                     // 이메일 발송
