@@ -7614,6 +7614,9 @@ JSON만 출력.`
                 {videoReviewFilter === 'not_submitted' && (() => {
                   const notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
 
+                  // 연락처 가져오기 헬퍼 함수
+                  const getPhone = (p) => p.phone || p.phone_number || p.creator_phone || ''
+
                   // 알림톡 보내기 함수
                   const handleSendAlimtalk = async () => {
                     if (selectedNotSubmitted.length === 0) {
@@ -7622,8 +7625,8 @@ JSON만 출력.`
                     }
 
                     const selectedParticipantsData = notSubmittedParticipants.filter(p => selectedNotSubmitted.includes(p.user_id))
-                    const withPhone = selectedParticipantsData.filter(p => p.phone)
-                    const withoutPhone = selectedParticipantsData.filter(p => !p.phone)
+                    const withPhone = selectedParticipantsData.filter(p => getPhone(p))
+                    const withoutPhone = selectedParticipantsData.filter(p => !getPhone(p))
 
                     if (withPhone.length === 0) {
                       alert('선택한 크리에이터 중 연락처가 등록된 크리에이터가 없습니다.')
@@ -7643,11 +7646,12 @@ JSON만 출력.`
 
                     for (const participant of withPhone) {
                       try {
+                        const phoneNum = getPhone(participant)
                         const response = await fetch('/.netlify/functions/send-kakao-notification', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            receiverNum: participant.phone.replace(/-/g, ''),
+                            receiverNum: phoneNum.replace(/-/g, ''),
                             receiverName: participant.creator_name || participant.applicant_name || '',
                             templateCode: '025100001015',
                             variables: {
@@ -7796,7 +7800,7 @@ JSON만 출력.`
                               </div>
                               <div className="flex flex-col items-end gap-1">
                                 <Badge className="bg-red-100 text-red-700 text-xs">미제출</Badge>
-                                {participant.phone ? (
+                                {getPhone(participant) ? (
                                   <span className="text-xs text-green-600 flex items-center gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
