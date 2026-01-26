@@ -777,11 +777,12 @@ export default function CampaignDetail() {
         .from('user_profiles')
         .select('*')
         .eq('grade_level', 5)
-        .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(20)
 
       if (error) throw error
+
+      console.log('[MUSE] Found creators:', data?.length || 0)
 
       // 이미 이 캠페인에 지원한 크리에이터는 제외
       const applicationEmails = applications.map(app => app.email?.toLowerCase())
@@ -789,6 +790,7 @@ export default function CampaignDetail() {
         !applicationEmails.includes(creator.email?.toLowerCase())
       )
 
+      console.log('[MUSE] After filtering:', filteredCreators.length)
       setMuseCreators(filteredCreators)
     } catch (error) {
       console.error('Error fetching MUSE creators:', error)
