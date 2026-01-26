@@ -76,6 +76,7 @@ const CreateCampaignJapan = () => {
   const thumbnailInputRef = useRef(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationComplete, setTranslationComplete] = useState(false)
+  const [questionCount, setQuestionCount] = useState(0)
 
   useEffect(() => {
     if (editId) {
@@ -147,6 +148,9 @@ const CreateCampaignJapan = () => {
         if (data.title_ja || data.description_ja) {
           setTranslationComplete(true)
         }
+        // 질문 개수 설정
+        const qCount = [data.question1, data.question2, data.question3, data.question4].filter(q => q && q.trim() !== '').length
+        setQuestionCount(qCount)
       }
     } catch (err) {
       console.error('캠페인 로드 실패:', err)
@@ -160,7 +164,7 @@ const CreateCampaignJapan = () => {
       value: 'regular',
       label: '기획형',
       labelJa: '企画型',
-      price: 200000,
+      price: 300000,
       description: '1개 영상 제작',
       descriptionJa: '1本の動画制作',
       features: ['맞춤 가이드라인', 'AI 크리에이터 매칭', 'SNS 업로드 URL', '2차 활용권'],
@@ -466,7 +470,11 @@ const CreateCampaignJapan = () => {
         estimated_cost: price,
         bonus_amount: campaignForm.bonus_amount,
         requires_ad_code: campaignForm.requires_ad_code,
-        requires_clean_video: campaignForm.requires_clean_video
+        requires_clean_video: campaignForm.requires_clean_video,
+        question1: campaignForm.question1 || null,
+        question2: campaignForm.question2 || null,
+        question3: campaignForm.question3 || null,
+        question4: campaignForm.question4 || null
       }
 
       // 캠페인 타입별 마감일
@@ -972,6 +980,104 @@ const CreateCampaignJapan = () => {
                         <p className="text-xs text-gray-500">자막 없는 버전의 영상도 함께 제출받습니다</p>
                       </div>
                     </label>
+                  </div>
+                </div>
+
+                {/* 지원자 질문 섹션 */}
+                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </span>
+                      지원자 질문
+                      <span className="text-sm font-normal text-gray-400">(선택사항)</span>
+                    </h3>
+                    {questionCount < 4 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        질문 추가
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mb-5 ml-10">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
+
+                  <div className="space-y-4">
+                    {questionCount >= 1 && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <Label htmlFor="question1" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                          <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">1</span>
+                          질문 1
+                        </Label>
+                        <Textarea
+                          id="question1"
+                          value={campaignForm.question1}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
+                          placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
+                          rows={2}
+                          className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
+                        />
+                      </div>
+                    )}
+                    {questionCount >= 2 && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <Label htmlFor="question2" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                          <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">2</span>
+                          질문 2
+                        </Label>
+                        <Textarea
+                          id="question2"
+                          value={campaignForm.question2}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
+                          placeholder="예: 해당 브랜드/제품을 사용해본 경험이 있나요?"
+                          rows={2}
+                          className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
+                        />
+                      </div>
+                    )}
+                    {questionCount >= 3 && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <Label htmlFor="question3" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                          <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">3</span>
+                          질문 3
+                        </Label>
+                        <Textarea
+                          id="question3"
+                          value={campaignForm.question3}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
+                          placeholder="예: 이 캠페인에 지원하신 동기는 무엇인가요?"
+                          rows={2}
+                          className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
+                        />
+                      </div>
+                    )}
+                    {questionCount >= 4 && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <Label htmlFor="question4" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                          <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">4</span>
+                          질문 4
+                        </Label>
+                        <Textarea
+                          id="question4"
+                          value={campaignForm.question4}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
+                          placeholder="예: 캠페인 관련하여 추가로 알려주실 내용이 있나요?"
+                          rows={2}
+                          className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
+                        />
+                      </div>
+                    )}
+                    {questionCount === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <p className="text-sm">위의 "질문 추가" 버튼을 클릭하여 질문을 추가하세요</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
