@@ -81,7 +81,7 @@ exports.handler = async (event) => {
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, reward_amount, creator_points_override, package_type, deadline, company_email, brand_name')
+        .select('id, title, creator_points_override, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
@@ -100,7 +100,7 @@ exports.handler = async (event) => {
       console.log('[DEBUG] Checking BIZ DB for campaign...');
       const { data: bizCampaign, error: bizError } = await supabase
         .from('campaigns')
-        .select('id, title, reward_amount, creator_points_override, package_type, deadline, company_email, brand_name')
+        .select('id, title, creator_points_override, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
@@ -231,10 +231,10 @@ exports.handler = async (event) => {
     const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const invitationUrl = `${baseUrl}/invitation/${invitation.id}`;
 
-    // 크리에이터 포인트 (creator_points_override 우선, 없으면 reward_amount)
-    const creatorPoints = campaign.creator_points_override || campaign.reward_amount;
+    // 크리에이터 포인트
+    const creatorPoints = campaign.creator_points_override;
     const formattedPoints = creatorPoints ? creatorPoints.toLocaleString() + '원' : '협의';
-    console.log('[INFO] Creator points:', { creator_points_override: campaign.creator_points_override, reward_amount: campaign.reward_amount, using: creatorPoints });
+    console.log('[INFO] Creator points:', { creator_points_override: campaign.creator_points_override, using: creatorPoints });
 
     // 8. 카카오톡 발송
     if (sendKakao && creator.phone) {
