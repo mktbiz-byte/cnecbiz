@@ -27,6 +27,22 @@ try {
 }
 
 /**
+ * 캠페인 타입을 한글 라벨로 변환
+ */
+const getCampaignTypeLabel = (campaignType) => {
+  const labels = {
+    'planned': '기획형',
+    'regular': '기획형',
+    'oliveyoung': '올영세일',
+    'oliveyoung_sale': '올영세일',
+    '4week_challenge': '4주 챌린지',
+    '4week': '4주 챌린지',
+    'megawari': '메가와리'
+  };
+  return labels[campaignType] || campaignType || '기획형';
+};
+
+/**
  * 크리에이터 포인트 계산 함수 (프론트엔드 로직과 동일)
  */
 const calculateCreatorPoints = (campaign) => {
@@ -301,7 +317,10 @@ exports.handler = async (event) => {
     // 크리에이터 포인트 (계산 함수 사용)
     const creatorPoints = calculateCreatorPoints(campaign);
     const formattedPoints = creatorPoints ? creatorPoints.toLocaleString() + '원' : '협의';
-    console.log('[INFO] Creator points:', { campaign_type: campaign.campaign_type, calculated: creatorPoints });
+
+    // 캠페인 타입 라벨
+    const campaignTypeLabel = getCampaignTypeLabel(campaign.campaign_type);
+    console.log('[INFO] Creator points:', { campaign_type: campaign.campaign_type, campaignTypeLabel, calculated: creatorPoints });
 
     // 8. 카카오톡 발송
     if (sendKakao && creator.phone) {
@@ -317,7 +336,7 @@ exports.handler = async (event) => {
               '크리에이터명': creatorName,
               '기업명': companyName,
               '캠페인명': campaign.title,
-              '패키지타입': campaign.package_type || '기본',
+              '패키지타입': campaignTypeLabel,
               '보상금액': formattedPoints,
               '마감일': formattedDeadline,
               '캠페인링크': invitationUrl,

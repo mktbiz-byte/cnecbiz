@@ -157,6 +157,60 @@ export default function InvitationLanding() {
     return amount.toLocaleString() + '원'
   }
 
+  // 캠페인 타입 한글 라벨
+  const getCampaignTypeLabel = (campaignType) => {
+    const labels = {
+      'planned': '기획형',
+      'regular': '기획형',
+      'oliveyoung': '올영세일',
+      'oliveyoung_sale': '올영세일',
+      '4week_challenge': '4주 챌린지',
+      '4week': '4주 챌린지',
+      'megawari': '메가와리'
+    }
+    return labels[campaignType] || campaignType || '기획형'
+  }
+
+  // 크리에이터 포인트 계산 (프론트엔드 로직과 동일)
+  const calculateCreatorPoints = (campaign) => {
+    if (!campaign) return 0
+
+    // 수동 설정값이 있으면 우선 사용
+    if (campaign.creator_points_override) {
+      return campaign.creator_points_override
+    }
+
+    const campaignType = campaign.campaign_type
+    const totalSlots = campaign.total_slots || campaign.max_participants || 1
+
+    // 4주 챌린지
+    if (campaignType === '4week_challenge' || campaignType === '4week') {
+      const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
+                         (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
+      const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
+      return Math.round((totalReward * 0.7) / totalSlots)
+    }
+
+    // 기획형
+    if (campaignType === 'planned' || campaignType === 'regular') {
+      const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                       (campaign.step3_reward || 0)
+      const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+      return Math.round((totalReward * 0.6) / totalSlots)
+    }
+
+    // 올리브영
+    if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+      const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                       (campaign.step3_reward || 0)
+      const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+      return Math.round((totalReward * 0.7) / totalSlots)
+    }
+
+    // 기본: reward_amount 또는 reward_points
+    return campaign.reward_amount || Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+  }
+
   // 로딩 화면
   if (loading) {
     return (
@@ -254,10 +308,7 @@ export default function InvitationLanding() {
             {/* 캠페인 타입 배지 */}
             {campaign?.campaign_type && (
               <span className="inline-block px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-medium mb-3">
-                {campaign.campaign_type === 'olive_young' && '올리브영'}
-                {campaign.campaign_type === 'four_week' && '4주 챌린지'}
-                {campaign.campaign_type === 'regular' && '일반 캠페인'}
-                {!['olive_young', 'four_week', 'regular'].includes(campaign.campaign_type) && campaign.campaign_type}
+                {getCampaignTypeLabel(campaign.campaign_type)}
               </span>
             )}
 
@@ -283,7 +334,7 @@ export default function InvitationLanding() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">보상금</p>
-                  <p className="font-medium text-gray-900">{formatAmount(campaign?.reward_amount)}</p>
+                  <p className="font-medium text-gray-900">{formatAmount(calculateCreatorPoints(campaign))}</p>
                 </div>
               </div>
 
@@ -292,8 +343,8 @@ export default function InvitationLanding() {
                   <Package className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">패키지</p>
-                  <p className="font-medium text-gray-900">{campaign?.package_type || '기본'}</p>
+                  <p className="text-xs text-gray-400">캠페인 타입</p>
+                  <p className="font-medium text-gray-900">{getCampaignTypeLabel(campaign?.campaign_type)}</p>
                 </div>
               </div>
 
@@ -303,7 +354,7 @@ export default function InvitationLanding() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">모집 마감</p>
-                  <p className="font-medium text-gray-900">{formatDate(campaign?.deadline)}</p>
+                  <p className="font-medium text-gray-900">{formatDate(campaign?.application_deadline || campaign?.deadline)}</p>
                 </div>
               </div>
             </div>
