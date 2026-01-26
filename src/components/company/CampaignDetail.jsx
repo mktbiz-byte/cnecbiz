@@ -6003,31 +6003,88 @@ JSON만 출력.`
                             <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
                           </div>
 
-                          {/* 채널 & 팔로워 */}
+                          {/* 채널 & 팔로워 - 클릭하면 가상선정 + 채널 설정 */}
                           <div className="space-y-1 mb-2">
                             {app.instagram_url && (
-                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
-                                <span className="text-pink-600">📷 Instagram</span>
-                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.virtual_selected && app.main_channel === 'instagram'
+                                  ? 'bg-pink-200 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 hover:bg-pink-100'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'instagram')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-pink-600">📷 Instagram</span>
+                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                                  {app.virtual_selected && app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-pink-400 hover:text-pink-600 p-0.5"
+                                  title="인스타그램 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                             {app.youtube_url && (
-                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
-                                <span className="text-red-600">▶️ YouTube</span>
-                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.virtual_selected && app.main_channel === 'youtube'
+                                  ? 'bg-red-200 ring-2 ring-red-400'
+                                  : 'bg-red-50 hover:bg-red-100'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'youtube')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-red-600">▶️ YouTube</span>
+                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                                  {app.virtual_selected && app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-red-400 hover:text-red-600 p-0.5"
+                                  title="유튜브 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                             {app.tiktok_url && (
-                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
-                                <span className="text-gray-700">🎵 TikTok</span>
-                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.virtual_selected && app.main_channel === 'tiktok'
+                                  ? 'bg-gray-300 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}>
+                                <button
+                                  onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleVirtualSelect(app.id, true, 'tiktok')}
+                                  disabled={isAlreadyParticipant || app.status === 'selected'}
+                                  className="flex-1 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-gray-700">🎵 TikTok</span>
+                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                                  {app.virtual_selected && app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-gray-400 hover:text-gray-600 p-0.5"
+                                  title="틱톡 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                           </div>
 
@@ -6299,31 +6356,85 @@ JSON만 출력.`
                             <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
                           </div>
 
-                          {/* 채널 & 팔로워 */}
+                          {/* 채널 & 팔로워 - 클릭하면 채널 변경 */}
                           <div className="space-y-1 mb-2">
                             {app.instagram_url && (
-                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
-                                <span className="text-pink-600">📷 Instagram</span>
-                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'instagram'
+                                  ? 'bg-pink-200 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 hover:bg-pink-100'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'instagram')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-pink-600">📷 Instagram</span>
+                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-pink-400 hover:text-pink-600 p-0.5"
+                                  title="인스타그램 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                             {app.youtube_url && (
-                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
-                                <span className="text-red-600">▶️ YouTube</span>
-                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'youtube'
+                                  ? 'bg-red-200 ring-2 ring-red-400'
+                                  : 'bg-red-50 hover:bg-red-100'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'youtube')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-red-600">▶️ YouTube</span>
+                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-red-400 hover:text-red-600 p-0.5"
+                                  title="유튜브 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                             {app.tiktok_url && (
-                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
-                                <span className="text-gray-700">🎵 TikTok</span>
-                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                              </a>
+                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                                app.main_channel === 'tiktok'
+                                  ? 'bg-gray-300 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}>
+                                <button
+                                  onClick={() => handleVirtualSelect(app.id, true, 'tiktok')}
+                                  className="flex-1 flex items-center justify-between"
+                                >
+                                  <span className="text-gray-700">🎵 TikTok</span>
+                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                </button>
+                                <a
+                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-2 text-gray-400 hover:text-gray-600 p-0.5"
+                                  title="틱톡 바로가기"
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             )}
                           </div>
 
