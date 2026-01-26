@@ -311,8 +311,8 @@ exports.handler = async (event) => {
     console.log('[SUCCESS] Invitation created:', invitation.id);
 
     const results = { invitation: true, kakao: false, email: false };
-    const baseUrl = process.env.URL || 'https://cnecbiz.com';
-    const invitationUrl = `${baseUrl}/invitation/${invitation.id}`;
+    // cnec.co.kr 캠페인 페이지로 직접 링크
+    const campaignUrl = `https://cnec.co.kr/campaign/${campaignId}`;
 
     // 크리에이터 포인트 (계산 함수 사용)
     const creatorPoints = calculateCreatorPoints(campaign);
@@ -339,7 +339,7 @@ exports.handler = async (event) => {
               '패키지타입': campaignTypeLabel,
               '보상금액': formattedPoints,
               '마감일': formattedDeadline,
-              '캠페인링크': invitationUrl,
+              '캠페인링크': campaignUrl,
               '만료일': formattedExpiration
             }
           })
@@ -379,7 +379,7 @@ exports.handler = async (event) => {
 </table>
 </td></tr></table>
 <table width="100%"><tr><td align="center">
-<a href="${invitationUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지금 바로 지원하기</a>
+<a href="${campaignUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지금 바로 지원하기</a>
 </td></tr></table>
 <p style="font-size:12px;color:#9ca3af;text-align:center;margin:24px 0 0;">이 초대는 ${formattedExpiration}까지 유효합니다.</p>
 </td></tr>
