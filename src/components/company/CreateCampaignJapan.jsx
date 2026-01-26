@@ -469,6 +469,12 @@ ${textToTranslate}
     setSuccess('')
 
     try {
+      // 사용자 정보 가져오기
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        throw new Error('로그인이 필요합니다.')
+      }
+
       if (!campaignForm.title || !campaignForm.brand || !campaignForm.requirements) {
         throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
       }
@@ -534,7 +540,7 @@ ${textToTranslate}
         question4: toNullIfEmpty(campaignForm.question4),
         product_shipping_date: toNullIfEmpty(campaignForm.product_shipping_date),
         // 기업 정보 - 캠페인 목록 조회에 필요
-        company_email: currentUser?.email || null
+        company_email: user.email
       }
 
       // 캠페인 타입별 마감일
