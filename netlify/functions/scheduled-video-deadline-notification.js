@@ -663,43 +663,60 @@ exports.handler = async (event, context) => {
           const creatorPhone = creatorProfile.phone || creatorProfile.phone_number;
           const creatorEmail = creatorProfile.email;
 
-          // 캠페인 타입에 따른 필요 영상 개수 확인
-          let requiredVideoCount = 1; // 기본값
+          // 캠페인 타입에 따라 해당 마감일의 영상이 제출됐는지 확인
+          let targetVideoNumber = null; // 확인할 영상 번호 (week_number 또는 video_number)
+          let videoFieldName = 'video_number'; // 필드명
+
           if (campaignType === '4week_challenge') {
-            requiredVideoCount = 4;
+            videoFieldName = 'week_number';
+            if (campaign.week1_deadline === date) targetVideoNumber = 1;
+            else if (campaign.week2_deadline === date) targetVideoNumber = 2;
+            else if (campaign.week3_deadline === date) targetVideoNumber = 3;
+            else if (campaign.week4_deadline === date) targetVideoNumber = 4;
           } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
-            requiredVideoCount = 2;
+            videoFieldName = 'video_number';
+            if (campaign.step1_deadline === date) targetVideoNumber = 1;
+            else if (campaign.step2_deadline === date) targetVideoNumber = 2;
           }
 
-          // video_submissions에서 이미 제출된 영상 개수 확인
-          const { data: submittedVideos, error: videoError } = await supabase
+          // video_submissions에서 해당 영상이 제출됐는지 확인
+          let submissionQuery = supabase
             .from('video_submissions')
-            .select('id, status, final_confirmed_at')
+            .select('id, status, week_number, video_number')
             .eq('campaign_id', app.campaign_id)
-            .eq('user_id', app.user_id)
-            .in('status', ['approved', 'completed']);
+            .eq('user_id', app.user_id);
+
+          // 올리브영/4주챌린지는 해당 번호의 영상만 확인
+          if (targetVideoNumber !== null) {
+            submissionQuery = submissionQuery.eq(videoFieldName, targetVideoNumber);
+          }
+
+          const { data: submittedVideos, error: videoError } = await submissionQuery;
 
           if (videoError) {
             console.error(`영상 제출 확인 오류 (user_id: ${app.user_id}):`, videoError);
           }
 
-          const submittedCount = submittedVideos?.length || 0;
+          // 해당 영상이 이미 제출됐는지 확인 (pending, approved, completed 등 모든 상태)
+          const hasSubmitted = submittedVideos && submittedVideos.length > 0;
 
-          // 이미 필요한 모든 영상을 제출한 경우 알림 건너뜀
-          if (submittedCount >= requiredVideoCount) {
-            console.log(`✓ 영상 제출 완료: ${creatorName} (${submittedCount}/${requiredVideoCount}건) - 알림 건너뜀`);
+          if (hasSubmitted) {
+            const videoStatus = submittedVideos[0].status;
+            const videoLabel = targetVideoNumber ? `${targetVideoNumber}차 영상` : '영상';
+            console.log(`✓ ${videoLabel} 제출 완료: ${creatorName} (상태: ${videoStatus}) - 알림 건너뜀`);
             allResults.push({
               userId: app.user_id,
               campaignName,
               deadline: date,
               label,
               status: 'skipped',
-              reason: `영상 제출 완료 (${submittedCount}/${requiredVideoCount}건)`
+              reason: `${videoLabel} 제출 완료 (상태: ${videoStatus})`
             });
             continue;
           }
 
-          console.log(`→ 영상 미제출: ${creatorName} (${submittedCount}/${requiredVideoCount}건) - 알림 발송`);
+          const videoLabel = targetVideoNumber ? `${targetVideoNumber}차 영상` : '영상';
+          console.log(`→ ${videoLabel} 미제출: ${creatorName} - 알림 발송`);
 
           // 마감일 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
           const deadlineFormatted = date.replace(/-/g, '.');
