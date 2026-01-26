@@ -1,14 +1,30 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// 환경변수 안전하게 로드
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// BIZ Supabase 클라이언트 (안전하게 생성)
+let supabase = null;
+try {
+  if (supabaseUrl && supabaseServiceKey) {
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  }
+} catch (e) {
+  console.error('[INIT ERROR] Failed to create BIZ supabase client:', e.message);
+}
+
+// Korea Supabase 클라이언트
 const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
 const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
-const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
-  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
-  : null;
+let supabaseKorea = null;
+try {
+  if (supabaseKoreaUrl && supabaseKoreaServiceKey) {
+    supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaServiceKey);
+  }
+} catch (e) {
+  console.error('[INIT ERROR] Failed to create Korea supabase client:', e.message);
+}
 
 /**
  * 크리에이터에게 캠페인 초대장 발송
@@ -46,11 +62,22 @@ exports.handler = async (event) => {
       };
     }
 
+    // Supabase 클라이언트 확인
+    if (!supabase) {
+      console.error('[ERROR] BIZ Supabase client not initialized');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ success: false, error: '데이터베이스 연결 오류가 발생했습니다.' })
+      };
+    }
+
     // 1. 캠페인 정보 조회 (Korea DB 우선, 없으면 BIZ DB)
     let campaign = null;
     let campaignClient = null;
 
     // Korea DB에서 먼저 조회
+    console.log('[DEBUG] Checking Korea DB for campaign...');
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
@@ -58,25 +85,30 @@ exports.handler = async (event) => {
         .eq('id', campaignId)
         .single();
 
+      console.log('[DEBUG] Korea DB result:', { found: !!koreaCampaign, error: koreaError?.message });
       if (koreaCampaign && !koreaError) {
         campaign = koreaCampaign;
         campaignClient = supabaseKorea;
-        console.log('[INFO] Campaign found in Korea DB');
+        console.log('[INFO] Campaign found in Korea DB:', { title: campaign.title, company_email: campaign.company_email });
       }
+    } else {
+      console.log('[DEBUG] Korea Supabase client not available');
     }
 
     // Korea에 없으면 BIZ DB에서 조회
     if (!campaign) {
+      console.log('[DEBUG] Checking BIZ DB for campaign...');
       const { data: bizCampaign, error: bizError } = await supabase
         .from('campaigns')
         .select('id, title, reward_amount, creator_points_override, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
+      console.log('[DEBUG] BIZ DB result:', { found: !!bizCampaign, error: bizError?.message });
       if (bizCampaign && !bizError) {
         campaign = bizCampaign;
         campaignClient = supabase;
-        console.log('[INFO] Campaign found in BIZ DB');
+        console.log('[INFO] Campaign found in BIZ DB:', { title: campaign.title, company_email: campaign.company_email });
       }
     }
 
@@ -96,22 +128,29 @@ exports.handler = async (event) => {
     let creator = null;
 
     // 먼저 featured_creators에서 조회
-    const { data: featuredCreator } = await supabase
+    console.log('[DEBUG] Checking featured_creators for creator:', creatorId);
+    const { data: featuredCreator, error: featuredError } = await supabase
       .from('featured_creators')
       .select('id, name, creator_name, email, phone, instagram_handle, youtube_handle, followers')
       .eq('id', creatorId)
       .single();
 
+    console.log('[DEBUG] featured_creators result:', { found: !!featuredCreator, error: featuredError?.message });
+
     if (featuredCreator) {
       creator = featuredCreator;
+      console.log('[INFO] Creator found in featured_creators:', { name: creator.name || creator.creator_name });
     } else {
       // featured_creators에 없으면 user_profiles (Korea DB)에서 조회 (MUSE 크리에이터용)
       const koreaClient = supabaseKorea || supabase;
-      const { data: userProfile } = await koreaClient
+      console.log('[DEBUG] Checking user_profiles for MUSE creator:', creatorId);
+      const { data: userProfile, error: profileError } = await koreaClient
         .from('user_profiles')
         .select('id, name, full_name, email, phone, instagram_url, youtube_url, tiktok_url, followers_count')
         .eq('id', creatorId)
         .single();
+
+      console.log('[DEBUG] user_profiles result:', { found: !!userProfile, error: profileError?.message });
 
       if (userProfile) {
         creator = {
@@ -123,6 +162,7 @@ exports.handler = async (event) => {
           youtube_handle: userProfile.youtube_url,
           followers: userProfile.followers_count
         };
+        console.log('[INFO] Creator found in user_profiles (MUSE):', { name: creator.name });
       }
     }
 
