@@ -7538,7 +7538,7 @@ JSON만 출력.`
                     </div>
                     영상 제출 및 검토
                   </CardTitle>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       size="sm"
                       variant={videoReviewFilter === 'all' ? 'default' : 'outline'}
@@ -7562,6 +7562,14 @@ JSON만 출력.`
                       onClick={() => setVideoReviewFilter('approved')}
                     >
                       검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status)).map(v => v.user_id)).size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={videoReviewFilter === 'not_submitted' ? 'default' : 'outline'}
+                      className={videoReviewFilter === 'not_submitted' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
+                      onClick={() => setVideoReviewFilter('not_submitted')}
+                    >
+                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id)).length})
                     </Button>
                   </div>
                 </div>
@@ -7600,7 +7608,73 @@ JSON만 출력.`
                   </div>
                 </div>
 
-                {(() => {
+                {/* 미제출자 목록 */}
+                {videoReviewFilter === 'not_submitted' && (() => {
+                  const notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+
+                  if (notSubmittedParticipants.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                        <p className="text-lg font-medium text-green-600">모든 선정 크리에이터가 영상을 제출했습니다!</p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-gray-600">
+                          선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
+                          <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 아직 영상을 제출하지 않았습니다.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {notSubmittedParticipants.map((participant) => (
+                          <div
+                            key={participant.id}
+                            className="bg-white border border-red-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={participant.profile_photo_url || participant.creator_profile_photo || '/default-avatar.png'}
+                                alt={participant.creator_name || participant.applicant_name}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-red-200"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">
+                                  {participant.creator_name || participant.applicant_name || '이름 없음'}
+                                </h4>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {participant.creator_platform || participant.main_channel || '플랫폼 정보 없음'}
+                                </p>
+                                {participant.creator_channel_url && (
+                                  <a
+                                    href={participant.creator_channel_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-500 hover:underline truncate block"
+                                  >
+                                    채널 바로가기
+                                  </a>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge className="bg-red-100 text-red-700 text-xs">미제출</Badge>
+                                {participant.phone && (
+                                  <span className="text-xs text-gray-400">{participant.phone}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* 영상 제출 목록 */}
+                {videoReviewFilter !== 'not_submitted' && (() => {
                   // Group video submissions by user_id only
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
