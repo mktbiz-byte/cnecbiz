@@ -7612,7 +7612,71 @@ JSON만 출력.`
 
                 {/* 미제출자 목록 */}
                 {videoReviewFilter === 'not_submitted' && (() => {
-                  const notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+                  // 캠페인 타입 확인
+                  const campaignType = (campaign.campaign_type || '').toLowerCase()
+                  const isOliveyoung = campaignType.includes('oliveyoung') || campaignType.includes('올리브')
+                  const is4WeekChallenge = campaignType.includes('4week') || campaignType.includes('challenge')
+                  const isMultiStep = isOliveyoung || is4WeekChallenge
+
+                  // 올리브영/4주챌린지: 현재 날짜 기준 가장 가까운 미래 마감일의 차수 확인
+                  let currentStepNumber = null
+                  let currentStepDeadline = null
+                  let stepFieldName = 'video_number'
+
+                  if (isMultiStep) {
+                    const today = new Date().toISOString().split('T')[0]
+
+                    if (isOliveyoung) {
+                      const deadlines = [
+                        { num: 1, date: campaign.step1_deadline },
+                        { num: 2, date: campaign.step2_deadline }
+                      ].filter(d => d.date)
+
+                      // 오늘 이후의 가장 가까운 마감일 찾기
+                      const futureDeadlines = deadlines.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+                      if (futureDeadlines.length > 0) {
+                        currentStepNumber = futureDeadlines[0].num
+                        currentStepDeadline = futureDeadlines[0].date
+                      } else if (deadlines.length > 0) {
+                        // 모두 지났으면 마지막 마감일
+                        currentStepNumber = deadlines[deadlines.length - 1].num
+                        currentStepDeadline = deadlines[deadlines.length - 1].date
+                      }
+                    } else if (is4WeekChallenge) {
+                      stepFieldName = 'week_number'
+                      const deadlines = [
+                        { num: 1, date: campaign.week1_deadline },
+                        { num: 2, date: campaign.week2_deadline },
+                        { num: 3, date: campaign.week3_deadline },
+                        { num: 4, date: campaign.week4_deadline }
+                      ].filter(d => d.date)
+
+                      const futureDeadlines = deadlines.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+                      if (futureDeadlines.length > 0) {
+                        currentStepNumber = futureDeadlines[0].num
+                        currentStepDeadline = futureDeadlines[0].date
+                      } else if (deadlines.length > 0) {
+                        currentStepNumber = deadlines[deadlines.length - 1].num
+                        currentStepDeadline = deadlines[deadlines.length - 1].date
+                      }
+                    }
+                  }
+
+                  // 미제출자 필터링
+                  let notSubmittedParticipants
+                  if (isMultiStep && currentStepNumber) {
+                    // 올리브영/4주챌린지: 해당 차수 영상이 없는 참가자
+                    notSubmittedParticipants = participants.filter(p => {
+                      const hasSubmitted = videoSubmissions.some(v =>
+                        v.user_id === p.user_id &&
+                        (v[stepFieldName] === currentStepNumber || v.video_number === currentStepNumber || v.week_number === currentStepNumber)
+                      )
+                      return !hasSubmitted
+                    })
+                  } else {
+                    // 일반 캠페인: 영상이 없는 참가자
+                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+                  }
 
                   // 연락처 가져오기 헬퍼 함수
                   const getPhone = (p) => p.phone || p.phone_number || p.creator_phone || ''
@@ -7743,10 +7807,18 @@ JSON만 출력.`
                             />
                             <span className="text-sm font-medium text-gray-700">전체 선택</span>
                           </label>
-                          <p className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600">
+                            {isMultiStep && currentStepNumber ? (
+                              <>
+                                <span className="font-bold text-purple-600">{currentStepNumber}차 영상</span>
+                                <span className="mx-1">·</span>
+                                <span className="text-gray-500">마감일: {currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}</span>
+                                <span className="mx-2">|</span>
+                              </>
+                            ) : null}
                             선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
-                            <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 아직 영상을 제출하지 않았습니다.
-                          </p>
+                            <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 미제출
+                          </div>
                         </div>
                         <Button
                           onClick={handleSendAlimtalk}
@@ -7770,7 +7842,8 @@ JSON만 출력.`
                       </div>
                       {selectedNotSubmitted.length > 0 && (
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                          <strong>{selectedNotSubmitted.length}명</strong> 선택됨 · 영상 제출 마감일 알림톡이 발송됩니다.
+                          <strong>{selectedNotSubmitted.length}명</strong> 선택됨 ·
+                          {isMultiStep && currentStepNumber ? ` ${currentStepNumber}차 ` : ' '}영상 제출 마감일 알림톡이 발송됩니다.
                         </div>
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

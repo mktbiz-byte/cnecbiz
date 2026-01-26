@@ -536,17 +536,18 @@ exports.handler = async (event, context) => {
     const campaignCreatorsMap = {}; // 캠페인별 미제출 크리에이터 그룹화
 
     for (const { date, templateCode, label } of deadlineDates) {
-      console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
+      try {
+        console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
 
-      // 1단계: 모든 지역에서 해당 날짜가 content_submission_deadline인 캠페인 찾기
-      let allCampaigns = [];
-      for (const region of regions) {
-        if (!region.url || !region.key) {
-          console.log(`${region.name} Supabase 미설정 - 건너뜀`);
-          continue;
-        }
+        // 1단계: 모든 지역에서 해당 날짜가 content_submission_deadline인 캠페인 찾기
+        let allCampaigns = [];
+        for (const region of regions) {
+          if (!region.url || !region.key) {
+            console.log(`${region.name} Supabase 미설정 - 건너뜀`);
+            continue;
+          }
 
-        const supabase = createClient(region.url, region.key);
+          const supabase = createClient(region.url, region.key);
 
         // 모든 활성 캠페인 조회 (캠페인 타입별 마감일 필드 포함)
         const { data: regionCampaigns, error: campaignError } = await supabase
@@ -820,6 +821,10 @@ exports.handler = async (event, context) => {
           }
         } // end of applications loop
       } // end of campaigns loop
+      } catch (deadlineError) {
+        console.error(`[ERROR] ${label} 알림 처리 중 오류:`, deadlineError.message);
+        // 오류가 발생해도 다음 마감일 처리 계속
+      }
     }
 
     console.log('\n=== 크리에이터 알림 완료 ===');
