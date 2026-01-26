@@ -13,6 +13,22 @@ const CreateCampaignJapan = () => {
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('id') || searchParams.get('edit')
 
+  // 현재 로그인한 사용자 정보
+  const [currentUser, setCurrentUser] = useState(null)
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (user) {
+        setCurrentUser(user)
+      } else {
+        navigate('/login')
+      }
+    }
+    fetchUser()
+  }, [navigate])
+
   const [campaignForm, setCampaignForm] = useState({
     title: '',
     brand: '',
@@ -516,7 +532,9 @@ ${textToTranslate}
         question2: toNullIfEmpty(campaignForm.question2),
         question3: toNullIfEmpty(campaignForm.question3),
         question4: toNullIfEmpty(campaignForm.question4),
-        product_shipping_date: toNullIfEmpty(campaignForm.product_shipping_date)
+        product_shipping_date: toNullIfEmpty(campaignForm.product_shipping_date),
+        // 기업 정보 - 캠페인 목록 조회에 필요
+        company_email: currentUser?.email || null
       }
 
       // 캠페인 타입별 마감일
