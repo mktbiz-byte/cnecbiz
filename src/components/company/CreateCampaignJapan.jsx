@@ -366,13 +366,37 @@ const CreateCampaignJapan = () => {
 
       const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
 
+      const prompt = `あなたは韓国語から日本語への翻訳専門家です。以下の韓国語テキストを日本語に翻訳してください。
+
+要件:
+- マーケティングコンテンツに適した自然な日本語で翻訳
+- 各フィールドのラベルは日本語に変換: 제목→タイトル, 브랜드→ブランド, 설명→説明, 참가조건→参加条件
+- ブランド名は翻訳せずそのまま維持
+- 翻訳結果のみ出力（説明や補足は不要）
+
+翻訳対象:
+${textToTranslate}
+
+出力形式:
+[タイトル]
+(翻訳結果)
+
+[ブランド]
+(翻訳結果)
+
+[説明]
+(翻訳結果)
+
+[参加条件]
+(翻訳結果)`
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `다음 한국어를 일본어로 자연스럽게 번역해주세요. 마케팅 콘텐츠에 적합하도록 번역하고, 각 필드 형식을 유지하며 번역 결과만 출력해주세요:\n\n${textToTranslate}` }] }],
+            contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
           })
         }
@@ -382,20 +406,32 @@ const CreateCampaignJapan = () => {
 
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
-      const cleanText = translatedText.replace(/\*\*/g, '')
+      const cleanText = translatedText.replace(/\*\*/g, '').trim()
 
-      // 번역 결과 파싱
-      const titleMatch = cleanText.match(/\[(제목|タイトル)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const brandMatch = cleanText.match(/\[(브랜드|ブランド)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const descMatch = cleanText.match(/\[(설명|説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const reqMatch = cleanText.match(/\[(참가조건|参加条件)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      console.log('번역 결과:', cleanText)
+
+      // 번역 결과 파싱 (일본어 라벨로만 매칭)
+      const titleMatch = cleanText.match(/\[タイトル\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const brandMatch = cleanText.match(/\[ブランド\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const descMatch = cleanText.match(/\[説明\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const reqMatch = cleanText.match(/\[参加条件\]\s*([\s\S]*?)(?=\n\[|$)/)
+
+      const title_ja = titleMatch ? titleMatch[1].trim() : ''
+      const brand_ja = brandMatch ? brandMatch[1].trim() : ''
+      const description_ja = descMatch ? descMatch[1].trim() : ''
+      const requirements_ja = reqMatch ? reqMatch[1].trim() : ''
+
+      // 번역 결과가 없으면 에러
+      if (!title_ja && !brand_ja && !description_ja && !requirements_ja) {
+        throw new Error('번역 결과를 파싱할 수 없습니다. 다시 시도해주세요.')
+      }
 
       setCampaignForm(prev => ({
         ...prev,
-        title_ja: titleMatch ? titleMatch[2].trim() : prev.title,
-        brand_ja: brandMatch ? brandMatch[2].trim() : prev.brand,
-        description_ja: descMatch ? descMatch[2].trim() : prev.description,
-        requirements_ja: reqMatch ? reqMatch[2].trim() : prev.requirements
+        title_ja: title_ja || prev.title_ja,
+        brand_ja: brand_ja || prev.brand_ja,
+        description_ja: description_ja || prev.description_ja,
+        requirements_ja: requirements_ja || prev.requirements_ja
       }))
 
       setTranslationComplete(true)
@@ -1290,6 +1326,85 @@ const CreateCampaignJapan = () => {
                   <p className="text-xs text-gray-400 text-center mt-4">
                     다음 단계에서 크리에이터 가이드를 작성합니다
                   </p>
+                </div>
+
+                {/* 캠페인 노출 미리보기 */}
+                <div className="mt-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+                  <div className="bg-gray-100 px-4 py-2 border-b">
+                    <p className="text-xs text-gray-500 text-center font-medium">📱 크리에이터에게 보이는 화면</p>
+                  </div>
+
+                  {/* 썸네일 */}
+                  <div className="aspect-video bg-gray-200 relative">
+                    {campaignForm.image_url ? (
+                      <img
+                        src={campaignForm.image_url}
+                        alt="Campaign thumbnail"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <div className="text-center">
+                          <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-xs">썸네일 없음</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    {/* 플랫폼 뱃지 & 리워드 */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex gap-1">
+                        {campaignForm.target_platforms.instagram && (
+                          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full">Instagram</span>
+                        )}
+                        {campaignForm.target_platforms.youtube && (
+                          <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">YouTube</span>
+                        )}
+                        {campaignForm.target_platforms.tiktok && (
+                          <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full">TikTok</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-blue-600 font-bold text-sm">
+                        <span className="text-green-600">$</span>
+                        <span>¥{(packageOptions.find(p => p.value === campaignForm.package_type)?.rewardYen || 12000).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* 제목 */}
+                    <h4 className="font-bold text-gray-900 mb-2 line-clamp-2 text-sm">
+                      {campaignForm.title_ja || campaignForm.title || 'キャンペーンタイトル'}
+                    </h4>
+
+                    {/* 설명 */}
+                    <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                      {campaignForm.description_ja || campaignForm.description || 'キャンペーン説明がここに表示されます...'}
+                    </p>
+
+                    {/* 마감일 & 모집인원 */}
+                    <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>応募締切: {campaignForm.application_deadline ? new Date(campaignForm.application_deadline).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '未定'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-4">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span>{campaignForm.total_slots}名募集</span>
+                    </div>
+
+                    {/* 지원 버튼 */}
+                    <button className="w-full py-2.5 bg-blue-500 text-white text-sm font-semibold rounded-lg">
+                      今すぐ応募
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
