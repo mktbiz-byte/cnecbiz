@@ -568,6 +568,7 @@ export default function CampaignDetail() {
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
   const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved', 'not_submitted'
+  const [notSubmittedStep, setNotSubmittedStep] = useState(null) // 미제출자 조회 차수 (올리브영: 1/2, 4주: 1~4)
   const [selectedNotSubmitted, setSelectedNotSubmitted] = useState([]) // 미제출자 선택 (user_id 배열)
   const [sendingAlimtalk, setSendingAlimtalk] = useState(false) // 알림톡 발송 중
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -984,6 +985,10 @@ export default function CampaignDetail() {
           profile_photo_url: profileImage || null,
           // 이메일 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           email: profile?.email || app.email || app.applicant_email,
+          // 연락처 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
+          phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+          phone_number: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+          creator_phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
@@ -7618,49 +7623,38 @@ JSON만 출력.`
                   const is4WeekChallenge = campaignType.includes('4week') || campaignType.includes('challenge')
                   const isMultiStep = isOliveyoung || is4WeekChallenge
 
-                  // 올리브영/4주챌린지: 현재 날짜 기준 가장 가까운 미래 마감일의 차수 확인
-                  let currentStepNumber = null
-                  let currentStepDeadline = null
+                  // 각 차수별 마감일 정보 생성
+                  let stepOptions = []
                   let stepFieldName = 'video_number'
 
-                  if (isMultiStep) {
+                  if (isOliveyoung) {
+                    stepOptions = [
+                      { num: 1, label: '1차 영상', date: campaign.step1_deadline },
+                      { num: 2, label: '2차 영상', date: campaign.step2_deadline }
+                    ].filter(d => d.date)
+                  } else if (is4WeekChallenge) {
+                    stepFieldName = 'week_number'
+                    stepOptions = [
+                      { num: 1, label: '1주차', date: campaign.week1_deadline },
+                      { num: 2, label: '2주차', date: campaign.week2_deadline },
+                      { num: 3, label: '3주차', date: campaign.week3_deadline },
+                      { num: 4, label: '4주차', date: campaign.week4_deadline }
+                    ].filter(d => d.date)
+                  }
+
+                  // 현재 선택된 차수 (없으면 가장 가까운 미래 마감일 자동 선택)
+                  let currentStepNumber = notSubmittedStep
+                  if (!currentStepNumber && stepOptions.length > 0) {
                     const today = new Date().toISOString().split('T')[0]
-
-                    if (isOliveyoung) {
-                      const deadlines = [
-                        { num: 1, date: campaign.step1_deadline },
-                        { num: 2, date: campaign.step2_deadline }
-                      ].filter(d => d.date)
-
-                      // 오늘 이후의 가장 가까운 마감일 찾기
-                      const futureDeadlines = deadlines.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
-                      if (futureDeadlines.length > 0) {
-                        currentStepNumber = futureDeadlines[0].num
-                        currentStepDeadline = futureDeadlines[0].date
-                      } else if (deadlines.length > 0) {
-                        // 모두 지났으면 마지막 마감일
-                        currentStepNumber = deadlines[deadlines.length - 1].num
-                        currentStepDeadline = deadlines[deadlines.length - 1].date
-                      }
-                    } else if (is4WeekChallenge) {
-                      stepFieldName = 'week_number'
-                      const deadlines = [
-                        { num: 1, date: campaign.week1_deadline },
-                        { num: 2, date: campaign.week2_deadline },
-                        { num: 3, date: campaign.week3_deadline },
-                        { num: 4, date: campaign.week4_deadline }
-                      ].filter(d => d.date)
-
-                      const futureDeadlines = deadlines.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
-                      if (futureDeadlines.length > 0) {
-                        currentStepNumber = futureDeadlines[0].num
-                        currentStepDeadline = futureDeadlines[0].date
-                      } else if (deadlines.length > 0) {
-                        currentStepNumber = deadlines[deadlines.length - 1].num
-                        currentStepDeadline = deadlines[deadlines.length - 1].date
-                      }
+                    const futureSteps = stepOptions.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+                    if (futureSteps.length > 0) {
+                      currentStepNumber = futureSteps[0].num
+                    } else {
+                      currentStepNumber = stepOptions[stepOptions.length - 1].num
                     }
                   }
+                  const currentStepInfo = stepOptions.find(s => s.num === currentStepNumber)
+                  const currentStepDeadline = currentStepInfo?.date
 
                   // 미제출자 필터링
                   let notSubmittedParticipants
@@ -7701,6 +7695,10 @@ JSON만 출력.`
                     if (withoutPhone.length > 0) {
                       confirmMsg += `\n(연락처 미등록: ${withoutPhone.length}명)`
                     }
+                    if (isMultiStep && currentStepNumber) {
+                      const stepLabel = currentStepInfo?.label || `${currentStepNumber}차`
+                      confirmMsg += `\n\n[${stepLabel}] 마감일: ${currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}`
+                    }
 
                     if (!confirm(confirmMsg)) return
 
@@ -7708,26 +7706,8 @@ JSON만 출력.`
                     let successCount = 0
                     let failCount = 0
 
-                    // 캠페인 타입에 따른 마감일 가져오기
-                    const getVideoDeadline = () => {
-                      const type = (campaign.campaign_type || '').toLowerCase()
-                      if (type.includes('oliveyoung') || type.includes('올리브')) {
-                        // 올리브영: step1_deadline, step2_deadline 중 가장 가까운 미래 날짜
-                        const deadlines = [campaign.step1_deadline, campaign.step2_deadline].filter(Boolean)
-                        const today = new Date().toISOString().split('T')[0]
-                        const futureDeadlines = deadlines.filter(d => d >= today).sort()
-                        return futureDeadlines[0] || deadlines[deadlines.length - 1]
-                      } else if (type.includes('4week') || type.includes('challenge')) {
-                        // 4주 챌린지: week1~4_deadline 중 가장 가까운 미래 날짜
-                        const deadlines = [campaign.week1_deadline, campaign.week2_deadline, campaign.week3_deadline, campaign.week4_deadline].filter(Boolean)
-                        const today = new Date().toISOString().split('T')[0]
-                        const futureDeadlines = deadlines.filter(d => d >= today).sort()
-                        return futureDeadlines[0] || deadlines[deadlines.length - 1]
-                      }
-                      // 일반 캠페인
-                      return campaign.video_deadline || campaign.content_submission_deadline
-                    }
-                    const videoDeadline = getVideoDeadline()
+                    // 선택된 차수의 마감일 사용
+                    const videoDeadline = currentStepDeadline || campaign.video_deadline || campaign.content_submission_deadline
 
                     for (const participant of withPhone) {
                       try {
@@ -7783,7 +7763,13 @@ JSON만 출력.`
                     }
                   }
 
-                  if (notSubmittedParticipants.length === 0) {
+                  // 차수 변경 핸들러
+                  const handleStepChange = (newStep) => {
+                    setNotSubmittedStep(newStep)
+                    setSelectedNotSubmitted([]) // 차수 변경 시 선택 초기화
+                  }
+
+                  if (notSubmittedParticipants.length === 0 && !isMultiStep) {
                     return (
                       <div className="text-center py-12 text-gray-500">
                         <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
@@ -7796,6 +7782,40 @@ JSON만 출력.`
 
                   return (
                     <div className="space-y-4">
+                      {/* 차수 선택 버튼 (올리브영/4주 챌린지) */}
+                      {isMultiStep && stepOptions.length > 0 && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <span className="text-sm font-medium text-purple-800 mr-2">차수 선택:</span>
+                          <div className="flex gap-2 flex-wrap">
+                            {stepOptions.map((step) => {
+                              const stepNotSubmitted = participants.filter(p => {
+                                const hasSubmitted = videoSubmissions.some(v =>
+                                  v.user_id === p.user_id &&
+                                  (v[stepFieldName] === step.num || v.video_number === step.num || v.week_number === step.num)
+                                )
+                                return !hasSubmitted
+                              }).length
+                              return (
+                                <Button
+                                  key={step.num}
+                                  size="sm"
+                                  variant={currentStepNumber === step.num ? 'default' : 'outline'}
+                                  className={currentStepNumber === step.num
+                                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                    : 'border-purple-300 text-purple-700 hover:bg-purple-50'}
+                                  onClick={() => handleStepChange(step.num)}
+                                >
+                                  {step.label}
+                                  <span className="ml-1 text-xs">
+                                    ({stepNotSubmitted}명 미제출)
+                                  </span>
+                                </Button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -7804,13 +7824,14 @@ JSON만 출력.`
                               checked={isAllSelected}
                               onChange={(e) => handleSelectAll(e.target.checked)}
                               className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                              disabled={notSubmittedParticipants.length === 0}
                             />
                             <span className="text-sm font-medium text-gray-700">전체 선택</span>
                           </label>
                           <div className="text-sm text-gray-600">
                             {isMultiStep && currentStepNumber ? (
                               <>
-                                <span className="font-bold text-purple-600">{currentStepNumber}차 영상</span>
+                                <span className="font-bold text-purple-600">{currentStepInfo?.label || `${currentStepNumber}차 영상`}</span>
                                 <span className="mx-1">·</span>
                                 <span className="text-gray-500">마감일: {currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}</span>
                                 <span className="mx-2">|</span>
@@ -7843,9 +7864,24 @@ JSON만 출력.`
                       {selectedNotSubmitted.length > 0 && (
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                           <strong>{selectedNotSubmitted.length}명</strong> 선택됨 ·
-                          {isMultiStep && currentStepNumber ? ` ${currentStepNumber}차 ` : ' '}영상 제출 마감일 알림톡이 발송됩니다.
+                          {isMultiStep && currentStepNumber
+                            ? ` [${currentStepInfo?.label || `${currentStepNumber}차`}] 마감일: ${currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'} `
+                            : ' '}
+                          알림톡이 발송됩니다.
                         </div>
                       )}
+
+                      {/* 해당 차수 모든 크리에이터가 제출 완료 */}
+                      {notSubmittedParticipants.length === 0 && isMultiStep && (
+                        <div className="text-center py-8 text-gray-500 bg-green-50 rounded-lg border border-green-200">
+                          <CheckCircle className="w-10 h-10 mx-auto mb-3 text-green-500" />
+                          <p className="text-base font-medium text-green-600">
+                            [{currentStepInfo?.label || `${currentStepNumber}차`}] 모든 선정 크리에이터가 영상을 제출했습니다!
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">다른 차수를 선택하여 미제출자를 확인하세요.</p>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {notSubmittedParticipants.map((participant) => (
                           <div
