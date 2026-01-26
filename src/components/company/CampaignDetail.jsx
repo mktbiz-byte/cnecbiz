@@ -5983,6 +5983,29 @@ JSON만 출력.`
                       </p>
                     </div>
                   </div>
+                  {/* 초대장 발송 안내 배너 */}
+                  <div className="mt-4 p-3 bg-gradient-to-r from-violet-100 to-purple-100 rounded-lg border border-violet-200">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-violet-500 rounded-full flex items-center justify-center">
+                        <Mail className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-violet-800 text-sm mb-1">
+                          초대장을 발송하면 알림톡으로 지원 소식을 받아보세요!
+                        </h4>
+                        <p className="text-xs text-violet-600 leading-relaxed">
+                          크리에이터에게 초대장을 발송하면, 크리에이터가 <strong>캠페인에 지원할 때 카카오 알림톡</strong>으로 즉시 알려드립니다.
+                          <br />빠른 섭외를 위해 MUSE 크리에이터에게 초대장을 발송해보세요!
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500 text-white text-xs font-medium rounded-full">
+                          <Sparkles className="w-3 h-3" />
+                          지원 시 즉시 알림
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -6106,140 +6129,6 @@ JSON만 출력.`
                   <div className="flex items-center justify-center gap-2 text-amber-600">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span>MUSE 크리에이터 로딩 중...</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* AI 추천 크리에이터 섹션 */}
-            {aiRecommendations.length > 0 && (
-              <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <span className="text-blue-600">✨</span>
-                        AI 추천 크리에이터
-                        <Badge className="bg-blue-600 text-white">{aiRecommendations.length}명</Badge>
-                      </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">
-                        캠페인 특성을 분석하여 AI가 추천하는 최적의 크리에이터
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                    {aiRecommendations.map((rec, index) => (
-                      <div key={rec.id || index} className="bg-white rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow border border-blue-200">
-                        <div className="flex flex-col items-center text-center">
-                          <div className="relative mb-2">
-                            <img 
-                              src={rec.profile_photo_url || '/default-avatar.png'} 
-                              alt={rec.name}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                            <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                              {rec.recommendation_score}
-                            </div>
-                          </div>
-                          <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{rec.name}</h4>
-                          <p className="text-[10px] text-gray-500 mb-1 truncate w-full">{rec.main_channel || '플랫폼 정보 없음'}</p>
-                          <div className="flex flex-col gap-1 w-full">
-                            <Button 
-                              size="sm" 
-                              className="w-full text-[10px] h-7 bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={async () => {
-                                try {
-                                  const { data: { user } } = await supabaseBiz.auth.getUser()
-                                  if (!user) {
-                                    alert('로그인이 필요합니다.')
-                                    return
-                                  }
-
-                                  if (!confirm(`${rec.name}님에게 캠페인 지원 요청을 보내시겠습니까?`)) {
-                                    return
-                                  }
-
-                                  const response = await fetch('/.netlify/functions/send-campaign-invitation', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      campaignId: id,
-                                      creatorId: rec.id,
-                                      invitedBy: user.id
-                                    })
-                                  })
-
-                                  const result = await response.json()
-                                  
-                                  if (result.success) {
-                                    alert('캠페인 지원 요청을 성공적으로 보냈습니다!')
-                                  } else {
-                                    alert(result.error || '지원 요청에 실패했습니다.')
-                                  }
-                                } catch (error) {
-                                  console.error('Error sending invitation:', error)
-                                  alert('지원 요청 중 오류가 발생했습니다.')
-                                }
-                              }}
-                            >
-                              지원 요청
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="w-full text-[10px] h-6"
-                              onClick={() => {
-                                // SNS 채널 보기
-                                const urls = []
-                                if (rec.instagram_url) urls.push(rec.instagram_url)
-                                if (rec.youtube_url) urls.push(rec.youtube_url)
-                                if (rec.tiktok_url) urls.push(rec.tiktok_url)
-                                
-                                if (urls.length > 0) {
-                                  window.open(urls[0], '_blank')
-                                } else {
-                                  alert('SNS 채널 정보가 없습니다.')
-                                }
-                              }}
-                            >
-                              SNS
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="w-full text-[10px] h-6"
-                              onClick={async () => {
-                                // user_profiles에서 크리에이터 정보 가져오기
-                                try {
-                                  const { data: profile } = await supabase
-                                    .from('user_profiles')
-                                    .select('*')
-                                    .eq('id', rec.user_id)
-                                    .maybeSingle()
-
-                                  // applications 데이터 + user_profiles 데이터 병합
-                                  // profile_photo_url은 rec에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
-                                  const photoUrl = rec.profile_photo_url || profile?.profile_photo_url
-                                  setSelectedParticipant({
-                                    ...rec,
-                                    ...profile,
-                                    profile_photo_url: photoUrl
-                                  })
-                                  setShowProfileModal(true)
-                                } catch (error) {
-                                  console.error('Error fetching profile:', error)
-                                  alert('프로필 정보를 불러오는데 실패했습니다.')
-                                }
-                              }}
-                            >
-                              상세
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </CardContent>
               </Card>
