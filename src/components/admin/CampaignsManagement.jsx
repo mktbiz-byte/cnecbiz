@@ -124,9 +124,13 @@ const statusConfig = {
 
 // 캠페인 타입 뱃지 설정
 const campaignTypeConfig = {
-  planned: { label: '기획형', color: 'bg-violet-100 text-violet-700' },
-  oliveyoung: { label: '올영세일', color: 'bg-pink-100 text-pink-700' },
-  '4week_challenge': { label: '4주 챌린지', color: 'bg-orange-100 text-orange-700' }
+  planned: { label: '기획형', labelJa: '企画型', color: 'bg-violet-100 text-violet-700', icon: '📹' },
+  regular: { label: '기획형', labelJa: '企画型', color: 'bg-violet-100 text-violet-700', icon: '📹' },
+  oliveyoung: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', icon: '🛍️' },
+  oliveyoung_sale: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', icon: '🛍️' },
+  '4week_challenge': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-orange-100 text-orange-700', icon: '🗓️' },
+  '4week': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-orange-100 text-orange-700', icon: '🗓️' },
+  megawari: { label: '메가와리', labelJa: 'メガ割', color: 'bg-amber-100 text-amber-700', icon: '🎯' }
 }
 
 // 지역 뱃지 설정
@@ -1014,10 +1018,10 @@ export default function CampaignsManagement() {
   }
 
   const CampaignTypeBadge = ({ type }) => {
-    const config = campaignTypeConfig[type]
-    if (!config) return null
+    const config = campaignTypeConfig[type] || campaignTypeConfig.regular
     return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${config.color}`}>
+        <span>{config.icon}</span>
         {config.label}
       </span>
     )

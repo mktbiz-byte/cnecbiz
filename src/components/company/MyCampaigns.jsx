@@ -55,6 +55,7 @@ export default function MyCampaigns() {
   const [showRegionModal, setShowRegionModal] = useState(false)
   const [selectedRegion, setSelectedRegion] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [selectedCampaignType, setSelectedCampaignType] = useState('all')  // 캠페인 타입 필터
   const [searchQuery, setSearchQuery] = useState('')
   const [statsFilter, setStatsFilter] = useState(null)
 
@@ -346,13 +347,17 @@ export default function MyCampaigns() {
 
   const getCampaignTypeInfo = useCallback((campaignType) => {
     const types = {
-      '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400' },
-      '4week': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400' },
-      oliveyoung: { label: '올영세일', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400' },
-      planned: { label: '기획형', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400' },
-      regular: { label: '기획형', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400' }
+      // 한국 캠페인 타입
+      '4week_challenge': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400', icon: '🗓️' },
+      '4week': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400', icon: '🗓️' },
+      oliveyoung: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
+      oliveyoung_sale: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
+      planned: { label: '기획형', labelJa: '企画型', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400', icon: '📹' },
+      regular: { label: '기획형', labelJa: '企画型', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400', icon: '📹' },
+      // 일본 캠페인 타입
+      megawari: { label: '메가와리', labelJa: 'メガ割', color: 'bg-orange-100 text-orange-700', dotColor: 'bg-orange-400', icon: '🎯' }
     }
-    return types[campaignType] || { label: '기타', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-400' }
+    return types[campaignType] || { label: '기획형', labelJa: '企画型', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-400', icon: '📹' }
   }, [])
 
   const getDaysRemaining = useCallback((deadline) => {
@@ -407,11 +412,35 @@ export default function MyCampaigns() {
     { value: 'completed', label: '완료' }
   ], [])
 
+  // 캠페인 타입 필터
+  const campaignTypeFilters = useMemo(() => [
+    { value: 'all', label: '전체 타입', icon: '📋' },
+    { value: 'regular', label: '기획형', labelJa: '企画型', icon: '📹' },
+    { value: 'megawari', label: '메가와리', labelJa: 'メガ割', icon: '🎯' },
+    { value: '4week_challenge', label: '4주 챌린지', labelJa: '4週チャレンジ', icon: '🗓️' },
+    { value: 'oliveyoung', label: '올영세일', labelJa: 'オリーブヤング', icon: '🛍️' }
+  ], [])
+
   // Memoized filtered campaigns
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter(campaign => {
       if (searchQuery && !campaign.title?.toLowerCase().includes(searchQuery.toLowerCase())) return false
       if (selectedRegion !== 'all' && campaign.region !== selectedRegion) return false
+
+      // 캠페인 타입 필터링
+      if (selectedCampaignType !== 'all') {
+        const campaignType = campaign.campaign_type || 'regular'
+        // regular와 planned는 같은 타입으로 취급
+        if (selectedCampaignType === 'regular') {
+          if (campaignType !== 'regular' && campaignType !== 'planned') return false
+        } else if (selectedCampaignType === '4week_challenge') {
+          if (campaignType !== '4week_challenge' && campaignType !== '4week') return false
+        } else if (selectedCampaignType === 'oliveyoung') {
+          if (campaignType !== 'oliveyoung' && campaignType !== 'oliveyoung_sale') return false
+        } else {
+          if (campaignType !== selectedCampaignType) return false
+        }
+      }
 
       if (statsFilter && statsFilter !== 'all') {
         if (statsFilter === 'pending') return ['draft', 'pending', 'pending_payment'].includes(campaign.approval_status)
@@ -432,7 +461,7 @@ export default function MyCampaigns() {
       }
       return true
     })
-  }, [campaigns, searchQuery, selectedRegion, statsFilter, selectedStatus])
+  }, [campaigns, searchQuery, selectedRegion, statsFilter, selectedStatus, selectedCampaignType])
 
   // Memoized stats
   const stats = useMemo(() => {
@@ -557,6 +586,29 @@ export default function MyCampaigns() {
                 </div>
               </div>
             </div>
+
+            {/* 캠페인 타입 필터 */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
+                <Megaphone className="w-4 h-4" /> 캠페인 타입
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {campaignTypeFilters.map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setSelectedCampaignType(filter.value)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      selectedCampaignType === filter.value
+                        ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{filter.icon}</span>
+                    <span>{filter.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Campaigns List */}
@@ -652,7 +704,7 @@ export default function MyCampaigns() {
                                 {regionInfo.flag} {regionInfo.label}
                               </span>
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeInfo.color}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${typeInfo.dotColor}`} />
+                                <span>{typeInfo.icon}</span>
                                 {typeInfo.label}
                               </span>
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}>
