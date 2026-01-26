@@ -76,18 +76,21 @@ exports.handler = async (event) => {
     let campaign = null;
     let campaignClient = null;
 
-    // Korea DB에서 먼저 조회
+    // Korea DB에서 먼저 조회 (Korea DB 스키마: creator_points_override, application_deadline)
     console.log('[DEBUG] Checking Korea DB for campaign...');
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, creator_points_override, package_type, deadline, company_email, brand_name')
+        .select('id, title, creator_points_override, package_type, application_deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
       console.log('[DEBUG] Korea DB result:', { found: !!koreaCampaign, error: koreaError?.message });
       if (koreaCampaign && !koreaError) {
-        campaign = koreaCampaign;
+        campaign = {
+          ...koreaCampaign,
+          deadline: koreaCampaign.application_deadline // 통일된 필드명으로 매핑
+        };
         campaignClient = supabaseKorea;
         console.log('[INFO] Campaign found in Korea DB:', { title: campaign.title, company_email: campaign.company_email });
       }
@@ -95,18 +98,21 @@ exports.handler = async (event) => {
       console.log('[DEBUG] Korea Supabase client not available');
     }
 
-    // Korea에 없으면 BIZ DB에서 조회
+    // Korea에 없으면 BIZ DB에서 조회 (BIZ DB 스키마: reward_amount, deadline)
     if (!campaign) {
       console.log('[DEBUG] Checking BIZ DB for campaign...');
       const { data: bizCampaign, error: bizError } = await supabase
         .from('campaigns')
-        .select('id, title, creator_points_override, package_type, deadline, company_email, brand_name')
+        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
         .eq('id', campaignId)
         .single();
 
       console.log('[DEBUG] BIZ DB result:', { found: !!bizCampaign, error: bizError?.message });
       if (bizCampaign && !bizError) {
-        campaign = bizCampaign;
+        campaign = {
+          ...bizCampaign,
+          creator_points_override: bizCampaign.reward_amount // 통일된 필드명으로 매핑
+        };
         campaignClient = supabase;
         console.log('[INFO] Campaign found in BIZ DB:', { title: campaign.title, company_email: campaign.company_email });
       }
