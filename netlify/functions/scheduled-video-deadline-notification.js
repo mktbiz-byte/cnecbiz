@@ -631,7 +631,7 @@ exports.handler = async (event, context) => {
             // user_profiles에서 크리에이터 정보 조회 (email 포함)
           const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
-            .select('name, channel_name, phone, email')
+            .select('name, channel_name, phone, phone_number, email')
             .eq('id', app.user_id)
             .maybeSingle();
 
@@ -640,7 +640,7 @@ exports.handler = async (event, context) => {
           if (!creatorProfile) {
             const { data: profile2 } = await supabase
               .from('user_profiles')
-              .select('name, channel_name, phone, email')
+              .select('name, channel_name, phone, phone_number, email')
               .eq('user_id', app.user_id)
               .maybeSingle();
             creatorProfile = profile2;
@@ -660,7 +660,7 @@ exports.handler = async (event, context) => {
           }
 
           const creatorName = creatorProfile.channel_name || creatorProfile.name || '크리에이터';
-          const creatorPhone = creatorProfile.phone;
+          const creatorPhone = creatorProfile.phone || creatorProfile.phone_number;
           const creatorEmail = creatorProfile.email;
 
           // 캠페인 타입에 따른 필요 영상 개수 확인
