@@ -507,20 +507,20 @@ export default function CompanyDashboard() {
 
             {/* Recent Campaigns */}
             <div className="mb-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-3">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-indigo-600" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
                       </div>
-                      <h2 className="text-lg font-bold text-gray-900">최근 캠페인</h2>
+                      <h2 className="text-base sm:text-lg font-bold text-gray-900">최근 캠페인</h2>
                     </div>
                     {/* 필터 표시 및 리셋 */}
                     {statusFilter && (
                       <button
                         onClick={() => setStatusFilter(null)}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium hover:bg-indigo-100 transition-colors"
+                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium hover:bg-indigo-100 transition-colors"
                       >
                         {statusFilter === 'all' && '전체'}
                         {statusFilter === 'completed' && '완료'}
@@ -530,22 +530,22 @@ export default function CompanyDashboard() {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => navigate('/company/campaigns')}
-                      className="text-gray-600 border-gray-200 hover:bg-gray-50"
+                      className="text-gray-600 border-gray-200 hover:bg-gray-50 text-xs sm:text-sm"
                     >
                       전체보기
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
+                      className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 text-xs sm:text-sm"
                     >
                       <Plus className="w-4 h-4 mr-1" />
-                      새 캠페인
+                      <span className="hidden xs:inline">새 </span>캠페인
                     </Button>
                   </div>
                 </div>

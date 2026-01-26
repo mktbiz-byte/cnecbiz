@@ -5701,21 +5701,21 @@ JSON만 출력.`
   const totalViews = participants.reduce((sum, p) => sum + (p.views || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate(isAdmin ? '/admin/campaigns' : '/company/campaigns')}>
+        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Button variant="outline" size="sm" onClick={() => navigate(isAdmin ? '/admin/campaigns' : '/company/campaigns')} className="w-fit">
               <ArrowLeft className="w-4 h-4 mr-2" />
               뒤로가기
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">{campaign.title}</h1>
-              <p className="text-gray-600 mt-1">{campaign.brand} • {campaign.product_name}</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold break-words">{campaign.title}</h1>
+              <p className="text-sm text-gray-600 mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {getApprovalStatusBadge(campaign.approval_status)}
             {/* 수정 버튼: draft, pending_payment, rejected 상태에서 표시 (취소되지 않은 경우만) */}
             {(campaign.status === 'draft' || ['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status)) && !campaign.is_cancelled && (
@@ -5820,13 +5820,13 @@ JSON만 출력.`
         </div>
 
         {/* Campaign Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">패키지</p>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-xs sm:text-sm text-gray-600">패키지</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
                     {campaign.package_type === 'junior' ? '초급' :
                      campaign.package_type === 'standard' ? '스탠다드' :
                      campaign.package_type === 'intermediate' ? '스탠다드' :
@@ -5844,23 +5844,23 @@ JSON만 출력.`
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">모집 인원</p>
-                  <p className="text-2xl font-bold mt-2">{campaign.total_slots}명</p>
+                  <p className="text-xs sm:text-sm text-gray-600">모집 인원</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">{campaign.total_slots}명</p>
                 </div>
-                <Users className="w-8 h-8 text-blue-600" />
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">결제 예상 금액 <span className="text-xs text-gray-500">(VAT 포함)</span></p>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
                     {campaign.package_type && campaign.total_slots ?
                       `₩${(getPackagePrice(campaign.package_type, campaign.campaign_type) * campaign.total_slots * 1.1).toLocaleString()}`
                       : '-'
@@ -5872,55 +5872,61 @@ JSON만 출력.`
           </Card>
         </div>
 
-        {/* Tabs - 개선된 디자인 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1.5 rounded-2xl inline-flex">
-            <TabsTrigger
-              value="applications"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <Users className="w-4 h-4" />
-              <span>지원 크리에이터</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.length}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="virtual"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>가상 선정</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="confirmed"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>선정 크리에이터</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{participants.length}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="editing"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <FileText className="w-4 h-4" />
-              <span>영상 확인</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="completed"
-              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>완료</span>
-              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
-                if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
-                if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
-                if (p.step1_url || p.step2_url || p.step3_url) return true
-                return videoSubmissions.some(v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
-              }).length}명</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs - 개선된 디자인 (모바일 스크롤 지원) */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-2">
+            <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex min-w-max">
+              <TabsTrigger
+                value="applications"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">지원 크리에이터</span>
+                <span className="sm:hidden">지원</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="virtual"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">가상 선정</span>
+                <span className="sm:hidden">가선</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="confirmed"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">선정 크리에이터</span>
+                <span className="sm:hidden">선정</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="editing"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">영상 확인</span>
+                <span className="sm:hidden">영상</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="completed"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+              >
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>완료</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
+                  if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
+                  if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                  if (p.step1_url || p.step2_url || p.step3_url) return true
+                  return videoSubmissions.some(v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                }).length}명</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
