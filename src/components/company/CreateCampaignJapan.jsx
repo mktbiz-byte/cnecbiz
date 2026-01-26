@@ -48,10 +48,24 @@ const CreateCampaignJapan = () => {
     offline_visit_requirement: '',
     // 결제 관련
     package_type: 'junior',
+    campaign_type: 'regular',  // 'regular', '4week_challenge', 'megawari'
     total_slots: 10,
     remaining_slots: 10,
     estimated_cost: 220000,  // VAT 포함 원화
-    reward_points: 0  // 크리에이터 지급 포인트 (패키지 선택 시 자동 계산)
+    reward_points: 0,  // 크리에이터 지급 포인트 (패키지 선택 시 자동 계산)
+    // 다중 스텝 마감일 (4주 챌린지)
+    week1_deadline: '',
+    week2_deadline: '',
+    week3_deadline: '',
+    week4_deadline: '',
+    // 메가와리 마감일
+    step1_deadline: '',
+    step2_deadline: '',
+    // 일반 캠페인 영상 마감일
+    video_deadline: '',
+    // 광고코드 및 클린본 요청
+    requires_ad_code: true,
+    requires_clean_video: true
   })
 
   const [processing, setProcessing] = useState(false)
@@ -114,9 +128,23 @@ const CreateCampaignJapan = () => {
           skin_type_requirement: data.skin_type_requirement || '',
           offline_visit_requirement: data.offline_visit_requirement || '',
           package_type: data.package_type || 'junior',
+          campaign_type: data.campaign_type || 'regular',
           total_slots: data.max_participants || data.total_slots || 10,
           remaining_slots: data.max_participants || data.remaining_slots || 10,
-          estimated_cost: data.estimated_cost || 0
+          estimated_cost: data.estimated_cost || 0,
+          // 4주 챌린지 마감일
+          week1_deadline: data.week1_deadline ? data.week1_deadline.split('T')[0] : '',
+          week2_deadline: data.week2_deadline ? data.week2_deadline.split('T')[0] : '',
+          week3_deadline: data.week3_deadline ? data.week3_deadline.split('T')[0] : '',
+          week4_deadline: data.week4_deadline ? data.week4_deadline.split('T')[0] : '',
+          // 메가와리 마감일
+          step1_deadline: data.step1_deadline ? data.step1_deadline.split('T')[0] : '',
+          step2_deadline: data.step2_deadline ? data.step2_deadline.split('T')[0] : '',
+          // 일반 캠페인 마감일
+          video_deadline: data.video_deadline ? data.video_deadline.split('T')[0] : '',
+          // 광고코드/클린본 요청
+          requires_ad_code: data.requires_ad_code !== false,
+          requires_clean_video: data.requires_clean_video !== false
         })
         
         // 비용 재계산 (데이터 로드 후)
@@ -137,42 +165,78 @@ const CreateCampaignJapan = () => {
     }
   }
 
+  // 캠페인 타입 옵션
+  const campaignTypeOptions = [
+    {
+      value: 'regular',
+      label: '기획형 캠페인',
+      labelJa: '企画型キャンペーン',
+      description: '1개 영상 제작 후 SNS 공유',
+      descriptionJa: '1本の動画制作後、SNS共有',
+      icon: '📹'
+    },
+    {
+      value: '4week_challenge',
+      label: '4주 챌린지',
+      labelJa: '4週チャレンジ',
+      description: '매주 1개씩 총 4개 영상 제작',
+      descriptionJa: '毎週1本ずつ計4本の動画制作',
+      icon: '🗓️'
+    },
+    {
+      value: 'megawari',
+      label: '메가와리 캠페인',
+      labelJa: 'メガ割キャンペーン',
+      description: '2개 영상 (1차/2차 스텝) 제작',
+      descriptionJa: '2本の動画（ステップ1/2）制作',
+      icon: '🎯'
+    }
+  ]
+
   // 패키지 옵션 (원화 결제, 엔화 보상)
   const packageOptions = [
-    { 
-      value: 'junior', 
-      label: '초급 크리에이터 패키지', 
+    {
+      value: 'junior',
+      label: '초급 크리에이터 패키지',
+      labelJa: '初級クリエイターパッケージ',
       price: 200000,  // 원화
       priceWithVat: 220000,
       rewardYen: 12000,  // 엔화 보상
       description: '팔로워 1만~5만 (인스타 기준)',
+      descriptionJa: 'フォロワー1万~5万（インスタ基準）',
       expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
     },
-    { 
-      value: 'intermediate', 
-      label: '중급 크리에이터 패키지', 
+    {
+      value: 'intermediate',
+      label: '중급 크리에이터 패키지',
+      labelJa: '中級クリエイターパッケージ',
       price: 300000,
       priceWithVat: 330000,
       rewardYen: 18000,
       description: '팔로워 5만~20만 (인스타 기준)',
+      descriptionJa: 'フォロワー5万~20万（インスタ基準）',
       expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
     },
-    { 
-      value: 'senior', 
-      label: '상급 크리에이터 패키지', 
+    {
+      value: 'senior',
+      label: '상급 크리에이터 패키지',
+      labelJa: '上級クリエイターパッケージ',
       price: 400000,
       priceWithVat: 440000,
       rewardYen: 24000,
       description: '팔로워 20만 이상 (인스타 기준)',
+      descriptionJa: 'フォロワー20万以上（インスタ基準）',
       expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
-    { 
-      value: '4week_challenge', 
-      label: '4주 챌린지 프로그램', 
+    {
+      value: 'premium',
+      label: '프리미엄 패키지',
+      labelJa: 'プレミアムパッケージ',
       price: 600000,
       priceWithVat: 660000,
       rewardYen: 36000,
-      description: '4주간 지속적인 콘텐츠 제작',
+      description: '대형 인플루언서 협업',
+      descriptionJa: '大型インフルエンサーコラボ',
       expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
     }
   ]
@@ -459,9 +523,9 @@ const CreateCampaignJapan = () => {
         requirements: campaignForm.requirements || '',
         category: campaignForm.category,
         package_type: campaignForm.package_type,
+        campaign_type: campaignForm.campaign_type || 'regular',
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
-        // reward_points는 DB에 컬럼이 없으므로 저장하지 않음 (reward_amount로 대체)
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
@@ -486,7 +550,20 @@ const CreateCampaignJapan = () => {
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail  // 회사 이메일 추가
+        company_email: userEmail,
+        // 4주 챌린지 마감일
+        week1_deadline: campaignForm.week1_deadline || null,
+        week2_deadline: campaignForm.week2_deadline || null,
+        week3_deadline: campaignForm.week3_deadline || null,
+        week4_deadline: campaignForm.week4_deadline || null,
+        // 메가와리 마감일
+        step1_deadline: campaignForm.step1_deadline || null,
+        step2_deadline: campaignForm.step2_deadline || null,
+        // 일반 캠페인 영상 마감일
+        video_deadline: campaignForm.video_deadline || null,
+        // 광고코드/클린본 요청
+        requires_ad_code: campaignForm.requires_ad_code,
+        requires_clean_video: campaignForm.requires_clean_video
       }
       
       if (editId) {
@@ -572,9 +649,9 @@ const CreateCampaignJapan = () => {
         requirements: campaignForm.requirements || '',
         category: campaignForm.category,
         package_type: campaignForm.package_type,
+        campaign_type: campaignForm.campaign_type || 'regular',
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,  // 엔화 보상
-        // reward_points는 DB에 컬럼이 없으므로 저장하지 않음 (reward_amount로 대체)
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
@@ -599,7 +676,20 @@ const CreateCampaignJapan = () => {
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail  // 회사 이메일 추가
+        company_email: userEmail,
+        // 4주 챌린지 마감일
+        week1_deadline: campaignForm.week1_deadline || null,
+        week2_deadline: campaignForm.week2_deadline || null,
+        week3_deadline: campaignForm.week3_deadline || null,
+        week4_deadline: campaignForm.week4_deadline || null,
+        // 메가와리 마감일
+        step1_deadline: campaignForm.step1_deadline || null,
+        step2_deadline: campaignForm.step2_deadline || null,
+        // 일반 캠페인 마감일
+        video_deadline: campaignForm.video_deadline || null,
+        // 광고코드/클린본 요청
+        requires_ad_code: campaignForm.requires_ad_code,
+        requires_clean_video: campaignForm.requires_clean_video
       }
 
       if (editId) {
@@ -779,10 +869,162 @@ const CreateCampaignJapan = () => {
             <h2 className="text-xl font-semibold mb-6 text-gray-900">📝 캠페인 정보</h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
-              
+
+              {/* 캠페인 타입 선택 */}
+              <div>
+                <Label className="text-lg font-semibold mb-3 block">캠페인 타입 선택 *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {campaignTypeOptions.map(opt => (
+                    <div
+                      key={opt.value}
+                      onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: opt.value }))}
+                      className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                        campaignForm.campaign_type === opt.value
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">{opt.icon}</span>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{opt.label}</h3>
+                          <p className="text-xs text-gray-500">{opt.labelJa}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">{opt.description}</p>
+                      <p className="text-xs text-gray-400 mt-1">{opt.descriptionJa}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4주 챌린지 마감일 설정 */}
+              {campaignForm.campaign_type === '4week_challenge' && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-purple-800 mb-3">🗓️ 4주 챌린지 일정 설정</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <Label htmlFor="week1_deadline" className="text-sm">1주차 마감일</Label>
+                      <Input
+                        id="week1_deadline"
+                        type="date"
+                        value={campaignForm.week1_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, week1_deadline: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="week2_deadline" className="text-sm">2주차 마감일</Label>
+                      <Input
+                        id="week2_deadline"
+                        type="date"
+                        value={campaignForm.week2_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, week2_deadline: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="week3_deadline" className="text-sm">3주차 마감일</Label>
+                      <Input
+                        id="week3_deadline"
+                        type="date"
+                        value={campaignForm.week3_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, week3_deadline: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="week4_deadline" className="text-sm">4주차 마감일</Label>
+                      <Input
+                        id="week4_deadline"
+                        type="date"
+                        value={campaignForm.week4_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, week4_deadline: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-purple-600 mt-2">각 주차별 영상 제출 + SNS 공유 마감일을 설정합니다.</p>
+                </div>
+              )}
+
+              {/* 메가와리 마감일 설정 */}
+              {campaignForm.campaign_type === 'megawari' && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-orange-800 mb-3">🎯 메가와리 스텝별 일정 설정</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="step1_deadline" className="text-sm">1차 영상 마감일 (ステップ1)</Label>
+                      <Input
+                        id="step1_deadline"
+                        type="date"
+                        value={campaignForm.step1_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, step1_deadline: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="step2_deadline" className="text-sm">2차 영상 마감일 (ステップ2)</Label>
+                      <Input
+                        id="step2_deadline"
+                        type="date"
+                        value={campaignForm.step2_deadline}
+                        onChange={(e) => setCampaignForm({...campaignForm, step2_deadline: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-orange-600 mt-2">각 스텝별 영상 제출 + SNS 공유 마감일을 설정합니다.</p>
+                </div>
+              )}
+
+              {/* 기획형 캠페인 마감일 설정 */}
+              {campaignForm.campaign_type === 'regular' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-800 mb-3">📹 영상 제출 마감일 설정</h3>
+                  <div>
+                    <Label htmlFor="video_deadline" className="text-sm">영상 제출 마감일</Label>
+                    <Input
+                      id="video_deadline"
+                      type="date"
+                      value={campaignForm.video_deadline}
+                      onChange={(e) => setCampaignForm({...campaignForm, video_deadline: e.target.value})}
+                    />
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">영상 제출 및 SNS 공유 마감일을 설정합니다.</p>
+                </div>
+              )}
+
+              {/* 광고코드 및 클린본 요청 설정 */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">⚙️ 추가 요청 사항</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.requires_ad_code}
+                      onChange={(e) => setCampaignForm({...campaignForm, requires_ad_code: e.target.checked})}
+                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">광고 코드 요청</span>
+                      <span className="text-gray-500 ml-2 text-sm">(広告コード要求)</span>
+                      <p className="text-xs text-gray-500">크리에이터에게 광고 코드 제출을 요청합니다</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.requires_clean_video}
+                      onChange={(e) => setCampaignForm({...campaignForm, requires_clean_video: e.target.checked})}
+                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">클린 영상 요청</span>
+                      <span className="text-gray-500 ml-2 text-sm">(クリーン動画要求)</span>
+                      <p className="text-xs text-gray-500">자막 없는 버전의 영상을 추가로 제출받습니다</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               {/* 패키지 선택 */}
               <div>
-                <Label htmlFor="package_type">패키지 선택 *</Label>
+                <Label htmlFor="package_type">크리에이터 패키지 선택 *</Label>
                 <select
                   id="package_type"
                   value={campaignForm.package_type}
@@ -791,12 +1033,15 @@ const CreateCampaignJapan = () => {
                 >
                   {packageOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.label} - ₩{opt.priceWithVat.toLocaleString()} (VAT 포함)
+                      {opt.label} ({opt.labelJa}) - ₩{opt.priceWithVat.toLocaleString()} (VAT 포함)
                     </option>
                   ))}
                 </select>
                 <p className="text-sm text-gray-500 mt-1">
                   {packageOptions.find(p => p.value === campaignForm.package_type)?.description}
+                  <span className="text-gray-400 ml-2">
+                    ({packageOptions.find(p => p.value === campaignForm.package_type)?.descriptionJa})
+                  </span>
                 </p>
               </div>
 

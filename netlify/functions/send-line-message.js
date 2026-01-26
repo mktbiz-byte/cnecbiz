@@ -111,6 +111,42 @@ const MESSAGE_TEMPLATES = {
     text: `✅ 영상 승인 완료!\n\n${data.creatorName}님, 제출하신 영상이 승인되었습니다.\n\n캠페인: ${data.campaignName}\n\n업로드 마감일을 확인하시고 기한 내에 업로드해주세요.`
   }),
 
+  // 영상 제출 마감 임박 알림 (일본어)
+  video_deadline_reminder: (data) => ({
+    type: 'text',
+    text: `⏰ 동영상 제출 마감 알림\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 영상 제출 마감일이 다가왔습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
+  }),
+
+  // 가이드 확인 요청 (일본어)
+  guide_confirm_request: (data) => ({
+    type: 'text',
+    text: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName}\n\n가이드를 확인하시고 촬영을 시작해주세요.\n${data.guideUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
+  }),
+
+  // SNS 업로드 완료 요청 (일본어)
+  sns_upload_request: (data) => ({
+    type: 'text',
+    text: `📤 SNS 업로드 요청\n\n${data.creatorName}님, "${data.campaignName}" 영상이 승인되었습니다!\n\n이제 SNS에 업로드하시고 URL을 등록해주세요.\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n✅ 광고 코드 입력\n✅ 클린 영상 (자막 없는 버전) 제출\n\n마감일: ${data.deadline || '캠페인 종료일까지'}\n${data.uploadUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
+  }),
+
+  // 포인트 지급 완료 (일본어)
+  points_awarded: (data) => ({
+    type: 'text',
+    text: `🎁 포인트 지급 완료!\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 포인트가 지급되었습니다.\n\n지급 포인트: ${data.points?.toLocaleString() || 0}P\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n마이페이지에서 확인해주세요!`
+  }),
+
+  // 4주 챌린지 주차별 알림 (일본어)
+  weekly_challenge_reminder: (data) => ({
+    type: 'text',
+    text: `🗓️ ${data.weekNumber}주차 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.weekNumber}주차 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n이번 주 영상을 잊지 말고 제출해주세요!\n${data.submitUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
+  }),
+
+  // 메가와리 스텝별 알림 (일본어)
+  megawari_step_reminder: (data) => ({
+    type: 'text',
+    text: `🎯 ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
+  }),
+
   // 일반 알림
   general: (data) => ({
     type: 'text',
