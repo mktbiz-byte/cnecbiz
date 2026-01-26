@@ -46,20 +46,49 @@ exports.handler = async (event) => {
       };
     }
 
-    // 1. 캠페인 정보 조회
-    const client = supabaseKorea || supabase;
-    const { data: campaign, error: campaignError } = await client
-      .from('campaigns')
-      .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
-      .eq('id', campaignId)
-      .single();
+    // 1. 캠페인 정보 조회 (Korea DB 우선, 없으면 BIZ DB)
+    let campaign = null;
+    let campaignClient = null;
 
-    if (campaignError || !campaign) {
+    // Korea DB에서 먼저 조회
+    if (supabaseKorea) {
+      const { data: koreaCampaign, error: koreaError } = await supabaseKorea
+        .from('campaigns')
+        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
+        .eq('id', campaignId)
+        .single();
+
+      if (koreaCampaign && !koreaError) {
+        campaign = koreaCampaign;
+        campaignClient = supabaseKorea;
+        console.log('[INFO] Campaign found in Korea DB');
+      }
+    }
+
+    // Korea에 없으면 BIZ DB에서 조회
+    if (!campaign) {
+      const { data: bizCampaign, error: bizError } = await supabase
+        .from('campaigns')
+        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
+        .eq('id', campaignId)
+        .single();
+
+      if (bizCampaign && !bizError) {
+        campaign = bizCampaign;
+        campaignClient = supabase;
+        console.log('[INFO] Campaign found in BIZ DB');
+      }
+    }
+
+    if (!campaign) {
+      console.error('[ERROR] Campaign not found in any DB:', campaignId);
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' }) };
     }
 
-    // 2. 캠페인 소유권 확인
-    if (campaign.company_email !== companyEmail) {
+    // 2. 캠페인 소유권 확인 (대소문자 무시)
+    console.log('[INFO] Checking ownership:', { campaignEmail: campaign.company_email, userEmail: companyEmail });
+    if (campaign.company_email?.toLowerCase() !== companyEmail?.toLowerCase()) {
+      console.error('[ERROR] Ownership mismatch:', { campaignEmail: campaign.company_email, userEmail: companyEmail });
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다.' }) };
     }
 
