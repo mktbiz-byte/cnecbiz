@@ -2063,6 +2063,44 @@ JSON만 출력.`
     }
   }
 
+  // 선정 크리에이터 채널 변경
+  const handleChangeParticipantChannel = async (participantId, newChannel) => {
+    try {
+      // US 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us') {
+        await callUSCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({ main_channel: newChannel })
+          .eq('id', participantId)
+
+        if (error) throw error
+      }
+
+      // 참가자 목록 업데이트
+      setParticipants(prev =>
+        prev.map(p =>
+          p.id === participantId
+            ? { ...p, main_channel: newChannel }
+            : p
+        )
+      )
+
+      // Applications도 업데이트 (혹시 같은 데이터가 있다면)
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === participantId
+            ? { ...app, main_channel: newChannel }
+            : app
+        )
+      )
+    } catch (error) {
+      console.error('Error changing participant channel:', error)
+      alert('채널 변경에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 가상 선정된 크리에이터 한번에 확정
   const handleBulkConfirm = async () => {
     try {
@@ -4597,23 +4635,64 @@ JSON만 출력.`
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
-                        {snsUrl ? (
-                          <a
-                            href={snsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1 hover:opacity-80 cursor-pointer transition-opacity`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span>{platformConfig.icon}</span>
-                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
-                          </a>
-                        ) : (
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1`}>
-                            <span>{platformConfig.icon}</span>
-                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
-                          </span>
-                        )}
+                        {/* 채널 선택 - 클릭하면 업로드 채널 변경 */}
+                        <div className="flex items-center gap-1">
+                          {participant.instagram_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'instagram')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'instagram'
+                                  ? 'bg-pink-200 text-pink-700 ring-2 ring-pink-400'
+                                  : 'bg-pink-50 text-pink-600 hover:bg-pink-100'
+                              }`}
+                              title="인스타그램으로 업로드 채널 설정"
+                            >
+                              <span>📸</span>
+                              {(participant.main_channel || '').toLowerCase() === 'instagram' && <span>✓</span>}
+                            </button>
+                          )}
+                          {participant.youtube_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'youtube')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'youtube'
+                                  ? 'bg-red-200 text-red-700 ring-2 ring-red-400'
+                                  : 'bg-red-50 text-red-600 hover:bg-red-100'
+                              }`}
+                              title="유튜브로 업로드 채널 설정"
+                            >
+                              <span>📺</span>
+                              {(participant.main_channel || '').toLowerCase() === 'youtube' && <span>✓</span>}
+                            </button>
+                          )}
+                          {participant.tiktok_url && (
+                            <button
+                              onClick={() => handleChangeParticipantChannel(participant.id, 'tiktok')}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${
+                                (participant.main_channel || '').toLowerCase() === 'tiktok'
+                                  ? 'bg-gray-300 text-gray-800 ring-2 ring-gray-500'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                              title="틱톡으로 업로드 채널 설정"
+                            >
+                              <span>🎵</span>
+                              {(participant.main_channel || '').toLowerCase() === 'tiktok' && <span>✓</span>}
+                            </button>
+                          )}
+                          {/* SNS URL 바로가기 */}
+                          {snsUrl && (
+                            <a
+                              href={snsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded text-[10px] font-medium border border-blue-300"
+                              title="SNS 바로가기"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              🔗 바로가기
+                            </a>
+                          )}
+                        </div>
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusConfig.bgClass} ${statusConfig.textClass} ${participant.status === 'video_submitted' ? 'cursor-pointer hover:opacity-80' : ''}`}
                           onClick={() => {
@@ -6005,6 +6084,10 @@ JSON만 출력.`
 
                           {/* 채널 & 팔로워 - 클릭하면 가상선정 + 채널 설정 */}
                           <div className="space-y-1 mb-2">
+                            {/* 업로드 채널 선택 라벨 */}
+                            {!isAlreadyParticipant && app.status !== 'selected' && (
+                              <p className="text-[10px] text-purple-600 font-semibold text-center mb-1">⬇️ 업로드 채널 선택 (클릭)</p>
+                            )}
                             {app.instagram_url && (
                               <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
                                 app.virtual_selected && app.main_channel === 'instagram'
@@ -6025,10 +6108,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-pink-400 hover:text-pink-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
                                   title="인스타그램 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
@@ -6052,10 +6135,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-red-400 hover:text-red-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
                                   title="유튜브 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
@@ -6079,10 +6162,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-gray-400 hover:text-gray-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
                                   title="틱톡 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
@@ -6377,10 +6460,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-pink-400 hover:text-pink-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
                                   title="인스타그램 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
@@ -6403,10 +6486,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-red-400 hover:text-red-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
                                   title="유튜브 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
@@ -6429,10 +6512,10 @@ JSON만 출력.`
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 text-gray-400 hover:text-gray-600 p-0.5"
+                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
                                   title="틱톡 바로가기"
                                 >
-                                  ↗
+                                  🔗
                                 </a>
                               </div>
                             )}
