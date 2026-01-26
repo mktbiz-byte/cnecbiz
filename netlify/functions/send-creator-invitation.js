@@ -76,12 +76,12 @@ exports.handler = async (event) => {
     let campaign = null;
     let campaignClient = null;
 
-    // Korea DB에서 먼저 조회 (Korea DB 스키마: creator_points_override, application_deadline)
+    // Korea DB에서 먼저 조회 (select * 사용으로 스키마 차이 해결)
     console.log('[DEBUG] Checking Korea DB for campaign...');
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, creator_points_override, package_type, application_deadline, company_email, brand_name')
+        .select('*')
         .eq('id', campaignId)
         .single();
 
@@ -89,21 +89,23 @@ exports.handler = async (event) => {
       if (koreaCampaign && !koreaError) {
         campaign = {
           ...koreaCampaign,
-          deadline: koreaCampaign.application_deadline // 통일된 필드명으로 매핑
+          // 통일된 필드명으로 매핑
+          deadline: koreaCampaign.application_deadline || koreaCampaign.recruitment_deadline || koreaCampaign.deadline,
+          creator_points_override: koreaCampaign.creator_points_override || koreaCampaign.reward_amount
         };
         campaignClient = supabaseKorea;
-        console.log('[INFO] Campaign found in Korea DB:', { title: campaign.title, company_email: campaign.company_email });
+        console.log('[INFO] Campaign found in Korea DB:', { title: campaign.title, company_email: campaign.company_email, creator_points: campaign.creator_points_override });
       }
     } else {
       console.log('[DEBUG] Korea Supabase client not available');
     }
 
-    // Korea에 없으면 BIZ DB에서 조회 (BIZ DB 스키마: reward_amount, deadline)
+    // Korea에 없으면 BIZ DB에서 조회 (select * 사용)
     if (!campaign) {
       console.log('[DEBUG] Checking BIZ DB for campaign...');
       const { data: bizCampaign, error: bizError } = await supabase
         .from('campaigns')
-        .select('id, title, reward_amount, package_type, deadline, company_email, brand_name')
+        .select('*')
         .eq('id', campaignId)
         .single();
 
@@ -111,10 +113,12 @@ exports.handler = async (event) => {
       if (bizCampaign && !bizError) {
         campaign = {
           ...bizCampaign,
-          creator_points_override: bizCampaign.reward_amount // 통일된 필드명으로 매핑
+          // 통일된 필드명으로 매핑
+          deadline: bizCampaign.deadline || bizCampaign.application_deadline || bizCampaign.recruitment_deadline,
+          creator_points_override: bizCampaign.creator_points_override || bizCampaign.reward_amount
         };
         campaignClient = supabase;
-        console.log('[INFO] Campaign found in BIZ DB:', { title: campaign.title, company_email: campaign.company_email });
+        console.log('[INFO] Campaign found in BIZ DB:', { title: campaign.title, company_email: campaign.company_email, creator_points: campaign.creator_points_override });
       }
     }
 
