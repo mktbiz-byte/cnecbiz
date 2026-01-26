@@ -1234,184 +1234,127 @@ ${textToTranslate}
                 </div>
               </div>
 
-              {/* 오른쪽: 견적 요약 */}
+              {/* 오른쪽: 견적 + 미리보기 */}
               <div className="lg:col-span-1">
-                <div className="sticky top-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-6 shadow-xl">
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    📋 견적서
-                  </h3>
+                <div className="sticky top-8 space-y-4">
+                  {/* 견적서 - 컴팩트 */}
+                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-bold flex items-center gap-2">📋 견적서</h3>
+                      <div className="flex items-center gap-1 text-yellow-400 text-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>{expectedApplicants.min}~{expectedApplicants.max}명 예상</span>
+                      </div>
+                    </div>
 
-                  {/* AI 예측 */}
-                  <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="text-sm text-gray-300">AI 예상 지원자 수</span>
-                    </div>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {expectedApplicants.min}~{expectedApplicants.max}명
-                    </div>
-                  </div>
-
-                  {/* 상세 내역 */}
-                  <div className="space-y-3 text-sm mb-6">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">캠페인 타입</span>
-                      <span>{campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)?.label}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">크리에이터 등급</span>
-                      <span>{packageOptions.find(p => p.value === campaignForm.package_type)?.label}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">단가</span>
-                      <span>₩{pricing.unitPrice?.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">인원</span>
-                      <span>x {campaignForm.total_slots}명</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">소계</span>
-                      <span>₩{pricing.subtotal?.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t border-slate-700 pt-3">
+                    {/* 상세 내역 - 컴팩트 */}
+                    <div className="space-y-2 text-xs mb-4">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">부가가치세 (10%)</span>
+                        <span className="text-gray-400">{campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)?.label} · {packageOptions.find(p => p.value === campaignForm.package_type)?.label}</span>
+                        <span>₩{pricing.unitPrice?.toLocaleString()} × {campaignForm.total_slots}명</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>부가세 (10%)</span>
                         <span>₩{pricing.vat?.toLocaleString()}</span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* 총액 */}
-                  <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">총액</span>
-                      <div className="text-right">
-                        <span className="text-3xl font-bold">₩{pricing.total?.toLocaleString()}</span>
+                    {/* 총액 */}
+                    <div className="bg-slate-700/50 rounded-lg p-3 mb-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-sm">총액</span>
+                        <span className="text-2xl font-bold">₩{pricing.total?.toLocaleString()}</span>
                       </div>
                     </div>
+
+                    {/* 번역 상태 */}
+                    {!translationComplete ? (
+                      <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-2 mb-3">
+                        <p className="text-yellow-300 text-xs text-center">⚠️ AI 일본어 번역을 완료해주세요</p>
+                      </div>
+                    ) : (
+                      <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-2 mb-3">
+                        <p className="text-green-300 text-xs text-center">✅ 번역 완료</p>
+                      </div>
+                    )}
+
+                    {/* 제출 버튼 */}
+                    <Button
+                      type="submit"
+                      disabled={processing}
+                      className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white py-2.5 rounded-xl font-semibold text-sm"
+                    >
+                      {processing ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 처리 중...</>
+                      ) : (
+                        <>다음 단계로 <ChevronRight className="w-4 h-4 ml-1" /></>
+                      )}
+                    </Button>
                   </div>
 
-                  {/* 번역 상태 표시 */}
-                  {!translationComplete && (
-                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 mb-4">
-                      <p className="text-yellow-300 text-xs text-center">
-                        ⚠️ 아래 "AI 일본어 번역" 버튼을 눌러<br/>번역을 완료해주세요
-                      </p>
+                  {/* 캠페인 미리보기 - 컴팩트 */}
+                  <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div className="bg-gray-100 px-3 py-1.5 border-b">
+                      <p className="text-xs text-gray-500 text-center font-medium">📱 크리에이터 노출 화면</p>
                     </div>
-                  )}
 
-                  {translationComplete && (
-                    <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 mb-4">
-                      <p className="text-green-300 text-xs text-center">
-                        ✅ 일본어 번역 완료
-                      </p>
+                    {/* 썸네일 */}
+                    <div className="aspect-[16/9] bg-gray-200 relative">
+                      {campaignForm.image_url ? (
+                        <img src={campaignForm.image_url} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <div className="text-center">
+                            <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-[10px]">썸네일 없음</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  {/* 제출 버튼 */}
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white py-3 rounded-xl font-semibold"
-                  >
-                    {processing ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 처리 중...</>
-                    ) : (
-                      <>다음 단계로 <ChevronRight className="w-4 h-4 ml-1" /></>
-                    )}
-                  </Button>
+                    <div className="p-3">
+                      {/* 플랫폼 & 리워드 */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex gap-1">
+                          {campaignForm.target_platforms.instagram && (
+                            <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] rounded-full">IG</span>
+                          )}
+                          {campaignForm.target_platforms.youtube && (
+                            <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded-full">YT</span>
+                          )}
+                          {campaignForm.target_platforms.tiktok && (
+                            <span className="px-1.5 py-0.5 bg-black text-white text-[10px] rounded-full">TT</span>
+                          )}
+                        </div>
+                        <span className="text-blue-600 font-bold text-xs">¥{(packageOptions.find(p => p.value === campaignForm.package_type)?.rewardYen || 12000).toLocaleString()}</span>
+                      </div>
 
-                  <p className="text-xs text-gray-400 text-center mt-4">
-                    다음 단계에서 크리에이터 가이드를 작성합니다
-                  </p>
+                      {/* 제목 */}
+                      <h4 className="font-bold text-gray-900 mb-1 line-clamp-1 text-xs">
+                        {campaignForm.title_ja || campaignForm.title || 'キャンペーンタイトル'}
+                      </h4>
+
+                      {/* 마감일 & 인원 */}
+                      <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-2">
+                        <span>締切: {campaignForm.application_deadline ? new Date(campaignForm.application_deadline).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) : '未定'}</span>
+                        <span>·</span>
+                        <span>{campaignForm.total_slots}名募集</span>
+                      </div>
+
+                      {/* 지원 버튼 */}
+                      <button className="w-full py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg">
+                        今すぐ応募
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </form>
-
-          {/* 캠페인 노출 미리보기 - 폼 하단에 배치 */}
-          <div className="max-w-md mx-auto mt-8 mb-12">
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="bg-gray-100 px-4 py-2 border-b">
-                <p className="text-xs text-gray-500 text-center font-medium">📱 크리에이터에게 보이는 화면</p>
-              </div>
-
-              {/* 썸네일 */}
-              <div className="aspect-video bg-gray-200 relative">
-                {campaignForm.image_url ? (
-                  <img
-                    src={campaignForm.image_url}
-                    alt="Campaign thumbnail"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <div className="text-center">
-                      <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-xs">썸네일 없음</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4">
-                {/* 플랫폼 뱃지 & 리워드 */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex gap-1">
-                    {campaignForm.target_platforms.instagram && (
-                      <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full">Instagram</span>
-                    )}
-                    {campaignForm.target_platforms.youtube && (
-                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">YouTube</span>
-                    )}
-                    {campaignForm.target_platforms.tiktok && (
-                      <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full">TikTok</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-blue-600 font-bold text-sm">
-                    <span className="text-green-600">$</span>
-                    <span>¥{(packageOptions.find(p => p.value === campaignForm.package_type)?.rewardYen || 12000).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* 제목 */}
-                <h4 className="font-bold text-gray-900 mb-2 line-clamp-2 text-sm">
-                  {campaignForm.title_ja || campaignForm.title || 'キャンペーンタイトル'}
-                </h4>
-
-                {/* 설명 */}
-                <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                  {campaignForm.description_ja || campaignForm.description || 'キャンペーン説明がここに表示されます...'}
-                </p>
-
-                {/* 마감일 & 모집인원 */}
-                <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>応募締切: {campaignForm.application_deadline ? new Date(campaignForm.application_deadline).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '未定'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mb-4">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span>{campaignForm.total_slots}名募集</span>
-                </div>
-
-                {/* 지원 버튼 */}
-                <button className="w-full py-2.5 bg-blue-500 text-white text-sm font-semibold rounded-lg">
-                  今すぐ応募
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
