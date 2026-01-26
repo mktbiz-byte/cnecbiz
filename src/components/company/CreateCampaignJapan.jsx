@@ -214,13 +214,13 @@ const CreateCampaignJapan = () => {
     }
   ]
 
-  // 패키지 옵션 (크리에이터 등급)
+  // 패키지 옵션 (크리에이터 등급) - 10만원씩 증가
   const packageOptions = [
     {
       value: 'junior',
       label: '초급',
       labelJa: '初級',
-      priceMultiplier: 1.0,
+      priceAddon: 0,
       description: '팔로워 1만~5만',
       descriptionJa: 'フォロワー1万~5万',
       rewardYen: 12000
@@ -229,7 +229,7 @@ const CreateCampaignJapan = () => {
       value: 'intermediate',
       label: '중급',
       labelJa: '中級',
-      priceMultiplier: 1.5,
+      priceAddon: 100000,
       description: '팔로워 5만~20만',
       descriptionJa: 'フォロワー5万~20万',
       rewardYen: 18000
@@ -238,7 +238,7 @@ const CreateCampaignJapan = () => {
       value: 'senior',
       label: '상급',
       labelJa: '上級',
-      priceMultiplier: 2.0,
+      priceAddon: 200000,
       description: '팔로워 20만 이상',
       descriptionJa: 'フォロワー20万以上',
       rewardYen: 24000
@@ -247,19 +247,11 @@ const CreateCampaignJapan = () => {
       value: 'premium',
       label: '프리미엄',
       labelJa: 'プレミアム',
-      priceMultiplier: 3.0,
+      priceAddon: 300000,
       description: '대형 인플루언서',
       descriptionJa: '大型インフルエンサー',
       rewardYen: 36000
     }
-  ]
-
-  // 인센티브 옵션
-  const bonusOptions = [
-    { value: 0, label: '없음', description: '기본 단가' },
-    { value: 100000, label: '+10만원', description: '지원율 5~10% 증가' },
-    { value: 200000, label: '+20만원', description: '지원율 10~20% 증가' },
-    { value: 300000, label: '+30만원', description: '우수 크리에이터 유치' }
   ]
 
   // 가격 계산
@@ -269,17 +261,14 @@ const CreateCampaignJapan = () => {
 
     if (!campaignType || !packageType) return { base: 0, vat: 0, total: 0 }
 
-    const basePrice = campaignType.price * packageType.priceMultiplier
+    const basePrice = campaignType.price + packageType.priceAddon
     const subtotal = basePrice * campaignForm.total_slots
-    const bonus = campaignForm.bonus_amount || 0
-    const totalBeforeVat = subtotal + bonus
-    const vat = Math.floor(totalBeforeVat * 0.1)
-    const total = totalBeforeVat + vat
+    const vat = Math.floor(subtotal * 0.1)
+    const total = subtotal + vat
 
     return {
       unitPrice: basePrice,
       subtotal,
-      bonus,
       vat,
       total
     }
@@ -291,9 +280,8 @@ const CreateCampaignJapan = () => {
   const getExpectedApplicants = () => {
     const base = 8
     const packageBonus = { junior: 0, intermediate: 3, senior: 6, premium: 10 }
-    const bonusEffect = Math.floor((campaignForm.bonus_amount || 0) / 100000) * 3
-    const min = base + (packageBonus[campaignForm.package_type] || 0) + bonusEffect
-    const max = min + 8 + bonusEffect
+    const min = base + (packageBonus[campaignForm.package_type] || 0)
+    const max = min + 8
     return { min, max }
   }
 
@@ -433,8 +421,8 @@ const CreateCampaignJapan = () => {
         throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
       }
 
-      if (!campaignForm.application_deadline || !campaignForm.start_date || !campaignForm.end_date) {
-        throw new Error('모집마감일, 발표일, 촬영마감일을 모두 입력해주세요.')
+      if (!campaignForm.application_deadline || !campaignForm.start_date) {
+        throw new Error('모집마감일, 선정발표일을 모두 입력해주세요.')
       }
 
       const hasSelectedPlatform = Object.values(campaignForm.target_platforms).some(Boolean)
@@ -574,8 +562,8 @@ const CreateCampaignJapan = () => {
             {campaignTypeOptions.map((type) => {
               const colors = colorMap[type.color]
               const isSelected = campaignForm.campaign_type === type.value
-              const packageMultiplier = packageOptions.find(p => p.value === campaignForm.package_type)?.priceMultiplier || 1
-              const displayPrice = type.price * packageMultiplier
+              const packageAddon = packageOptions.find(p => p.value === campaignForm.package_type)?.priceAddon || 0
+              const displayPrice = type.price + packageAddon
 
               return (
                 <div
@@ -666,7 +654,7 @@ const CreateCampaignJapan = () => {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     {packageOptions.map((pkg) => {
                       const campaignType = campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)
-                      const displayPrice = (campaignType?.price || 200000) * pkg.priceMultiplier
+                      const displayPrice = (campaignType?.price || 300000) + pkg.priceAddon
                       const isSelected = campaignForm.package_type === pkg.value
 
                       return (
@@ -752,34 +740,6 @@ const CreateCampaignJapan = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* 인센티브 옵션 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">인센티브 옵션</h2>
-                  <p className="text-gray-500 mb-6 text-sm">인센티브를 추가하여 우수 크리에이터의 지원을 유도하세요</p>
-
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {bonusOptions.map((option) => (
-                      <div
-                        key={option.value}
-                        onClick={() => setCampaignForm(prev => ({ ...prev, bonus_amount: option.value }))}
-                        className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          campaignForm.bonus_amount === option.value
-                            ? 'border-purple-500 bg-purple-50 shadow-md'
-                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                        }`}
-                      >
-                        {option.value === 100000 && (
-                          <span className="absolute -top-2 right-2 bg-purple-500 text-white text-xs px-2 py-0.5 rounded">추천</span>
-                        )}
-                        <div className={`text-lg font-bold mb-1 ${campaignForm.bonus_amount === option.value ? 'text-purple-600' : 'text-gray-900'}`}>
-                          {option.label}
-                        </div>
-                        <div className="text-xs text-gray-500">{option.description}</div>
-                      </div>
-                    ))}
                   </div>
                 </div>
 
@@ -997,7 +957,7 @@ const CreateCampaignJapan = () => {
                 <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">일정 & 플랫폼</h2>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                       <Label>모집 마감일 *</Label>
                       <Input
@@ -1013,15 +973,6 @@ const CreateCampaignJapan = () => {
                         type="date"
                         value={campaignForm.start_date}
                         onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>촬영 마감일 *</Label>
-                      <Input
-                        type="date"
-                        value={campaignForm.end_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
                         required
                       />
                     </div>
@@ -1270,11 +1221,6 @@ const CreateCampaignJapan = () => {
                     <div className="text-2xl font-bold text-yellow-400">
                       {expectedApplicants.min}~{expectedApplicants.max}명
                     </div>
-                    {campaignForm.bonus_amount > 0 && (
-                      <div className="text-xs text-green-400 mt-1">
-                        +{Math.floor(campaignForm.bonus_amount / 100000) * 3}~{Math.floor(campaignForm.bonus_amount / 100000) * 5}명 증가 예상
-                      </div>
-                    )}
                   </div>
 
                   {/* 상세 내역 */}
@@ -1299,12 +1245,6 @@ const CreateCampaignJapan = () => {
                       <span className="text-gray-400">소계</span>
                       <span>₩{pricing.subtotal?.toLocaleString()}</span>
                     </div>
-                    {pricing.bonus > 0 && (
-                      <div className="flex justify-between text-green-400">
-                        <span>인센티브</span>
-                        <span>+₩{pricing.bonus.toLocaleString()}</span>
-                      </div>
-                    )}
                     <div className="border-t border-slate-700 pt-3">
                       <div className="flex justify-between">
                         <span className="text-gray-400">부가가치세 (10%)</span>
