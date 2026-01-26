@@ -567,7 +567,9 @@ export default function CampaignDetail() {
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
-  const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved'
+  const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved', 'not_submitted'
+  const [selectedNotSubmitted, setSelectedNotSubmitted] = useState([]) // 미제출자 선택 (user_id 배열)
+  const [sendingAlimtalk, setSendingAlimtalk] = useState(false) // 알림톡 발송 중
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -7612,6 +7614,86 @@ JSON만 출력.`
                 {videoReviewFilter === 'not_submitted' && (() => {
                   const notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
 
+                  // 알림톡 보내기 함수
+                  const handleSendAlimtalk = async () => {
+                    if (selectedNotSubmitted.length === 0) {
+                      alert('알림톡을 보낼 크리에이터를 선택해주세요.')
+                      return
+                    }
+
+                    const selectedParticipantsData = notSubmittedParticipants.filter(p => selectedNotSubmitted.includes(p.user_id))
+                    const withPhone = selectedParticipantsData.filter(p => p.phone)
+                    const withoutPhone = selectedParticipantsData.filter(p => !p.phone)
+
+                    if (withPhone.length === 0) {
+                      alert('선택한 크리에이터 중 연락처가 등록된 크리에이터가 없습니다.')
+                      return
+                    }
+
+                    let confirmMsg = `선택한 ${selectedNotSubmitted.length}명 중 ${withPhone.length}명에게 알림톡을 보내시겠습니까?`
+                    if (withoutPhone.length > 0) {
+                      confirmMsg += `\n(연락처 미등록: ${withoutPhone.length}명)`
+                    }
+
+                    if (!confirm(confirmMsg)) return
+
+                    setSendingAlimtalk(true)
+                    let successCount = 0
+                    let failCount = 0
+
+                    for (const participant of withPhone) {
+                      try {
+                        const response = await fetch('/.netlify/functions/send-kakao-notification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            receiverNum: participant.phone.replace(/-/g, ''),
+                            receiverName: participant.creator_name || participant.applicant_name || '',
+                            templateCode: '025100001015',
+                            variables: {
+                              '크리에이터명': participant.creator_name || participant.applicant_name || '크리에이터',
+                              '캠페인명': campaign.title || campaign.name || '캠페인',
+                              '제출기한': campaign.video_deadline ? new Date(campaign.video_deadline).toLocaleDateString('ko-KR') : '미정'
+                            }
+                          })
+                        })
+
+                        const result = await response.json()
+                        if (result.success) {
+                          successCount++
+                        } else {
+                          console.error('알림톡 발송 실패:', participant.creator_name, result.error)
+                          failCount++
+                        }
+                      } catch (error) {
+                        console.error('알림톡 발송 오류:', participant.creator_name, error)
+                        failCount++
+                      }
+                    }
+
+                    setSendingAlimtalk(false)
+                    setSelectedNotSubmitted([])
+                    alert(`알림톡 발송 완료\n성공: ${successCount}명\n실패: ${failCount}명`)
+                  }
+
+                  // 전체 선택 핸들러
+                  const handleSelectAll = (checked) => {
+                    if (checked) {
+                      setSelectedNotSubmitted(notSubmittedParticipants.map(p => p.user_id))
+                    } else {
+                      setSelectedNotSubmitted([])
+                    }
+                  }
+
+                  // 개별 선택 핸들러
+                  const handleSelectOne = (userId, checked) => {
+                    if (checked) {
+                      setSelectedNotSubmitted([...selectedNotSubmitted, userId])
+                    } else {
+                      setSelectedNotSubmitted(selectedNotSubmitted.filter(id => id !== userId))
+                    }
+                  }
+
                   if (notSubmittedParticipants.length === 0) {
                     return (
                       <div className="text-center py-12 text-gray-500">
@@ -7621,21 +7703,73 @@ JSON만 출력.`
                     )
                   }
 
+                  const isAllSelected = selectedNotSubmitted.length === notSubmittedParticipants.length && notSubmittedParticipants.length > 0
+
                   return (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-gray-600">
-                          선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
-                          <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 아직 영상을 제출하지 않았습니다.
-                        </p>
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isAllSelected}
+                              onChange={(e) => handleSelectAll(e.target.checked)}
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">전체 선택</span>
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
+                            <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 아직 영상을 제출하지 않았습니다.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleSendAlimtalk}
+                          disabled={selectedNotSubmitted.length === 0 || sendingAlimtalk}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white flex items-center gap-2"
+                        >
+                          {sendingAlimtalk ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              발송 중...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 01-3.476.383.39.39 0 00-.297.17l-2.755 4.133a.75.75 0 01-1.248 0l-2.755-4.133a.39.39 0 00-.297-.17 48.9 48.9 0 01-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97z" clipRule="evenodd" />
+                              </svg>
+                              알림톡 보내기 ({selectedNotSubmitted.length}명)
+                            </>
+                          )}
+                        </Button>
                       </div>
+                      {selectedNotSubmitted.length > 0 && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                          <strong>{selectedNotSubmitted.length}명</strong> 선택됨 · 영상 제출 마감일 알림톡이 발송됩니다.
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {notSubmittedParticipants.map((participant) => (
                           <div
                             key={participant.id}
-                            className="bg-white border border-red-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+                            className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+                              selectedNotSubmitted.includes(participant.user_id)
+                                ? 'border-yellow-400 ring-2 ring-yellow-200'
+                                : 'border-red-200'
+                            }`}
+                            onClick={() => handleSelectOne(participant.user_id, !selectedNotSubmitted.includes(participant.user_id))}
                           >
                             <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedNotSubmitted.includes(participant.user_id)}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  handleSelectOne(participant.user_id, e.target.checked)
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                              />
                               <img
                                 src={participant.profile_photo_url || participant.creator_profile_photo || '/default-avatar.png'}
                                 alt={participant.creator_name || participant.applicant_name}
@@ -7654,6 +7788,7 @@ JSON만 출력.`
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-blue-500 hover:underline truncate block"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     채널 바로가기
                                   </a>
@@ -7661,8 +7796,15 @@ JSON만 출력.`
                               </div>
                               <div className="flex flex-col items-end gap-1">
                                 <Badge className="bg-red-100 text-red-700 text-xs">미제출</Badge>
-                                {participant.phone && (
-                                  <span className="text-xs text-gray-400">{participant.phone}</span>
+                                {participant.phone ? (
+                                  <span className="text-xs text-green-600 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                    </svg>
+                                    연락처
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">연락처 없음</span>
                                 )}
                               </div>
                             </div>
