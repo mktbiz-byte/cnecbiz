@@ -562,6 +562,8 @@ export default function CampaignDetail() {
   const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
+  const [museCreators, setMuseCreators] = useState([])
+  const [loadingMuseCreators, setLoadingMuseCreators] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
@@ -757,8 +759,43 @@ export default function CampaignDetail() {
     if (campaign) {
       fetchAIRecommendations()
       fetchCnecPlusRecommendations()
+      // 한국 캠페인인 경우에만 MUSE 크리에이터 로드
+      if (region === 'korea') {
+        fetchMuseCreators()
+      }
     }
   }, [campaign])
+
+  // MUSE 등급 크리에이터 조회 (한국 캠페인 전용)
+  const fetchMuseCreators = async () => {
+    if (region !== 'korea') return
+
+    setLoadingMuseCreators(true)
+    try {
+      // 한국 DB에서 MUSE 등급 (grade_level = 5) 크리에이터 조회
+      const { data, error } = await supabaseKorea
+        .from('user_profiles')
+        .select('*')
+        .eq('grade_level', 5)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+
+      // 이미 이 캠페인에 지원한 크리에이터는 제외
+      const applicationEmails = applications.map(app => app.email?.toLowerCase())
+      const filteredCreators = (data || []).filter(creator =>
+        !applicationEmails.includes(creator.email?.toLowerCase())
+      )
+
+      setMuseCreators(filteredCreators)
+    } catch (error) {
+      console.error('Error fetching MUSE creators:', error)
+    } finally {
+      setLoadingMuseCreators(false)
+    }
+  }
 
   const checkIfAdmin = async () => {
     try {
@@ -5930,6 +5967,150 @@ JSON만 출력.`
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
+            {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) */}
+            {region === 'korea' && museCreators.length > 0 && (
+              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="text-amber-500">👑</span>
+                        MUSE 추천 크리에이터
+                        <Badge className="bg-amber-500 text-white">{museCreators.length}명</Badge>
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">
+                        크넥 최상위 등급 크리에이터 · 초대장 발송으로 우선 섭외하세요
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {museCreators.map((creator, index) => (
+                      <div key={creator.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border border-amber-200">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative mb-2">
+                            <img
+                              src={creator.profile_photo_url || creator.profile_image || '/default-avatar.png'}
+                              alt={creator.name}
+                              className="w-16 h-16 rounded-full object-cover border-2 border-amber-400"
+                            />
+                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                              MUSE
+                            </div>
+                          </div>
+                          <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name || creator.channel_name}</h4>
+                          <p className="text-xs text-gray-500 mb-1 truncate w-full">
+                            {creator.main_platform || creator.primary_interest || '크리에이터'}
+                          </p>
+                          {creator.followers_count && (
+                            <p className="text-xs text-amber-600 font-medium mb-2">
+                              팔로워 {creator.followers_count?.toLocaleString()}
+                            </p>
+                          )}
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <Button
+                              size="sm"
+                              className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white"
+                              onClick={async () => {
+                                try {
+                                  const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+                                  if (!currentUser) {
+                                    alert('로그인이 필요합니다.')
+                                    return
+                                  }
+
+                                  if (!confirm(`${creator.name || creator.channel_name}님에게 캠페인 초대장을 발송하시겠습니까?`)) {
+                                    return
+                                  }
+
+                                  const response = await fetch('/.netlify/functions/send-creator-invitation', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      campaignId: id,
+                                      creatorEmail: creator.email,
+                                      creatorName: creator.name || creator.channel_name,
+                                      creatorPhone: creator.phone,
+                                      invitedBy: currentUser.id,
+                                      campaignTitle: campaign?.title,
+                                      brandName: campaign?.brand_name,
+                                      reward: campaign?.reward_amount || campaign?.budget,
+                                      deadline: campaign?.deadline
+                                    })
+                                  })
+
+                                  const result = await response.json()
+
+                                  if (result.success) {
+                                    alert('초대장을 성공적으로 발송했습니다!\n카카오톡과 이메일로 전송되었습니다.')
+                                    // 발송된 크리에이터는 목록에서 제거
+                                    setMuseCreators(prev => prev.filter(c => c.id !== creator.id))
+                                  } else {
+                                    alert(result.error || '초대장 발송에 실패했습니다.')
+                                  }
+                                } catch (error) {
+                                  console.error('Error sending invitation:', error)
+                                  alert('초대장 발송 중 오류가 발생했습니다.')
+                                }
+                              }}
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              초대장 발송
+                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-[10px] h-6"
+                                onClick={() => {
+                                  const urls = []
+                                  if (creator.instagram_url) urls.push(creator.instagram_url)
+                                  if (creator.youtube_url) urls.push(creator.youtube_url)
+                                  if (creator.tiktok_url) urls.push(creator.tiktok_url)
+
+                                  if (urls.length > 0) {
+                                    window.open(urls[0], '_blank')
+                                  } else {
+                                    alert('SNS 채널 정보가 없습니다.')
+                                  }
+                                }}
+                              >
+                                SNS
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="flex-1 text-[10px] h-6"
+                                onClick={() => {
+                                  setSelectedParticipant(creator)
+                                  setShowProfileModal(true)
+                                }}
+                              >
+                                프로필
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* MUSE 크리에이터 로딩 중 */}
+            {region === 'korea' && loadingMuseCreators && (
+              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                <CardContent className="py-8">
+                  <div className="flex items-center justify-center gap-2 text-amber-600">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>MUSE 크리에이터 로딩 중...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* AI 추천 크리에이터 섹션 */}
             {aiRecommendations.length > 0 && (
               <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
