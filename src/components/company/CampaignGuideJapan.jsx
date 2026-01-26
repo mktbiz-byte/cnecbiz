@@ -1272,10 +1272,10 @@ const CampaignGuideJapan = () => {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">일본어 번역 미리보기</CardTitle>
+            <CardTitle className="text-3xl font-bold">🇯🇵 クリエイターガイド</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
-            {campaignTitle || '캠페인 제목'}
+            {campaignTitle || 'キャンペーンタイトル'}
           </p>
         </CardHeader>
 
@@ -1285,12 +1285,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-indigo-500 pl-4">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📦</span>
-                <Label className="text-xl font-bold text-gray-800">제품 정보 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">製品情報</Label>
               </div>
               <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
                 {translatedBrandName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">브랜드명</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</Label>
                     <Input
                       value={translatedBrandName}
                       onChange={(e) => setTranslatedBrandName(e.target.value)}
@@ -1300,7 +1300,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">제품명</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品名</Label>
                     <Input
                       value={translatedProductName}
                       onChange={(e) => setTranslatedProductName(e.target.value)}
@@ -1310,7 +1310,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductDesc && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">제품 설명</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品説明</Label>
                     <Textarea
                       value={translatedProductDesc}
                       onChange={(e) => setTranslatedProductDesc(e.target.value)}
@@ -1321,7 +1321,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductFeatures.length > 0 && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-2">제품 특징</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</Label>
                     <div className="space-y-2">
                       {translatedProductFeatures.map((feature, index) => (
                         <div key={index} className="flex items-start gap-2">
@@ -1349,7 +1349,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">💬</span>
-                <Label className="text-xl font-bold text-gray-800">필수 대사 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">必須セリフ</Label>
               </div>
               <div className="space-y-3">
                 {translatedDialogues.map((dialogue, index) => (
@@ -1378,7 +1378,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎥</span>
-                <Label className="text-xl font-bold text-gray-800">필수 장면 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">必須シーン</Label>
               </div>
               <div className="space-y-3">
                 {translatedScenes.map((scene, index) => (
@@ -1407,7 +1407,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-purple-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">#️⃣</span>
-                <Label className="text-xl font-bold text-gray-800">필수 해시태그 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">必須ハッシュタグ</Label>
               </div>
               <div className="space-y-2">
                 {translatedHashtags.map((hashtag, index) => (
@@ -1433,7 +1433,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-teal-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📷</span>
-                <Label className="text-xl font-bold text-gray-800">필수 촬영 장면 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">必須撮影シーン</Label>
               </div>
               <div className="space-y-2">
                 {translatedShootingScenes.map((scene, index) => (
@@ -1459,12 +1459,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-orange-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎬</span>
-                <Label className="text-xl font-bold text-gray-800">영상 사양 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">動画仕様</Label>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {translatedDuration && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">희망 시간</Label>
+                    <Label className="text-xs text-gray-600 mb-2">希望時間</Label>
                     <Input
                       value={translatedDuration}
                       onChange={(e) => setTranslatedDuration(e.target.value)}
@@ -1474,7 +1474,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTempo && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">템포</Label>
+                    <Label className="text-xs text-gray-600 mb-2">テンポ</Label>
                     <Input
                       value={translatedTempo}
                       onChange={(e) => setTranslatedTempo(e.target.value)}
@@ -1484,7 +1484,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTone && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">톤</Label>
+                    <Label className="text-xs text-gray-600 mb-2">トーン</Label>
                     <Input
                       value={translatedTone}
                       onChange={(e) => setTranslatedTone(e.target.value)}
@@ -1501,7 +1501,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-yellow-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📝</span>
-                <Label className="text-xl font-bold text-gray-800">추가 전달 사항 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">追加伝達事項</Label>
               </div>
               <Textarea
                 value={translatedAdditionalDetails}
@@ -1517,7 +1517,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-red-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📸</span>
-                <Label className="text-xl font-bold text-gray-800">추가 촬영 요청 (日)</Label>
+                <Label className="text-xl font-bold text-gray-800">追加撮影リクエスト</Label>
               </div>
               <Textarea
                 value={translatedShootingRequests}
@@ -1537,24 +1537,24 @@ const CampaignGuideJapan = () => {
                     <span className="text-white text-xs">✓</span>
                   </div>
                   <label className="text-base font-bold text-purple-900">
-                    📱 Meta 광고 코드 발급 요청
+                    📱 Meta広告コード発行リクエスト
                   </label>
                 </div>
                 <p className="text-sm text-purple-700 mb-4 ml-8">
-                  Meta(Facebook/Instagram) 광고 코드를 발급합니다
+                  Meta(Facebook/Instagram)広告コードを発行いたします
                 </p>
 
                 {/* 발급 방법 안내 */}
                 <div className="ml-8 mt-4 p-3 bg-white border border-purple-100 rounded-lg">
-                  <p className="text-xs font-bold text-purple-900 mb-2">📝 발급 방법 (일본어로 안내됨)</p>
+                  <p className="text-xs font-bold text-purple-900 mb-2">📝 発行方法</p>
                   <ol className="text-xs text-gray-700 space-y-1.5 list-decimal list-inside">
-                    <li>프로필→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」설정</li>
-                    <li>게시물「…」버튼→「パートナーシップラベルと広告」선택</li>
-                    <li>「パートナーシップ広告コードを取得」토글 ON</li>
-                    <li>「コピー」버튼으로 코드를 복사하여 기업에 제공</li>
+                    <li>プロフィール→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」で使用設定</li>
+                    <li>投稿の「…」ボタン→「パートナーシップラベルと広告」選択</li>
+                    <li>「パートナーシップ広告コードを取得」トグルON</li>
+                    <li>「コピー」ボタンでコードをコピーして企業に提供</li>
                   </ol>
                   <p className="text-xs text-red-600 mt-3 font-semibold">
-                    ⚠️ 주의: Instagram 내장 음악 사용 불가 (외부 편집으로 저작권 프리 음원 사용)
+                    ⚠️ 注意：Instagram内蔵音楽の使用は不可（外部編集で著作権フリー音源を使用）
                   </p>
                 </div>
               </div>
@@ -1564,8 +1564,8 @@ const CampaignGuideJapan = () => {
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">가이드를 작성해주세요</p>
-              <p className="text-sm text-gray-400">왼쪽에 한국어로 입력 후 "AI 번역" 버튼을 클릭하세요</p>
+              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
+              <p className="text-sm text-gray-400">左側に韓国語で入力し、「AI翻訳」ボタンをクリックしてください</p>
             </div>
           )}
         </CardContent>
