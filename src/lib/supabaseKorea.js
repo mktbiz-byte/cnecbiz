@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// CNEC Korea Supabase 설정
-const supabaseUrl = 'https://vluqhvuhykncicgvkosd.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
+// CNEC Korea Supabase 설정 (환경변수 사용)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_KOREA_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
 
 // 현재 사이트 URL 감지
 const getCurrentSiteUrl = () => {
