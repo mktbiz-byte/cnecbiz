@@ -562,6 +562,8 @@ export default function CampaignDetail() {
   const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
+  const [museCreators, setMuseCreators] = useState([])
+  const [loadingMuseCreators, setLoadingMuseCreators] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
@@ -757,8 +759,45 @@ export default function CampaignDetail() {
     if (campaign) {
       fetchAIRecommendations()
       fetchCnecPlusRecommendations()
+      // 한국 캠페인인 경우에만 MUSE 크리에이터 로드
+      if (region === 'korea') {
+        fetchMuseCreators()
+      }
     }
   }, [campaign])
+
+  // MUSE 등급 크리에이터 조회 (한국 캠페인 전용)
+  const fetchMuseCreators = async () => {
+    if (region !== 'korea') return
+
+    setLoadingMuseCreators(true)
+    try {
+      // 한국 DB에서 MUSE 등급 (cnec_grade_level = 5) 크리에이터 조회
+      const { data, error } = await supabaseKorea
+        .from('user_profiles')
+        .select('*')
+        .eq('cnec_grade_level', 5)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+
+      console.log('[MUSE] Found creators:', data?.length || 0)
+
+      // 이미 이 캠페인에 지원한 크리에이터는 제외
+      const applicationEmails = applications.map(app => app.email?.toLowerCase())
+      const filteredCreators = (data || []).filter(creator =>
+        !applicationEmails.includes(creator.email?.toLowerCase())
+      )
+
+      console.log('[MUSE] After filtering:', filteredCreators.length)
+      setMuseCreators(filteredCreators)
+    } catch (error) {
+      console.error('Error fetching MUSE creators:', error)
+    } finally {
+      setLoadingMuseCreators(false)
+    }
+  }
 
   const checkIfAdmin = async () => {
     try {
@@ -901,26 +940,10 @@ export default function CampaignDetail() {
 
       if (profilesError) {
         console.error('Error fetching all profiles:', profilesError)
-      } else {
-        console.log('Fetched all profiles count:', allProfiles?.length || 0)
-        if (allProfiles && allProfiles.length > 0) {
-          console.log('Sample profile columns:', Object.keys(allProfiles[0]))
-        }
       }
 
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
       const enrichedData = combinedData.map((app) => {
-        // 먼저 app에 이미 있는 프로필 사진 확인
-        console.log('App fields for', app.applicant_name, ':', {
-          user_id: app.user_id,
-          email: app.email,
-          profile_photo_url: app.profile_photo_url,
-          profile_image_url: app.profile_image_url,
-          profile_image: app.profile_image,
-          creator_profile_image: app.creator_profile_image,
-          avatar_url: app.avatar_url
-        })
-
         let profile = null
 
         if (app.user_id && allProfiles && allProfiles.length > 0) {
@@ -930,17 +953,6 @@ export default function CampaignDetail() {
             p.user_id === app.user_id ||
             (app.email && p.email === app.email)
           )
-
-          if (profile) {
-            console.log('Found profile for', app.applicant_name, ':', {
-              matched_by: p => p.id === app.user_id ? 'id' : (p.user_id === app.user_id ? 'user_id' : 'email'),
-              profile_image: profile.profile_image,
-              profile_photo_url: profile.profile_photo_url,
-              avatar_url: profile.avatar_url
-            })
-          } else {
-            console.log('No profile match found for', app.applicant_name, 'user_id:', app.user_id)
-          }
         }
 
         // user_profiles에서 먼저, 없으면 application에서 프로필 이미지 가져오기
@@ -1091,8 +1103,8 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched participants:', finalData)
-      console.log('Participants count:', finalData?.length || 0)
+      // 개인정보 보호를 위해 상세 데이터 로그 제거
+      console.log('[fetchParticipants] Loaded:', finalData?.length || 0, 'participants')
       setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
@@ -1218,20 +1230,9 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      // US 지역 디버깅: applications 테이블의 실제 필드 구조 확인
+      // 개인정보 보호를 위해 디버그 로그 제거
       if (data && data.length > 0) {
-        console.log('[DEBUG US] applications 테이블 필드 목록:', Object.keys(data[0]))
-        console.log('[DEBUG US] 첫 번째 application 전체 데이터:', JSON.stringify(data[0], null, 2))
-        console.log('[DEBUG US] 주소/연락처 관련 필드 확인:', {
-          phone: data[0].phone,
-          phone_number: data[0].phone_number,
-          creator_phone: data[0].creator_phone,
-          shipping_phone: data[0].shipping_phone,
-          address: data[0].address,
-          shipping_address: data[0].shipping_address,
-          postal_code: data[0].postal_code,
-          detail_address: data[0].detail_address
-        })
+        console.log('[fetchApplications] Loaded:', data.length, 'applications')
       }
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
@@ -1266,8 +1267,6 @@ export default function CampaignDetail() {
 
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
       const enrichedData = (data || []).map((app) => {
-        console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
-
         let profile = null
 
         if (app.user_id && allProfiles && allProfiles.length > 0) {
@@ -1287,8 +1286,6 @@ export default function CampaignDetail() {
           cnec_total_score: featuredCreator?.cnec_total_score || null,
           is_cnec_recommended: featuredCreator?.is_cnec_recommended || false
         }
-
-        console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
         // 이메일에서 이름 추출 함수
         const extractNameFromEmail = (email) => {
@@ -1373,7 +1370,6 @@ export default function CampaignDetail() {
           return enriched
         }
 
-        console.log('Returning original app data for:', app.applicant_name)
         return {
           ...app,
           ...gradeInfo,
@@ -1382,7 +1378,6 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -1846,9 +1841,8 @@ JSON만 출력.`
           if (error) throw error
         }
         successCount++
-        console.log('[Bulk Guide] 성공 - participant:', participant.applicant_name || participant.creator_name)
       } catch (err) {
-        console.error(`[Bulk Guide] 실패 - ${participant.applicant_name || participant.creator_name}:`, err.message, err)
+        console.error('[Bulk Guide] 실패:', err.message)
         failCount++
       }
 
@@ -2180,13 +2174,6 @@ JSON만 출력.`
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-      console.log('[DEBUG] Uploaded tracking data:', jsonData)
-      console.log('[DEBUG] Current participants:', participants.map(p => ({
-        id: p.id,
-        creator_name: p.creator_name,
-        applicant_name: p.applicant_name
-      })))
-
       // 지역별 컬럼명 매핑 (여러 언어 지원)
       const nameKeys = ['크리에이터명', 'クリエイター名', 'Creator Name', 'Name', 'name']
       const trackingKeys = ['송장번호', '送り状番号', 'Tracking Number', 'Tracking', 'tracking']
@@ -2201,20 +2188,15 @@ JSON만 출력.`
         const trackingNumber = trackingKeys.reduce((val, key) => val || row[key], null)
         const courier = courierKeys.reduce((val, key) => val || row[key], null)
 
-        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber, courier })
-
         if (!creatorName || !trackingNumber) {
-          console.log('[DEBUG] Skipping row - missing name or tracking number')
           continue
         }
 
         const participant = participants.find(p =>
           p.creator_name === creatorName || p.applicant_name === creatorName
         )
-        console.log('[DEBUG] Found participant:', participant)
 
         if (!participant) {
-          console.log('[DEBUG] No matching participant found for:', creatorName)
           failCount++
           continue
         }
@@ -2231,14 +2213,12 @@ JSON만 출력.`
             .eq('id', participant.id)
 
           if (error) {
-            console.error(`[ERROR] Failed to update tracking for ${creatorName}:`, error)
             failCount++
           } else {
-            console.log(`[SUCCESS] Updated tracking for ${creatorName}`)
             successCount++
           }
         } catch (error) {
-          console.error(`[ERROR] Exception updating ${creatorName}:`, error)
+          console.error('[ERROR] Exception updating tracking:', error)
           failCount++
         }
       }
@@ -3261,18 +3241,11 @@ JSON만 출력.`
 
           // 이미 영상 제출 이후 단계인 경우 건너뛰기 (재전달은 허용)
           if (['video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)) {
-            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already in ${participant.status} status, skipping guide delivery`)
             errorCount++
             continue
           }
-          
-          // 가이드 재전달 로그
-          if (participant.personalized_guide) {
-            console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
-          }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
-          console.log('[DEBUG] Updating application status to filming:', participantId)
 
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
@@ -3507,11 +3480,8 @@ JSON만 출력.`
           }
         }
 
-        console.log('알림톡 발송 정보:', { phone, email, creatorName, source: participant.phone_number ? 'applications' : 'user_profiles' })
-
         if (phone) {
           try {
-            console.log('알림톡 발송 시도:', { phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
             const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3537,8 +3507,6 @@ JSON만 출력.`
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
-        } else {
-          console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: participant?.user_id, phone_number: participant?.phone_number, phone: participant?.phone })
         }
 
         // 이메일 발송
@@ -4544,10 +4512,8 @@ JSON만 출력.`
                   language: 'ja'
                 })
               })
-
-              console.log(`[Japan] Notification sent to: ${participant.creator_name}`)
             } catch (notifError) {
-              console.error(`[Japan] Notification error for ${participant.creator_name}:`, notifError)
+              console.error('[Japan] Notification error:', notifError.message)
             }
           }
         }
@@ -5930,135 +5896,183 @@ JSON만 출력.`
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
-            {/* AI 추천 크리에이터 섹션 */}
-            {aiRecommendations.length > 0 && (
-              <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
+            {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) */}
+            {region === 'korea' && museCreators.length > 0 && (
+              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <span className="text-blue-600">✨</span>
-                        AI 추천 크리에이터
-                        <Badge className="bg-blue-600 text-white">{aiRecommendations.length}명</Badge>
+                        <span className="text-amber-500">👑</span>
+                        MUSE 추천 크리에이터
+                        <Badge className="bg-amber-500 text-white">{museCreators.length}명</Badge>
                       </CardTitle>
                       <p className="text-sm text-gray-600 mt-1">
-                        캠페인 특성을 분석하여 AI가 추천하는 최적의 크리에이터
+                        크넥 최상위 등급 크리에이터 · 초대장 발송으로 우선 섭외하세요
                       </p>
+                    </div>
+                  </div>
+                  {/* 초대장 발송 안내 배너 */}
+                  <div className="mt-4 p-3 bg-gradient-to-r from-violet-100 to-purple-100 rounded-lg border border-violet-200">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-violet-500 rounded-full flex items-center justify-center">
+                        <Mail className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-violet-800 text-sm mb-1">
+                          초대장을 발송하면 알림톡으로 지원 소식을 받아보세요!
+                        </h4>
+                        <p className="text-xs text-violet-600 leading-relaxed">
+                          크리에이터에게 초대장을 발송하면, 크리에이터가 <strong>캠페인에 지원할 때 카카오 알림톡</strong>으로 즉시 알려드립니다.
+                          <br />빠른 섭외를 위해 MUSE 크리에이터에게 초대장을 발송해보세요!
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500 text-white text-xs font-medium rounded-full">
+                          <Sparkles className="w-3 h-3" />
+                          지원 시 즉시 알림
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                    {aiRecommendations.map((rec, index) => (
-                      <div key={rec.id || index} className="bg-white rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow border border-blue-200">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {museCreators.map((creator, index) => (
+                      <div key={creator.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border border-amber-200">
                         <div className="flex flex-col items-center text-center">
                           <div className="relative mb-2">
-                            <img 
-                              src={rec.profile_photo_url || '/default-avatar.png'} 
-                              alt={rec.name}
-                              className="w-12 h-12 rounded-full object-cover"
+                            <img
+                              src={creator.profile_photo_url || creator.profile_image || '/default-avatar.png'}
+                              alt={creator.name}
+                              className="w-16 h-16 rounded-full object-cover border-2 border-amber-400"
                             />
-                            <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                              {rec.recommendation_score}
+                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                              MUSE
                             </div>
                           </div>
-                          <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{rec.name}</h4>
-                          <p className="text-[10px] text-gray-500 mb-1 truncate w-full">{rec.main_channel || '플랫폼 정보 없음'}</p>
-                          <div className="flex flex-col gap-1 w-full">
-                            <Button 
-                              size="sm" 
-                              className="w-full text-[10px] h-7 bg-blue-600 hover:bg-blue-700 text-white"
+                          <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name || creator.channel_name}</h4>
+                          <p className="text-xs text-gray-500 mb-1 truncate w-full">
+                            {creator.main_platform || creator.primary_interest || '크리에이터'}
+                          </p>
+                          {creator.followers_count && (
+                            <p className="text-xs text-amber-600 font-medium mb-2">
+                              팔로워 {creator.followers_count?.toLocaleString()}
+                            </p>
+                          )}
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <Button
+                              size="sm"
+                              className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white"
                               onClick={async () => {
                                 try {
-                                  const { data: { user } } = await supabaseBiz.auth.getUser()
-                                  if (!user) {
+                                  const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+                                  if (!currentUser) {
                                     alert('로그인이 필요합니다.')
                                     return
                                   }
 
-                                  if (!confirm(`${rec.name}님에게 캠페인 지원 요청을 보내시겠습니까?`)) {
+                                  if (!confirm(`${creator.name || creator.channel_name}님에게 캠페인 초대장을 발송하시겠습니까?`)) {
                                     return
                                   }
 
-                                  const response = await fetch('/.netlify/functions/send-campaign-invitation', {
+                                  const response = await fetch('/.netlify/functions/send-creator-invitation', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                       campaignId: id,
-                                      creatorId: rec.id,
-                                      invitedBy: user.id
+                                      creatorId: creator.id,
+                                      invitedBy: currentUser.id,
+                                      companyEmail: currentUser.email
                                     })
                                   })
 
                                   const result = await response.json()
-                                  
+
                                   if (result.success) {
-                                    alert('캠페인 지원 요청을 성공적으로 보냈습니다!')
+                                    alert('초대장을 성공적으로 발송했습니다!\n카카오톡과 이메일로 전송되었습니다.')
+                                    // 발송된 크리에이터는 목록에서 제거
+                                    setMuseCreators(prev => prev.filter(c => c.id !== creator.id))
                                   } else {
-                                    alert(result.error || '지원 요청에 실패했습니다.')
+                                    alert(result.error || '초대장 발송에 실패했습니다.')
                                   }
                                 } catch (error) {
                                   console.error('Error sending invitation:', error)
-                                  alert('지원 요청 중 오류가 발생했습니다.')
+                                  alert('초대장 발송 중 오류가 발생했습니다.')
                                 }
                               }}
                             >
-                              지원 요청
+                              <Send className="w-3 h-3 mr-1" />
+                              초대장 발송
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="w-full text-[10px] h-6"
-                              onClick={() => {
-                                // SNS 채널 보기
-                                const urls = []
-                                if (rec.instagram_url) urls.push(rec.instagram_url)
-                                if (rec.youtube_url) urls.push(rec.youtube_url)
-                                if (rec.tiktok_url) urls.push(rec.tiktok_url)
-                                
-                                if (urls.length > 0) {
-                                  window.open(urls[0], '_blank')
-                                } else {
-                                  alert('SNS 채널 정보가 없습니다.')
-                                }
-                              }}
-                            >
-                              SNS
-                            </Button>
-                            <Button 
-                              size="sm" 
+                            {/* SNS 링크 아이콘들 */}
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                              {creator.instagram_url && (
+                                <a
+                                  href={creator.instagram_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-pink-500 hover:text-pink-600 transition-colors"
+                                  title="Instagram"
+                                >
+                                  <Instagram className="w-4 h-4" />
+                                </a>
+                              )}
+                              {creator.youtube_url && (
+                                <a
+                                  href={creator.youtube_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                  title="YouTube"
+                                >
+                                  <Youtube className="w-4 h-4" />
+                                </a>
+                              )}
+                              {creator.tiktok_url && (
+                                <a
+                                  href={creator.tiktok_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-gray-800 hover:text-black transition-colors"
+                                  title="TikTok"
+                                >
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                                  </svg>
+                                </a>
+                              )}
+                              {!creator.instagram_url && !creator.youtube_url && !creator.tiktok_url && (
+                                <span className="text-xs text-gray-400">SNS 없음</span>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
                               variant="ghost"
                               className="w-full text-[10px] h-6"
-                              onClick={async () => {
-                                // user_profiles에서 크리에이터 정보 가져오기
-                                try {
-                                  const { data: profile } = await supabase
-                                    .from('user_profiles')
-                                    .select('*')
-                                    .eq('id', rec.user_id)
-                                    .maybeSingle()
-
-                                  // applications 데이터 + user_profiles 데이터 병합
-                                  // profile_photo_url은 rec에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
-                                  const photoUrl = rec.profile_photo_url || profile?.profile_photo_url
-                                  setSelectedParticipant({
-                                    ...rec,
-                                    ...profile,
-                                    profile_photo_url: photoUrl
-                                  })
-                                  setShowProfileModal(true)
-                                } catch (error) {
-                                  console.error('Error fetching profile:', error)
-                                  alert('프로필 정보를 불러오는데 실패했습니다.')
-                                }
+                              onClick={() => {
+                                setSelectedParticipant(creator)
+                                setShowProfileModal(true)
                               }}
                             >
-                              상세
+                              프로필 보기
                             </Button>
                           </div>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* MUSE 크리에이터 로딩 중 */}
+            {region === 'korea' && loadingMuseCreators && (
+              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                <CardContent className="py-8">
+                  <div className="flex items-center justify-center gap-2 text-amber-600">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>MUSE 크리에이터 로딩 중...</span>
                   </div>
                 </CardContent>
               </Card>
@@ -10654,8 +10668,6 @@ JSON만 출력.`
                       }
                     }
 
-                    console.log('알림톡 발송 정보:', { phone, email, creatorName, source: selectedParticipant.phone_number ? 'applications' : 'user_profiles' })
-
                     if (phone) {
                       try {
                         await fetch('/.netlify/functions/send-kakao-notification', {
@@ -10682,8 +10694,6 @@ JSON만 출력.`
                       } catch (kakaoError) {
                         console.error('알림톡 발송 실패:', kakaoError)
                       }
-                    } else {
-                      console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: selectedParticipant?.user_id, phone_number: selectedParticipant?.phone_number, phone: selectedParticipant?.phone })
                     }
 
                     // 이메일 발송
