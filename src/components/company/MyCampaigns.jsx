@@ -306,7 +306,7 @@ export default function MyCampaigns() {
       const regionText = { korea: '한국', japan: '일본', usa: '미국', us: '미국' }[campaign.region] || '한국'
       const campaignTypeText = { planned: '기획형', regular: '기획형', oliveyoung: '올리브영', '4week_challenge': '4주 챌린지', '4week': '4주 챌린지' }[campaign.campaign_type] || '기획형'
 
-      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
       const totalSlots = campaign.max_participants || campaign.total_slots || 0
       const total = Math.floor(packagePrice * totalSlots * 1.1)
 
@@ -331,7 +331,16 @@ export default function MyCampaigns() {
     }
   }
 
-  const getPackagePrice = (packageType, campaignType) => {
+  const getPackagePrice = (packageType, campaignType, region) => {
+    // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'japan') {
+      const japanCampaignTypePrices = { regular: 300000, megawari: 400000, '4week_challenge': 600000 }
+      const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
+      const basePrice = japanCampaignTypePrices[campaignType] || 300000
+      const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
     const prices = {
       oliveyoung: { standard: 400000, premium: 500000, professional: 600000 },
       fourWeek: { standard: 600000, premium: 700000, professional: 800000, enterprise: 1000000 },
@@ -658,7 +667,7 @@ export default function MyCampaigns() {
               ) : (
                 <div className="space-y-4">
                   {filteredCampaigns.map((campaign) => {
-                    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+                    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
                     const totalCost = Math.floor(packagePrice * (campaign.total_slots || 0) * 1.1)
                     const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                     const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)

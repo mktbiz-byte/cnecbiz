@@ -160,7 +160,7 @@ export default function CompanyDashboard() {
         !c.is_cancelled
       )
       const totalSpent = inProgressCampaigns.reduce((sum, c) => {
-        const packagePrice = getPackagePrice(c.package_type, c.campaign_type)
+        const packagePrice = getPackagePrice(c.package_type, c.campaign_type, c.region)
         const count = c.max_participants || c.total_slots || 0
         const subtotal = packagePrice * count
         const vat = Math.floor(subtotal * 0.1)
@@ -190,7 +190,16 @@ export default function CompanyDashboard() {
     }
   }
 
-  const getPackagePrice = (packageType, campaignType) => {
+  const getPackagePrice = (packageType, campaignType, region) => {
+    // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'japan') {
+      const japanCampaignTypePrices = { regular: 300000, megawari: 400000, '4week_challenge': 600000 }
+      const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
+      const basePrice = japanCampaignTypePrices[campaignType] || 300000
+      const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
     // 올리브영 패키지 가격
     const oliveyoungPrices = {
       'standard': 400000,
@@ -588,7 +597,7 @@ export default function CompanyDashboard() {
                       if (campaign.estimated_cost) {
                         totalCost = campaign.estimated_cost
                       } else {
-                        const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+                        const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
                         const slots = campaign.max_participants || campaign.total_slots || 0
                         const subtotal = packagePrice * slots
                         const vat = Math.floor(subtotal * 0.1)

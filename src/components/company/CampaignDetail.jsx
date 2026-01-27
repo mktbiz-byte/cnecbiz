@@ -5477,6 +5477,28 @@ JSON만 출력.`
   }
 
   const getPackagePrice = (packageType, campaignType) => {
+    // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'japan') {
+      // 캠페인 타입별 기본 가격
+      const japanCampaignTypePrices = {
+        'regular': 300000,
+        'megawari': 400000,
+        '4week_challenge': 600000
+      }
+
+      // 크리에이터 등급별 추가 가격
+      const japanPackageAddon = {
+        'junior': 0,
+        'intermediate': 100000,
+        'senior': 200000,
+        'premium': 300000
+      }
+
+      const basePrice = japanCampaignTypePrices[campaignType] || 300000
+      const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
     // 올리브영 패키지 가격
     const oliveyoungPrices = {
       'standard': 400000,

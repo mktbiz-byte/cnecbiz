@@ -85,23 +85,36 @@ const OrderConfirmation = () => {
     )
   }
 
-  const packagePrices = {
-    'basic': 200000,
-    'junior': 200000,
-    'intermediate': 300000,
-    'standard': 300000,
-    'senior': 400000,
-    'premium': 400000,
-    'professional': 600000,
-    '4week_challenge': 600000,
-    'oliveyoung': 200000,
-    '올영 20만원': 200000,
-    '프리미엄 30만원': 300000,
-    '4주챌린지 60만원': 600000,
-    'enterprise': 1000000
+  // 패키지 가격 계산 함수
+  const getPackagePrice = (packageType, campaignType) => {
+    // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'japan') {
+      const japanCampaignTypePrices = { regular: 300000, megawari: 400000, '4week_challenge': 600000 }
+      const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
+      const basePrice = japanCampaignTypePrices[campaignType] || 300000
+      const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
+    const packagePrices = {
+      'basic': 200000,
+      'junior': 200000,
+      'intermediate': 300000,
+      'standard': 300000,
+      'senior': 400000,
+      'premium': 400000,
+      'professional': 600000,
+      '4week_challenge': 600000,
+      'oliveyoung': 200000,
+      '올영 20만원': 200000,
+      '프리미엄 30만원': 300000,
+      '4주챌린지 60만원': 600000,
+      'enterprise': 1000000
+    }
+    return packagePrices[packageType] || 200000
   }
 
-  const packagePrice = packagePrices[campaign.package_type] || 200000
+  const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
   
   const subtotal = packagePrice * recruitmentCount
