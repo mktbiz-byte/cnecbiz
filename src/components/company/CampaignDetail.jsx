@@ -5935,28 +5935,52 @@ JSON만 출력.`
                     </div>
                   </div>
                   {/* 초대장 발송 안내 배너 */}
-                  <div className="mt-4 p-3 bg-gradient-to-r from-violet-100 to-purple-100 rounded-lg border border-violet-200">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 bg-violet-500 rounded-full flex items-center justify-center">
-                        <Mail className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-violet-800 text-sm mb-1">
-                          초대장을 발송하면 알림톡으로 지원 소식을 받아보세요!
-                        </h4>
-                        <p className="text-xs text-violet-600 leading-relaxed">
-                          크리에이터에게 초대장을 발송하면, 크리에이터가 <strong>캠페인에 지원할 때 카카오 알림톡</strong>으로 즉시 알려드립니다.
-                          <br />빠른 섭외를 위해 MUSE 크리에이터에게 초대장을 발송해보세요!
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500 text-white text-xs font-medium rounded-full">
-                          <Sparkles className="w-3 h-3" />
-                          지원 시 즉시 알림
-                        </span>
+                  {campaign.approval_status === 'approved' ? (
+                    <div className="mt-4 p-3 bg-gradient-to-r from-violet-100 to-purple-100 rounded-lg border border-violet-200">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-violet-500 rounded-full flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-violet-800 text-sm mb-1">
+                            초대장을 발송하면 알림톡으로 지원 소식을 받아보세요!
+                          </h4>
+                          <p className="text-xs text-violet-600 leading-relaxed">
+                            크리에이터에게 초대장을 발송하면, 크리에이터가 <strong>캠페인에 지원할 때 카카오 알림톡</strong>으로 즉시 알려드립니다.
+                            <br />빠른 섭외를 위해 MUSE 크리에이터에게 초대장을 발송해보세요!
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500 text-white text-xs font-medium rounded-full">
+                            <Sparkles className="w-3 h-3" />
+                            지원 시 즉시 알림
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="mt-4 p-3 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg border border-gray-300">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
+                          <AlertCircle className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-700 text-sm mb-1">
+                            캠페인 활성화 후 초대장 발송 가능
+                          </h4>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            캠페인이 <strong>승인(활성화)</strong>되면 MUSE 크리에이터에게 초대장을 발송할 수 있습니다.
+                            <br />결제를 완료하고 캠페인을 활성화해주세요.
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-400 text-white text-xs font-medium rounded-full">
+                            발송 대기 중
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -5985,8 +6009,14 @@ JSON만 출력.`
                           <div className="flex flex-col gap-1.5 w-full">
                             <Button
                               size="sm"
-                              className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white"
+                              className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                              disabled={campaign.approval_status !== 'approved'}
+                              title={campaign.approval_status !== 'approved' ? '캠페인이 활성화되면 초대장을 발송할 수 있습니다' : ''}
                               onClick={async () => {
+                                if (campaign.approval_status !== 'approved') {
+                                  alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
+                                  return
+                                }
                                 try {
                                   const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
                                   if (!currentUser) {
