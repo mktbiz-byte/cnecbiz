@@ -36,7 +36,7 @@ const CreateCampaignJapan = () => {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    reward_amount: 12000,
+    reward_amount: 18000,  // 기획형+초급 기본 보상 (엔화) - 패키지 가격의 60%
     max_participants: 10,
     application_deadline: '',
     start_date: '',
@@ -292,6 +292,21 @@ const CreateCampaignJapan = () => {
 
   const pricing = calculatePrice()
 
+  // 크리에이터 보상금액 계산 (엔화) - 패키지 가격의 60%, 1000엔 단위로 반올림
+  const calculateRewardYen = () => {
+    const campaignType = campaignTypeOptions.find(t => t.value === campaignForm.campaign_type)
+    const packageType = packageOptions.find(p => p.value === campaignForm.package_type)
+
+    if (!campaignType || !packageType) return 12000
+
+    const basePrice = campaignType.price + packageType.priceAddon
+    const rewardKRW = basePrice * 0.6  // 60% of package price
+    const rewardYen = Math.round(rewardKRW / 10 / 1000) * 1000  // Convert to Yen (10 KRW ≈ 1 JPY), round to 1000
+    return rewardYen
+  }
+
+  const calculatedRewardYen = calculateRewardYen()
+
   // 예상 지원자 수 계산
   const getExpectedApplicants = () => {
     const base = 8
@@ -521,7 +536,7 @@ ${textToTranslate}
         requirements_ja: toNullIfEmpty(campaignForm.requirements_ja),
         category: campaignForm.category,
         image_url: toNullIfEmpty(campaignForm.image_url),
-        reward_amount: packageType?.rewardYen || 12000,
+        reward_amount: calculatedRewardYen,  // 패키지 가격의 60%, 1000엔 단위로 반올림
         max_participants: campaignForm.total_slots,
         application_deadline: toNullIfEmpty(campaignForm.application_deadline),
         start_date: toNullIfEmpty(campaignForm.start_date),

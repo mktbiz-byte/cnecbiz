@@ -20,7 +20,7 @@ const CreateCampaignUS = () => {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    reward_amount: 30,  // 초급 패키지 기본 보상 (달러)
+    reward_amount: 90,  // 초급 패키지 기본 보상 (달러) - 패키지 가격의 60%
     max_participants: 10,
     application_deadline: '',
     start_date: '',
@@ -192,18 +192,26 @@ const CreateCampaignUS = () => {
     return originalCost + vat - discountAmount
   }
 
+  // 크리에이터 보상금액 계산 (달러) - 패키지 가격의 60%, $5 단위로 반올림
+  const calculateRewardUSD = (packagePrice) => {
+    const rewardKRW = packagePrice * 0.6  // 60% of package price
+    const rewardUSD = Math.round(rewardKRW / 1350 / 5) * 5  // Convert to USD (1350 KRW ≈ 1 USD), round to $5
+    return rewardUSD
+  }
+
   // 패키지 변경 핸들러
   const handlePackageChange = (value) => {
     const selectedPackage = packageOptions.find(p => p.value === value)
     if (selectedPackage) {
       setCampaignForm(prev => {
         const finalCost = calculateFinalCost(selectedPackage.price, prev.total_slots)
-        const rewardPoints = Math.floor(selectedPackage.price * 0.6)  // 1명당 포인트 (패키지 가격의 60%)
+        const rewardPoints = selectedPackage.price * prev.total_slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+        const rewardUSD = calculateRewardUSD(selectedPackage.price)  // 60% 달러 보상
         return {
         ...prev,
         package_type: value,
         estimated_cost: finalCost,
-        reward_amount: selectedPackage.rewardYen,  // 달러 보상 자동 설정
+        reward_amount: rewardUSD,  // 달러 보상 자동 설정 (60%)
         reward_points: rewardPoints,  // 포인트 자동 설정
         max_participants: prev.total_slots
       }
@@ -216,13 +224,15 @@ const CreateCampaignUS = () => {
     const slots = parseInt(value) || 0
     const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
     const finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
-    
+    const rewardPoints = selectedPackage ? selectedPackage.price * slots : 0  // 총 금액 (VAT 제외)
+
     setCampaignForm(prev => ({
       ...prev,
       total_slots: slots,
       remaining_slots: slots,
       max_participants: slots,
-      estimated_cost: finalCost
+      estimated_cost: finalCost,
+      reward_points: rewardPoints
     }))
   }
 
