@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, ShieldX, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download, ShieldOff } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, ShieldX, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download, ShieldOff, Wallet } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
