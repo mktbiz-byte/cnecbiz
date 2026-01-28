@@ -122,12 +122,13 @@ export default function PaymentHistory() {
 
   const fetchPointUsages = async (companyId) => {
     try {
-      // spend, voucher_spend 타입 모두 조회 (사용 내역)
+      // spend 타입 조회 (사용 내역 - amount가 음수인 것만)
       const { data, error } = await supabaseBiz
         .from('points_transactions')
         .select('*')
         .eq('company_id', companyId)
-        .in('type', ['spend', 'voucher_spend'])
+        .eq('type', 'spend')
+        .lt('amount', 0)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
