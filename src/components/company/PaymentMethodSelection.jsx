@@ -97,10 +97,6 @@ const PaymentMethodSelection = () => {
       return;
     }
 
-    if (!confirm(`수출바우처로 결제하시겠습니까?\n\n결제 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n결제 후 잔액: ${(voucherBalance - paymentAmount).toLocaleString()}원`)) {
-      return;
-    }
-
     setProcessingVoucher(true);
 
     try {
@@ -239,8 +235,8 @@ const PaymentMethodSelection = () => {
                 {/* 수출바우처 결제 옵션 */}
                 {voucherBalance > 0 && (
                   <button
-                    onClick={handleVoucherPayment}
-                    disabled={processingVoucher || voucherBalance < Math.round(totalAmount / 1.1)}
+                    onClick={() => voucherBalance >= Math.round(totalAmount / 1.1) && setPaymentMethod('voucher')}
+                    disabled={voucherBalance < Math.round(totalAmount / 1.1)}
                     className={`w-full p-6 border-2 rounded-xl transition-all duration-200 text-left group shadow-md hover:shadow-lg ${
                       voucherBalance >= Math.round(totalAmount / 1.1)
                         ? 'border-purple-300 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
@@ -285,7 +281,7 @@ const PaymentMethodSelection = () => {
                       <div className={`font-bold text-lg ${
                         voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
                       }`}>
-                        {processingVoucher ? <Loader2 className="h-6 w-6 animate-spin" /> : '선택 →'}
+                        선택 →
                       </div>
                     </div>
                   </button>
@@ -354,14 +350,14 @@ const PaymentMethodSelection = () => {
             {/* 카드 결제 선택 시 토스 결제 위젯 표시 */}
             {paymentMethod === 'card' && (
               <div className="mt-6">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => setPaymentMethod('')}
                   className="mb-4"
                 >
                   ← 결제 방법 다시 선택
                 </Button>
-                
+
                 <TossPaymentWidget
                   amount={totalAmount}
                   orderId={`campaign_${campaignId}_${Date.now()}`}
@@ -369,6 +365,81 @@ const PaymentMethodSelection = () => {
                   customerEmail={campaign.company_email || ''}
                   customerName={campaign.brand || '고객'}
                 />
+              </div>
+            )}
+
+            {/* 수출바우처 결제 선택 시 확인 화면 표시 */}
+            {paymentMethod === 'voucher' && (
+              <div className="mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => setPaymentMethod('')}
+                  className="mb-4"
+                >
+                  ← 결제 방법 다시 선택
+                </Button>
+
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-purple-100 p-3 rounded-full">
+                      <Wallet className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">수출바우처 결제</h3>
+                      <p className="text-sm text-gray-600">VAT 별도 금액으로 결제됩니다</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">현재 바우처 잔액</span>
+                        <span className="text-xl font-bold text-purple-600">
+                          {voucherBalance.toLocaleString()}원
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">결제 금액 (VAT 별도)</span>
+                        <span className="text-xl font-bold text-red-600">
+                          -{Math.round(totalAmount / 1.1).toLocaleString()}원
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 text-right">
+                        VAT 포함 시: {totalAmount.toLocaleString()}원
+                      </p>
+                    </div>
+
+                    <div className="bg-purple-100 rounded-lg p-4 border border-purple-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-purple-800">결제 후 잔액</span>
+                        <span className="text-2xl font-bold text-purple-700">
+                          {(voucherBalance - Math.round(totalAmount / 1.1)).toLocaleString()}원
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleVoucherPayment}
+                    disabled={processingVoucher}
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                  >
+                    {processingVoucher ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        결제 처리 중...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        수출바우처로 결제하기
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
