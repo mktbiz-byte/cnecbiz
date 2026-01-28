@@ -270,7 +270,7 @@ export default function CompaniesManagement() {
     const newBalance = currentPoints + finalAmount
 
     if (newBalance < 0) {
-      alert('포인트 잔액이 부족합니다')
+      alert('수출바우처 잔액이 부족합니다')
       return
     }
 
@@ -285,25 +285,25 @@ export default function CompaniesManagement() {
 
       if (updateError) throw updateError
 
-      // 2. 포인트 거래 기록
+      // 2. 수출바우처 거래 기록
       const { error: transactionError } = await supabaseBiz
         .from('points_transactions')
         .insert([{
           company_id: selectedCompany.id,
           amount: finalAmount,
-          type: pointsAction === 'add' ? 'admin_grant' : 'admin_deduct',
-          description: `[관리자 ${pointsAction === 'add' ? '추가' : '회수'}] ${pointsReason}`,
+          type: pointsAction === 'add' ? 'voucher_charge' : 'voucher_deduct',
+          description: `[수출바우처 ${pointsAction === 'add' ? '충전' : '차감'}] ${pointsReason}`,
           admin_email: user?.email
         }])
 
       if (transactionError) throw transactionError
 
-      alert(`포인트 ${pointsAction === 'add' ? '추가' : '회수'}가 완료되었습니다`)
+      alert(`수출바우처 ${pointsAction === 'add' ? '충전' : '차감'}이 완료되었습니다.\n${pointsAction === 'add' ? '충전' : '차감'} 금액: ${parseInt(pointsAmount).toLocaleString()}원 (VAT 별도)`)
       setShowPointsModal(false)
       fetchCompanies()
     } catch (error) {
-      console.error('Error adjusting points:', error)
-      alert('포인트 조정에 실패했습니다: ' + error.message)
+      console.error('Error adjusting voucher:', error)
+      alert('수출바우처 처리에 실패했습니다: ' + error.message)
     }
   }
 
@@ -629,6 +629,7 @@ export default function CompaniesManagement() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">담당자</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">진행중 / 누적</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">총 결제 금액</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">수출바우처</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">상태</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">관리</th>
                     </tr>
@@ -691,6 +692,21 @@ export default function CompaniesManagement() {
                               <span className="font-bold text-gray-900">
                                 {campaignData.totalAmount.toLocaleString()}원
                               </span>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <span className={`font-bold ${(company.points_balance || 0) > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                                  {(company.points_balance || 0).toLocaleString()}원
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleAdjustPoints(company)}
+                                  className="h-7 px-2 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </td>
                             <td className="px-4 py-4 text-center">
                               {company.is_blocked ? (
@@ -768,75 +784,115 @@ export default function CompaniesManagement() {
         </div>
       </div>
 
-      {/* Points Modal */}
+      {/* 수출바우처 충전 Modal */}
       {showPointsModal && selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-2xl font-bold mb-4">포인트 조정</h2>
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <div className="text-sm text-gray-600">회사명</div>
-              <div className="text-lg font-bold">{selectedCompany.company_name}</div>
-              <div className="text-sm text-gray-600 mt-2">현재 포인트</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {(selectedCompany.points_balance || 0).toLocaleString()}P
-              </div>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-5 text-white">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Wallet className="w-5 h-5" />
+                수출바우처 충전
+              </h2>
+              <p className="text-purple-100 text-sm mt-1">VAT 별도 금액 기준</p>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">작업 종류</label>
-                <div className="flex gap-2">
+
+            <div className="p-6">
+              <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-100">
+                <div className="text-sm text-gray-600">회사명</div>
+                <div className="text-lg font-bold text-gray-900">{selectedCompany.company_name}</div>
+                <div className="text-sm text-gray-600 mt-3">현재 수출바우처 잔액</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {(selectedCompany.points_balance || 0).toLocaleString()}원
+                </div>
+                <p className="text-xs text-gray-500 mt-1">VAT 별도</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">작업 종류</label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={pointsAction === 'add' ? 'default' : 'outline'}
+                      className={`flex-1 ${pointsAction === 'add' ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                      onClick={() => setPointsAction('add')}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      바우처 충전
+                    </Button>
+                    <Button
+                      variant={pointsAction === 'deduct' ? 'default' : 'outline'}
+                      className={`flex-1 ${pointsAction === 'deduct' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                      onClick={() => setPointsAction('deduct')}
+                    >
+                      <Minus className="w-4 h-4 mr-2" />
+                      바우처 차감
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    금액 <span className="text-gray-400 font-normal">(VAT 별도)</span>
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="1000000"
+                    value={pointsAmount}
+                    onChange={(e) => setPointsAmount(e.target.value)}
+                  />
+                  {pointsAmount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      VAT 포함 시: {Math.round(parseInt(pointsAmount) * 1.1).toLocaleString()}원
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">사유</label>
+                  <Input
+                    type="text"
+                    placeholder="예: 수출바우처 지급 (KOTRA 승인)"
+                    value={pointsReason}
+                    onChange={(e) => setPointsReason(e.target.value)}
+                  />
+                </div>
+
+                {/* 예상 결과 */}
+                {pointsAmount && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-sm text-gray-600">충전 후 예상 잔액</div>
+                    <div className={`text-xl font-bold ${
+                      pointsAction === 'add' ? 'text-purple-600' : 'text-red-600'
+                    }`}>
+                      {(
+                        (selectedCompany.points_balance || 0) +
+                        (pointsAction === 'add' ? parseInt(pointsAmount || 0) : -parseInt(pointsAmount || 0))
+                      ).toLocaleString()}원
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
                   <Button
-                    variant={pointsAction === 'add' ? 'default' : 'outline'}
-                    className="flex-1"
-                    onClick={() => setPointsAction('add')}
+                    className={`flex-1 ${pointsAction === 'add' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-600 hover:bg-red-700'}`}
+                    onClick={handleSubmitPoints}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    포인트 추가
+                    {pointsAction === 'add' ? '충전하기' : '차감하기'}
                   </Button>
                   <Button
-                    variant={pointsAction === 'deduct' ? 'default' : 'outline'}
+                    variant="outline"
                     className="flex-1"
-                    onClick={() => setPointsAction('deduct')}
+                    onClick={() => {
+                      setShowPointsModal(false)
+                      setSelectedCompany(null)
+                      setPointsAmount('')
+                      setPointsReason('')
+                    }}
                   >
-                    <Minus className="w-4 h-4 mr-2" />
-                    포인트 회수
+                    취소
                   </Button>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">포인트 금액</label>
-                <Input
-                  type="number"
-                  placeholder="10000"
-                  value={pointsAmount}
-                  onChange={(e) => setPointsAmount(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">사유</label>
-                <Input
-                  type="text"
-                  placeholder="예: 테스트 포인트 회수"
-                  value={pointsReason}
-                  onChange={(e) => setPointsReason(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={handleSubmitPoints}>
-                  {pointsAction === 'add' ? '추가' : '회수'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowPointsModal(false)
-                    setSelectedCompany(null)
-                    setPointsAmount('')
-                    setPointsReason('')
-                  }}
-                >
-                  취소
-                </Button>
               </div>
             </div>
           </div>
@@ -938,14 +994,15 @@ export default function CompaniesManagement() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
-                    <div className="flex items-center gap-2 text-blue-600 text-sm mb-1">
-                      <CreditCard className="w-4 h-4" />
-                      포인트 잔액
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-100">
+                    <div className="flex items-center gap-2 text-purple-600 text-sm mb-1">
+                      <Wallet className="w-4 h-4" />
+                      수출바우처 잔액
                     </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {(detailCompany.points_balance || 0).toLocaleString()}P
+                    <div className="text-2xl font-bold text-purple-600">
+                      {(detailCompany.points_balance || 0).toLocaleString()}원
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">VAT 별도</p>
                   </div>
                 </div>
 

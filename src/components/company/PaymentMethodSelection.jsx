@@ -4,7 +4,7 @@ import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib
 import TossPaymentWidget from '../payment/TossPaymentWidget';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info, AlertCircle, ShieldCheck } from 'lucide-react';
+import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info, AlertCircle, ShieldCheck, Wallet, Loader2 } from 'lucide-react';
 
 const PaymentMethodSelection = () => {
   const [searchParams] = useSearchParams();
@@ -12,10 +12,13 @@ const PaymentMethodSelection = () => {
   const campaignId = searchParams.get('id');
   const region = searchParams.get('region') || 'korea';
   
-  const [paymentMethod, setPaymentMethod] = useState(''); // 'card' or 'bank_transfer'
+  const [paymentMethod, setPaymentMethod] = useState(''); // 'card', 'bank_transfer', or 'voucher'
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [voucherBalance, setVoucherBalance] = useState(0);
+  const [companyId, setCompanyId] = useState(null);
+  const [processingVoucher, setProcessingVoucher] = useState(false);
 
   // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
   const getSupabaseClient = (region) => {
@@ -27,7 +30,7 @@ const PaymentMethodSelection = () => {
   };
 
   useEffect(() => {
-    const fetchCampaign = async () => {
+    const fetchCampaignAndVoucher = async () => {
       if (!campaignId) {
         setError('캠페인 ID가 없습니다.');
         setLoading(false);
@@ -43,8 +46,23 @@ const PaymentMethodSelection = () => {
           .single();
 
         if (fetchError) throw fetchError;
-        
+
         setCampaign(data);
+
+        // 수출바우처 잔액 조회 (company_email로 companies 테이블에서 조회)
+        if (data?.company_email) {
+          const { data: companyData, error: companyError } = await supabaseBiz
+            .from('companies')
+            .select('id, points_balance')
+            .eq('email', data.company_email)
+            .single();
+
+          if (!companyError && companyData) {
+            setVoucherBalance(companyData.points_balance || 0);
+            setCompanyId(companyData.id);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('캠페인 조회 실패:', err);
@@ -53,7 +71,7 @@ const PaymentMethodSelection = () => {
       }
     };
 
-    fetchCampaign();
+    fetchCampaignAndVoucher();
   }, [campaignId, region]);
 
   const handleBankTransfer = () => {
@@ -64,6 +82,72 @@ const PaymentMethodSelection = () => {
       navigate(`/company/campaigns/${campaignId}/invoice/4week?region=${region}`);
     } else {
       navigate(`/company/campaigns/${campaignId}/invoice?region=${region}`);
+    }
+  };
+
+  // 수출바우처 결제 처리
+  const handleVoucherPayment = async () => {
+    // VAT 별도 금액으로 계산 (총액에서 VAT 제외)
+    const paymentAmount = Math.round(totalAmount / 1.1);
+
+    if (voucherBalance < paymentAmount) {
+      alert(`수출바우처 잔액이 부족합니다.\n\n필요 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n현재 잔액: ${voucherBalance.toLocaleString()}원`);
+      return;
+    }
+
+    if (!confirm(`수출바우처로 결제하시겠습니까?\n\n결제 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n결제 후 잔액: ${(voucherBalance - paymentAmount).toLocaleString()}원`)) {
+      return;
+    }
+
+    setProcessingVoucher(true);
+
+    try {
+      // 1. 수출바우처 잔액 차감
+      const { error: updateError } = await supabaseBiz
+        .from('companies')
+        .update({ points_balance: voucherBalance - paymentAmount })
+        .eq('id', companyId);
+
+      if (updateError) throw updateError;
+
+      // 2. 거래 내역 기록
+      const { error: transactionError } = await supabaseBiz
+        .from('points_transactions')
+        .insert({
+          company_id: companyId,
+          amount: -paymentAmount,
+          type: 'voucher_spend',
+          description: `[수출바우처 결제] ${campaign.title}`,
+          campaign_id: campaignId
+        });
+
+      if (transactionError) {
+        console.error('거래 기록 실패:', transactionError);
+      }
+
+      // 3. 캠페인 결제 상태 업데이트
+      const supabase = getSupabaseClient(region);
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .update({
+          payment_status: 'paid',
+          payment_method: 'voucher',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      if (campaignError) {
+        console.error('캠페인 상태 업데이트 실패:', campaignError);
+      }
+
+      alert('수출바우처 결제가 완료되었습니다!');
+      navigate('/company/campaigns');
+
+    } catch (err) {
+      console.error('수출바우처 결제 실패:', err);
+      alert('결제 처리 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setProcessingVoucher(false);
     }
   };
 
@@ -148,6 +232,61 @@ const PaymentMethodSelection = () => {
                     <div className="text-blue-600 font-bold text-lg">선택 →</div>
                   </div>
                 </button>
+
+                {/* 수출바우처 결제 옵션 */}
+                {voucherBalance > 0 && (
+                  <button
+                    onClick={handleVoucherPayment}
+                    disabled={processingVoucher || voucherBalance < Math.round(totalAmount / 1.1)}
+                    className={`w-full p-6 border-2 rounded-xl transition-all duration-200 text-left group shadow-md hover:shadow-lg ${
+                      voucherBalance >= Math.round(totalAmount / 1.1)
+                        ? 'border-purple-300 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
+                        : 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-full transition-colors ${
+                          voucherBalance >= Math.round(totalAmount / 1.1)
+                            ? 'bg-purple-100 group-hover:bg-purple-200'
+                            : 'bg-gray-200'
+                        }`}>
+                          <Wallet className={`h-8 w-8 ${
+                            voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <h4 className={`text-xl font-bold ${
+                            voucherBalance >= Math.round(totalAmount / 1.1)
+                              ? 'text-gray-800 group-hover:text-purple-600'
+                              : 'text-gray-500'
+                          }`}>
+                            수출바우처 결제
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-gray-600">
+                              잔액: <span className={`font-bold ${voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-red-500'}`}>
+                                {voucherBalance.toLocaleString()}원
+                              </span>
+                              <span className="text-gray-400 text-xs ml-1">(VAT 별도)</span>
+                            </p>
+                            {voucherBalance < Math.round(totalAmount / 1.1) && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">잔액 부족</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            필요 금액: {Math.round(totalAmount / 1.1).toLocaleString()}원 (VAT 별도)
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`font-bold text-lg ${
+                        voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                      }`}>
+                        {processingVoucher ? <Loader2 className="h-6 w-6 animate-spin" /> : '선택 →'}
+                      </div>
+                    </div>
+                  </button>
+                )}
 
                 {/* 무통장 입금 옵션 */}
                 <button

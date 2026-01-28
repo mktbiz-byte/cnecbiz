@@ -328,21 +328,21 @@ export default function PaymentHistory() {
               </div>
             </div>
 
-            {/* 잔여 포인트 */}
+            {/* 수출바우처 잔액 */}
             <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-500">잔여 포인트</span>
+                  <span className="text-sm font-medium text-gray-500">수출바우처</span>
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   {currentPoints.toLocaleString()}
-                  <span className="text-lg font-medium text-gray-400 ml-1">P</span>
+                  <span className="text-lg font-medium text-gray-400 ml-1">원</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">충전 {totalCharged.toLocaleString()}P - 사용 {totalUsed.toLocaleString()}P</p>
+                <p className="text-xs text-gray-400 mt-2">충전 {totalCharged.toLocaleString()}원 - 사용 {totalUsed.toLocaleString()}원</p>
               </div>
             </div>
           </div>
