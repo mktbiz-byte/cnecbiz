@@ -8612,24 +8612,28 @@ JSON만 출력.`
                                     </h5>
                                     <div className="space-y-3">
                                       {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                        // SNS URL 가져오기
-                                        let snsUrl = submission.sns_upload_url
-                                        if (!snsUrl && is4WeekChallenge && submission.week_number) {
+                                        // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                        let snsUrl = null
+                                        if (is4WeekChallenge && submission.week_number) {
                                           snsUrl = participant[`week${submission.week_number}_url`]
-                                        } else if (!snsUrl && isOliveyoung && submission.video_number) {
+                                        } else if (isOliveyoung && submission.video_number) {
                                           snsUrl = participant[`step${submission.video_number}_url`]
                                         }
+                                        // participant에 없으면 submission에서 가져오기
+                                        if (!snsUrl) snsUrl = submission.sns_upload_url
                                         if (!snsUrl) snsUrl = participant.sns_upload_url
 
-                                        // 광고코드 가져오기
-                                        let adCode = submission.ad_code || submission.partnership_code
-                                        if (!adCode && is4WeekChallenge && submission.week_number) {
+                                        // 광고코드 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                        let adCode = null
+                                        if (is4WeekChallenge && submission.week_number) {
                                           adCode = participant[`week${submission.week_number}_partnership_code`]
-                                        } else if (!adCode && isOliveyoung && submission.video_number) {
+                                        } else if (isOliveyoung && submission.video_number) {
                                           adCode = submission.video_number === 3
                                             ? participant.step3_partnership_code
                                             : participant.step1_2_partnership_code
                                         }
+                                        // participant에 없으면 submission에서 가져오기
+                                        if (!adCode) adCode = submission.ad_code || submission.partnership_code
                                         if (!adCode) adCode = participant.partnership_code
 
                                         return (
@@ -8821,8 +8825,10 @@ JSON만 출력.`
                                       </h5>
                                       <div className="space-y-3">
                                         {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                          const snsUrl = submission.sns_upload_url || participant.sns_upload_url
-                                          const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
+                                          // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                          const snsUrl = participant.sns_upload_url || submission.sns_upload_url
+                                          // 광고코드 가져오기 (participant 데이터 우선)
+                                          const adCode = participant.partnership_code || submission.ad_code || submission.partnership_code
 
                                           return (
                                             <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
