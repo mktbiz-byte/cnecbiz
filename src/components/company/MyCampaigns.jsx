@@ -306,9 +306,9 @@ export default function MyCampaigns() {
       const regionText = { korea: '한국', japan: '일본', usa: '미국', us: '미국' }[campaign.region] || '한국'
       const campaignTypeText = { planned: '기획형', regular: '기획형', oliveyoung: '올리브영', '4week_challenge': '4주 챌린지', '4week': '4주 챌린지' }[campaign.campaign_type] || '기획형'
 
-      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
+      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region) + (campaign.bonus_amount || 0)
       const totalSlots = campaign.max_participants || campaign.total_slots || 0
-      const total = Math.floor(packagePrice * totalSlots * 1.1)
+      const total = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : Math.round(packagePrice * totalSlots * 1.1)
 
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
@@ -667,8 +667,9 @@ export default function MyCampaigns() {
               ) : (
                 <div className="space-y-4">
                   {filteredCampaigns.map((campaign) => {
-                    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
-                    const totalCost = Math.floor(packagePrice * (campaign.total_slots || 0) * 1.1)
+                    // estimated_cost가 있으면 사용, 없으면 계산 (bonus_amount 포함)
+                    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region) + (campaign.bonus_amount || 0)
+                    const totalCost = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : Math.round(packagePrice * (campaign.total_slots || 0) * 1.1)
                     const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                     const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
                     const typeInfo = getCampaignTypeInfo(campaign.campaign_type)

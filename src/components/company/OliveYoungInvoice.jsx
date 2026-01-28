@@ -23,10 +23,11 @@ export default function OliveYoungInvoice() {
     'professional': 600000
   }
 
-  // 패키지 단가 계산
+  // 패키지 단가 계산 (bonus_amount 포함)
   const getPackagePrice = () => {
     if (!campaign) return 0
-    return oliveyoungPackageOptions[campaign.package_type] || 0
+    const basePrice = oliveyoungPackageOptions[campaign.package_type] || 400000
+    return basePrice + (campaign.bonus_amount || 0)  // 지원율 높이기 포함
   }
 
   const [depositorName, setDepositorName] = useState('')
@@ -184,18 +185,20 @@ export default function OliveYoungInvoice() {
     try {
       console.log('[OliveYoungInvoice] 견적서 PDF 이메일 발송 시작')
       
-      // 올리브영 패키지 가격 매핑
+      // 올리브영 패키지 가격 매핑 + bonus_amount 포함
       const oliveyoungPackageOptions = {
         'standard': 400000,
         'premium': 500000,
         'professional': 600000
       }
-      
-      const packagePrice = oliveyoungPackageOptions[campaignData.package_type] || 0
+
+      const basePackagePrice = oliveyoungPackageOptions[campaignData.package_type] || 400000
+      const packagePrice = basePackagePrice + (campaignData.bonus_amount || 0)  // 지원율 높이기 포함
       const creatorCount = campaignData.total_slots || 0
       const subtotal = packagePrice * creatorCount
-      const vat = Math.floor(subtotal * 0.1)
-      const total = subtotal + vat
+      const vat = Math.round(subtotal * 0.1)
+      // estimated_cost가 있으면 사용
+      const total = campaignData.estimated_cost ? Math.round(campaignData.estimated_cost) : subtotal + vat
 
       // PDF 견적서 생성 및 발송
       const response = await fetch('/.netlify/functions/generate-invoice-pdf', {
@@ -393,10 +396,14 @@ export default function OliveYoungInvoice() {
   }
 
   const calculateTotalCost = () => {
+    // estimated_cost가 있으면 사용
+    if (campaign?.estimated_cost) {
+      return Math.round(campaign.estimated_cost)
+    }
     const packagePrice = getPackagePrice()
     const influencerCount = campaign?.total_slots || 0
     const subtotal = packagePrice * influencerCount
-    const vat = Math.floor(subtotal * 0.1)
+    const vat = Math.round(subtotal * 0.1)
     return subtotal + vat
   }
 

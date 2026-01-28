@@ -4645,9 +4645,9 @@ JSON만 출력.`
 
   const handleRequestAdditionalPayment = () => {
     const additionalCount = selectedParticipants.length - campaign.total_slots
-    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-    const additionalCost = packagePrice * additionalCount
-    if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
+    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)
+    const additionalCost = Math.round(packagePrice * additionalCount * 1.1)  // VAT 포함
+    if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원 (VAT 포함)`)) {
       // 견적서 페이지로 이동 (추가 인원 정보 포함, region 파라미터 유지)
       navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}&region=${region}`)
     }
@@ -5908,9 +5908,11 @@ JSON만 출력.`
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
-                    {campaign.package_type && campaign.total_slots ?
-                      `₩${(getPackagePrice(campaign.package_type, campaign.campaign_type) * campaign.total_slots * 1.1).toLocaleString()}`
-                      : '-'
+                    {campaign.estimated_cost ?
+                      `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
+                      : campaign.package_type && campaign.total_slots ?
+                        `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
+                        : '-'
                     }
                   </p>
                 </div>
