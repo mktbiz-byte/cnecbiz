@@ -17,7 +17,8 @@ const PaymentMethodSelection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [voucherBalance, setVoucherBalance] = useState(0);
-  const [companyId, setCompanyId] = useState(null);
+  const [companyId, setCompanyId] = useState(null);  // companies.id (for updating)
+  const [companyUserId, setCompanyUserId] = useState(null);  // companies.user_id (for points_transactions)
   const [processingVoucher, setProcessingVoucher] = useState(false);
 
   // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
@@ -53,13 +54,14 @@ const PaymentMethodSelection = () => {
         if (data?.company_email) {
           const { data: companyData, error: companyError } = await supabaseBiz
             .from('companies')
-            .select('id, points_balance')
+            .select('id, user_id, points_balance')
             .eq('email', data.company_email)
             .single();
 
           if (!companyError && companyData) {
             setVoucherBalance(companyData.points_balance || 0);
-            setCompanyId(companyData.id);
+            setCompanyId(companyData.id);  // for companies table update
+            setCompanyUserId(companyData.user_id);  // for points_transactions
           }
         }
 
@@ -110,11 +112,11 @@ const PaymentMethodSelection = () => {
 
       if (updateError) throw updateError;
 
-      // 2. 거래 내역 기록
+      // 2. 거래 내역 기록 (company_id는 user_id를 사용)
       const { error: transactionError } = await supabaseBiz
         .from('points_transactions')
         .insert({
-          company_id: companyId,
+          company_id: companyUserId,
           amount: -paymentAmount,
           balance_after: voucherBalance - paymentAmount,
           type: 'spend',

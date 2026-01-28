@@ -57,7 +57,8 @@ export default function PaymentHistory() {
       fetchPayments(companyData.id)
       fetchTaxInvoices(companyData.id)
       fetchChargeRequests(user.id)
-      fetchPointUsages(companyData.id)
+      // points_transactions.company_id는 user.id를 참조
+      fetchPointUsages(user.id)
     }
   }
 

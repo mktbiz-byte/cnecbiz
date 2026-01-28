@@ -285,11 +285,11 @@ export default function CompaniesManagement() {
 
       if (updateError) throw updateError
 
-      // 2. 수출바우처 거래 기록
+      // 2. 수출바우처 거래 기록 (company_id는 user_id를 사용)
       const { error: transactionError } = await supabaseBiz
         .from('points_transactions')
         .insert([{
-          company_id: selectedCompany.id,
+          company_id: selectedCompany.user_id,
           amount: finalAmount,
           balance_after: newBalance,
           type: pointsAction === 'add' ? 'charge' : 'spend',
