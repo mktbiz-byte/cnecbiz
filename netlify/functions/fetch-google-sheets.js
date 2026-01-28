@@ -274,17 +274,24 @@ exports.handler = async (event) => {
         throw new Error('Settings not provided')
       }
 
+      console.log('[fetch-google-sheets] Saving settings:', JSON.stringify(settings))
+
+      // value 컬럼이 TEXT 타입이므로 JSON 문자열로 변환하여 저장
       const { error } = await supabase
         .from('site_settings')
         .upsert({
           key: 'google_sheets_creator_import',
-          value: settings,
+          value: JSON.stringify(settings),
+          description: 'Google Sheets 크리에이터 가져오기 설정',
           updated_at: new Date().toISOString()
         }, { onConflict: 'key' })
 
       if (error) {
+        console.error('[fetch-google-sheets] Save error:', error)
         throw error
       }
+
+      console.log('[fetch-google-sheets] Settings saved successfully')
 
       return {
         statusCode: 200,
@@ -302,7 +309,19 @@ exports.handler = async (event) => {
         .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {
+        console.error('[fetch-google-sheets] Load error:', error)
         throw error
+      }
+
+      // TEXT로 저장된 JSON을 파싱
+      let parsedSettings = null
+      if (data?.value) {
+        try {
+          parsedSettings = JSON.parse(data.value)
+        } catch (e) {
+          console.error('[fetch-google-sheets] JSON parse error:', e)
+          // 파싱 실패 시 null 반환
+        }
       }
 
       return {
@@ -310,7 +329,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: true,
-          settings: data?.value || null
+          settings: parsedSettings
         })
       }
     }
