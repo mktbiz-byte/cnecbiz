@@ -116,6 +116,7 @@ const PaymentMethodSelection = () => {
         .insert({
           company_id: companyId,
           amount: -paymentAmount,
+          balance_after: voucherBalance - paymentAmount,
           type: 'voucher_spend',
           description: `[수출바우처 결제] ${campaign.title}`,
           campaign_id: campaignId

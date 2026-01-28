@@ -291,6 +291,7 @@ export default function CompaniesManagement() {
         .insert([{
           company_id: selectedCompany.id,
           amount: finalAmount,
+          balance_after: newBalance,
           type: pointsAction === 'add' ? 'voucher_charge' : 'voucher_deduct',
           description: `[수출바우처 ${pointsAction === 'add' ? '충전' : '차감'}] ${pointsReason} (관리자: ${user?.email || 'unknown'})`
         }])
