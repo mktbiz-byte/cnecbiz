@@ -9312,13 +9312,70 @@ JSON만 출력.`
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-center py-3 text-gray-500 text-sm">
-                                  제출된 영상이 없습니다.
-                                  {participant.content_url && (
-                                    <a href={participant.content_url} target="_blank" rel="noopener noreferrer"
-                                       className="inline-flex items-center gap-1 text-blue-600 hover:underline ml-2">
-                                      <ExternalLink className="w-3 h-3" /> 콘텐츠 보기
-                                    </a>
+                                <div className="bg-white rounded-lg p-4">
+                                  {/* 영상 없이 SNS URL/광고코드만 입력된 경우 표시 */}
+                                  {(participant.sns_upload_url || participant.partnership_code) ? (
+                                    <div className="space-y-3">
+                                      <p className="text-sm text-gray-600 mb-3">영상 파일 없이 SNS URL/광고코드가 입력되었습니다.</p>
+                                      {/* SNS URL */}
+                                      {participant.sns_upload_url && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Link className="w-4 h-4 text-blue-500" />
+                                          <span className="text-gray-600 font-medium">SNS URL:</span>
+                                          <a href={participant.sns_upload_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[300px]">
+                                            {participant.sns_upload_url}
+                                          </a>
+                                          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { navigator.clipboard.writeText(participant.sns_upload_url); alert('SNS 링크가 복사되었습니다!') }}>
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => window.open(participant.sns_upload_url, '_blank')}>
+                                            <ExternalLink className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                      {/* 광고코드 */}
+                                      {participant.partnership_code && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Hash className="w-4 h-4 text-orange-500" />
+                                          <span className="text-gray-600 font-medium">광고코드:</span>
+                                          <code className="text-sm bg-orange-50 text-orange-700 px-2 py-1 rounded">{participant.partnership_code}</code>
+                                          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { navigator.clipboard.writeText(participant.partnership_code); alert('광고코드가 복사되었습니다!') }}>
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                      {/* 수정 버튼 */}
+                                      <div className="pt-2 border-t border-gray-200 mt-3">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-gray-600"
+                                          onClick={() => {
+                                            setAdminSnsEditData({
+                                              participantId: participant.id,
+                                              userId: participant.user_id,
+                                              snsUrl: participant.sns_upload_url || '',
+                                              adCode: participant.partnership_code || '',
+                                              isEditMode: true
+                                            })
+                                            setShowAdminSnsEditModal(true)
+                                          }}
+                                        >
+                                          <Edit2 className="w-3 h-3 mr-1" />
+                                          수정
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-3 text-gray-500 text-sm">
+                                      제출된 영상이 없습니다.
+                                      {participant.content_url && (
+                                        <a href={participant.content_url} target="_blank" rel="noopener noreferrer"
+                                           className="inline-flex items-center gap-1 text-blue-600 hover:underline ml-2">
+                                          <ExternalLink className="w-3 h-3" /> 콘텐츠 보기
+                                        </a>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               )}
