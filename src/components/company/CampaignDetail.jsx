@@ -2086,7 +2086,7 @@ JSON만 출력.`
         status: '상태',
         deadline: '마감일'
       },
-      usa: {
+      us: {
         name: '크리에이터명',
         email: '이메일',
         platform: '플랫폼',
@@ -2106,7 +2106,7 @@ JSON만 출력.`
 
     // 지역별 데이터 매핑
     let data
-    if (region === 'japan' || region === 'usa') {
+    if (region === 'japan' || region === 'us') {
       // 일본/미국: 이메일 컬럼 포함
       data = participants.map(p => ({
         [h.name]: getCreatorName(p),
@@ -2142,7 +2142,7 @@ JSON만 출력.`
     const ws = XLSX.utils.json_to_sheet(data)
 
     // 컬럼 너비 설정 (일본/미국은 이메일 컬럼 추가)
-    if (region === 'japan' || region === 'usa') {
+    if (region === 'japan' || region === 'us') {
       ws['!cols'] = [
         { wch: 18 }, // 크리에이터명
         { wch: 25 }, // 이메일
@@ -2175,7 +2175,7 @@ JSON만 출력.`
 
     // 파일명 및 시트명 (한국어로 통일)
     const sheetName = '크리에이터_배송정보'
-    const regionLabel = region === 'japan' ? '_일본' : region === 'usa' ? '_미국' : ''
+    const regionLabel = region === 'japan' ? '_일본' : region === 'us' ? '_미국' : ''
     const fileName = `${campaign.title}${regionLabel}_크리에이터_배송정보.xlsx`
 
     const wb = XLSX.utils.book_new()
@@ -2227,7 +2227,7 @@ JSON만 출력.`
     const ws = XLSX.utils.json_to_sheet(data)
     ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }]
 
-    const regionLabel = region === 'japan' ? '_일본' : region === 'usa' ? '_미국' : ''
+    const regionLabel = region === 'japan' ? '_일본' : region === 'us' ? '_미국' : ''
     const fileName = `${campaign.title}${regionLabel}_송장번호_템플릿.xlsx`
 
     const wb = XLSX.utils.book_new()
