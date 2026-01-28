@@ -677,6 +677,8 @@ const CampaignCreationKorea = () => {
           category: categoryArray,
           // estimated_cost 재계산된 값으로 설정
           estimated_cost: recalculatedCost,
+          // 올리브영 캠페인의 경우 oliveyoung_recruit_count 설정
+          oliveyoung_recruit_count: data.campaign_type === 'oliveyoung' ? (data.total_slots || 1) : undefined,
           // 날짜 필드 포맷 변환
           application_deadline: formatDate(data.application_deadline),
           start_date: formatDate(data.start_date),
