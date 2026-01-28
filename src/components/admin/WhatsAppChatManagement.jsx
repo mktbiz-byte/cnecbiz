@@ -230,7 +230,7 @@ export default function WhatsAppChatManagement() {
 
     setSendingSms(true)
     try {
-      const smsMessage = `[CNEC] WhatsApp으로 편하게 연락받으세요!\n\n아래 단계를 따라주세요:\n1. WhatsApp에서 +1 415 523 8886 추가\n2. "join" 메시지 전송\n\n등록 완료 후 캠페인 안내를 WhatsApp으로 보내드립니다.`
+      const smsMessage = `[CNEC] Get campaign updates via WhatsApp!\n\nTo connect:\n1. Add +1 415 523 8886 on WhatsApp\n2. Send "join" message\n\nOnce connected, we'll send you campaign info directly on WhatsApp.`
 
       const response = await fetch('/.netlify/functions/send-sms', {
         method: 'POST',
