@@ -19,6 +19,8 @@ const PaymentMethodSelection = () => {
   const [voucherBalance, setVoucherBalance] = useState(0);
   const [companyId, setCompanyId] = useState(null);  // companies.id (for updating)
   const [companyUserId, setCompanyUserId] = useState(null);  // companies.user_id (for points_transactions)
+  const [companyName, setCompanyName] = useState('');  // for notifications
+  const [companyPhone, setCompanyPhone] = useState('');  // for 알림톡
   const [processingVoucher, setProcessingVoucher] = useState(false);
 
   // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
@@ -54,7 +56,7 @@ const PaymentMethodSelection = () => {
         if (data?.company_email) {
           const { data: companyData, error: companyError } = await supabaseBiz
             .from('companies')
-            .select('id, user_id, points_balance')
+            .select('id, user_id, points_balance, company_name, phone')
             .eq('email', data.company_email)
             .single();
 
@@ -62,6 +64,8 @@ const PaymentMethodSelection = () => {
             setVoucherBalance(companyData.points_balance || 0);
             setCompanyId(companyData.id);  // for companies table update
             setCompanyUserId(companyData.user_id);  // for points_transactions
+            setCompanyName(companyData.company_name || data.brand || '');  // for notifications
+            setCompanyPhone(companyData.phone || '');  // for 알림톡
           }
         }
 
@@ -137,6 +141,64 @@ const PaymentMethodSelection = () => {
 
       if (campaignError) {
         console.error('캠페인 상태 업데이트 실패:', campaignError);
+      }
+
+      // 4. 네이버 웍스 알림 발송
+      try {
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const campaignTypeLabel = campaign.campaign_type === 'oliveyoung' ? '올영세일'
+          : campaign.campaign_type === '4week_challenge' ? '4주 챌린지'
+          : '일반';
+        const naverWorksMessage = `[수출바우처 결제 완료 - 캠페인 검수 요청]\n\n캠페인: ${campaign.title}\n타입: ${campaignTypeLabel}\n브랜드: ${campaign.brand || companyName}\n결제 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n\n기업: ${companyName}\n이메일: ${campaign.company_email || '미등록'}\n\n${koreanDate}`;
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            message: naverWorksMessage,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+          })
+        });
+        console.log('수출바우처 결제 네이버 웍스 알림 발송 성공');
+      } catch (naverWorksError) {
+        console.error('수출바우처 결제 네이버 웍스 알림 발송 실패:', naverWorksError);
+      }
+
+      // 5. 알림톡 발송 (캠페인 검수 신청)
+      if (companyPhone) {
+        try {
+          // 모집 기간 포맷팅
+          const startDate = campaign.recruitment_start ? new Date(campaign.recruitment_start).toLocaleDateString('ko-KR') : '미정';
+          const endDate = campaign.recruitment_end ? new Date(campaign.recruitment_end).toLocaleDateString('ko-KR') : '미정';
+
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: companyPhone,
+              receiverName: companyName,
+              templateCode: '025100001010',  // 캠페인 검수 신청 템플릿
+              variables: {
+                '회사명': companyName,
+                '캠페인명': campaign.title,
+                '시작일': startDate,
+                '마감일': endDate,
+                '모집인원': campaign.target_creators || '미정'
+              }
+            })
+          });
+          console.log('수출바우처 결제 알림톡 발송 성공');
+        } catch (kakaoError) {
+          console.error('수출바우처 결제 알림톡 발송 실패:', kakaoError);
+        }
       }
 
       alert('수출바우처 결제가 완료되었습니다!');
