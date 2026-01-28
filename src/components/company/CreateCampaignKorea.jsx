@@ -565,6 +565,26 @@ const CampaignCreationKorea = () => {
     }
   }, [campaignForm.campaign_type])
 
+  // bonus_amount 변경 시 estimated_cost 자동 재계산
+  useEffect(() => {
+    const bonus = campaignForm.bonus_amount || 0
+    let newEstimatedCost = 0
+
+    if (campaignForm.campaign_type === '4week_challenge') {
+      const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
+      const slots = campaignForm.total_slots || 1
+      newEstimatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
+    } else if (campaignForm.campaign_type === 'oliveyoung') {
+      const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type) || oliveyoungPackageOptions[0]
+      const slots = campaignForm.oliveyoung_recruit_count || campaignForm.total_slots || 1
+      newEstimatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
+    }
+
+    if (newEstimatedCost > 0 && newEstimatedCost !== campaignForm.estimated_cost) {
+      setCampaignForm(prev => ({ ...prev, estimated_cost: newEstimatedCost }))
+    }
+  }, [campaignForm.bonus_amount, campaignForm.total_slots, campaignForm.oliveyoung_recruit_count])
+
   const loadCampaign = async () => {
     try {
       const client = supabaseKorea || supabaseBiz
@@ -627,16 +647,19 @@ const CampaignCreationKorea = () => {
           }
         }
 
-        // estimated_cost 재계산 (패키지 가격 × 인원 × 1.1 VAT)
+        // estimated_cost 재계산 (패키지 가격 + bonus_amount) × 인원 × 1.1 VAT
         let recalculatedCost = data.estimated_cost
         const slots = data.total_slots || 1
+        const bonus = data.bonus_amount || 0
+
+        console.log('[loadCampaign] Loaded campaign - bonus_amount:', bonus, 'estimated_cost:', data.estimated_cost)
 
         if (data.campaign_type === '4week_challenge') {
           const pkg = fourWeekPackageOptions.find(p => p.value === data.package_type) || fourWeekPackageOptions[0]
-          recalculatedCost = calculateFinalCost(pkg.price, slots, false)
+          recalculatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
         } else if (data.campaign_type === 'oliveyoung') {
           const pkg = oliveyoungPackageOptions.find(p => p.value === data.package_type) || oliveyoungPackageOptions[0]
-          recalculatedCost = calculateFinalCost(pkg.price, slots)
+          recalculatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
         } else {
           const pkg = packageOptions.find(p => p.value === data.package_type)
           if (pkg) {
@@ -654,6 +677,8 @@ const CampaignCreationKorea = () => {
           category: categoryArray,
           // estimated_cost 재계산된 값으로 설정
           estimated_cost: recalculatedCost,
+          // 올리브영 캠페인의 경우 oliveyoung_recruit_count 설정
+          oliveyoung_recruit_count: data.campaign_type === 'oliveyoung' ? (data.total_slots || 1) : undefined,
           // 날짜 필드 포맷 변환
           application_deadline: formatDate(data.application_deadline),
           start_date: formatDate(data.start_date),
@@ -741,24 +766,25 @@ const CampaignCreationKorea = () => {
     const slots = parseInt(value) || 0
     let finalCost = 0
     let packagePrice = 0
-    
+    const bonus = campaignForm.bonus_amount || 0
+
     if (campaignForm.campaign_type === '4week_challenge') {
-      // 4주 챌린지: 패키지 가격
+      // 4주 챌린지: (패키지 가격 + 보너스) × 인원 × 1.1
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
       packagePrice = pkg.price
-      finalCost = calculateFinalCost(pkg.price, slots, false)
+      finalCost = Math.round((packagePrice + bonus) * slots * 1.1)
     } else if (campaignForm.campaign_type === 'oliveyoung') {
-      // 올리브영: 패키지 가격
+      // 올리브영: (패키지 가격 + 보너스) × 인원 × 1.1
       const selectedPackage = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type)
       packagePrice = selectedPackage ? selectedPackage.price : 0
-      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
+      finalCost = selectedPackage ? Math.round((packagePrice + bonus) * slots * 1.1) : 0
     } else {
-      // 일반: 패키지 가격
+      // 일반: 패키지 가격 × 인원 (할인 적용 + VAT)
       const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
       packagePrice = selectedPackage ? selectedPackage.price : 0
       finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     }
-    
+
     const rewardPoints = packagePrice * slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
     setCampaignForm(prev => ({
       ...prev,
@@ -917,6 +943,24 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
+      // 정확한 estimated_cost 계산 (bonus_amount 포함)
+      let calculatedEstimatedCost = campaignForm.estimated_cost
+      if (campaignForm.campaign_type === 'oliveyoung') {
+        // 올리브영: (단가 + 보너스) × 인원 × 1.1 (VAT)
+        const basePrice = 400000
+        const slots = campaignForm.oliveyoung_recruit_count || campaignForm.total_slots || 1
+        const bonus = campaignForm.bonus_amount || 0
+        calculatedEstimatedCost = Math.round((basePrice + bonus) * slots * 1.1)
+      } else if (campaignForm.campaign_type === '4week_challenge') {
+        // 4주 챌린지: (단가 + 보너스) × 인원 × 1.1 (VAT)
+        const basePrice = 600000
+        const slots = campaignForm.total_slots || 1
+        const bonus = campaignForm.bonus_amount || 0
+        calculatedEstimatedCost = Math.round((basePrice + bonus) * slots * 1.1)
+      }
+
+      console.log('[CreateCampaignKorea] Saving - bonus_amount:', campaignForm.bonus_amount, 'estimated_cost:', calculatedEstimatedCost)
+
       // DB에 저장할 필드만 명시적으로 선택 (화이트리스트 방식)
       const allowedFields = {
         campaign_type: campaignForm.campaign_type,
@@ -934,7 +978,8 @@ const CampaignCreationKorea = () => {
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
         reward_points: campaignForm.reward_points,
-        estimated_cost: campaignForm.estimated_cost,
+        estimated_cost: calculatedEstimatedCost,
+        bonus_amount: campaignForm.bonus_amount || 0,  // 지원율 높이기 금액
         requirements: campaignForm.requirements,
         image_url: campaignForm.image_url,
         is_oliveyoung_sale: campaignForm.is_oliveyoung_sale,
@@ -3038,18 +3083,18 @@ const CampaignCreationKorea = () => {
                         {campaignForm.bonus_amount > 0 && (
                           <div className="flex justify-between text-green-400">
                             <span>지원율 높이기</span>
-                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원</span>
+                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원/명</span>
                           </div>
                         )}
                         <div className="border-t border-slate-700 pt-3">
                           <div className="flex justify-between">
                             <span className="text-gray-400">공급가액</span>
-                            <span>{(400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)).toLocaleString()}원</span>
+                            <span>{((400000 + (campaignForm.bonus_amount || 0)) * (campaignForm.oliveyoung_recruit_count || 1)).toLocaleString()}원</span>
                           </div>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">부가세 (10%)</span>
-                          <span>{Math.round((400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)) * 0.1).toLocaleString()}원</span>
+                          <span>{Math.round((400000 + (campaignForm.bonus_amount || 0)) * (campaignForm.oliveyoung_recruit_count || 1) * 0.1).toLocaleString()}원</span>
                         </div>
                       </div>
 
@@ -3059,7 +3104,7 @@ const CampaignCreationKorea = () => {
                           <span className="text-gray-400">총 결제 금액</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-4xl font-bold">{Math.round((400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)) * 1.1).toLocaleString()}</span>
+                          <span className="text-4xl font-bold">{Math.round((400000 + (campaignForm.bonus_amount || 0)) * (campaignForm.oliveyoung_recruit_count || 1) * 1.1).toLocaleString()}</span>
                           <span className="text-xl ml-1">원</span>
                         </div>
                       </div>
@@ -3864,18 +3909,18 @@ const CampaignCreationKorea = () => {
                         {campaignForm.bonus_amount > 0 && (
                           <div className="flex justify-between text-green-400">
                             <span>인센티브 옵션</span>
-                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원</span>
+                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원/명</span>
                           </div>
                         )}
                         <div className="border-t border-slate-700 pt-3">
                           <div className="flex justify-between">
                             <span className="text-gray-400">공급가액</span>
-                            <span>{(600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)).toLocaleString()}원</span>
+                            <span>{((600000 + (campaignForm.bonus_amount || 0)) * (campaignForm.total_slots || 1)).toLocaleString()}원</span>
                           </div>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">부가세 (10%)</span>
-                          <span>{Math.round((600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)) * 0.1).toLocaleString()}원</span>
+                          <span>{Math.round((600000 + (campaignForm.bonus_amount || 0)) * (campaignForm.total_slots || 1) * 0.1).toLocaleString()}원</span>
                         </div>
                       </div>
 
@@ -3885,7 +3930,7 @@ const CampaignCreationKorea = () => {
                           <span className="text-gray-400">총 결제 금액</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-4xl font-bold">{Math.round((600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)) * 1.1).toLocaleString()}</span>
+                          <span className="text-4xl font-bold">{Math.round((600000 + (campaignForm.bonus_amount || 0)) * (campaignForm.total_slots || 1) * 1.1).toLocaleString()}</span>
                           <span className="text-xl ml-1">원</span>
                         </div>
                       </div>

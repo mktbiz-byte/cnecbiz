@@ -119,6 +119,7 @@ const CreateCampaignJapan = () => {
       if (error) throw error
 
       if (data) {
+        console.log('[CreateCampaignJapan] Loaded campaign - bonus_amount:', data.bonus_amount, 'estimated_cost:', data.estimated_cost)
         setCampaignForm({
           title: data.title || '',
           brand: data.brand || '',
@@ -277,7 +278,7 @@ const CreateCampaignJapan = () => {
 
     if (!campaignType || !packageType) return { base: 0, vat: 0, total: 0 }
 
-    const basePrice = campaignType.price + packageType.priceAddon
+    const basePrice = campaignType.price + packageType.priceAddon + (campaignForm.bonus_amount || 0)
     const subtotal = basePrice * campaignForm.total_slots
     const vat = Math.floor(subtotal * 0.1)
     const total = subtotal + vat
@@ -516,6 +517,8 @@ ${textToTranslate}
       const packageType = packageOptions.find(p => p.value === campaignForm.package_type)
       const price = pricing.total
 
+      console.log('[CreateCampaignJapan] Saving - bonus_amount:', campaignForm.bonus_amount, 'estimated_cost:', price)
+
       // 빈 문자열을 null로 변환하는 헬퍼 함수
       const toNullIfEmpty = (val) => (val && val.trim() !== '') ? val : null
 
@@ -547,6 +550,7 @@ ${textToTranslate}
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
         estimated_cost: price,
+        bonus_amount: campaignForm.bonus_amount || 0,
         requires_ad_code: campaignForm.requires_ad_code,
         requires_clean_video: campaignForm.requires_clean_video,
         question1: toNullIfEmpty(campaignForm.question1),

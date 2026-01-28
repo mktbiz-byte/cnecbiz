@@ -95,6 +95,8 @@ export default function RevenueManagementNew() {
   const [expenseData, setExpenseData] = useState([])
   const [receivables, setReceivables] = useState([])
   const [withdrawalData, setWithdrawalData] = useState([])
+  const [voucherTransactions, setVoucherTransactions] = useState([])
+  const [voucherSummary, setVoucherSummary] = useState([])
 
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -168,6 +170,59 @@ export default function RevenueManagementNew() {
         .select('*')
         .order('created_at', { ascending: false })
       setReceivables(recv || [])
+
+      // 수출바우처(포인트) 거래 내역 조회
+      const { data: transactions } = await supabaseBiz
+        .from('points_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+      setVoucherTransactions(transactions || [])
+
+      // 기업별 수출바우처 요약 계산
+      if (transactions && transactions.length > 0) {
+        // company_id 기준으로 그룹화
+        const companyMap = {}
+        for (const tx of transactions) {
+          if (!tx.company_id) continue
+          if (!companyMap[tx.company_id]) {
+            companyMap[tx.company_id] = {
+              company_id: tx.company_id,
+              company_name: '',
+              total_charged: 0,
+              total_spent: 0,
+              transactions: []
+            }
+          }
+          companyMap[tx.company_id].transactions.push(tx)
+          if (tx.type === 'charge' || tx.amount > 0) {
+            companyMap[tx.company_id].total_charged += Math.abs(tx.amount || 0)
+          }
+          if (tx.type === 'spend' || tx.amount < 0) {
+            companyMap[tx.company_id].total_spent += Math.abs(tx.amount || 0)
+          }
+        }
+
+        // 기업 정보 조회 (user_id로)
+        const companyIds = Object.keys(companyMap)
+        if (companyIds.length > 0) {
+          const { data: companies } = await supabaseBiz
+            .from('companies')
+            .select('user_id, company_name, email')
+            .in('user_id', companyIds)
+
+          if (companies) {
+            for (const company of companies) {
+              if (companyMap[company.user_id]) {
+                companyMap[company.user_id].company_name = company.company_name || company.email || '알 수 없음'
+              }
+            }
+          }
+        }
+
+        setVoucherSummary(Object.values(companyMap).sort((a, b) =>
+          (b.total_charged + b.total_spent) - (a.total_charged + a.total_spent)
+        ))
+      }
     } catch (error) {
       console.error('데이터 조회 오류:', error)
     }
@@ -880,9 +935,9 @@ export default function RevenueManagementNew() {
               <Wallet className="w-4 h-4 mr-2" />
               매출 내역
             </TabsTrigger>
-            <TabsTrigger value="receivables" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-              <Receipt className="w-4 h-4 mr-2" />
-              미수금
+            <TabsTrigger value="voucher" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+              <Wallet className="w-4 h-4 mr-2" />
+              수출바우처
             </TabsTrigger>
           </TabsList>
 
@@ -1322,55 +1377,154 @@ export default function RevenueManagementNew() {
             </Card>
           </TabsContent>
 
-          {/* 미수금 탭 */}
-          <TabsContent value="receivables">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">미수금 관리</CardTitle>
-                <Button size="sm" onClick={() => { resetReceivableForm(); setShowReceivableModal(true) }}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
-                  <Plus className="w-4 h-4 mr-1" /> 미수금 추가
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {receivables.length === 0 ? (
+          {/* 수출바우처 탭 */}
+          <TabsContent value="voucher">
+            <div className="space-y-6">
+              {/* 기업별 바우처 요약 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-purple-500" />
+                    기업별 수출바우처 현황
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {voucherSummary.length === 0 ? (
                     <div className="text-center py-12 text-slate-400">
-                      <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>미수금 데이터가 없습니다.</p>
+                      <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>수출바우처 거래 내역이 없습니다.</p>
                     </div>
                   ) : (
-                    receivables.map(recv => (
-                      <div key={recv.id}
-                        className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                          <div className="font-medium text-slate-700">{recv.company_name}</div>
-                          <div className="text-sm text-slate-500 mt-1">{recv.description}</div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs mt-2 ${
-                            recv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                            recv.status === 'invoiced' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {recv.status === 'pending' ? '대기' : recv.status === 'invoiced' ? '발행완료' : '입금완료'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-lg text-amber-600">{formatNumber(recv.amount)}</span>
-                          {recv.status === 'pending' && (
-                            <Button variant="outline" size="sm" onClick={() => convertReceivableToRevenue(recv)}
-                              className="border-amber-200 text-amber-600 hover:bg-amber-50">
-                              <Receipt className="w-4 h-4 mr-1" /> 매출 전환
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete('receivables', recv.id)}>
-                            <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">지급금 (충전)</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-rose-600">사용금 (차감)</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-600">잔액</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">거래 건수</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {voucherSummary.map((summary) => (
+                            <tr key={summary.company_id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-slate-700">{summary.company_name || '알 수 없음'}</div>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span className="font-semibold text-emerald-600">
+                                  +{formatNumber(summary.total_charged)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span className="font-semibold text-rose-600">
+                                  -{formatNumber(summary.total_spent)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span className={`font-bold ${
+                                  summary.total_charged - summary.total_spent >= 0 ? 'text-purple-600' : 'text-slate-500'
+                                }`}>
+                                  {formatNumber(summary.total_charged - summary.total_spent)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">
+                                  {summary.transactions.length}건
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-purple-50 font-bold">
+                            <td className="px-4 py-3 text-purple-700">합계</td>
+                            <td className="px-4 py-3 text-right text-emerald-700">
+                              +{formatNumber(voucherSummary.reduce((sum, s) => sum + s.total_charged, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-right text-rose-700">
+                              -{formatNumber(voucherSummary.reduce((sum, s) => sum + s.total_spent, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-right text-purple-700">
+                              {formatNumber(voucherSummary.reduce((sum, s) => sum + (s.total_charged - s.total_spent), 0))}
+                            </td>
+                            <td className="px-4 py-3 text-center text-purple-700">
+                              {voucherTransactions.length}건
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* 거래 내역 상세 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-blue-500" />
+                    수출바우처 거래 내역
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {voucherTransactions.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>거래 내역이 없습니다.</p>
+                      </div>
+                    ) : (
+                      voucherTransactions.map(tx => {
+                        const isCharge = tx.type === 'charge' || tx.amount > 0
+                        const companyInfo = voucherSummary.find(s => s.company_id === tx.company_id)
+                        return (
+                          <div key={tx.id}
+                            className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                isCharge ? 'bg-emerald-100' : 'bg-rose-100'
+                              }`}>
+                                {isCharge ? (
+                                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                                ) : (
+                                  <TrendingDown className="w-5 h-5 text-rose-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-700 flex items-center gap-2">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                                    isCharge ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                                  }`}>
+                                    {isCharge ? '충전' : '사용'}
+                                  </span>
+                                  <span className="text-slate-600">{companyInfo?.company_name || '알 수 없음'}</span>
+                                </div>
+                                <div className="text-sm text-slate-500 mt-1">
+                                  {tx.description || '-'}
+                                </div>
+                                <div className="text-xs text-slate-400 mt-1">
+                                  {new Date(tx.created_at).toLocaleString('ko-KR')}
+                                  {tx.balance_after !== undefined && tx.balance_after !== null && (
+                                    <span className="ml-2">· 잔액: {formatNumber(tx.balance_after)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`font-bold text-lg ${isCharge ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {isCharge ? '+' : '-'}{formatNumber(Math.abs(tx.amount || 0))}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -101,6 +101,7 @@ import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import LineChatManagement from './components/admin/LineChatManagement'
+import WhatsAppChatManagement from './components/admin/WhatsAppChatManagement'
 
 
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
@@ -237,6 +238,7 @@ function App() {
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/line-chat" element={<LineChatManagement />} />
+        <Route path="/admin/whatsapp-chat" element={<WhatsAppChatManagement />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/newsletters" element={<NewsletterShowcaseManagement />} />

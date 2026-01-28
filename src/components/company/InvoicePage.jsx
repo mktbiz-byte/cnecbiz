@@ -493,12 +493,14 @@ const InvoicePage = () => {
     return generalPrices[packageKey] || 200000
   }
 
-  // 가격 계산 (CampaignDetail.jsx와 동일한 방식)
+  // 가격 계산 (bonus_amount 포함)
   const recruitmentCount = campaign.total_slots || 1
-  const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+  const basePackagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+  const packagePrice = basePackagePrice + (campaign.bonus_amount || 0)  // 지원율 높이기 포함
   const subtotal = packagePrice * recruitmentCount
   const vat = Math.round(subtotal * 0.1)
-  const totalCost = subtotal + vat
+  // estimated_cost가 있으면 사용, 없으면 계산
+  const totalCost = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : subtotal + vat
   // 할인 금액 (현재는 0)
   const discountAmount = 0
   

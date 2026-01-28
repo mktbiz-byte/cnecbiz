@@ -977,6 +977,7 @@ export default function CampaignDetail() {
 
         // 이름 결정: 다양한 필드에서 검색
         const resolvedName =
+          profile?.real_name ||
           profile?.name ||
           profile?.display_name ||
           profile?.nickname ||
@@ -985,6 +986,7 @@ export default function CampaignDetail() {
           (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
           profile?.family_name ||
           profile?.given_name ||
+          (app.real_name && !app.real_name.includes('@') ? app.real_name : null) ||
           (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
           (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
           extractNameFromEmail(app.applicant_name) ||
@@ -1306,6 +1308,7 @@ export default function CampaignDetail() {
 
         // 이름 결정: 다양한 필드에서 검색
         const resolvedName =
+          profile?.real_name ||
           profile?.name ||
           profile?.display_name ||
           profile?.nickname ||
@@ -1314,6 +1317,7 @@ export default function CampaignDetail() {
           (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
           profile?.family_name ||
           profile?.given_name ||
+          (app.real_name && !app.real_name.includes('@') ? app.real_name : null) ||
           (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
           (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
           extractNameFromEmail(app.applicant_name) ||
@@ -2030,9 +2034,30 @@ JSON만 출력.`
     }
   }
 
-  // 배송 정보 엑셀 다운로드 (지역별 현지화)
+  // 배송 정보 엑셀 다운로드 (지역별 현지화 - 한국어로 통일)
   const exportShippingInfo = () => {
-    // 지역별 헤더 설정
+    // 이름 추출 헬퍼 함수 (이메일이 아닌 실제 이름 우선)
+    const getCreatorName = (p) => {
+      // real_name이 있고 이메일이 아니면 우선 사용
+      if (p.real_name && !p.real_name.includes('@')) return p.real_name
+      // applicant_name이 있고 이메일이 아니면 사용
+      if (p.applicant_name && !p.applicant_name.includes('@')) return p.applicant_name
+      // creator_name이 있고 이메일이 아니면 사용
+      if (p.creator_name && !p.creator_name.includes('@')) return p.creator_name
+      // 이메일에서 이름 추출 시도
+      const email = p.email || p.applicant_name
+      if (email && email.includes('@')) {
+        const localPart = email.split('@')[0]
+        // 숫자가 많으면 이름이 아닐 수 있음
+        if (!/^\d+$/.test(localPart)) {
+          return localPart.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        }
+      }
+      // 최후의 수단
+      return p.applicant_name || p.creator_name || ''
+    }
+
+    // 지역별 헤더 설정 (한국어로 통일 - cnecbiz는 한국 기업용)
     const headers = {
       korea: {
         name: '크리에이터명',
@@ -2048,72 +2073,110 @@ JSON만 출력.`
         deadline: '마감일'
       },
       japan: {
-        name: 'クリエイター名',
-        platform: 'プラットフォーム',
-        phone: '電話番号',
-        postal: '郵便番号',
-        address: '住所',
-        detail: '建物名・部屋番号',
-        notes: '配送備考',
-        courier: '配送業者',
-        tracking: '送り状番号',
-        status: 'ステータス',
-        deadline: '締切日'
+        name: '크리에이터명',
+        email: '이메일',
+        platform: '플랫폼',
+        phone: '연락처',
+        postal: '우편번호',
+        address: '주소',
+        detail: '상세주소',
+        notes: '배송시 요청사항',
+        courier: '택배사',
+        tracking: '송장번호',
+        status: '상태',
+        deadline: '마감일'
       },
-      usa: {
-        name: 'Creator Name',
-        platform: 'Platform',
-        phone: 'Phone',
-        postal: 'ZIP Code',
-        address: 'Address',
-        detail: 'Apt/Suite',
-        notes: 'Delivery Notes',
-        courier: 'Carrier',
-        tracking: 'Tracking Number',
-        status: 'Status',
-        deadline: 'Deadline'
+      us: {
+        name: '크리에이터명',
+        email: '이메일',
+        platform: '플랫폼',
+        phone: '연락처',
+        postal: '우편번호',
+        address: '주소',
+        detail: '상세주소',
+        notes: '배송시 요청사항',
+        courier: '택배사',
+        tracking: '송장번호',
+        status: '상태',
+        deadline: '마감일'
       }
     }
 
     const h = headers[region] || headers.korea
 
-    const data = participants.map(p => ({
-      [h.name]: p.creator_name || p.applicant_name || '',
-      [h.platform]: p.creator_platform || p.main_channel || p.platform || '',
-      [h.phone]: p.phone_number || p.creator_phone || p.phone || '',
-      [h.postal]: p.postal_code || '',
-      [h.address]: p.address || p.shipping_address || '',
-      [h.detail]: p.detail_address || '',
-      [h.notes]: p.delivery_notes || p.delivery_request || '',
-      [h.courier]: p.shipping_company || '',
-      [h.tracking]: p.tracking_number || '',
-      [h.status]: getStatusLabel(p.status || 'selected'),
-      [h.deadline]: p.submission_deadline || campaign.content_submission_deadline || ''
-    }))
+    // 지역별 데이터 매핑
+    let data
+    if (region === 'japan' || region === 'us') {
+      // 일본/미국: 이메일 컬럼 포함
+      data = participants.map(p => ({
+        [h.name]: getCreatorName(p),
+        [h.email]: p.email || p.applicant_email || '',
+        [h.platform]: p.creator_platform || p.main_channel || p.platform || '',
+        [h.phone]: p.phone_number || p.creator_phone || p.phone || '',
+        [h.postal]: p.postal_code || '',
+        [h.address]: p.address || p.shipping_address || '',
+        [h.detail]: p.detail_address || '',
+        [h.notes]: p.delivery_notes || p.delivery_request || '',
+        [h.courier]: p.shipping_company || '',
+        [h.tracking]: p.tracking_number || '',
+        [h.status]: getStatusLabel(p.status || 'selected'),
+        [h.deadline]: p.submission_deadline || campaign.content_submission_deadline || ''
+      }))
+    } else {
+      // 한국: 기존대로
+      data = participants.map(p => ({
+        [h.name]: getCreatorName(p),
+        [h.platform]: p.creator_platform || p.main_channel || p.platform || '',
+        [h.phone]: p.phone_number || p.creator_phone || p.phone || '',
+        [h.postal]: p.postal_code || '',
+        [h.address]: p.address || p.shipping_address || '',
+        [h.detail]: p.detail_address || '',
+        [h.notes]: p.delivery_notes || p.delivery_request || '',
+        [h.courier]: p.shipping_company || '',
+        [h.tracking]: p.tracking_number || '',
+        [h.status]: getStatusLabel(p.status || 'selected'),
+        [h.deadline]: p.submission_deadline || campaign.content_submission_deadline || ''
+      }))
+    }
 
     const ws = XLSX.utils.json_to_sheet(data)
 
-    // 컬럼 너비 설정
-    ws['!cols'] = [
-      { wch: 18 }, // 크리에이터명
-      { wch: 12 }, // 플랫폼
-      { wch: 15 }, // 연락처
-      { wch: 10 }, // 우편번호
-      { wch: 45 }, // 주소
-      { wch: 20 }, // 상세주소
-      { wch: 25 }, // 배송시 요청사항
-      { wch: 15 }, // 택배사
-      { wch: 20 }, // 송장번호
-      { wch: 12 }, // 상태
-      { wch: 12 }  // 마감일
-    ]
+    // 컬럼 너비 설정 (일본/미국은 이메일 컬럼 추가)
+    if (region === 'japan' || region === 'us') {
+      ws['!cols'] = [
+        { wch: 18 }, // 크리에이터명
+        { wch: 25 }, // 이메일
+        { wch: 12 }, // 플랫폼
+        { wch: 15 }, // 연락처
+        { wch: 10 }, // 우편번호
+        { wch: 45 }, // 주소
+        { wch: 20 }, // 상세주소
+        { wch: 25 }, // 배송시 요청사항
+        { wch: 15 }, // 택배사
+        { wch: 20 }, // 송장번호
+        { wch: 12 }, // 상태
+        { wch: 12 }  // 마감일
+      ]
+    } else {
+      ws['!cols'] = [
+        { wch: 18 }, // 크리에이터명
+        { wch: 12 }, // 플랫폼
+        { wch: 15 }, // 연락처
+        { wch: 10 }, // 우편번호
+        { wch: 45 }, // 주소
+        { wch: 20 }, // 상세주소
+        { wch: 25 }, // 배송시 요청사항
+        { wch: 15 }, // 택배사
+        { wch: 20 }, // 송장번호
+        { wch: 12 }, // 상태
+        { wch: 12 }  // 마감일
+      ]
+    }
 
-    const sheetName = region === 'japan' ? '配送情報' : region === 'usa' ? 'Shipping_Info' : '크리에이터_배송정보'
-    const fileName = region === 'japan'
-      ? `${campaign.title}_配送情報.xlsx`
-      : region === 'usa'
-        ? `${campaign.title}_Shipping_Info.xlsx`
-        : `${campaign.title}_크리에이터_배송정보.xlsx`
+    // 파일명 및 시트명 (한국어로 통일)
+    const sheetName = '크리에이터_배송정보'
+    const regionLabel = region === 'japan' ? '_일본' : region === 'us' ? '_미국' : ''
+    const fileName = `${campaign.title}${regionLabel}_크리에이터_배송정보.xlsx`
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, sheetName)
@@ -2135,18 +2198,28 @@ JSON만 출력.`
     return labels[status] || status
   }
 
-  // 송장번호 템플릿 다운로드 (지역별 현지화)
+  // 송장번호 템플릿 다운로드 (한국어로 통일)
   const downloadTrackingTemplate = () => {
-    const headers = {
-      korea: { name: '크리에이터명', tracking: '송장번호', courier: '택배사' },
-      japan: { name: 'クリエイター名', tracking: '送り状番号', courier: '配送業者' },
-      usa: { name: 'Creator Name', tracking: 'Tracking Number', courier: 'Carrier' }
+    // 이름 추출 헬퍼 함수
+    const getCreatorName = (p) => {
+      if (p.real_name && !p.real_name.includes('@')) return p.real_name
+      if (p.applicant_name && !p.applicant_name.includes('@')) return p.applicant_name
+      if (p.creator_name && !p.creator_name.includes('@')) return p.creator_name
+      const email = p.email || p.applicant_name
+      if (email && email.includes('@')) {
+        const localPart = email.split('@')[0]
+        if (!/^\d+$/.test(localPart)) {
+          return localPart.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        }
+      }
+      return p.applicant_name || p.creator_name || '이름 없음'
     }
 
-    const h = headers[region] || headers.korea
+    // 한국어 헤더 통일
+    const h = { name: '크리에이터명', tracking: '송장번호', courier: '택배사' }
 
     const data = participants.map(p => ({
-      [h.name]: p.creator_name || p.applicant_name || (region === 'japan' ? '名前なし' : region === 'usa' ? 'No Name' : '이름 없음'),
+      [h.name]: getCreatorName(p),
       [h.courier]: p.shipping_company || '',
       [h.tracking]: p.tracking_number || ''
     }))
@@ -2154,15 +2227,11 @@ JSON만 출력.`
     const ws = XLSX.utils.json_to_sheet(data)
     ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }]
 
-    const sheetName = region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking' : '송장번호'
-    const fileName = region === 'japan'
-      ? `${campaign.title}_送り状番号_テンプレート.xlsx`
-      : region === 'usa'
-        ? `${campaign.title}_Tracking_Template.xlsx`
-        : `${campaign.title}_송장번호_템플릿.xlsx`
+    const regionLabel = region === 'japan' ? '_일본' : region === 'us' ? '_미국' : ''
+    const fileName = `${campaign.title}${regionLabel}_송장번호_템플릿.xlsx`
 
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.utils.book_append_sheet(wb, ws, '송장번호')
     XLSX.writeFile(wb, fileName)
   }
 
@@ -2225,21 +2294,11 @@ JSON만 출력.`
 
       await fetchParticipants()
 
-      // 지역별 메시지
-      const messages = {
-        korea: `송장번호 업로드 완료!\n성공: ${successCount}건\n실패: ${failCount}건`,
-        japan: `送り状番号アップロード完了!\n成功: ${successCount}件\n失敗: ${failCount}件`,
-        usa: `Tracking upload complete!\nSuccess: ${successCount}\nFailed: ${failCount}`
-      }
-      alert(messages[region] || messages.korea)
+      // 한국어 메시지 통일
+      alert(`송장번호 업로드 완료!\n성공: ${successCount}건\n실패: ${failCount}건`)
     } catch (error) {
       console.error('Error uploading tracking numbers:', error)
-      const errorMessages = {
-        korea: '송장번호 업로드에 실패했습니다: ',
-        japan: '送り状番号のアップロードに失敗しました: ',
-        usa: 'Failed to upload tracking numbers: '
-      }
-      alert((errorMessages[region] || errorMessages.korea) + error.message)
+      alert('송장번호 업로드에 실패했습니다: ' + error.message)
     }
   }
 
@@ -4586,9 +4645,9 @@ JSON만 출력.`
 
   const handleRequestAdditionalPayment = () => {
     const additionalCount = selectedParticipants.length - campaign.total_slots
-    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-    const additionalCost = packagePrice * additionalCount
-    if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
+    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)
+    const additionalCost = Math.round(packagePrice * additionalCount * 1.1)  // VAT 포함
+    if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원 (VAT 포함)`)) {
       // 견적서 페이지로 이동 (추가 인원 정보 포함, region 파라미터 유지)
       navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}&region=${region}`)
     }
@@ -5849,9 +5908,11 @@ JSON만 출력.`
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
-                    {campaign.package_type && campaign.total_slots ?
-                      `₩${(getPackagePrice(campaign.package_type, campaign.campaign_type) * campaign.total_slots * 1.1).toLocaleString()}`
-                      : '-'
+                    {campaign.estimated_cost ?
+                      `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
+                      : campaign.package_type && campaign.total_slots ?
+                        `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
+                        : '-'
                     }
                   </p>
                 </div>
@@ -7490,7 +7551,7 @@ JSON만 출력.`
                       disabled={participants.length === 0}
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      {region === 'japan' ? '配送情報' : region === 'usa' ? 'Shipping Info' : '배송정보'} Excel
+                      배송정보 Excel
                     </Button>
 
                     {/* 송장번호 템플릿 다운로드 */}
@@ -7501,7 +7562,7 @@ JSON만 출력.`
                       disabled={participants.length === 0}
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      {region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking #' : '송장번호'} 템플릿
+                      송장번호 템플릿
                     </Button>
 
                     {/* 송장번호 엑셀 업로드 */}
@@ -7525,7 +7586,7 @@ JSON만 출력.`
                       >
                         <span>
                           <Upload className="w-4 h-4 mr-2" />
-                          {region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking #' : '송장번호'} 업로드
+                          송장번호 업로드
                         </span>
                       </Button>
                     </label>

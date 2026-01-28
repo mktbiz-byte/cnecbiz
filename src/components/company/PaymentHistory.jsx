@@ -57,6 +57,7 @@ export default function PaymentHistory() {
       fetchPayments(companyData.id)
       fetchTaxInvoices(companyData.id)
       fetchChargeRequests(user.id)
+      // points_transactions.company_id는 user.id를 참조
       fetchPointUsages(user.id)
     }
   }
@@ -120,13 +121,15 @@ export default function PaymentHistory() {
     }
   }
 
-  const fetchPointUsages = async (userId) => {
+  const fetchPointUsages = async (companyId) => {
     try {
+      // spend 타입 조회 (사용 내역 - amount가 음수인 것만)
       const { data, error } = await supabaseBiz
         .from('points_transactions')
         .select('*')
-        .eq('company_id', userId)
+        .eq('company_id', companyId)
         .eq('type', 'spend')
+        .lt('amount', 0)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
@@ -233,16 +236,13 @@ export default function PaymentHistory() {
   // 총 결제 건수
   const totalCount = payments.length + chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length
 
-  // 현재 포인트 계산 (충전 완료 건 합계 - 사용 포인트)
-  // 충전 포인트 = 금액 / 1.1 (부가세 제외)
-  const totalCharged = chargeRequests
-    .filter(r => r.status === 'completed' || r.status === 'confirmed')
-    .reduce((sum, r) => sum + Math.round((r.amount || 0) / 1.1), 0)
+  // 수출바우처 잔액 (companies 테이블에서 직접 가져옴)
+  // 관리자가 충전하고, 사용 내역은 points_transactions에서 관리
+  const currentVoucherBalance = company?.points_balance || 0
 
+  // 사용 내역 합계 (표시용)
   const totalUsed = pointUsages
     .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
-
-  const currentPoints = totalCharged - totalUsed
 
   const getPackageLabel = (packageType) => {
     const labels = {
@@ -257,7 +257,7 @@ export default function PaymentHistory() {
 
   const tabs = [
     { key: 'payments', label: '결제 내역', icon: CreditCard, count: chargeRequests.length },
-    { key: 'usages', label: '캠페인 진행', icon: TrendingUp, count: pointUsages.length },
+    { key: 'usages', label: '사용 내역', icon: TrendingUp, count: pointUsages.length },
     { key: 'invoices', label: '세금계산서', icon: FileText, count: chargeRequests.filter(r => r.needs_tax_invoice).length }
   ]
 
@@ -328,21 +328,21 @@ export default function PaymentHistory() {
               </div>
             </div>
 
-            {/* 잔여 포인트 */}
+            {/* 수출바우처 잔액 */}
             <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-500">잔여 포인트</span>
+                  <span className="text-sm font-medium text-gray-500">수출바우처 승인 금액</span>
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {currentPoints.toLocaleString()}
-                  <span className="text-lg font-medium text-gray-400 ml-1">P</span>
+                  {currentVoucherBalance.toLocaleString()}
+                  <span className="text-lg font-medium text-gray-400 ml-1">원</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">충전 {totalCharged.toLocaleString()}P - 사용 {totalUsed.toLocaleString()}P</p>
+                <p className="text-xs text-gray-400 mt-2">VAT 별도 기준 | 사용 {totalUsed.toLocaleString()}원</p>
               </div>
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function PaymentHistory() {
                               )}
                             </div>
                             <p className="font-semibold text-gray-900 truncate">
-                              {request.campaign_name || '포인트 충전'}
+                              {request.campaign_name || '캠페인 결제'}
                             </p>
                             <p className="text-sm text-gray-500 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" />
@@ -436,8 +436,8 @@ export default function PaymentHistory() {
                       <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
                         <TrendingUp className="w-10 h-10 text-gray-400" />
                       </div>
-                      <p className="text-lg font-medium text-gray-600 mb-2">캠페인 진행 내역이 없습니다</p>
-                      <p className="text-sm text-gray-400">캠페인 진행 시 포인트 사용 내역이 표시됩니다</p>
+                      <p className="text-lg font-medium text-gray-600 mb-2">사용 내역이 없습니다</p>
+                      <p className="text-sm text-gray-400">수출바우처로 캠페인 결제 시 사용 내역이 표시됩니다</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -453,7 +453,7 @@ export default function PaymentHistory() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600">
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                포인트 사용
+                                바우처 사용
                               </span>
                               {transaction.package_type && (
                                 <span className="px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-600 font-medium">
@@ -471,7 +471,7 @@ export default function PaymentHistory() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-xl font-bold text-red-600">
-                              -{Math.abs(transaction.amount).toLocaleString()}P
+                              -{Math.abs(transaction.amount).toLocaleString()}원
                             </p>
                           </div>
                         </div>
@@ -522,7 +522,7 @@ export default function PaymentHistory() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900">
-                                  {request.campaign_name || '포인트 충전'}
+                                  {request.campaign_name || '캠페인 결제'}
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}
@@ -566,7 +566,7 @@ export default function PaymentHistory() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900">
-                                  {request.campaign_name || '포인트 충전'}
+                                  {request.campaign_name || '캠페인 결제'}
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}

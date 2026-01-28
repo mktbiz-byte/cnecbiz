@@ -4,7 +4,7 @@ import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib
 import TossPaymentWidget from '../payment/TossPaymentWidget';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info, AlertCircle, ShieldCheck } from 'lucide-react';
+import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info, AlertCircle, ShieldCheck, Wallet, Loader2 } from 'lucide-react';
 
 const PaymentMethodSelection = () => {
   const [searchParams] = useSearchParams();
@@ -12,10 +12,16 @@ const PaymentMethodSelection = () => {
   const campaignId = searchParams.get('id');
   const region = searchParams.get('region') || 'korea';
   
-  const [paymentMethod, setPaymentMethod] = useState(''); // 'card' or 'bank_transfer'
+  const [paymentMethod, setPaymentMethod] = useState(''); // 'card', 'bank_transfer', or 'voucher'
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [voucherBalance, setVoucherBalance] = useState(0);
+  const [companyId, setCompanyId] = useState(null);  // companies.id (for updating)
+  const [companyUserId, setCompanyUserId] = useState(null);  // companies.user_id (for points_transactions)
+  const [companyName, setCompanyName] = useState('');  // for notifications
+  const [companyPhone, setCompanyPhone] = useState('');  // for 알림톡
+  const [processingVoucher, setProcessingVoucher] = useState(false);
 
   // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
   const getSupabaseClient = (region) => {
@@ -27,7 +33,7 @@ const PaymentMethodSelection = () => {
   };
 
   useEffect(() => {
-    const fetchCampaign = async () => {
+    const fetchCampaignAndVoucher = async () => {
       if (!campaignId) {
         setError('캠페인 ID가 없습니다.');
         setLoading(false);
@@ -43,8 +49,26 @@ const PaymentMethodSelection = () => {
           .single();
 
         if (fetchError) throw fetchError;
-        
+
         setCampaign(data);
+
+        // 수출바우처 잔액 조회 (company_email로 companies 테이블에서 조회)
+        if (data?.company_email) {
+          const { data: companyData, error: companyError } = await supabaseBiz
+            .from('companies')
+            .select('id, user_id, points_balance, company_name, phone')
+            .eq('email', data.company_email)
+            .single();
+
+          if (!companyError && companyData) {
+            setVoucherBalance(companyData.points_balance || 0);
+            setCompanyId(companyData.id);  // for companies table update
+            setCompanyUserId(companyData.user_id);  // for points_transactions
+            setCompanyName(companyData.company_name || data.brand || '');  // for notifications
+            setCompanyPhone(companyData.phone || '');  // for 알림톡
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('캠페인 조회 실패:', err);
@@ -53,7 +77,7 @@ const PaymentMethodSelection = () => {
       }
     };
 
-    fetchCampaign();
+    fetchCampaignAndVoucher();
   }, [campaignId, region]);
 
   const handleBankTransfer = () => {
@@ -64,6 +88,127 @@ const PaymentMethodSelection = () => {
       navigate(`/company/campaigns/${campaignId}/invoice/4week?region=${region}`);
     } else {
       navigate(`/company/campaigns/${campaignId}/invoice?region=${region}`);
+    }
+  };
+
+  // 수출바우처 결제 처리
+  const handleVoucherPayment = async () => {
+    // VAT 별도 금액으로 계산 (총액에서 VAT 제외)
+    const paymentAmount = Math.round(totalAmount / 1.1);
+
+    if (voucherBalance < paymentAmount) {
+      alert(`수출바우처 잔액이 부족합니다.\n\n필요 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n현재 잔액: ${voucherBalance.toLocaleString()}원`);
+      return;
+    }
+
+    setProcessingVoucher(true);
+
+    try {
+      // 1. 수출바우처 잔액 차감
+      const { error: updateError } = await supabaseBiz
+        .from('companies')
+        .update({ points_balance: voucherBalance - paymentAmount })
+        .eq('id', companyId);
+
+      if (updateError) throw updateError;
+
+      // 2. 거래 내역 기록 (company_id는 user_id를 사용)
+      const { error: transactionError } = await supabaseBiz
+        .from('points_transactions')
+        .insert({
+          company_id: companyUserId,
+          amount: -paymentAmount,
+          balance_after: voucherBalance - paymentAmount,
+          type: 'spend',
+          description: `[수출바우처 결제] ${campaign.title}`,
+          campaign_id: campaignId
+        });
+
+      if (transactionError) {
+        console.error('거래 기록 실패:', transactionError);
+      }
+
+      // 3. 캠페인 결제 상태 업데이트
+      const supabase = getSupabaseClient(region);
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .update({
+          payment_status: 'paid',
+          payment_method: 'voucher',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      if (campaignError) {
+        console.error('캠페인 상태 업데이트 실패:', campaignError);
+      }
+
+      // 4. 네이버 웍스 알림 발송
+      try {
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const campaignTypeLabel = campaign.campaign_type === 'oliveyoung' ? '올영세일'
+          : campaign.campaign_type === '4week_challenge' ? '4주 챌린지'
+          : '일반';
+        const naverWorksMessage = `[수출바우처 결제 완료 - 캠페인 검수 요청]\n\n캠페인: ${campaign.title}\n타입: ${campaignTypeLabel}\n브랜드: ${campaign.brand || companyName}\n결제 금액: ${paymentAmount.toLocaleString()}원 (VAT 별도)\n\n기업: ${companyName}\n이메일: ${campaign.company_email || '미등록'}\n\n${koreanDate}`;
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            message: naverWorksMessage,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+          })
+        });
+        console.log('수출바우처 결제 네이버 웍스 알림 발송 성공');
+      } catch (naverWorksError) {
+        console.error('수출바우처 결제 네이버 웍스 알림 발송 실패:', naverWorksError);
+      }
+
+      // 5. 알림톡 발송 (캠페인 검수 신청)
+      if (companyPhone) {
+        try {
+          // 모집 기간 포맷팅
+          const startDate = campaign.recruitment_start ? new Date(campaign.recruitment_start).toLocaleDateString('ko-KR') : '미정';
+          const endDate = campaign.recruitment_end ? new Date(campaign.recruitment_end).toLocaleDateString('ko-KR') : '미정';
+
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: companyPhone,
+              receiverName: companyName,
+              templateCode: '025100001010',  // 캠페인 검수 신청 템플릿
+              variables: {
+                '회사명': companyName,
+                '캠페인명': campaign.title,
+                '시작일': startDate,
+                '마감일': endDate,
+                '모집인원': campaign.target_creators || '미정'
+              }
+            })
+          });
+          console.log('수출바우처 결제 알림톡 발송 성공');
+        } catch (kakaoError) {
+          console.error('수출바우처 결제 알림톡 발송 실패:', kakaoError);
+        }
+      }
+
+      alert('수출바우처 결제가 완료되었습니다!');
+      navigate('/company/campaigns');
+
+    } catch (err) {
+      console.error('수출바우처 결제 실패:', err);
+      alert('결제 처리 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setProcessingVoucher(false);
     }
   };
 
@@ -149,6 +294,61 @@ const PaymentMethodSelection = () => {
                   </div>
                 </button>
 
+                {/* 수출바우처 결제 옵션 */}
+                {voucherBalance > 0 && (
+                  <button
+                    onClick={() => voucherBalance >= Math.round(totalAmount / 1.1) && setPaymentMethod('voucher')}
+                    disabled={voucherBalance < Math.round(totalAmount / 1.1)}
+                    className={`w-full p-6 border-2 rounded-xl transition-all duration-200 text-left group shadow-md hover:shadow-lg ${
+                      voucherBalance >= Math.round(totalAmount / 1.1)
+                        ? 'border-purple-300 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
+                        : 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-full transition-colors ${
+                          voucherBalance >= Math.round(totalAmount / 1.1)
+                            ? 'bg-purple-100 group-hover:bg-purple-200'
+                            : 'bg-gray-200'
+                        }`}>
+                          <Wallet className={`h-8 w-8 ${
+                            voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <h4 className={`text-xl font-bold ${
+                            voucherBalance >= Math.round(totalAmount / 1.1)
+                              ? 'text-gray-800 group-hover:text-purple-600'
+                              : 'text-gray-500'
+                          }`}>
+                            수출바우처 결제
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-gray-600">
+                              잔액: <span className={`font-bold ${voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-red-500'}`}>
+                                {voucherBalance.toLocaleString()}원
+                              </span>
+                              <span className="text-gray-400 text-xs ml-1">(VAT 별도)</span>
+                            </p>
+                            {voucherBalance < Math.round(totalAmount / 1.1) && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">잔액 부족</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            필요 금액: {Math.round(totalAmount / 1.1).toLocaleString()}원 (VAT 별도)
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`font-bold text-lg ${
+                        voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                      }`}>
+                        선택 →
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* 무통장 입금 옵션 */}
                 <button
                   onClick={handleBankTransfer}
@@ -212,14 +412,14 @@ const PaymentMethodSelection = () => {
             {/* 카드 결제 선택 시 토스 결제 위젯 표시 */}
             {paymentMethod === 'card' && (
               <div className="mt-6">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => setPaymentMethod('')}
                   className="mb-4"
                 >
                   ← 결제 방법 다시 선택
                 </Button>
-                
+
                 <TossPaymentWidget
                   amount={totalAmount}
                   orderId={`campaign_${campaignId}_${Date.now()}`}
@@ -227,6 +427,81 @@ const PaymentMethodSelection = () => {
                   customerEmail={campaign.company_email || ''}
                   customerName={campaign.brand || '고객'}
                 />
+              </div>
+            )}
+
+            {/* 수출바우처 결제 선택 시 확인 화면 표시 */}
+            {paymentMethod === 'voucher' && (
+              <div className="mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => setPaymentMethod('')}
+                  className="mb-4"
+                >
+                  ← 결제 방법 다시 선택
+                </Button>
+
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-purple-100 p-3 rounded-full">
+                      <Wallet className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">수출바우처 결제</h3>
+                      <p className="text-sm text-gray-600">VAT 별도 금액으로 결제됩니다</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">현재 바우처 잔액</span>
+                        <span className="text-xl font-bold text-purple-600">
+                          {voucherBalance.toLocaleString()}원
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">결제 금액 (VAT 별도)</span>
+                        <span className="text-xl font-bold text-red-600">
+                          -{Math.round(totalAmount / 1.1).toLocaleString()}원
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 text-right">
+                        VAT 포함 시: {totalAmount.toLocaleString()}원
+                      </p>
+                    </div>
+
+                    <div className="bg-purple-100 rounded-lg p-4 border border-purple-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-purple-800">결제 후 잔액</span>
+                        <span className="text-2xl font-bold text-purple-700">
+                          {(voucherBalance - Math.round(totalAmount / 1.1)).toLocaleString()}원
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleVoucherPayment}
+                    disabled={processingVoucher}
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                  >
+                    {processingVoucher ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        결제 처리 중...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        수출바우처로 결제하기
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
