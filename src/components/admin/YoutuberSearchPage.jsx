@@ -13,7 +13,8 @@ import {
   Search, Youtube, Mail, Send, ExternalLink, Users, Globe,
   ChevronLeft, ChevronRight, Loader2, CheckCircle, XCircle,
   Eye, Download, Filter, RefreshCw, Star, Clock, MessageSquare,
-  AlertCircle, Info, PlayCircle, Video, Image, Film, Link2
+  AlertCircle, Info, PlayCircle, Video, Image, Film, Link2,
+  FileSpreadsheet, Settings, Upload, UserCheck, UserX
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -116,6 +117,24 @@ export default function YoutuberSearchPage() {
     by_country: {}
   })
 
+  // Google Sheets 상태
+  const [sheetSettings, setSheetSettings] = useState({
+    korea: { url: '', nameColumn: 'A', emailColumn: 'B' },
+    japan: { url: '', nameColumn: 'A', emailColumn: 'B' },
+    us: { url: '', nameColumn: 'A', emailColumn: 'B' }
+  })
+  const [sheetData, setSheetData] = useState({
+    korea: { data: [], loading: false, error: null },
+    japan: { data: [], loading: false, error: null },
+    us: { data: [], loading: false, error: null }
+  })
+  const [selectedSheetCountry, setSelectedSheetCountry] = useState('korea')
+  const [filterExistingUsers, setFilterExistingUsers] = useState(true)
+  const [selectedSheetCreators, setSelectedSheetCreators] = useState([])
+  const [showStibeeModal, setShowStibeeModal] = useState(false)
+  const [stibeeTemplateId, setStibeeTemplateId] = useState('')
+  const [sendingStibee, setSendingStibee] = useState(false)
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -126,6 +145,13 @@ export default function YoutuberSearchPage() {
       fetchStats()
     }
   }, [activeTab, currentPage, statusFilter, emailFilter])
+
+  // Google Sheets 설정 로드
+  useEffect(() => {
+    if (activeTab === 'sheets') {
+      loadSheetSettings()
+    }
+  }, [activeTab])
 
   const checkAuth = async () => {
     const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -148,6 +174,173 @@ export default function YoutuberSearchPage() {
   const getAuthToken = async () => {
     const { data: { session } } = await supabaseBiz.auth.getSession()
     return session?.access_token
+  }
+
+  // Google Sheets 설정 불러오기
+  const loadSheetSettings = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/fetch-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load_settings' })
+      })
+      const result = await response.json()
+      if (result.success && result.settings) {
+        setSheetSettings(result.settings)
+      }
+    } catch (error) {
+      console.error('Failed to load sheet settings:', error)
+    }
+  }
+
+  // Google Sheets 설정 저장
+  const saveSheetSettings = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/fetch-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_settings',
+          settings: sheetSettings
+        })
+      })
+      const result = await response.json()
+      if (result.success) {
+        alert('설정이 저장되었습니다.')
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to save sheet settings:', error)
+      alert('설정 저장 실패: ' + error.message)
+    }
+  }
+
+  // Google Sheets에서 데이터 가져오기
+  const fetchSheetData = async (country) => {
+    const settings = sheetSettings[country]
+    if (!settings.url) {
+      alert('시트 URL을 입력해주세요.')
+      return
+    }
+
+    setSheetData(prev => ({
+      ...prev,
+      [country]: { ...prev[country], loading: true, error: null }
+    }))
+
+    try {
+      const response = await fetch('/.netlify/functions/fetch-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'fetch',
+          sheetUrl: settings.url,
+          nameColumn: settings.nameColumn,
+          emailColumn: settings.emailColumn,
+          country: country,
+          filterExisting: filterExistingUsers
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      setSheetData(prev => ({
+        ...prev,
+        [country]: { data: result.data, loading: false, error: null }
+      }))
+
+      // 선택 초기화
+      setSelectedSheetCreators([])
+
+    } catch (error) {
+      console.error('Failed to fetch sheet data:', error)
+      setSheetData(prev => ({
+        ...prev,
+        [country]: { data: [], loading: false, error: error.message }
+      }))
+    }
+  }
+
+  // 시트 크리에이터 선택 토글
+  const toggleSheetCreatorSelection = (email) => {
+    setSelectedSheetCreators(prev =>
+      prev.includes(email)
+        ? prev.filter(e => e !== email)
+        : [...prev, email]
+    )
+  }
+
+  // 전체 선택/해제 (신규만)
+  const toggleAllNewCreators = (country) => {
+    const newCreators = sheetData[country].data.filter(c => !c.is_existing)
+    const allSelected = newCreators.every(c => selectedSheetCreators.includes(c.email))
+
+    if (allSelected) {
+      setSelectedSheetCreators(prev => prev.filter(e => !newCreators.some(c => c.email === e)))
+    } else {
+      const newEmails = newCreators.map(c => c.email)
+      setSelectedSheetCreators(prev => [...new Set([...prev, ...newEmails])])
+    }
+  }
+
+  // 스티비 이메일 발송
+  const sendStibeeEmail = async () => {
+    if (selectedSheetCreators.length === 0) {
+      alert('발송할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!stibeeTemplateId) {
+      alert('스티비 템플릿 ID를 입력해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedSheetCreators.length}명에게 스티비 메일을 발송하시겠습니까?`)) {
+      return
+    }
+
+    setSendingStibee(true)
+    try {
+      // 선택된 크리에이터 정보 수집
+      const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.us.data]
+      const recipients = selectedSheetCreators.map(email => {
+        const creator = allData.find(c => c.email === email)
+        return {
+          email: email,
+          name: creator?.name || ''
+        }
+      })
+
+      const response = await fetch('/.netlify/functions/send-stibee-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: stibeeTemplateId,
+          recipients: recipients
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      alert(`${selectedSheetCreators.length}명에게 이메일 발송을 시작했습니다.`)
+      setShowStibeeModal(false)
+      setSelectedSheetCreators([])
+
+    } catch (error) {
+      console.error('Failed to send Stibee email:', error)
+      alert('이메일 발송 실패: ' + error.message)
+    } finally {
+      setSendingStibee(false)
+    }
   }
 
   // YouTube 영상/채널 검색
@@ -524,6 +717,10 @@ export default function YoutuberSearchPage() {
             <TabsTrigger value="list" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               수집 목록 ({totalCount})
+            </TabsTrigger>
+            <TabsTrigger value="sheets" className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              시트 가져오기
             </TabsTrigger>
             <TabsTrigger value="gif" className="flex items-center gap-2">
               <Film className="h-4 w-4" />
@@ -1068,6 +1265,380 @@ export default function YoutuberSearchPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Google Sheets 탭 */}
+          <TabsContent value="sheets">
+            <div className="space-y-6">
+              {/* 시트 설정 카드 */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Google Sheets 설정
+                    </CardTitle>
+                    <Button onClick={saveSheetSettings} size="sm">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      설정 저장
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* 한국 시트 설정 */}
+                    <div className="border rounded-lg p-4 bg-blue-50">
+                      <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                        🇰🇷 한국
+                      </h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
+                          <Input
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            value={sheetSettings.korea.url}
+                            onChange={(e) => setSheetSettings(prev => ({
+                              ...prev,
+                              korea: { ...prev.korea, url: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <Input
+                              placeholder="A"
+                              value={sheetSettings.korea.nameColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                korea: { ...prev.korea, nameColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                            <Input
+                              placeholder="B"
+                              value={sheetSettings.korea.emailColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                korea: { ...prev.korea, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 일본 시트 설정 */}
+                    <div className="border rounded-lg p-4 bg-red-50">
+                      <h4 className="font-medium text-red-800 mb-3 flex items-center gap-2">
+                        🇯🇵 일본
+                      </h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
+                          <Input
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            value={sheetSettings.japan.url}
+                            onChange={(e) => setSheetSettings(prev => ({
+                              ...prev,
+                              japan: { ...prev.japan, url: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <Input
+                              placeholder="A"
+                              value={sheetSettings.japan.nameColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan: { ...prev.japan, nameColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                            <Input
+                              placeholder="B"
+                              value={sheetSettings.japan.emailColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan: { ...prev.japan, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 미국 시트 설정 */}
+                    <div className="border rounded-lg p-4 bg-purple-50">
+                      <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+                        🇺🇸 미국
+                      </h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
+                          <Input
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            value={sheetSettings.us.url}
+                            onChange={(e) => setSheetSettings(prev => ({
+                              ...prev,
+                              us: { ...prev.us, url: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <Input
+                              placeholder="A"
+                              value={sheetSettings.us.nameColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                us: { ...prev.us, nameColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                            <Input
+                              placeholder="B"
+                              value={sheetSettings.us.emailColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                us: { ...prev.us, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 안내 */}
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                    <Info className="h-4 w-4 inline mr-2" />
+                    Google Sheets는 <strong>"링크가 있는 모든 사용자"</strong>가 볼 수 있게 공유 설정되어 있어야 합니다.
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 데이터 가져오기 카드 */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      크리에이터 가져오기
+                    </CardTitle>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="filterExisting"
+                          checked={filterExistingUsers}
+                          onCheckedChange={setFilterExistingUsers}
+                        />
+                        <label htmlFor="filterExisting" className="text-sm cursor-pointer">
+                          기존 가입자 표시
+                        </label>
+                      </div>
+                      <Button
+                        onClick={() => setShowStibeeModal(true)}
+                        disabled={selectedSheetCreators.length === 0}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        스티비 발송 ({selectedSheetCreators.length})
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* 국가 선택 탭 */}
+                  <div className="flex gap-2 mb-4">
+                    {[
+                      { key: 'korea', label: '🇰🇷 한국', color: 'blue' },
+                      { key: 'japan', label: '🇯🇵 일본', color: 'red' },
+                      { key: 'us', label: '🇺🇸 미국', color: 'purple' }
+                    ].map(({ key, label, color }) => (
+                      <Button
+                        key={key}
+                        variant={selectedSheetCountry === key ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedSheetCountry(key)}
+                        className={selectedSheetCountry === key ? `bg-${color}-600` : ''}
+                      >
+                        {label}
+                        {sheetData[key].data.length > 0 && (
+                          <Badge className="ml-2 bg-white text-gray-800">{sheetData[key].data.length}</Badge>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* 가져오기 버튼 */}
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      onClick={() => fetchSheetData(selectedSheetCountry)}
+                      disabled={sheetData[selectedSheetCountry].loading || !sheetSettings[selectedSheetCountry].url}
+                    >
+                      {sheetData[selectedSheetCountry].loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      시트에서 가져오기
+                    </Button>
+                    {sheetData[selectedSheetCountry].data.length > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => toggleAllNewCreators(selectedSheetCountry)}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        신규만 전체 선택
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* 에러 표시 */}
+                  {sheetData[selectedSheetCountry].error && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 mb-4">
+                      <AlertCircle className="h-4 w-4 inline mr-2" />
+                      {sheetData[selectedSheetCountry].error}
+                    </div>
+                  )}
+
+                  {/* 데이터 테이블 */}
+                  {sheetData[selectedSheetCountry].data.length > 0 && (
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="text-sm text-gray-600">
+                          총 {sheetData[selectedSheetCountry].data.length}명
+                          <span className="mx-2">|</span>
+                          <span className="text-green-600">
+                            <UserCheck className="h-4 w-4 inline mr-1" />
+                            신규: {sheetData[selectedSheetCountry].data.filter(c => !c.is_existing).length}명
+                          </span>
+                          <span className="mx-2">|</span>
+                          <span className="text-orange-600">
+                            <UserX className="h-4 w-4 inline mr-1" />
+                            기존: {sheetData[selectedSheetCountry].data.filter(c => c.is_existing).length}명
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">선택</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이메일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {sheetData[selectedSheetCountry].data.map((creator, idx) => (
+                              <tr
+                                key={idx}
+                                className={`${creator.is_existing ? 'bg-orange-50 opacity-60' : 'hover:bg-gray-50'}`}
+                              >
+                                <td className="px-4 py-3">
+                                  <Checkbox
+                                    checked={selectedSheetCreators.includes(creator.email)}
+                                    onCheckedChange={() => toggleSheetCreatorSelection(creator.email)}
+                                    disabled={creator.is_existing}
+                                  />
+                                </td>
+                                <td className="px-4 py-3 font-medium">{creator.name}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{creator.email}</td>
+                                <td className="px-4 py-3">
+                                  {creator.is_existing ? (
+                                    <Badge className="bg-orange-100 text-orange-800">
+                                      <UserX className="h-3 w-3 mr-1" />
+                                      기존 가입자
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-green-100 text-green-800">
+                                      <UserCheck className="h-3 w-3 mr-1" />
+                                      신규
+                                    </Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 빈 상태 */}
+                  {!sheetData[selectedSheetCountry].loading && sheetData[selectedSheetCountry].data.length === 0 && !sheetData[selectedSheetCountry].error && (
+                    <div className="text-center py-12 text-gray-500">
+                      <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>시트 URL을 설정하고 "시트에서 가져오기" 버튼을 클릭하세요.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* 스티비 발송 모달 */}
+          <Dialog open={showStibeeModal} onOpenChange={setShowStibeeModal}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  스티비 이메일 발송
+                </DialogTitle>
+                <DialogDescription>
+                  선택한 {selectedSheetCreators.length}명에게 스티비 템플릿 이메일을 발송합니다.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    스티비 템플릿 ID
+                  </label>
+                  <Input
+                    placeholder="템플릿 ID 입력"
+                    value={stibeeTemplateId}
+                    onChange={(e) => setStibeeTemplateId(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    스티비 대시보드 → 이메일 → 템플릿에서 ID를 확인할 수 있습니다.
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>발송 대상:</strong> {selectedSheetCreators.length}명
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowStibeeModal(false)}>
+                  취소
+                </Button>
+                <Button
+                  onClick={sendStibeeEmail}
+                  disabled={sendingStibee || !stibeeTemplateId}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {sendingStibee ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  발송하기
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* GIF 변환 탭 */}
           <TabsContent value="gif">
