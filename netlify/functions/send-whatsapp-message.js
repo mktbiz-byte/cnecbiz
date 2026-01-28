@@ -62,8 +62,11 @@ function formatPhoneNumber(phone) {
 async function sendTwilioWhatsApp(toNumber, message, accountSid, authToken, fromNumber) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
 
+  // From 번호에 whatsapp: prefix 추가 (없는 경우)
+  const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+
   const formData = new URLSearchParams();
-  formData.append('From', fromNumber);
+  formData.append('From', formattedFrom);
   formData.append('To', `whatsapp:${toNumber}`);
   formData.append('Body', message);
 
@@ -103,15 +106,16 @@ exports.handler = async (event) => {
   // Twilio 환경변수 확인
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+  // WhatsApp 번호: 직접 설정하거나 Twilio Sandbox 번호 사용
+  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
-  if (!accountSid || !authToken || !fromNumber) {
+  if (!accountSid || !authToken) {
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         error: 'Twilio credentials not configured',
-        details: 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER 환경변수를 설정해주세요.'
+        details: 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN 환경변수를 설정해주세요.'
       })
     };
   }
