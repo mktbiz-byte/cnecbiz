@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   Phone,
   Plus,
-  X
+  X,
+  Mail
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -37,6 +38,7 @@ export default function WhatsAppChatManagement() {
   const [newPhoneNumber, setNewPhoneNumber] = useState('')
   const [newChatMessage, setNewChatMessage] = useState('')
   const [startingChat, setStartingChat] = useState(false)
+  const [sendingSms, setSendingSms] = useState(false)
 
   // 채팅방 목록 로드
   const loadChatRooms = async () => {
@@ -216,6 +218,41 @@ export default function WhatsAppChatManagement() {
       alert('새 대화 시작 중 오류가 발생했습니다.')
     } finally {
       setStartingChat(false)
+    }
+  }
+
+  // WhatsApp 등록 안내 SMS 발송
+  const sendWhatsAppInviteSms = async () => {
+    if (!newPhoneNumber.trim()) {
+      alert('전화번호를 입력해주세요.')
+      return
+    }
+
+    setSendingSms(true)
+    try {
+      const smsMessage = `[CNEC] WhatsApp으로 편하게 연락받으세요!\n\n아래 단계를 따라주세요:\n1. WhatsApp에서 +1 415 523 8886 추가\n2. "join" 메시지 전송\n\n등록 완료 후 캠페인 안내를 WhatsApp으로 보내드립니다.`
+
+      const response = await fetch('/.netlify/functions/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: newPhoneNumber.trim(),
+          message: smsMessage
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert('WhatsApp 등록 안내 SMS를 발송했습니다.')
+      } else {
+        alert('SMS 발송 실패: ' + (result.error || '알 수 없는 오류'))
+      }
+    } catch (error) {
+      console.error('Send SMS error:', error)
+      alert('SMS 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingSms(false)
     }
   }
 
@@ -554,9 +591,33 @@ export default function WhatsAppChatManagement() {
               </p>
             </div>
 
-            <div>
+            {/* WhatsApp 등록 안내 SMS */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-blue-800 mb-2">
+                WhatsApp 미등록 사용자인가요?
+              </p>
+              <p className="text-xs text-blue-600 mb-3">
+                SMS로 WhatsApp 등록 안내를 먼저 보내세요.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sendWhatsAppInviteSms}
+                disabled={sendingSms || !newPhoneNumber.trim()}
+                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                {sendingSms ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4 mr-2" />
+                )}
+                WhatsApp 등록 안내 SMS 발송
+              </Button>
+            </div>
+
+            <div className="border-t pt-4">
               <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                첫 메시지 *
+                WhatsApp 메시지 (등록된 사용자만)
               </label>
               <Textarea
                 placeholder="보낼 메시지를 입력하세요..."
@@ -565,7 +626,7 @@ export default function WhatsAppChatManagement() {
                 className="min-h-[100px]"
               />
               <p className="text-xs text-gray-500 mt-1">
-                WhatsApp은 24시간 이내 응답 없으면 승인된 템플릿만 발송 가능합니다.
+                Sandbox 사용 시 상대방이 먼저 등록해야 메시지 발송 가능합니다.
               </p>
             </div>
           </div>
@@ -584,7 +645,7 @@ export default function WhatsAppChatManagement() {
               ) : (
                 <Send className="w-4 h-4 mr-2" />
               )}
-              메시지 발송
+              WhatsApp 메시지 발송
             </Button>
           </div>
         </DialogContent>
