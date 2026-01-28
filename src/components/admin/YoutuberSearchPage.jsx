@@ -121,11 +121,13 @@ export default function YoutuberSearchPage() {
   const [sheetSettings, setSheetSettings] = useState({
     korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
     japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
     us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
   })
   const [sheetData, setSheetData] = useState({
     korea: { data: [], loading: false, error: null },
     japan: { data: [], loading: false, error: null },
+    japan2: { data: [], loading: false, error: null },
     us: { data: [], loading: false, error: null }
   })
   const [selectedSheetCountry, setSelectedSheetCountry] = useState('korea')
@@ -190,12 +192,14 @@ export default function YoutuberSearchPage() {
         const defaultSettings = {
           korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
           japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
           us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
         }
         const mergedSettings = {
-          korea: { ...defaultSettings.korea, ...result.settings.korea },
-          japan: { ...defaultSettings.japan, ...result.settings.japan },
-          us: { ...defaultSettings.us, ...result.settings.us }
+          korea: { ...defaultSettings.korea, ...(result.settings.korea || {}) },
+          japan: { ...defaultSettings.japan, ...(result.settings.japan || {}) },
+          japan2: { ...defaultSettings.japan2, ...(result.settings.japan2 || {}) },
+          us: { ...defaultSettings.us, ...(result.settings.us || {}) }
         }
         setSheetSettings(mergedSettings)
       }
@@ -319,7 +323,7 @@ export default function YoutuberSearchPage() {
     setSendingStibee(true)
     try {
       // 선택된 크리에이터 정보 수집
-      const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.us.data]
+      const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
       const recipients = selectedSheetCreators.map(email => {
         const creator = allData.find(c => c.email === email)
         return {
@@ -1296,7 +1300,7 @@ export default function YoutuberSearchPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* 한국 시트 설정 */}
                     <div className="border rounded-lg p-4 bg-blue-50">
                       <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
@@ -1407,6 +1411,61 @@ export default function YoutuberSearchPage() {
                       </div>
                     </div>
 
+                    {/* 일본2 시트 설정 */}
+                    <div className="border rounded-lg p-4 bg-pink-50">
+                      <h4 className="font-medium text-pink-800 mb-3 flex items-center gap-2">
+                        🇯🇵 일본 2
+                      </h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
+                          <Input
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            value={sheetSettings.japan2.url}
+                            onChange={(e) => setSheetSettings(prev => ({
+                              ...prev,
+                              japan2: { ...prev.japan2, url: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <Input
+                              placeholder="A"
+                              value={sheetSettings.japan2.nameColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan2: { ...prev.japan2, nameColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                            <Input
+                              placeholder="B"
+                              value={sheetSettings.japan2.emailColumn}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan2: { ...prev.japan2, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                            <Input
+                              placeholder="gid (선택)"
+                              value={sheetSettings.japan2.sheetTab}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan2: { ...prev.japan2, sheetTab: e.target.value }
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* 미국 시트 설정 */}
                     <div className="border rounded-lg p-4 bg-purple-50">
                       <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
@@ -1509,10 +1568,11 @@ export default function YoutuberSearchPage() {
                 </CardHeader>
                 <CardContent>
                   {/* 국가 선택 탭 */}
-                  <div className="flex gap-2 mb-4">
+                  <div className="flex gap-2 mb-4 flex-wrap">
                     {[
                       { key: 'korea', label: '🇰🇷 한국', color: 'blue' },
                       { key: 'japan', label: '🇯🇵 일본', color: 'red' },
+                      { key: 'japan2', label: '🇯🇵 일본 2', color: 'pink' },
                       { key: 'us', label: '🇺🇸 미국', color: 'purple' }
                     ].map(({ key, label, color }) => (
                       <Button

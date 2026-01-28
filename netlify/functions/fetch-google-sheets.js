@@ -223,7 +223,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { action, sheetUrl, nameColumn, emailColumn, country, filterExisting, sheetTab } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+    const { action, sheetUrl, nameColumn, emailColumn, country, filterExisting, sheetTab, settings } = body
 
     if (action === 'fetch') {
       // Google Sheets에서 데이터 가져오기
@@ -269,7 +270,9 @@ exports.handler = async (event) => {
 
     if (action === 'save_settings') {
       // 시트 설정 저장 (site_settings 테이블 사용)
-      const { settings } = JSON.parse(event.body)
+      if (!settings) {
+        throw new Error('Settings not provided')
+      }
 
       const { error } = await supabase
         .from('site_settings')
