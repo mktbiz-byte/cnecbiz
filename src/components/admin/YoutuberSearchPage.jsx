@@ -119,9 +119,9 @@ export default function YoutuberSearchPage() {
 
   // Google Sheets 상태
   const [sheetSettings, setSheetSettings] = useState({
-    korea: { url: '', nameColumn: 'A', emailColumn: 'B' },
-    japan: { url: '', nameColumn: 'A', emailColumn: 'B' },
-    us: { url: '', nameColumn: 'A', emailColumn: 'B' }
+    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
   })
   const [sheetData, setSheetData] = useState({
     korea: { data: [], loading: false, error: null },
@@ -186,7 +186,18 @@ export default function YoutuberSearchPage() {
       })
       const result = await response.json()
       if (result.success && result.settings) {
-        setSheetSettings(result.settings)
+        // 기존 설정과 병합 (누락된 필드에 기본값 적용)
+        const defaultSettings = {
+          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
+          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
+        }
+        const mergedSettings = {
+          korea: { ...defaultSettings.korea, ...result.settings.korea },
+          japan: { ...defaultSettings.japan, ...result.settings.japan },
+          us: { ...defaultSettings.us, ...result.settings.us }
+        }
+        setSheetSettings(mergedSettings)
       }
     } catch (error) {
       console.error('Failed to load sheet settings:', error)
@@ -238,6 +249,7 @@ export default function YoutuberSearchPage() {
           sheetUrl: settings.url,
           nameColumn: settings.nameColumn,
           emailColumn: settings.emailColumn,
+          sheetTab: settings.sheetTab,
           country: country,
           filterExisting: filterExistingUsers
         })
@@ -1302,7 +1314,7 @@ export default function YoutuberSearchPage() {
                             }))}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
                             <Input
@@ -1322,6 +1334,17 @@ export default function YoutuberSearchPage() {
                               onChange={(e) => setSheetSettings(prev => ({
                                 ...prev,
                                 korea: { ...prev.korea, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                            <Input
+                              placeholder="gid (선택)"
+                              value={sheetSettings.korea.sheetTab}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                korea: { ...prev.korea, sheetTab: e.target.value }
                               }))}
                             />
                           </div>
@@ -1346,7 +1369,7 @@ export default function YoutuberSearchPage() {
                             }))}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
                             <Input
@@ -1366,6 +1389,17 @@ export default function YoutuberSearchPage() {
                               onChange={(e) => setSheetSettings(prev => ({
                                 ...prev,
                                 japan: { ...prev.japan, emailColumn: e.target.value.toUpperCase() }
+                              }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                            <Input
+                              placeholder="gid (선택)"
+                              value={sheetSettings.japan.sheetTab}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                japan: { ...prev.japan, sheetTab: e.target.value }
                               }))}
                             />
                           </div>
@@ -1390,7 +1424,7 @@ export default function YoutuberSearchPage() {
                             }))}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
                             <Input
@@ -1413,15 +1447,32 @@ export default function YoutuberSearchPage() {
                               }))}
                             />
                           </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                            <Input
+                              placeholder="gid (선택)"
+                              value={sheetSettings.us.sheetTab}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                us: { ...prev.us, sheetTab: e.target.value }
+                              }))}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* 안내 */}
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                    <Info className="h-4 w-4 inline mr-2" />
-                    Google Sheets는 <strong>"링크가 있는 모든 사용자"</strong>가 볼 수 있게 공유 설정되어 있어야 합니다.
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 space-y-1">
+                    <p>
+                      <Info className="h-4 w-4 inline mr-2" />
+                      Google Sheets는 <strong>"링크가 있는 모든 사용자 - 뷰어"</strong>로 공유 설정되어 있어야 합니다.
+                    </p>
+                    <p className="text-xs text-yellow-700 ml-6">
+                      <strong>시트 탭(gid):</strong> 같은 스프레드시트 내 여러 탭이 있는 경우, URL의 <code className="bg-yellow-100 px-1">#gid=123456</code> 부분의 숫자를 입력하세요.
+                      첫 번째 탭은 0입니다.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

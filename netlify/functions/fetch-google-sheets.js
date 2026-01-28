@@ -5,22 +5,47 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 // Google Sheets public URL에서 데이터 가져오기
-const fetchSheetData = async (sheetUrl, nameColumn, emailColumn) => {
+const fetchSheetData = async (sheetUrl, nameColumn, emailColumn, sheetTab) => {
   try {
-    // Google Sheets URL에서 spreadsheet ID 추출
-    // Format: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit...
-    const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)
-    if (!match) {
+    // Google Sheets URL에서 spreadsheet ID와 gid 추출
+    // Format: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={GID}
+    const idMatch = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)
+    if (!idMatch) {
       throw new Error('Invalid Google Sheets URL')
     }
-    const spreadsheetId = match[1]
+    const spreadsheetId = idMatch[1]
 
-    // 공개 시트의 경우 CSV export URL 사용
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`
+    // URL에서 gid 추출 시도
+    let gid = '0' // 기본값: 첫 번째 시트
+    const gidMatch = sheetUrl.match(/gid=(\d+)/)
+    if (gidMatch) {
+      gid = gidMatch[1]
+    }
+
+    // sheetTab 파라미터가 있으면 해당 값 사용 (시트 번호 또는 gid)
+    if (sheetTab) {
+      // 숫자면 gid로 사용, 아니면 시트 이름으로 간주
+      if (/^\d+$/.test(sheetTab)) {
+        gid = sheetTab
+      }
+    }
+
+    // 공개 시트의 경우 CSV export URL 사용 (gid 포함)
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`
 
     console.log(`Fetching sheet: ${csvUrl}`)
 
-    const response = await fetch(csvUrl)
+    const response = await fetch(csvUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; GoogleDocs)'
+      }
+    })
+
+    // 401/403 에러 처리
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('시트 접근 권한이 없습니다. Google Sheets 공유 설정에서 "링크가 있는 모든 사용자 - 뷰어"로 설정해주세요.')
+    }
+
     if (!response.ok) {
       throw new Error(`Failed to fetch sheet: ${response.status} ${response.statusText}`)
     }
@@ -198,11 +223,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { action, sheetUrl, nameColumn, emailColumn, country, filterExisting } = JSON.parse(event.body)
+    const { action, sheetUrl, nameColumn, emailColumn, country, filterExisting, sheetTab } = JSON.parse(event.body)
 
     if (action === 'fetch') {
       // Google Sheets에서 데이터 가져오기
-      const result = await fetchSheetData(sheetUrl, nameColumn, emailColumn)
+      const result = await fetchSheetData(sheetUrl, nameColumn, emailColumn, sheetTab)
 
       if (!result.success) {
         return {
