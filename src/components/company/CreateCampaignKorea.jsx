@@ -647,16 +647,19 @@ const CampaignCreationKorea = () => {
           }
         }
 
-        // estimated_cost 재계산 (패키지 가격 × 인원 × 1.1 VAT)
+        // estimated_cost 재계산 (패키지 가격 + bonus_amount) × 인원 × 1.1 VAT
         let recalculatedCost = data.estimated_cost
         const slots = data.total_slots || 1
+        const bonus = data.bonus_amount || 0
+
+        console.log('[loadCampaign] Loaded campaign - bonus_amount:', bonus, 'estimated_cost:', data.estimated_cost)
 
         if (data.campaign_type === '4week_challenge') {
           const pkg = fourWeekPackageOptions.find(p => p.value === data.package_type) || fourWeekPackageOptions[0]
-          recalculatedCost = calculateFinalCost(pkg.price, slots, false)
+          recalculatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
         } else if (data.campaign_type === 'oliveyoung') {
           const pkg = oliveyoungPackageOptions.find(p => p.value === data.package_type) || oliveyoungPackageOptions[0]
-          recalculatedCost = calculateFinalCost(pkg.price, slots)
+          recalculatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
         } else {
           const pkg = packageOptions.find(p => p.value === data.package_type)
           if (pkg) {
@@ -953,6 +956,8 @@ const CampaignCreationKorea = () => {
         const bonus = campaignForm.bonus_amount || 0
         calculatedEstimatedCost = Math.round((basePrice + bonus) * slots * 1.1)
       }
+
+      console.log('[CreateCampaignKorea] Saving - bonus_amount:', campaignForm.bonus_amount, 'estimated_cost:', calculatedEstimatedCost)
 
       // DB에 저장할 필드만 명시적으로 선택 (화이트리스트 방식)
       const allowedFields = {
