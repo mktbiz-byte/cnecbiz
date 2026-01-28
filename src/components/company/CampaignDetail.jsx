@@ -7298,6 +7298,13 @@ JSON만 출력.`
                             {!isAlreadyParticipant && (
                               <button
                                 onClick={async () => {
+                                  // 모집인원 제한 체크
+                                  const totalSlots = campaign?.total_slots || 0
+                                  const currentSelectedCount = participants.length
+                                  if (totalSlots > 0 && currentSelectedCount >= totalSlots) {
+                                    alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 선정 크리에이터: ${currentSelectedCount}명`)
+                                    return
+                                  }
                                   if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                                   try {
                                     const { error } = await supabase.from('applications').update({
