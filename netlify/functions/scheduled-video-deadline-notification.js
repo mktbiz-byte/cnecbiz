@@ -21,9 +21,20 @@ const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
 const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
+const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
 
-// 팝빌 카카오톡 서비스 초기화 (credentials 직접 전달 방식)
-const kakaoService = popbill.KakaoService(POPBILL_LINK_ID, POPBILL_SECRET_KEY);
+// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
+popbill.config({
+  LinkID: POPBILL_LINK_ID,
+  SecretKey: POPBILL_SECRET_KEY,
+  IsTest: false, // 운영환경
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true
+});
+
+// 팝빌 카카오톡 서비스 초기화
+const kakaoService = popbill.KakaoService();
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -170,6 +181,21 @@ const createSupabaseClient = () => {
 
   if (supabaseUrl && supabaseKey) {
     return createClient(supabaseUrl, supabaseKey);
+  }
+  return null;
+};
+
+// 날짜 문자열에서 YYYY-MM-DD 부분만 추출 (timestamp/date 타입 모두 처리)
+const getDatePart = (dateValue) => {
+  if (!dateValue) return null;
+  if (typeof dateValue === 'string') {
+    // "2026-01-29T00:00:00+00:00" -> "2026-01-29"
+    // "2026-01-29" -> "2026-01-29"
+    return dateValue.substring(0, 10);
+  }
+  // Date 객체인 경우
+  if (dateValue instanceof Date) {
+    return dateValue.toISOString().split('T')[0];
   }
   return null;
 };
@@ -471,12 +497,12 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
       templateCode,
       POPBILL_SENDER_NUM,
       content,
-      altContent,  // 대체 문자 내용
-      'A',         // altSendType: 'A' = 알림톡 실패시 대체문자 발송
+      content,     // 대체 문자 내용 (알림톡과 동일)
+      'C',         // altSendType: 'C' = 알림톡과 동일한 내용으로 대체문자 발송
       '',          // sndDT (즉시 발송)
       receiverNum.replace(/-/g, ''),  // 전화번호 하이픈 제거
-      receiverName,
-      '',          // userID
+      receiverName || '',
+      POPBILL_USER_ID,  // userID
       '',          // requestNum
       null,        // btns
       (receiptNum) => {
@@ -561,23 +587,23 @@ exports.handler = async (event, context) => {
           continue;
         }
 
-        // 캠페인 타입별 마감일 필터링
+        // 캠페인 타입별 마감일 필터링 (getDatePart로 timestamp/date 타입 모두 처리)
         const matchingCampaigns = (regionCampaigns || []).filter(campaign => {
           const type = (campaign.campaign_type || '').toLowerCase();
 
           if (type.includes('4week') || type.includes('challenge')) {
             // 4주 챌린지: 4개 마감일 체크
-            return campaign.week1_deadline === date ||
-                   campaign.week2_deadline === date ||
-                   campaign.week3_deadline === date ||
-                   campaign.week4_deadline === date;
+            return getDatePart(campaign.week1_deadline) === date ||
+                   getDatePart(campaign.week2_deadline) === date ||
+                   getDatePart(campaign.week3_deadline) === date ||
+                   getDatePart(campaign.week4_deadline) === date;
           } else if (type.includes('olive') || type.includes('올리브')) {
             // 올리브영: 2개 마감일 체크
-            return campaign.step1_deadline === date ||
-                   campaign.step2_deadline === date;
+            return getDatePart(campaign.step1_deadline) === date ||
+                   getDatePart(campaign.step2_deadline) === date;
           } else {
             // 기획형/일반: 1개 마감일 체크
-            return campaign.content_submission_deadline === date;
+            return getDatePart(campaign.content_submission_deadline) === date;
           }
         });
 
@@ -671,14 +697,14 @@ exports.handler = async (event, context) => {
 
           if (campaignType === '4week_challenge') {
             videoFieldName = 'week_number';
-            if (campaign.week1_deadline === date) targetVideoNumber = 1;
-            else if (campaign.week2_deadline === date) targetVideoNumber = 2;
-            else if (campaign.week3_deadline === date) targetVideoNumber = 3;
-            else if (campaign.week4_deadline === date) targetVideoNumber = 4;
+            if (getDatePart(campaign.week1_deadline) === date) targetVideoNumber = 1;
+            else if (getDatePart(campaign.week2_deadline) === date) targetVideoNumber = 2;
+            else if (getDatePart(campaign.week3_deadline) === date) targetVideoNumber = 3;
+            else if (getDatePart(campaign.week4_deadline) === date) targetVideoNumber = 4;
           } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
             videoFieldName = 'video_number';
-            if (campaign.step1_deadline === date) targetVideoNumber = 1;
-            else if (campaign.step2_deadline === date) targetVideoNumber = 2;
+            if (getDatePart(campaign.step1_deadline) === date) targetVideoNumber = 1;
+            else if (getDatePart(campaign.step2_deadline) === date) targetVideoNumber = 2;
           }
 
           // video_submissions에서 해당 영상이 제출됐는지 확인

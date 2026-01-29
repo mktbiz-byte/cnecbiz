@@ -5,6 +5,18 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+// 날짜 문자열에서 YYYY-MM-DD 부분만 추출 (timestamp/date 타입 모두 처리)
+const getDatePart = (dateValue) => {
+  if (!dateValue) return null;
+  if (typeof dateValue === 'string') {
+    return dateValue.substring(0, 10);
+  }
+  if (dateValue instanceof Date) {
+    return dateValue.toISOString().split('T')[0];
+  }
+  return null;
+};
+
 exports.handler = async (event) => {
   console.log('=== 영상 제출 마감일 알림 대상 조회 테스트 ===');
 
@@ -64,21 +76,21 @@ exports.handler = async (event) => {
 
     results.totalCampaigns = campaigns?.length || 0;
 
-    // 마감일 필터링
+    // 마감일 필터링 (getDatePart로 timestamp/date 타입 모두 처리)
     const deadlineDates = [in3DaysStr, in2DaysStr, todayStr];
     const matchingCampaigns = (campaigns || []).filter(campaign => {
       const type = (campaign.campaign_type || '').toLowerCase();
 
       if (type.includes('4week') || type.includes('challenge')) {
-        return deadlineDates.includes(campaign.week1_deadline) ||
-               deadlineDates.includes(campaign.week2_deadline) ||
-               deadlineDates.includes(campaign.week3_deadline) ||
-               deadlineDates.includes(campaign.week4_deadline);
+        return deadlineDates.includes(getDatePart(campaign.week1_deadline)) ||
+               deadlineDates.includes(getDatePart(campaign.week2_deadline)) ||
+               deadlineDates.includes(getDatePart(campaign.week3_deadline)) ||
+               deadlineDates.includes(getDatePart(campaign.week4_deadline));
       } else if (type.includes('olive') || type.includes('올리브')) {
-        return deadlineDates.includes(campaign.step1_deadline) ||
-               deadlineDates.includes(campaign.step2_deadline);
+        return deadlineDates.includes(getDatePart(campaign.step1_deadline)) ||
+               deadlineDates.includes(getDatePart(campaign.step2_deadline));
       } else {
-        return deadlineDates.includes(campaign.content_submission_deadline);
+        return deadlineDates.includes(getDatePart(campaign.content_submission_deadline));
       }
     });
 
