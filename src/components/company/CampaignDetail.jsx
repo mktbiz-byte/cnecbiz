@@ -8416,6 +8416,11 @@ JSON만 출력.`
                       v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
+                    // clean_video_url이 있는 영상이 있으면 표시 (클린본 제출 시 status와 무관하게)
+                    const hasCleanVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.clean_video_url
+                    )
+                    if (hasCleanVideo) return true
                     return false
                   })
 
@@ -8501,6 +8506,11 @@ JSON만 출력.`
                       v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
+                    // clean_video_url이 있는 영상이 있으면 표시 (클린본 제출 시 status와 무관하게)
+                    const hasCleanVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.clean_video_url
+                    )
+                    if (hasCleanVideo) return true
                     return false
                   })
 
@@ -8516,9 +8526,10 @@ JSON만 출력.`
                   return (
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
-                      // 해당 크리에이터의 승인된 영상들 (video_number별 최신 버전만)
+                      // 해당 크리에이터의 승인된 영상들 또는 클린본이 있는 영상들 (video_number별 최신 버전만)
                       const allSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
+                        sub => sub.user_id === participant.user_id &&
+                        (['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) || sub.clean_video_url)
                       )
 
                       // video_number별로 그룹화하여 최신 버전만 유지
