@@ -8612,24 +8612,28 @@ JSON만 출력.`
                                     </h5>
                                     <div className="space-y-3">
                                       {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                        // SNS URL 가져오기
-                                        let snsUrl = submission.sns_upload_url
-                                        if (!snsUrl && is4WeekChallenge && submission.week_number) {
+                                        // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                        let snsUrl = null
+                                        if (is4WeekChallenge && submission.week_number) {
                                           snsUrl = participant[`week${submission.week_number}_url`]
-                                        } else if (!snsUrl && isOliveyoung && submission.video_number) {
+                                        } else if (isOliveyoung && submission.video_number) {
                                           snsUrl = participant[`step${submission.video_number}_url`]
                                         }
+                                        // participant에 없으면 submission에서 가져오기
+                                        if (!snsUrl) snsUrl = submission.sns_upload_url
                                         if (!snsUrl) snsUrl = participant.sns_upload_url
 
-                                        // 광고코드 가져오기
-                                        let adCode = submission.ad_code || submission.partnership_code
-                                        if (!adCode && is4WeekChallenge && submission.week_number) {
+                                        // 광고코드 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                        let adCode = null
+                                        if (is4WeekChallenge && submission.week_number) {
                                           adCode = participant[`week${submission.week_number}_partnership_code`]
-                                        } else if (!adCode && isOliveyoung && submission.video_number) {
+                                        } else if (isOliveyoung && submission.video_number) {
                                           adCode = submission.video_number === 3
                                             ? participant.step3_partnership_code
                                             : participant.step1_2_partnership_code
                                         }
+                                        // participant에 없으면 submission에서 가져오기
+                                        if (!adCode) adCode = submission.ad_code || submission.partnership_code
                                         if (!adCode) adCode = participant.partnership_code
 
                                         return (
@@ -8821,8 +8825,10 @@ JSON만 출력.`
                                       </h5>
                                       <div className="space-y-3">
                                         {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                          const snsUrl = submission.sns_upload_url || participant.sns_upload_url
-                                          const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
+                                          // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
+                                          const snsUrl = participant.sns_upload_url || submission.sns_upload_url
+                                          // 광고코드 가져오기 (participant 데이터 우선)
+                                          const adCode = participant.partnership_code || submission.ad_code || submission.partnership_code
 
                                           return (
                                             <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
@@ -9306,14 +9312,193 @@ JSON만 출력.`
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-center py-3 text-gray-500 text-sm">
-                                  제출된 영상이 없습니다.
-                                  {participant.content_url && (
-                                    <a href={participant.content_url} target="_blank" rel="noopener noreferrer"
-                                       className="inline-flex items-center gap-1 text-blue-600 hover:underline ml-2">
-                                      <ExternalLink className="w-3 h-3" /> 콘텐츠 보기
-                                    </a>
-                                  )}
+                                <div className="bg-white rounded-lg p-4">
+                                  {/* 영상 없이 SNS URL/광고코드만 입력된 경우 - 영상 이력도 체크 */}
+                                  {(() => {
+                                    // 해당 유저의 모든 영상 제출 기록 (승인 상태 무관)
+                                    const allUserVideos = videoSubmissions.filter(sub => sub.user_id === participant.user_id)
+                                    const videosWithFile = allUserVideos.filter(sub => sub.video_file_url)
+                                    const videosWithClean = allUserVideos.filter(sub => sub.clean_video_url)
+                                    const hasAnyVideo = videosWithFile.length > 0 || videosWithClean.length > 0
+                                    const hasSnsOrCode = participant.sns_upload_url || participant.partnership_code
+
+                                    if (!hasSnsOrCode && !hasAnyVideo) {
+                                      return (
+                                        <div className="text-center py-3 text-gray-500 text-sm">
+                                          제출된 영상이 없습니다.
+                                          {participant.content_url && (
+                                            <a href={participant.content_url} target="_blank" rel="noopener noreferrer"
+                                               className="inline-flex items-center gap-1 text-blue-600 hover:underline ml-2">
+                                              <ExternalLink className="w-3 h-3" /> 콘텐츠 보기
+                                            </a>
+                                          )}
+                                        </div>
+                                      )
+                                    }
+
+                                    return (
+                                      <div className="space-y-4">
+                                        {/* 영상 파일이 있는 경우 표시 */}
+                                        {hasAnyVideo && (
+                                          <>
+                                            {/* 편집본 */}
+                                            {videosWithFile.length > 0 && (
+                                              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                                <h6 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+                                                  <Video className="w-4 h-4" />
+                                                  편집본
+                                                  <Badge className="bg-blue-600 text-white text-xs">{videosWithFile.length}개</Badge>
+                                                </h6>
+                                                <div className="space-y-2">
+                                                  {videosWithFile.map((video, idx) => (
+                                                    <div key={video.id} className="flex items-center justify-between bg-white rounded p-2 text-sm">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-gray-700">
+                                                          {video.week_number ? `${video.week_number}주차` : video.video_number ? `영상 ${video.video_number}` : `영상 ${idx + 1}`}
+                                                        </span>
+                                                        <Badge variant="outline" className="text-xs">{video.status}</Badge>
+                                                        <span className="text-xs text-gray-500">{new Date(video.submitted_at).toLocaleDateString('ko-KR')}</span>
+                                                      </div>
+                                                      <Button
+                                                        size="sm"
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white h-7"
+                                                        onClick={async () => {
+                                                          try {
+                                                            const response = await fetch(signedVideoUrls[video.id] || video.video_file_url)
+                                                            const blob = await response.blob()
+                                                            const blobUrl = window.URL.createObjectURL(blob)
+                                                            const link = document.createElement('a')
+                                                            link.href = blobUrl
+                                                            link.download = `${participant.creator_name || participant.applicant_name || 'creator'}_편집본_${new Date(video.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                            document.body.appendChild(link)
+                                                            link.click()
+                                                            document.body.removeChild(link)
+                                                            window.URL.revokeObjectURL(blobUrl)
+                                                          } catch (e) {
+                                                            window.open(signedVideoUrls[video.id] || video.video_file_url, '_blank')
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Download className="w-3 h-3 mr-1" />
+                                                        다운로드
+                                                      </Button>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* 클린본 */}
+                                            {videosWithClean.length > 0 && (
+                                              <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                                                <h6 className="font-medium text-emerald-800 mb-2 flex items-center gap-2">
+                                                  <Video className="w-4 h-4" />
+                                                  클린본
+                                                  <Badge className="bg-emerald-600 text-white text-xs">{videosWithClean.length}개</Badge>
+                                                </h6>
+                                                <div className="space-y-2">
+                                                  {videosWithClean.map((video, idx) => (
+                                                    <div key={video.id} className="flex items-center justify-between bg-white rounded p-2 text-sm">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-gray-700">
+                                                          {video.week_number ? `${video.week_number}주차` : video.video_number ? `영상 ${video.video_number}` : `영상 ${idx + 1}`}
+                                                        </span>
+                                                        <Badge variant="outline" className="text-xs">{video.status}</Badge>
+                                                        <span className="text-xs text-gray-500">{new Date(video.submitted_at).toLocaleDateString('ko-KR')}</span>
+                                                      </div>
+                                                      <Button
+                                                        size="sm"
+                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+                                                        onClick={async () => {
+                                                          try {
+                                                            const response = await fetch(video.clean_video_url)
+                                                            const blob = await response.blob()
+                                                            const blobUrl = window.URL.createObjectURL(blob)
+                                                            const link = document.createElement('a')
+                                                            link.href = blobUrl
+                                                            link.download = `${participant.creator_name || participant.applicant_name || 'creator'}_클린본_${new Date(video.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                            document.body.appendChild(link)
+                                                            link.click()
+                                                            document.body.removeChild(link)
+                                                            window.URL.revokeObjectURL(blobUrl)
+                                                          } catch (e) {
+                                                            window.open(video.clean_video_url, '_blank')
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Download className="w-3 h-3 mr-1" />
+                                                        다운로드
+                                                      </Button>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </>
+                                        )}
+
+                                        {/* SNS URL / 광고코드 섹션 */}
+                                        {hasSnsOrCode && (
+                                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                            <h6 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                                              <Link className="w-4 h-4" />
+                                              SNS / 광고코드
+                                            </h6>
+                                            <div className="space-y-2">
+                                              {/* SNS URL */}
+                                              {participant.sns_upload_url && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                  <span className="text-gray-600 font-medium min-w-[70px]">SNS URL:</span>
+                                                  <a href={participant.sns_upload_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">
+                                                    {participant.sns_upload_url}
+                                                  </a>
+                                                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { navigator.clipboard.writeText(participant.sns_upload_url); alert('SNS 링크가 복사되었습니다!') }}>
+                                                    <Copy className="w-3 h-3" />
+                                                  </Button>
+                                                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => window.open(participant.sns_upload_url, '_blank')}>
+                                                    <ExternalLink className="w-3 h-3" />
+                                                  </Button>
+                                                </div>
+                                              )}
+                                              {/* 광고코드 */}
+                                              {participant.partnership_code && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                  <Hash className="w-4 h-4 text-orange-500" />
+                                                  <span className="text-gray-600 font-medium min-w-[70px]">광고코드:</span>
+                                                  <code className="text-sm bg-orange-50 text-orange-700 px-2 py-1 rounded">{participant.partnership_code}</code>
+                                                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { navigator.clipboard.writeText(participant.partnership_code); alert('광고코드가 복사되었습니다!') }}>
+                                                    <Copy className="w-3 h-3" />
+                                                  </Button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* 수정 버튼 */}
+                                        <div className="pt-2 border-t border-gray-200">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-gray-600"
+                                            onClick={() => {
+                                              setAdminSnsEditData({
+                                                participantId: participant.id,
+                                                userId: participant.user_id,
+                                                snsUrl: participant.sns_upload_url || '',
+                                                adCode: participant.partnership_code || '',
+                                                isEditMode: true
+                                              })
+                                              setShowAdminSnsEditModal(true)
+                                            }}
+                                          >
+                                            <Edit2 className="w-3 h-3 mr-1" />
+                                            수정
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
                               )}
                             </div>
