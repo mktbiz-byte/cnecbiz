@@ -174,6 +174,21 @@ const createSupabaseClient = () => {
   return null;
 };
 
+// 날짜 문자열에서 YYYY-MM-DD 부분만 추출 (timestamp/date 타입 모두 처리)
+const getDatePart = (dateValue) => {
+  if (!dateValue) return null;
+  if (typeof dateValue === 'string') {
+    // "2026-01-29T00:00:00+00:00" -> "2026-01-29"
+    // "2026-01-29" -> "2026-01-29"
+    return dateValue.substring(0, 10);
+  }
+  // Date 객체인 경우
+  if (dateValue instanceof Date) {
+    return dateValue.toISOString().split('T')[0];
+  }
+  return null;
+};
+
 // 크리에이터 이메일 발송 함수
 const sendCreatorEmail = async (to, creatorName, campaignName, deadline, daysRemaining) => {
   const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
@@ -561,23 +576,23 @@ exports.handler = async (event, context) => {
           continue;
         }
 
-        // 캠페인 타입별 마감일 필터링
+        // 캠페인 타입별 마감일 필터링 (getDatePart로 timestamp/date 타입 모두 처리)
         const matchingCampaigns = (regionCampaigns || []).filter(campaign => {
           const type = (campaign.campaign_type || '').toLowerCase();
 
           if (type.includes('4week') || type.includes('challenge')) {
             // 4주 챌린지: 4개 마감일 체크
-            return campaign.week1_deadline === date ||
-                   campaign.week2_deadline === date ||
-                   campaign.week3_deadline === date ||
-                   campaign.week4_deadline === date;
+            return getDatePart(campaign.week1_deadline) === date ||
+                   getDatePart(campaign.week2_deadline) === date ||
+                   getDatePart(campaign.week3_deadline) === date ||
+                   getDatePart(campaign.week4_deadline) === date;
           } else if (type.includes('olive') || type.includes('올리브')) {
             // 올리브영: 2개 마감일 체크
-            return campaign.step1_deadline === date ||
-                   campaign.step2_deadline === date;
+            return getDatePart(campaign.step1_deadline) === date ||
+                   getDatePart(campaign.step2_deadline) === date;
           } else {
             // 기획형/일반: 1개 마감일 체크
-            return campaign.content_submission_deadline === date;
+            return getDatePart(campaign.content_submission_deadline) === date;
           }
         });
 
@@ -671,14 +686,14 @@ exports.handler = async (event, context) => {
 
           if (campaignType === '4week_challenge') {
             videoFieldName = 'week_number';
-            if (campaign.week1_deadline === date) targetVideoNumber = 1;
-            else if (campaign.week2_deadline === date) targetVideoNumber = 2;
-            else if (campaign.week3_deadline === date) targetVideoNumber = 3;
-            else if (campaign.week4_deadline === date) targetVideoNumber = 4;
+            if (getDatePart(campaign.week1_deadline) === date) targetVideoNumber = 1;
+            else if (getDatePart(campaign.week2_deadline) === date) targetVideoNumber = 2;
+            else if (getDatePart(campaign.week3_deadline) === date) targetVideoNumber = 3;
+            else if (getDatePart(campaign.week4_deadline) === date) targetVideoNumber = 4;
           } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
             videoFieldName = 'video_number';
-            if (campaign.step1_deadline === date) targetVideoNumber = 1;
-            else if (campaign.step2_deadline === date) targetVideoNumber = 2;
+            if (getDatePart(campaign.step1_deadline) === date) targetVideoNumber = 1;
+            else if (getDatePart(campaign.step2_deadline) === date) targetVideoNumber = 2;
           }
 
           // video_submissions에서 해당 영상이 제출됐는지 확인
