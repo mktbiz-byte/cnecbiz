@@ -889,33 +889,35 @@ export default function CampaignDetail() {
         console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
       }
 
-      // BIZ DB에 데이터가 있더라도 Korea DB에서 clean_video_url 병합 (cnec.co.kr에서 업로드된 클린본)
-      if (combinedData.length > 0 && supabaseKorea) {
+      // Korea DB에서 clean_video_url 병합 및 Korea DB에만 있는 참가자 추가 (cnec.co.kr에서 업로드된 클린본)
+      if (supabaseKorea) {
         try {
+          // Korea DB applications 테이블에는 email, creator_name 컬럼이 없음 - 전체 데이터 가져오기
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('user_id, email, applicant_name, creator_name, clean_video_url, sns_upload_url, partnership_code')
+            .select('*')
             .eq('campaign_id', id)
+            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
 
           if (koreaApps && koreaApps.length > 0) {
             console.log('[fetchParticipants] Korea DB applications:', koreaApps.length, '개, clean_video_url 있는 것:', koreaApps.filter(k => k.clean_video_url).length, '개')
-            // user_id, email, 이름으로 매칭하여 clean_video_url 병합
+
+            // BIZ DB에 있는 항목에 Korea 데이터 병합
+            const matchedKoreaIds = new Set()
             combinedData = combinedData.map(bizApp => {
-              // 매칭 우선순위: user_id > email > 이름
+              // 매칭 우선순위: user_id > 이름
               let koreaApp = koreaApps.find(k => k.user_id && k.user_id === bizApp.user_id)
-              if (!koreaApp && bizApp.email) {
-                koreaApp = koreaApps.find(k => k.email && k.email.toLowerCase() === bizApp.email.toLowerCase())
-              }
               if (!koreaApp) {
                 const bizName = (bizApp.applicant_name || bizApp.creator_name || '').toLowerCase().trim()
                 if (bizName) {
                   koreaApp = koreaApps.find(k => {
-                    const koreaName = (k.applicant_name || k.creator_name || '').toLowerCase().trim()
+                    const koreaName = (k.applicant_name || '').toLowerCase().trim()
                     return koreaName && koreaName === bizName
                   })
                 }
               }
               if (koreaApp) {
+                matchedKoreaIds.add(koreaApp.id)
                 console.log('[fetchParticipants] 매칭됨:', bizApp.applicant_name || bizApp.creator_name, '-> clean_video_url:', !!koreaApp.clean_video_url)
                 return {
                   ...bizApp,
@@ -926,9 +928,22 @@ export default function CampaignDetail() {
               }
               return bizApp
             })
+
+            // Korea DB에만 있는 참가자 추가 (BIZ DB에 없는 것들)
+            const koreaOnlyApps = koreaApps.filter(k => !matchedKoreaIds.has(k.id))
+            if (koreaOnlyApps.length > 0) {
+              console.log('[fetchParticipants] Korea DB에만 있는 참가자:', koreaOnlyApps.length, '명 추가')
+              // Korea DB 데이터 형식을 BIZ DB 형식에 맞게 변환
+              const koreaAppsFormatted = koreaOnlyApps.map(k => ({
+                ...k,
+                creator_name: k.applicant_name, // Korea DB에는 creator_name이 없으므로 applicant_name 사용
+                source_db: 'korea' // 소스 DB 표시
+              }))
+              combinedData = [...combinedData, ...koreaAppsFormatted]
+            }
           }
         } catch (e) {
-          console.log('[fetchParticipants] Korea DB clean_video_url 병합 실패:', e.message)
+          console.log('[fetchParticipants] Korea DB 병합 실패:', e.message)
         }
       }
 
