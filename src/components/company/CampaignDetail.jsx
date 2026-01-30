@@ -8532,15 +8532,28 @@ JSON만 출력.`
                         (['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) || sub.clean_video_url)
                       )
 
-                      // video_number별로 그룹화하여 최신 버전만 유지
+                      // video_number별로 그룹화하여 최신 버전만 유지 (클린본 병합)
                       const latestByVideoNumber = {}
                       allSubmissions.forEach(sub => {
                         const key = sub.video_number || sub.week_number || 'default'
                         const existing = latestByVideoNumber[key]
+
+                        // 비교 기준: updated_at > submitted_at > version
+                        const subTime = new Date(sub.updated_at || sub.submitted_at || 0)
+                        const existingTime = existing ? new Date(existing.updated_at || existing.submitted_at || 0) : new Date(0)
+
                         if (!existing ||
                             (sub.version || 0) > (existing.version || 0) ||
-                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
-                          latestByVideoNumber[key] = sub
+                            subTime > existingTime) {
+                          // 기존 레코드의 clean_video_url 보존 (병합)
+                          if (existing?.clean_video_url && !sub.clean_video_url) {
+                            latestByVideoNumber[key] = { ...sub, clean_video_url: existing.clean_video_url }
+                          } else {
+                            latestByVideoNumber[key] = sub
+                          }
+                        } else if (sub.clean_video_url && !existing.clean_video_url) {
+                          // 새 레코드에 클린본이 있으면 기존 레코드에 병합
+                          latestByVideoNumber[key] = { ...existing, clean_video_url: sub.clean_video_url }
                         }
                       })
 
