@@ -894,15 +894,29 @@ export default function CampaignDetail() {
         try {
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('user_id, clean_video_url, sns_upload_url, partnership_code')
+            .select('user_id, email, applicant_name, creator_name, clean_video_url, sns_upload_url, partnership_code')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
-            console.log('[fetchParticipants] Korea DB clean_video_url 병합:', koreaApps.filter(k => k.clean_video_url).length, '개')
-            // user_id로 매칭하여 clean_video_url 병합
+            console.log('[fetchParticipants] Korea DB applications:', koreaApps.length, '개, clean_video_url 있는 것:', koreaApps.filter(k => k.clean_video_url).length, '개')
+            // user_id, email, 이름으로 매칭하여 clean_video_url 병합
             combinedData = combinedData.map(bizApp => {
-              const koreaApp = koreaApps.find(k => k.user_id === bizApp.user_id)
+              // 매칭 우선순위: user_id > email > 이름
+              let koreaApp = koreaApps.find(k => k.user_id && k.user_id === bizApp.user_id)
+              if (!koreaApp && bizApp.email) {
+                koreaApp = koreaApps.find(k => k.email && k.email.toLowerCase() === bizApp.email.toLowerCase())
+              }
+              if (!koreaApp) {
+                const bizName = (bizApp.applicant_name || bizApp.creator_name || '').toLowerCase().trim()
+                if (bizName) {
+                  koreaApp = koreaApps.find(k => {
+                    const koreaName = (k.applicant_name || k.creator_name || '').toLowerCase().trim()
+                    return koreaName && koreaName === bizName
+                  })
+                }
+              }
               if (koreaApp) {
+                console.log('[fetchParticipants] 매칭됨:', bizApp.applicant_name || bizApp.creator_name, '-> clean_video_url:', !!koreaApp.clean_video_url)
                 return {
                   ...bizApp,
                   clean_video_url: koreaApp.clean_video_url || bizApp.clean_video_url,
@@ -1419,26 +1433,69 @@ export default function CampaignDetail() {
 
   const fetchVideoSubmissions = async () => {
     try {
-      // video_submissions는 항상 supabaseKorea에 저장됨 (supabaseKorea가 없으면 supabaseBiz fallback)
-      const videoClient = supabaseKorea || supabaseBiz
-      if (!videoClient) {
-        console.error('No supabase client available for video submissions')
-        return
+      let allVideoSubmissions = []
+
+      // 1. Korea DB에서 video_submissions 가져오기
+      if (supabaseKorea) {
+        console.log('Fetching video submissions from Korea DB for campaign_id:', id)
+        const { data: koreaData, error: koreaError } = await supabaseKorea
+          .from('video_submissions')
+          .select('*')
+          .eq('campaign_id', id)
+          .order('created_at', { ascending: false })
+
+        if (koreaError) {
+          console.error('Korea video submissions query error:', koreaError)
+        } else if (koreaData && koreaData.length > 0) {
+          allVideoSubmissions = [...koreaData]
+          console.log('Fetched video submissions from Korea DB:', koreaData.length)
+        }
       }
 
-      console.log('Fetching video submissions for campaign_id:', id)
-      const { data, error } = await videoClient
+      // 2. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
+      console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
+      const { data: bizData, error: bizError } = await supabaseBiz
         .from('video_submissions')
         .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Video submissions query error:', error)
-        throw error
+      if (bizError) {
+        console.error('BIZ video submissions query error:', bizError)
+      } else if (bizData && bizData.length > 0) {
+        // 중복 제외하고 병합 (id로 체크)
+        const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+        const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
+        if (newFromBiz.length > 0) {
+          allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
+          console.log('Added video submissions from BIZ DB:', newFromBiz.length)
+        }
       }
-      console.log('Fetched video submissions:', data)
-      setVideoSubmissions(data || [])
+
+      // 3. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      const videoMap = new Map()
+      allVideoSubmissions.forEach(sub => {
+        const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
+        const existing = videoMap.get(key)
+        if (!existing) {
+          videoMap.set(key, sub)
+        } else {
+          // clean_video_url 병합
+          if (sub.clean_video_url && !existing.clean_video_url) {
+            videoMap.set(key, { ...existing, clean_video_url: sub.clean_video_url })
+          } else if (!sub.clean_video_url && existing.clean_video_url) {
+            videoMap.set(key, { ...sub, clean_video_url: existing.clean_video_url })
+          } else if (new Date(sub.updated_at || sub.submitted_at || 0) > new Date(existing.updated_at || existing.submitted_at || 0)) {
+            videoMap.set(key, sub.clean_video_url ? sub : { ...sub, clean_video_url: existing.clean_video_url })
+          }
+        }
+      })
+
+      const mergedSubmissions = Array.from(videoMap.values())
+      console.log('Total merged video submissions:', mergedSubmissions.length)
+      setVideoSubmissions(mergedSubmissions)
+
+      const data = mergedSubmissions
       
       // Generate signed URLs for all video submissions (5 hours validity)
       if (data && data.length > 0) {
