@@ -889,6 +889,35 @@ export default function CampaignDetail() {
         console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
       }
 
+      // BIZ DB에 데이터가 있더라도 Korea DB에서 clean_video_url 병합 (cnec.co.kr에서 업로드된 클린본)
+      if (combinedData.length > 0 && supabaseKorea) {
+        try {
+          const { data: koreaApps } = await supabaseKorea
+            .from('applications')
+            .select('user_id, clean_video_url, sns_upload_url, partnership_code')
+            .eq('campaign_id', id)
+
+          if (koreaApps && koreaApps.length > 0) {
+            console.log('[fetchParticipants] Korea DB clean_video_url 병합:', koreaApps.filter(k => k.clean_video_url).length, '개')
+            // user_id로 매칭하여 clean_video_url 병합
+            combinedData = combinedData.map(bizApp => {
+              const koreaApp = koreaApps.find(k => k.user_id === bizApp.user_id)
+              if (koreaApp) {
+                return {
+                  ...bizApp,
+                  clean_video_url: koreaApp.clean_video_url || bizApp.clean_video_url,
+                  sns_upload_url: koreaApp.sns_upload_url || bizApp.sns_upload_url,
+                  partnership_code: koreaApp.partnership_code || bizApp.partnership_code
+                }
+              }
+              return bizApp
+            })
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] Korea DB clean_video_url 병합 실패:', e.message)
+        }
+      }
+
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
       if (combinedData.length === 0 && supabaseKorea) {
         console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')

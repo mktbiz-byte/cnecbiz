@@ -93,12 +93,42 @@ export default function InvitationLanding() {
 
       setCompany(companyData)
 
-      // 4. 크리에이터 정보 조회
-      const { data: creatorData } = await supabaseBiz
+      // 4. 크리에이터 정보 조회 (featured_creators 먼저, 없으면 user_profiles)
+      let creatorData = null
+
+      // 먼저 featured_creators에서 조회
+      const { data: featuredCreator } = await supabaseBiz
         .from('featured_creators')
         .select('*')
         .eq('id', invitationData.invited_creator_id)
         .single()
+
+      if (featuredCreator) {
+        creatorData = featuredCreator
+      } else {
+        // featured_creators에 없으면 user_profiles에서 조회 (MUSE 크리에이터용)
+        const profileClient = supabaseKorea || supabaseBiz
+        const { data: userProfile } = await profileClient
+          .from('user_profiles')
+          .select('*')
+          .eq('id', invitationData.invited_creator_id)
+          .single()
+
+        if (userProfile) {
+          creatorData = {
+            ...userProfile,
+            name: userProfile.name || userProfile.full_name || userProfile.display_name,
+            creator_name: userProfile.name || userProfile.full_name || userProfile.display_name,
+            email: userProfile.email,
+            phone: userProfile.phone || userProfile.phone_number,
+            instagram_handle: userProfile.instagram_url || userProfile.instagram_handle,
+            youtube_handle: userProfile.youtube_url || userProfile.youtube_handle,
+            tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle,
+            followers: userProfile.followers_count || userProfile.followers,
+            profile_image: userProfile.profile_image_url || userProfile.profile_image || userProfile.avatar_url
+          }
+        }
+      }
 
       setCreator(creatorData)
 
