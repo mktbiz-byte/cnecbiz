@@ -93,12 +93,42 @@ export default function InvitationLanding() {
 
       setCompany(companyData)
 
-      // 4. 크리에이터 정보 조회
-      const { data: creatorData } = await supabaseBiz
+      // 4. 크리에이터 정보 조회 (featured_creators 먼저, 없으면 user_profiles)
+      let creatorData = null
+
+      // 먼저 featured_creators에서 조회
+      const { data: featuredCreator } = await supabaseBiz
         .from('featured_creators')
         .select('*')
         .eq('id', invitationData.invited_creator_id)
         .single()
+
+      if (featuredCreator) {
+        creatorData = featuredCreator
+      } else {
+        // featured_creators에 없으면 user_profiles에서 조회 (MUSE 크리에이터용)
+        const profileClient = supabaseKorea || supabaseBiz
+        const { data: userProfile } = await profileClient
+          .from('user_profiles')
+          .select('*')
+          .eq('id', invitationData.invited_creator_id)
+          .single()
+
+        if (userProfile) {
+          creatorData = {
+            ...userProfile,
+            name: userProfile.name || userProfile.full_name || userProfile.display_name,
+            creator_name: userProfile.name || userProfile.full_name || userProfile.display_name,
+            email: userProfile.email,
+            phone: userProfile.phone || userProfile.phone_number,
+            instagram_handle: userProfile.instagram_url || userProfile.instagram_handle,
+            youtube_handle: userProfile.youtube_url || userProfile.youtube_handle,
+            tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle,
+            followers: userProfile.followers_count || userProfile.followers,
+            profile_image: userProfile.profile_image_url || userProfile.profile_image || userProfile.avatar_url
+          }
+        }
+      }
 
       setCreator(creatorData)
 
@@ -171,7 +201,8 @@ export default function InvitationLanding() {
     return labels[campaignType] || campaignType || '기획형'
   }
 
-  // 크리에이터 포인트 계산 (프론트엔드 로직과 동일)
+  // 크리에이터 포인트 계산
+  // reward_points에는 이미 1인당 크리에이터 포인트(패키지 가격의 60%)가 저장됨
   const calculateCreatorPoints = (campaign) => {
     if (!campaign) return 0
 
@@ -183,32 +214,41 @@ export default function InvitationLanding() {
     const campaignType = campaign.campaign_type
     const totalSlots = campaign.total_slots || campaign.max_participants || 1
 
-    // 4주 챌린지
+    // 4주 챌린지: 주차별 보상이 설정되어 있으면 합산
     if (campaignType === '4week_challenge' || campaignType === '4week') {
       const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
                          (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
-      const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
-      return Math.round((totalReward * 0.7) / totalSlots)
+      if (weeklyTotal > 0) {
+        return Math.round((weeklyTotal * 0.7) / totalSlots)
+      }
+      // reward_points에 이미 1인당 포인트가 저장되어 있음
+      return campaign.reward_points || 0
     }
 
-    // 기획형
+    // 기획형: 단계별 보상이 설정되어 있으면 합산
     if (campaignType === 'planned' || campaignType === 'regular') {
       const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
                        (campaign.step3_reward || 0)
-      const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-      return Math.round((totalReward * 0.6) / totalSlots)
+      if (stepTotal > 0) {
+        return Math.round((stepTotal * 0.6) / totalSlots)
+      }
+      // reward_points에 이미 1인당 포인트가 저장되어 있음
+      return campaign.reward_points || 0
     }
 
-    // 올리브영
+    // 올리브영: 단계별 보상이 설정되어 있으면 합산
     if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
       const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
                        (campaign.step3_reward || 0)
-      const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-      return Math.round((totalReward * 0.7) / totalSlots)
+      if (stepTotal > 0) {
+        return Math.round((stepTotal * 0.7) / totalSlots)
+      }
+      // reward_points에 이미 1인당 포인트가 저장되어 있음
+      return campaign.reward_points || 0
     }
 
-    // 기본: reward_amount 또는 reward_points
-    return campaign.reward_amount || Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+    // 기본: reward_amount 또는 reward_points (이미 1인당 포인트)
+    return campaign.reward_amount || campaign.reward_points || 0
   }
 
   // 로딩 화면

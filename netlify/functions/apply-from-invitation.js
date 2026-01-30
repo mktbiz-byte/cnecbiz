@@ -214,25 +214,32 @@ exports.handler = async (event) => {
       .eq('id', invitationId);
 
     // 7. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
-    const { data: application } = await campaignClient
+    const { data: application, error: applicationError } = await campaignClient
       .from('applications')
       .insert({
         campaign_id: campaignId,
-        creator_id: creator.user_id || creator.id,
-        name: creatorName,
+        user_id: creator.user_id || creator.id,
+        applicant_name: creatorName,
+        creator_name: creatorName,
         email: creatorEmail,
         phone: creator.phone,
-        instagram_handle: creator.instagram_handle,
+        instagram_url: creator.instagram_handle || creator.instagram_url,
         instagram_followers: creator.followers,
-        youtube_handle: creator.youtube_handle,
-        tiktok_handle: creator.tiktok_handle,
-        profile_image_url: creator.profile_image || creator.thumbnail_url,
+        youtube_url: creator.youtube_handle || creator.youtube_url,
+        tiktok_url: creator.tiktok_handle || creator.tiktok_url,
+        profile_image_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
+        profile_photo_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
         status: 'selected',
         source: 'invitation',
         invitation_id: invitationId
       })
       .select()
-      .single();
+      .single()
+
+    if (applicationError) {
+      console.error('[ERROR] Application insert failed:', applicationError)
+      throw new Error(`지원 등록 실패: ${applicationError.message}`)
+    }
 
     // 8. 기업에게 알림톡
     if (company?.phone) {

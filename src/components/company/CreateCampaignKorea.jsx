@@ -546,20 +546,20 @@ const CampaignCreationKorea = () => {
       // 4주 챌린지: 패키지 × 인원수
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
       const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots, false)
-      const rewardPoints = pkg.price * campaignForm.total_slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+      const rewardPoints = Math.round(pkg.price * 0.6)  // 1인당 크리에이터 포인트 (60%)
       setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
     } else if (campaignForm.campaign_type === 'oliveyoung') {
       // 올리브영: 패키지 × 인원수
       const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type) || oliveyoungPackageOptions[0]
       const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
-      const rewardPoints = pkg.price * campaignForm.total_slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+      const rewardPoints = Math.round(pkg.price * 0.6)  // 1인당 크리에이터 포인트 (60%)
       setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
     } else {
       // 일반: 패키지 × 인원수
       const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
       if (pkg) {
         const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
-        const rewardPoints = pkg.price * campaignForm.total_slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+        const rewardPoints = Math.round(pkg.price * 0.6)  // 1인당 크리에이터 포인트 (60%)
         setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
       }
     }
@@ -751,7 +751,7 @@ const CampaignCreationKorea = () => {
     }
     
     if (selectedPackage) {
-      const rewardPoints = selectedPackage.price * campaignForm.total_slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+      const rewardPoints = Math.round(selectedPackage.price * 0.6)  // 1인당 크리에이터 포인트 (60%)
       setCampaignForm(prev => ({
         ...prev,
         package_type: value,
@@ -785,7 +785,7 @@ const CampaignCreationKorea = () => {
       finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     }
 
-    const rewardPoints = packagePrice * slots  // 총 금액 (VAT 제외) - 표시 시 60% 적용됨
+    const rewardPoints = Math.round(packagePrice * 0.6)  // 1인당 크리에이터 포인트 (60%)
     setCampaignForm(prev => ({
       ...prev,
       total_slots: slots,
