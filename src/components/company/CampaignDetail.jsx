@@ -8421,6 +8421,8 @@ JSON만 출력.`
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크
+                    if (p.clean_video_url) return true
                     return false
                   })
 
@@ -8511,6 +8513,8 @@ JSON만 출력.`
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크
+                    if (p.clean_video_url) return true
                     return false
                   })
 
@@ -9343,7 +9347,9 @@ JSON만 출력.`
                                     const allUserVideos = videoSubmissions.filter(sub => sub.user_id === participant.user_id)
                                     const videosWithFile = allUserVideos.filter(sub => sub.video_file_url)
                                     const videosWithClean = allUserVideos.filter(sub => sub.clean_video_url)
-                                    const hasAnyVideo = videosWithFile.length > 0 || videosWithClean.length > 0
+                                    // applications 테이블에 직접 저장된 clean_video_url도 체크
+                                    const hasParticipantClean = !!participant.clean_video_url
+                                    const hasAnyVideo = videosWithFile.length > 0 || videosWithClean.length > 0 || hasParticipantClean
                                     const hasSnsOrCode = participant.sns_upload_url || participant.partnership_code
 
                                     if (!hasSnsOrCode && !hasAnyVideo) {
@@ -9413,14 +9419,15 @@ JSON만 출력.`
                                             )}
 
                                             {/* 클린본 */}
-                                            {videosWithClean.length > 0 && (
+                                            {(videosWithClean.length > 0 || hasParticipantClean) && (
                                               <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
                                                 <h6 className="font-medium text-emerald-800 mb-2 flex items-center gap-2">
                                                   <Video className="w-4 h-4" />
                                                   클린본
-                                                  <Badge className="bg-emerald-600 text-white text-xs">{videosWithClean.length}개</Badge>
+                                                  <Badge className="bg-emerald-600 text-white text-xs">{videosWithClean.length + (hasParticipantClean ? 1 : 0)}개</Badge>
                                                 </h6>
                                                 <div className="space-y-2">
+                                                  {/* video_submissions 테이블의 클린본 */}
                                                   {videosWithClean.map((video, idx) => (
                                                     <div key={video.id} className="flex items-center justify-between bg-white rounded p-2 text-sm">
                                                       <div className="flex items-center gap-2">
@@ -9455,6 +9462,38 @@ JSON만 출력.`
                                                       </Button>
                                                     </div>
                                                   ))}
+                                                  {/* applications 테이블의 클린본 */}
+                                                  {hasParticipantClean && !videosWithClean.some(v => v.clean_video_url === participant.clean_video_url) && (
+                                                    <div className="flex items-center justify-between bg-white rounded p-2 text-sm">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-gray-700">클린본</span>
+                                                        <Badge variant="outline" className="text-xs bg-emerald-100">applications</Badge>
+                                                      </div>
+                                                      <Button
+                                                        size="sm"
+                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+                                                        onClick={async () => {
+                                                          try {
+                                                            const response = await fetch(participant.clean_video_url)
+                                                            const blob = await response.blob()
+                                                            const blobUrl = window.URL.createObjectURL(blob)
+                                                            const link = document.createElement('a')
+                                                            link.href = blobUrl
+                                                            link.download = `${participant.creator_name || participant.applicant_name || 'creator'}_클린본.mp4`
+                                                            document.body.appendChild(link)
+                                                            link.click()
+                                                            document.body.removeChild(link)
+                                                            window.URL.revokeObjectURL(blobUrl)
+                                                          } catch (e) {
+                                                            window.open(participant.clean_video_url, '_blank')
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Download className="w-3 h-3 mr-1" />
+                                                        다운로드
+                                                      </Button>
+                                                    </div>
+                                                  )}
                                                 </div>
                                               </div>
                                             )}
