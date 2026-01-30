@@ -8877,67 +8877,114 @@ JSON만 출력.`
                                   </div>
 
                                   {/* 클린본 섹션 */}
-                                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                    <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
-                                      <Video className="w-4 h-4" />
-                                      클린본
-                                      <Badge className="bg-emerald-600 text-white text-xs">
-                                        {creatorSubmissions.filter(s => s.clean_video_url).length}개
-                                      </Badge>
-                                    </h5>
-                                    <div className="space-y-3">
-                                      {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
-                                        <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
-                                          <div className="flex items-center justify-between gap-3">
-                                            <div className="flex-1">
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-medium text-gray-800">
-                                                  {submission.week_number ? `${submission.week_number}주차` :
-                                                   submission.video_number ? `영상 ${submission.video_number}` :
-                                                   `영상 ${idx + 1}`}
-                                                </span>
-                                                {submission.version && submission.version > 1 && (
-                                                  <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                )}
-                                              </div>
-                                              <div className="text-xs text-gray-500">
-                                                제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                  {(() => {
+                                    // video_submissions의 클린본 + applications 테이블의 클린본 합산
+                                    const submissionCleanVideos = creatorSubmissions.filter(s => s.clean_video_url)
+                                    const hasParticipantClean = participant.clean_video_url && !submissionCleanVideos.some(s => s.clean_video_url === participant.clean_video_url)
+                                    const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0)
+
+                                    return (
+                                      <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                                        <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                          <Video className="w-4 h-4" />
+                                          클린본
+                                          <Badge className="bg-emerald-600 text-white text-xs">
+                                            {totalCleanCount}개
+                                          </Badge>
+                                        </h5>
+                                        <div className="space-y-3">
+                                          {submissionCleanVideos.map((submission, idx) => (
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">
+                                                      {submission.week_number ? `${submission.week_number}주차` :
+                                                       submission.video_number ? `영상 ${submission.video_number}` :
+                                                       `영상 ${idx + 1}`}
+                                                    </span>
+                                                    {submission.version && submission.version > 1 && (
+                                                      <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(submission.clean_video_url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(submission.clean_video_url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
                                               </div>
                                             </div>
-                                            <Button
-                                              size="sm"
-                                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                              onClick={async () => {
-                                                try {
-                                                  const response = await fetch(submission.clean_video_url)
-                                                  const blob = await response.blob()
-                                                  const blobUrl = window.URL.createObjectURL(blob)
-                                                  const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                  const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
-                                                  const link = document.createElement('a')
-                                                  link.href = blobUrl
-                                                  link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                  document.body.appendChild(link)
-                                                  link.click()
-                                                  document.body.removeChild(link)
-                                                  window.URL.revokeObjectURL(blobUrl)
-                                                } catch (error) {
-                                                  console.error('Download failed:', error)
-                                                  window.open(submission.clean_video_url, '_blank')
-                                                }
-                                              }}
-                                            >
-                                              <Download className="w-4 h-4 mr-1" />
-                                              클린본
-                                            </Button>
-                                          </div>
+                                          ))}
+                                          {/* applications 테이블에 직접 저장된 클린본 (video_submissions에 없는 경우) */}
+                                          {hasParticipantClean && (
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">클린본</span>
+                                                    <Badge variant="outline" className="text-xs bg-emerald-100">SNS 업로드용</Badge>
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(participant.clean_video_url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}_클린본.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(participant.clean_video_url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          )}
+                                          {totalCleanCount === 0 && (
+                                            <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
+                                          )}
                                         </div>
-                                      ))}
-                                      {creatorSubmissions.filter(s => s.clean_video_url).length === 0 && (
-                                        <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
-                                      )}
-                                    </div>
-                                  </div>
+                                      </div>
+                                    )
+                                  })()}
                                 </>
                               ) : (
                                 /* 일반 캠페인: 편집본과 클린본 섹션 분리 */
