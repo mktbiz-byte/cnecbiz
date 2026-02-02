@@ -1296,10 +1296,34 @@ Output format:
                         <span className="text-blue-600 font-bold text-xs">${calculatedRewardUSD || 90}</span>
                       </div>
 
+                      {/* 브랜드 */}
+                      {(campaignForm.brand_en || campaignForm.brand) && (
+                        <p className="text-[10px] text-indigo-600 font-medium mb-1">
+                          {campaignForm.brand_en || campaignForm.brand}
+                        </p>
+                      )}
+
                       {/* 제목 */}
-                      <h4 className="font-bold text-gray-900 mb-1 line-clamp-1 text-xs">
+                      <h4 className="font-bold text-gray-900 mb-1 line-clamp-2 text-xs">
                         {campaignForm.title_en || campaignForm.title || 'Campaign Title'}
                       </h4>
+
+                      {/* 캠페인 설명 */}
+                      {(campaignForm.description_en || campaignForm.description) && (
+                        <p className="text-[10px] text-gray-600 mb-2 line-clamp-2">
+                          {campaignForm.description_en || campaignForm.description}
+                        </p>
+                      )}
+
+                      {/* 참가 조건 */}
+                      {(campaignForm.requirements_en || campaignForm.requirements) && (
+                        <div className="bg-gray-50 rounded p-1.5 mb-2">
+                          <p className="text-[9px] text-gray-500 font-medium mb-0.5">Requirements</p>
+                          <p className="text-[10px] text-gray-700 line-clamp-2">
+                            {campaignForm.requirements_en || campaignForm.requirements}
+                          </p>
+                        </div>
+                      )}
 
                       {/* 마감일 & 인원 */}
                       <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-2">
