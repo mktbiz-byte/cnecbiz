@@ -161,14 +161,21 @@ export default function ConsultationManagement() {
           `${newRecord}\n\n` +
           `⏰ ${new Date().toLocaleString('ko-KR')}`
 
-        await fetch('/.netlify/functions/send-naver-works-message', {
+        const response = await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message,
-            isAdminNotification: true  // 상담 전용 채널 사용
+            isAdminNotification: true
           })
         })
+
+        const result = await response.json()
+        if (!response.ok || !result.success) {
+          console.error('네이버웍스 알림 응답 오류:', result)
+        } else {
+          console.log('네이버웍스 알림 전송 성공')
+        }
       } catch (notifyError) {
         console.error('네이버웍스 알림 실패:', notifyError)
         // 알림 실패해도 저장은 성공했으므로 에러 표시 안함
