@@ -215,12 +215,12 @@ export default function DeadlineCreatorManagement() {
                     }
                   })
 
-                  // 제출물이 없거나 완료되지 않은 경우 미제출
-                  if (!stepSub || (stepSub.status !== 'completed' && !stepSub.final_confirmed_at)) {
-                    // 제출 자체가 없거나 아직 승인되지 않은 경우
-                    if (!stepSub || !['approved', 'completed', 'uploaded'].includes(stepSub.status)) {
-                      pendingCount++
-                    }
+                  // 제출물이 없거나 제출되지 않은 경우만 미제출로 처리
+                  // submitted, resubmitted = 제출됨 (검토 대기)
+                  // approved, completed, uploaded = 승인/완료됨
+                  const submittedStatuses = ['submitted', 'resubmitted', 'approved', 'completed', 'uploaded']
+                  if (!stepSub || !submittedStatuses.includes(stepSub.status)) {
+                    pendingCount++
                   }
                 }
 
@@ -429,14 +429,19 @@ export default function DeadlineCreatorManagement() {
             }
           })
 
+          // submitted, resubmitted = 제출됨 (검토 대기 중이지만 미제출 아님)
+          // approved, completed, uploaded = 승인/완료됨
+          const submittedStatuses = ['submitted', 'resubmitted', 'approved', 'completed', 'uploaded']
+
           if (!stepSub) {
             isPending = true
             submissionStatus = '미제출'
-          } else if (!['approved', 'completed', 'uploaded'].includes(stepSub.status)) {
+          } else if (!submittedStatuses.includes(stepSub.status)) {
+            // pending, rejected, revision_requested 등만 미제출로 처리
             isPending = true
-            submissionStatus = stepSub.status === 'submitted' ? '검토 대기' :
-                               stepSub.status === 'rejected' ? '반려됨' :
+            submissionStatus = stepSub.status === 'rejected' ? '반려됨' :
                                stepSub.status === 'revision_requested' ? '수정 요청' :
+                               stepSub.status === 'pending' ? '대기중' :
                                stepSub.status
           }
         } else {
