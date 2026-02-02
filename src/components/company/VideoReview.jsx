@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText, Menu, ChevronUp, ChevronDown } from 'lucide-react'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText, Menu, ChevronUp, ChevronDown, Languages, Loader2 } from 'lucide-react'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
   const { submissionId } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const videoContainerRef = useRef(null)
@@ -38,6 +40,66 @@ export default function VideoReview() {
   const [isMobile, setIsMobile] = useState(false)
   const [showMobileFeedback, setShowMobileFeedback] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  // AI Translation states
+  const [translations, setTranslations] = useState({}) // { commentId: translatedText }
+  const [translating, setTranslating] = useState({}) // { commentId: true/false }
+  const [showTranslation, setShowTranslation] = useState(true) // Toggle for showing translations
+
+  // Get the appropriate Supabase client based on region
+  const getRegionClient = () => {
+    switch (region) {
+      case 'japan':
+        return supabaseJapan || supabaseBiz
+      case 'us':
+        return supabaseUS || supabaseBiz
+      case 'korea':
+        return supabaseKorea || supabaseBiz
+      default:
+        return supabaseBiz
+    }
+  }
+
+  // AI Translation function for comments
+  const translateComment = async (commentId, text) => {
+    if (!text || translations[commentId]) return
+
+    setTranslating(prev => ({ ...prev, [commentId]: true }))
+
+    try {
+      const targetLang = region === 'japan' ? '일본어' : region === 'us' ? '영어' : null
+      if (!targetLang) return
+
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          targetLanguage: targetLang,
+          sourceLanguage: '한국어'
+        })
+      })
+
+      const result = await response.json()
+      if (result.success && result.translatedText) {
+        setTranslations(prev => ({ ...prev, [commentId]: result.translatedText }))
+      }
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setTranslating(prev => ({ ...prev, [commentId]: false }))
+    }
+  }
+
+  // Auto-translate all comments for Japan/US regions
+  const translateAllComments = async (commentsToTranslate) => {
+    if (region !== 'japan' && region !== 'us') return
+
+    for (const comment of commentsToTranslate) {
+      if (comment.comment && !translations[comment.id]) {
+        await translateComment(comment.id, comment.comment)
+      }
+    }
+  }
 
   useEffect(() => {
     loadSubmission()
@@ -240,8 +302,8 @@ export default function VideoReview() {
         return
       }
 
-      // Get submission data from supabaseKorea (with null check)
-      const client = supabaseKorea || supabaseBiz
+      // Get submission data from region-specific client
+      const client = getRegionClient()
       const { data, error } = await client
         .from('video_submissions')
         .select(`
@@ -265,7 +327,7 @@ export default function VideoReview() {
       // Company users can access videos for their campaigns
 
       setSubmission(data)
-      
+
       // Use public URL directly since bucket is now public
       setSignedVideoUrl(data.video_file_url)
     } catch (error) {
@@ -278,7 +340,7 @@ export default function VideoReview() {
 
   const loadComments = async () => {
     try {
-      const client = supabaseKorea || supabaseBiz
+      const client = getRegionClient()
       const { data, error } = await client
         .from('video_review_comments')
         .select('*')
@@ -288,6 +350,11 @@ export default function VideoReview() {
       if (error) throw error
       setComments(data || [])
 
+      // Auto-translate comments for Japan/US regions
+      if (data && data.length > 0 && (region === 'japan' || region === 'us')) {
+        translateAllComments(data)
+      }
+
       // Load replies for all comments
       if (data && data.length > 0) {
         const commentIds = data.map(c => c.id)
@@ -296,7 +363,7 @@ export default function VideoReview() {
           .select('*')
           .in('comment_id', commentIds)
           .order('created_at', { ascending: true })
-        
+
         if (!repliesError && repliesData) {
           const repliesByComment = repliesData.reduce((acc, reply) => {
             if (!acc[reply.comment_id]) acc[reply.comment_id] = []
@@ -385,8 +452,8 @@ export default function VideoReview() {
         attachmentName = attachmentFile.name
       }
 
-      // Use same DB as video_submissions (Korea) to avoid FK constraint error
-      const client = supabaseKorea || supabaseBiz
+      // Use region-specific DB to avoid FK constraint error
+      const client = getRegionClient()
       const { data, error } = await client
         .from('video_review_comments')
         .insert({
@@ -406,6 +473,12 @@ export default function VideoReview() {
       if (error) throw error
 
       setComments([...comments, data])
+
+      // Translate the new comment for Japan/US regions
+      if ((region === 'japan' || region === 'us') && currentComment) {
+        translateComment(data.id, currentComment)
+      }
+
       setCurrentComment('')
       setActiveMarker(null)
       setAttachmentFile(null)
@@ -422,8 +495,8 @@ export default function VideoReview() {
     if (!confirm('이 피드백을 삭제하시겠습니까?')) return
 
     try {
-      // Use same DB as video_submissions (Korea)
-      const client = supabaseKorea || supabaseBiz
+      // Use region-specific DB
+      const client = getRegionClient()
       const { error } = await client
         .from('video_review_comments')
         .delete()
@@ -432,6 +505,12 @@ export default function VideoReview() {
       if (error) throw error
 
       setComments(comments.filter(c => c.id !== commentId))
+      // Also remove translation
+      setTranslations(prev => {
+        const newTranslations = { ...prev }
+        delete newTranslations[commentId]
+        return newTranslations
+      })
       alert('피드백이 삭제되었습니다.')
     } catch (error) {
       console.error('Error deleting comment:', error)
@@ -446,8 +525,8 @@ export default function VideoReview() {
     }
 
     try {
-      // Use same DB as video_submissions (Korea)
-      const client = supabaseKorea || supabaseBiz
+      // Use region-specific DB
+      const client = getRegionClient()
       const { data, error } = await client
         .from('video_review_comment_replies')
         .insert({
@@ -660,6 +739,23 @@ export default function VideoReview() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                {/* Translation toggle for Japan/US */}
+                {(region === 'japan' || region === 'us') && (
+                  <button
+                    onClick={() => setShowTranslation(!showTranslation)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      showTranslation
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                    title={showTranslation ? '번역 숨기기' : '번역 보기'}
+                  >
+                    <Languages className="w-4 h-4" />
+                    <span className="text-sm">
+                      {region === 'japan' ? '日本語' : 'English'}
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowShortcuts(true)}
                   className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
@@ -1243,9 +1339,49 @@ export default function VideoReview() {
                     </div>
 
                     {/* 피드백 내용 */}
-                    <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
-                      {comment.comment}
-                    </p>
+                    <div className="space-y-2">
+                      {/* 원본 (한국어) */}
+                      <div>
+                        {(region === 'japan' || region === 'us') && (
+                          <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
+                            🇰🇷 한국어
+                          </p>
+                        )}
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                          {comment.comment}
+                        </p>
+                      </div>
+
+                      {/* 번역본 (일본어/영어) - Japan/US 지역만 */}
+                      {(region === 'japan' || region === 'us') && showTranslation && (
+                        <div className="mt-2 pt-2 border-t border-slate-600/50">
+                          <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
+                            {region === 'japan' ? '🇯🇵 日本語' : '🇺🇸 English'}
+                            {translating[comment.id] && (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            )}
+                          </p>
+                          {translations[comment.id] ? (
+                            <p className="text-sm text-blue-200 whitespace-pre-wrap leading-relaxed">
+                              {translations[comment.id]}
+                            </p>
+                          ) : translating[comment.id] ? (
+                            <p className="text-xs text-slate-400 italic">번역 중...</p>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                translateComment(comment.id, comment.comment)
+                              }}
+                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            >
+                              <Languages className="w-3 h-3" />
+                              번역하기
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* 첨부 파일 */}
                     {comment.attachment_url && (

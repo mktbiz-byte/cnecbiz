@@ -44,7 +44,7 @@ import {
   Instagram,
   Youtube
 } from 'lucide-react'
-import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
 
 // US 캠페인 작업을 위한 API 호출 헬퍼 (RLS 우회)
@@ -1500,7 +1500,49 @@ export default function CampaignDetail() {
         }
       }
 
-      // 2. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
+      // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
+      if (supabaseJapan) {
+        console.log('Fetching video submissions from Japan DB for campaign_id:', id)
+        const { data: japanData, error: japanError } = await supabaseJapan
+          .from('video_submissions')
+          .select('*')
+          .eq('campaign_id', id)
+          .order('created_at', { ascending: false })
+
+        if (japanError) {
+          console.error('Japan video submissions query error:', japanError)
+        } else if (japanData && japanData.length > 0) {
+          const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+          const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
+          if (newFromJapan.length > 0) {
+            allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
+            console.log('Added video submissions from Japan DB:', newFromJapan.length)
+          }
+        }
+      }
+
+      // 3. US DB에서 video_submissions 가져오기 (중복 제외)
+      if (supabaseUS) {
+        console.log('Fetching video submissions from US DB for campaign_id:', id)
+        const { data: usData, error: usError } = await supabaseUS
+          .from('video_submissions')
+          .select('*')
+          .eq('campaign_id', id)
+          .order('created_at', { ascending: false })
+
+        if (usError) {
+          console.error('US video submissions query error:', usError)
+        } else if (usData && usData.length > 0) {
+          const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+          const newFromUS = usData.filter(v => !existingIds.has(v.id))
+          if (newFromUS.length > 0) {
+            allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
+            console.log('Added video submissions from US DB:', newFromUS.length)
+          }
+        }
+      }
+
+      // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
       console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
       const { data: bizData, error: bizError } = await supabaseBiz
         .from('video_submissions')
@@ -1520,7 +1562,7 @@ export default function CampaignDetail() {
         }
       }
 
-      // 3. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      // 5. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
       const videoMap = new Map()
       allVideoSubmissions.forEach(sub => {
         const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
@@ -3610,11 +3652,22 @@ JSON만 출력.`
 
       if (videoError) throw videoError
 
-      // 다중 영상 캠페인 타입 체크
+      // 다중 영상 캠페인 타입 체크 (리전별)
       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
       const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
-      const isMultiVideoChallenge = is4WeekChallenge || isOliveyoung
-      const requiredVideos = is4WeekChallenge ? [1, 2, 3, 4] : isOliveyoung ? [1, 2] : [1]
+      const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
+      const isMultiVideoChallenge = is4WeekChallenge || isOliveyoung || isMegawari
+
+      // 캠페인 타입/리전별 필수 영상 수
+      // Japan megawari: 2 videos, US/Japan 4week: 4 videos, oliveyoung: 2 videos
+      let requiredVideos = [1]
+      if (is4WeekChallenge) {
+        requiredVideos = [1, 2, 3, 4]
+      } else if (isOliveyoung) {
+        requiredVideos = [1, 2]
+      } else if (isMegawari) {
+        requiredVideos = [1, 2]
+      }
 
       let allVideosApproved = false
       let currentWeek = submission.week_number || 1
@@ -8229,10 +8282,11 @@ JSON만 출력.`
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
 
-                  // 캠페인 타입 확인
+                  // 캠페인 타입 확인 (리전별)
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                   const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
-                  const isMultiStepCampaign = is4WeekChallenge || isOliveyoung
+                  const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
+                  const isMultiStepCampaign = is4WeekChallenge || isOliveyoung || isMegawari
 
                   // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
                   // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
@@ -8275,7 +8329,7 @@ JSON만 출력.`
                             if (!submissionsByStep[step]) submissionsByStep[step] = []
                             submissionsByStep[step].push(sub)
                           })
-                        } else if (isOliveyoung) {
+                        } else if (isOliveyoung || isMegawari) {
                           userSubmissions.forEach(sub => {
                             const step = sub.video_number || 1
                             if (!submissionsByStep[step]) submissionsByStep[step] = []
@@ -8323,7 +8377,7 @@ JSON만 출력.`
                                         : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                                     }`}
                                   >
-                                    {is4WeekChallenge ? `${step}주차` : `영상 ${step}`}
+                                    {is4WeekChallenge ? `${step}주차` : isMegawari ? `動画 ${step}` : `영상 ${step}`}
                                   </button>
                                 ))}
                               </div>
@@ -8489,7 +8543,7 @@ JSON만 출력.`
                                     variant="outline"
                                     className="w-full"
                                     onClick={() => {
-                                      navigate(`/video-review/${submission.id}`)
+                                      navigate(`/video-review/${submission.id}?region=${region}`)
                                     }}
                                   >
                                     영상 수정 요청하기
@@ -8529,10 +8583,11 @@ JSON만 출력.`
             <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
                 {(() => {
-                  // 멀티비디오 캠페인 여부 체크
+                  // 멀티비디오 캠페인 여부 체크 (리전별)
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                   const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
-                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+                  const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung || isMegawari
 
                   // 완료 섹션에 표시할 참가자 필터
                   // - 일반 캠페인: approved/completed 상태
@@ -8623,10 +8678,11 @@ JSON만 출력.`
               </CardHeader>
               <CardContent>
                 {(() => {
-                  // 멀티비디오 캠페인 여부 체크 (CardContent용)
+                  // 멀티비디오 캠페인 여부 체크 (CardContent용, 리전별)
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                   const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
-                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+                  const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung || isMegawari
 
                   // 완료 섹션에 표시할 참가자 필터
                   // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
@@ -8698,11 +8754,12 @@ JSON만 출력.`
                       const creatorSubmissions = Object.values(latestByVideoNumber)
                         .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
-                      // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
+                      // 멀티비디오 캠페인 체크 (리전별: 올영: 2개, 4주챌린지: 4개, 메가와리: 2개)
                       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                       const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
-                      const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
-                      const requiredVideoCount = is4WeekChallenge ? 4 : isOliveyoung ? 2 : 1
+                      const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
+                      const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung || isMegawari
+                      const requiredVideoCount = is4WeekChallenge ? 4 : (isOliveyoung || isMegawari) ? 2 : 1
 
                       // 멀티비디오 캠페인의 SNS URL/광고코드 체크 (campaign_participants 테이블 컬럼 사용)
                       let allVideosHaveSnsUrl = false
@@ -8727,6 +8784,15 @@ JSON만 출력.`
                         ]
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
                         allVideosHaveAdCode = !!participant.step1_2_partnership_code
+                      } else if (isMegawari) {
+                        // 메가와리: 영상2개 + URL 3개 (video1_url, video2_url, story_url), 광고코드/클린본 2개씩
+                        multiVideoStatus = [
+                          { video: 1, url: participant.video1_url || participant.step1_url, code: participant.video1_partnership_code || participant.step1_2_partnership_code },
+                          { video: 2, url: participant.video2_url || participant.step2_url, code: participant.video2_partnership_code || participant.step1_2_partnership_code },
+                          { video: 3, url: participant.story_url, code: null, isStory: true }  // 스토리는 광고코드 필요 없음
+                        ]
+                        allVideosHaveSnsUrl = multiVideoStatus.filter(s => !s.isStory).every(s => s.url) && !!participant.story_url
+                        allVideosHaveAdCode = multiVideoStatus.filter(s => !s.isStory).every(s => s.code)
                       } else {
                         // 일반/기획형: sns_upload_url, partnership_code
                         allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)
