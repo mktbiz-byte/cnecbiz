@@ -889,62 +889,95 @@ export default function CampaignDetail() {
         console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
       }
 
-      // Korea DB에서 clean_video_url 병합 및 Korea DB에만 있는 참가자 추가 (cnec.co.kr에서 업로드된 클린본)
-      if (supabaseKorea) {
-        try {
-          // Korea DB applications 테이블에는 email, creator_name 컬럼이 없음 - 전체 데이터 가져오기
+      // Korea DB에서 clean_video_url 병합 (supabaseKorea 사용 또는 API fallback)
+      // 항상 실행되도록 수정 - clean_video_url은 Korea DB에만 있음
+      try {
+        let koreaCleanVideoData = null
+
+        // 1. supabaseKorea가 있으면 직접 쿼리
+        if (supabaseKorea) {
+          console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('*')
+            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status')
             .eq('campaign_id', id)
-            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
 
           if (koreaApps && koreaApps.length > 0) {
-            console.log('[fetchParticipants] Korea DB applications:', koreaApps.length, '개, clean_video_url 있는 것:', koreaApps.filter(k => k.clean_video_url).length, '개')
-
-            // BIZ DB에 있는 항목에 Korea 데이터 병합
-            const matchedKoreaIds = new Set()
-            combinedData = combinedData.map(bizApp => {
-              // 매칭 우선순위: user_id > 이름
-              let koreaApp = koreaApps.find(k => k.user_id && k.user_id === bizApp.user_id)
-              if (!koreaApp) {
-                const bizName = (bizApp.applicant_name || bizApp.creator_name || '').toLowerCase().trim()
-                if (bizName) {
-                  koreaApp = koreaApps.find(k => {
-                    const koreaName = (k.applicant_name || '').toLowerCase().trim()
-                    return koreaName && koreaName === bizName
-                  })
-                }
-              }
-              if (koreaApp) {
-                matchedKoreaIds.add(koreaApp.id)
-                console.log('[fetchParticipants] 매칭됨:', bizApp.applicant_name || bizApp.creator_name, '-> clean_video_url:', !!koreaApp.clean_video_url)
-                return {
-                  ...bizApp,
-                  clean_video_url: koreaApp.clean_video_url || bizApp.clean_video_url,
-                  sns_upload_url: koreaApp.sns_upload_url || bizApp.sns_upload_url,
-                  partnership_code: koreaApp.partnership_code || bizApp.partnership_code
-                }
-              }
-              return bizApp
-            })
-
-            // Korea DB에만 있는 참가자 추가 (BIZ DB에 없는 것들)
-            const koreaOnlyApps = koreaApps.filter(k => !matchedKoreaIds.has(k.id))
-            if (koreaOnlyApps.length > 0) {
-              console.log('[fetchParticipants] Korea DB에만 있는 참가자:', koreaOnlyApps.length, '명 추가')
-              // Korea DB 데이터 형식을 BIZ DB 형식에 맞게 변환
-              const koreaAppsFormatted = koreaOnlyApps.map(k => ({
-                ...k,
-                creator_name: k.applicant_name, // Korea DB에는 creator_name이 없으므로 applicant_name 사용
-                source_db: 'korea' // 소스 DB 표시
-              }))
-              combinedData = [...combinedData, ...koreaAppsFormatted]
-            }
+            koreaCleanVideoData = { applications: koreaApps }
+            console.log('[fetchParticipants] Korea DB 직접 쿼리 성공:', koreaApps.length, '개')
           }
-        } catch (e) {
-          console.log('[fetchParticipants] Korea DB 병합 실패:', e.message)
         }
+
+        // 2. supabaseKorea가 없거나 결과가 없으면 API fallback
+        if (!koreaCleanVideoData) {
+          console.log('[fetchParticipants] API fallback으로 clean_video_url 가져오기...')
+          try {
+            const response = await fetch('/.netlify/functions/get-clean-video-urls', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ campaign_id: id })
+            })
+            const result = await response.json()
+            if (result.success) {
+              koreaCleanVideoData = result
+              console.log('[fetchParticipants] API fallback 성공:', result.applications?.length || 0, '개')
+            }
+          } catch (apiError) {
+            console.log('[fetchParticipants] API fallback 실패:', apiError.message)
+          }
+        }
+
+        // 3. clean_video_url 데이터 병합
+        if (koreaCleanVideoData?.applications?.length > 0) {
+          const koreaApps = koreaCleanVideoData.applications
+          console.log('[fetchParticipants] clean_video_url 있는 것:', koreaApps.filter(k => k.clean_video_url).length, '개')
+
+          // 참가자에 clean_video_url 병합
+          const matchedKoreaIds = new Set()
+          combinedData = combinedData.map(participant => {
+            // 매칭 우선순위: user_id > 이름
+            let koreaApp = koreaApps.find(k => k.user_id && k.user_id === participant.user_id)
+            if (!koreaApp) {
+              const name = (participant.applicant_name || participant.creator_name || '').toLowerCase().trim()
+              if (name) {
+                koreaApp = koreaApps.find(k => {
+                  const koreaName = (k.applicant_name || '').toLowerCase().trim()
+                  return koreaName && koreaName === name
+                })
+              }
+            }
+            if (koreaApp) {
+              matchedKoreaIds.add(koreaApp.id)
+              if (koreaApp.clean_video_url) {
+                console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '->', koreaApp.clean_video_url.substring(0, 50) + '...')
+              }
+              return {
+                ...participant,
+                clean_video_url: koreaApp.clean_video_url || participant.clean_video_url,
+                sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
+                partnership_code: koreaApp.partnership_code || participant.partnership_code
+              }
+            }
+            return participant
+          })
+
+          // Korea DB에만 있는 참가자 추가
+          const koreaOnlyApps = koreaApps.filter(k =>
+            !matchedKoreaIds.has(k.id) &&
+            ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(k.status)
+          )
+          if (koreaOnlyApps.length > 0) {
+            console.log('[fetchParticipants] Korea DB에만 있는 참가자:', koreaOnlyApps.length, '명 추가')
+            const koreaAppsFormatted = koreaOnlyApps.map(k => ({
+              ...k,
+              creator_name: k.applicant_name,
+              source_db: 'korea'
+            }))
+            combinedData = [...combinedData, ...koreaAppsFormatted]
+          }
+        }
+      } catch (e) {
+        console.log('[fetchParticipants] clean_video_url 병합 실패:', e.message)
       }
 
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
@@ -8725,7 +8758,7 @@ JSON만 출력.`
                           </div>
 
                           {/* 영상 목록 */}
-                          {creatorSubmissions.length > 0 ? (
+                          {(creatorSubmissions.length > 0 || participant.clean_video_url) ? (
                             <div className="space-y-4">
                               {/* 기획형 캠페인 (4주/올영): 편집본과 클린본 섹션 분리 */}
                               {isMultiVideoCampaign ? (
@@ -9113,65 +9146,115 @@ JSON만 출력.`
                                     </div>
                                   )}
 
-                                  {/* 클린본 섹션 */}
-                                  {creatorSubmissions.filter(s => s.clean_video_url).length > 0 && (
-                                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                      <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
-                                        <Video className="w-4 h-4" />
-                                        클린본
-                                        <Badge className="bg-emerald-600 text-white text-xs">
-                                          {creatorSubmissions.filter(s => s.clean_video_url).length}개
-                                        </Badge>
-                                      </h5>
-                                      <div className="space-y-3">
-                                        {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
-                                          <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <span className="font-medium text-gray-800">
-                                                    {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
-                                                  </span>
-                                                  {submission.version && submission.version > 1 && (
-                                                    <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                  )}
+                                  {/* 클린본 섹션 - applications.clean_video_url도 포함 */}
+                                  {(() => {
+                                    const cleanVideosFromSubmissions = creatorSubmissions.filter(s => s.clean_video_url)
+                                    const hasApplicationCleanVideo = participant.clean_video_url && !cleanVideosFromSubmissions.some(s => s.clean_video_url === participant.clean_video_url)
+                                    const totalCleanVideos = cleanVideosFromSubmissions.length + (hasApplicationCleanVideo ? 1 : 0)
+
+                                    if (totalCleanVideos === 0) return null
+
+                                    return (
+                                      <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                                        <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                          <Video className="w-4 h-4" />
+                                          클린본
+                                          <Badge className="bg-emerald-600 text-white text-xs">
+                                            {totalCleanVideos}개
+                                          </Badge>
+                                        </h5>
+                                        <div className="space-y-3">
+                                          {/* video_submissions의 클린본 */}
+                                          {cleanVideosFromSubmissions.map((submission, idx) => (
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">
+                                                      {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
+                                                    </span>
+                                                    {submission.version && submission.version > 1 && (
+                                                      <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                                  </div>
                                                 </div>
-                                                <div className="text-xs text-gray-500">
-                                                  제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(submission.clean_video_url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}${videoLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(submission.clean_video_url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
                                               </div>
-                                              <Button
-                                                size="sm"
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                onClick={async () => {
-                                                  try {
-                                                    const response = await fetch(submission.clean_video_url)
-                                                    const blob = await response.blob()
-                                                    const blobUrl = window.URL.createObjectURL(blob)
-                                                    const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                    const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
-                                                    const link = document.createElement('a')
-                                                    link.href = blobUrl
-                                                    link.download = `${creatorName}${videoLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                    document.body.appendChild(link)
-                                                    link.click()
-                                                    document.body.removeChild(link)
-                                                    window.URL.revokeObjectURL(blobUrl)
-                                                  } catch (error) {
-                                                    console.error('Download failed:', error)
-                                                    window.open(submission.clean_video_url, '_blank')
-                                                  }
-                                                }}
-                                              >
-                                                <Download className="w-4 h-4 mr-1" />
-                                                클린본
-                                              </Button>
                                             </div>
-                                          </div>
-                                        ))}
+                                          ))}
+                                          {/* applications 테이블의 클린본 (video_submissions에 없는 경우만) */}
+                                          {hasApplicationCleanVideo && (
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">클린본</span>
+                                                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">applications</Badge>
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    {participant.applicant_name || participant.creator_name || '크리에이터'}
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(participant.clean_video_url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}_클린본.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(participant.clean_video_url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )
+                                  })()}
                                 </>
                               )}
 
