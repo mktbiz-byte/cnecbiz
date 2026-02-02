@@ -82,13 +82,13 @@ export default function UnpaidCampaignsManagement() {
 
           // SNS 업로드 완료된 applications 조회 (최종 확정 안 된 것들)
           // sns_uploaded 상태이거나, video_submitted/completed 상태지만 아직 포인트 지급 안 된 것
-          // 참고: sns_uploaded_at 컬럼이 없는 DB도 있으므로 updated_at 사용
+          // 참고: 각 DB마다 컬럼이 다를 수 있으므로 공통 컬럼만 조회
           const { data: applications, error } = await supabase
             .from('applications')
             .select(`
               id, campaign_id, user_id, status,
               updated_at, created_at,
-              applicant_name, creator_name, email,
+              applicant_name,
               campaigns (id, title, brand, campaign_type)
             `)
             .in('status', ['sns_uploaded', 'video_submitted', 'completed'])
@@ -159,9 +159,9 @@ export default function UnpaidCampaignsManagement() {
 
             result[region.id][groupId].push({
               ...app,
-              creatorName: profile?.channel_name || profile?.name || app.applicant_name || app.creator_name || '이름 없음',
+              creatorName: profile?.channel_name || profile?.name || app.applicant_name || '이름 없음',
               phone: profile?.phone || profile?.phone_number,
-              email: profile?.email || app.email,
+              email: profile?.email,
               campaignTitle: campaign?.title || '캠페인 정보 없음',
               campaignBrand: campaign?.brand,
               campaignType: campaign?.campaign_type,
