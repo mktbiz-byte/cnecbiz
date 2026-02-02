@@ -45,6 +45,18 @@ const getElapsedGroup = (days) => {
   return 'under3'
 }
 
+// 캠페인 타입 판별
+const getCampaignTypeInfo = (campaignType) => {
+  const type = (campaignType || '').toLowerCase()
+  if (type.includes('4week') || type.includes('challenge')) {
+    return { label: '4주챌린지', required: 4, color: 'bg-purple-100 text-purple-700' }
+  }
+  if (type.includes('olive') || type.includes('megawari')) {
+    return { label: type.includes('megawari') ? '메가와리' : '올영세일', required: 2, color: 'bg-green-100 text-green-700' }
+  }
+  return { label: '기획', required: 1, color: 'bg-blue-100 text-blue-700' }
+}
+
 export default function UnpaidCampaignsManagement() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -101,8 +113,9 @@ export default function UnpaidCampaignsManagement() {
 
           debugLog.push(`[${region.id}] SNS 업로드 applications ${(applications || []).length}개`)
 
-          // video_submissions로 최종 확정 여부 확인 (Korea/BIZ만)
+          // video_submissions로 최종 확정 여부 및 제출 현황 확인 (Korea/BIZ만)
           let confirmedUserCampaigns = new Set()
+          let submissionCounts = {} // { `${user_id}_${campaign_id}`: { videoCount, snsCount } }
           if ((region.id === 'korea' || region.id === 'biz') && applications?.length > 0) {
             try {
               const campaignIds = [...new Set(applications.map(a => a.campaign_id))]
@@ -113,12 +126,43 @@ export default function UnpaidCampaignsManagement() {
               })
               const subResult = await response.json()
               if (subResult.success) {
-                // final_confirmed_at이 있는 것들 = 이미 지급 완료
+                // 제출물 카운트 및 확정 여부 확인
                 (subResult.submissions || []).forEach(sub => {
+                  const key = `${sub.user_id}_${sub.campaign_id}`
+
+                  // 카운트 초기화
+                  if (!submissionCounts[key]) {
+                    submissionCounts[key] = { videoCount: 0, snsCount: 0, confirmedCount: 0 }
+                  }
+
+                  // 영상 제출 카운트 (status가 submitted, approved, completed 등)
+                  const videoStatuses = ['submitted', 'resubmitted', 'approved', 'completed', 'uploaded']
+                  if (videoStatuses.includes(sub.status)) {
+                    submissionCounts[key].videoCount++
+                  }
+
+                  // SNS 업로드 확인 (status가 uploaded 또는 completed)
+                  if (sub.status === 'uploaded' || sub.status === 'completed' || sub.status === 'sns_uploaded') {
+                    submissionCounts[key].snsCount++
+                  }
+
+                  // 최종 확정 카운트
                   if (sub.final_confirmed_at) {
-                    confirmedUserCampaigns.add(`${sub.user_id}_${sub.campaign_id}`)
+                    submissionCounts[key].confirmedCount++
                   }
                 })
+
+                // 모든 영상이 확정된 경우만 제외
+                Object.entries(submissionCounts).forEach(([key, counts]) => {
+                  const app = applications.find(a => `${a.user_id}_${a.campaign_id}` === key)
+                  if (app) {
+                    const typeInfo = getCampaignTypeInfo(app.campaigns?.campaign_type)
+                    if (counts.confirmedCount >= typeInfo.required) {
+                      confirmedUserCampaigns.add(key)
+                    }
+                  }
+                })
+
                 debugLog.push(`[${region.id}] 확정된 submissions ${confirmedUserCampaigns.size}개`)
               }
             } catch (e) {
@@ -156,6 +200,8 @@ export default function UnpaidCampaignsManagement() {
 
             const profile = profileMap[app.user_id]
             const campaign = app.campaigns
+            const typeInfo = getCampaignTypeInfo(campaign?.campaign_type)
+            const counts = submissionCounts[key] || { videoCount: 0, snsCount: 0, confirmedCount: 0 }
 
             result[region.id][groupId].push({
               ...app,
@@ -165,6 +211,10 @@ export default function UnpaidCampaignsManagement() {
               campaignTitle: campaign?.title || '캠페인 정보 없음',
               campaignBrand: campaign?.brand,
               campaignType: campaign?.campaign_type,
+              typeInfo,
+              videoCount: counts.videoCount,
+              snsCount: counts.snsCount,
+              confirmedCount: counts.confirmedCount,
               uploadDate,
               daysElapsed,
               region: region.id
@@ -386,12 +436,35 @@ export default function UnpaidCampaignsManagement() {
                               {creator.regionInfo.flag}
                             </Badge>
                             <div>
-                              <p className="font-medium">{creator.creatorName}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{creator.creatorName}</p>
+                                {creator.typeInfo && (
+                                  <Badge className={`text-xs ${creator.typeInfo.color}`}>
+                                    {creator.typeInfo.label}
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-gray-500">{creator.campaignTitle}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-4">
+                            {/* 영상/SNS 제출 현황 */}
+                            <div className="text-center">
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className={`font-medium ${creator.videoCount >= (creator.typeInfo?.required || 1) ? 'text-green-600' : 'text-orange-600'}`}>
+                                  🎬 {creator.videoCount}/{creator.typeInfo?.required || 1}
+                                </span>
+                                <span className={`font-medium ${creator.snsCount >= (creator.typeInfo?.required || 1) ? 'text-green-600' : 'text-orange-600'}`}>
+                                  📱 {creator.snsCount}/{creator.typeInfo?.required || 1}
+                                </span>
+                                <span className={`font-medium ${creator.confirmedCount >= (creator.typeInfo?.required || 1) ? 'text-green-600' : 'text-red-600'}`}>
+                                  ✅ {creator.confirmedCount}/{creator.typeInfo?.required || 1}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-400">영상/SNS/확정</p>
+                            </div>
+
                             <div className="text-right">
                               <p className="text-sm font-medium text-gray-700">
                                 {creator.daysElapsed}일 경과
