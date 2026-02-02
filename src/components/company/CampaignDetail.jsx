@@ -5417,16 +5417,31 @@ JSON만 출력.`
                           </div>
                         )}
 
-                        {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                        {/* US/Japan 캠페인: AI 가이드 or 파일/URL 전달 선택 */}
                         {(region === 'us' || region === 'japan') && (
                           <div className="flex items-center gap-1.5">
+                            {/* 씬 가이드 작성 버튼 (AI 가이드) */}
                             <Button
                               size="sm"
                               onClick={() => navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${participant.id}&region=${region}`)}
                               className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
                             >
-                              <FileText className="w-3 h-3 mr-1" />
-                              씬 가이드 작성
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              AI 가이드 생성
+                            </Button>
+                            {/* 파일/URL 전달 선택 버튼 */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedParticipantForGuide(participant)
+                                setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                setShowGuideSelectModal(true)
+                              }}
+                              className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-3 py-1 h-auto"
+                            >
+                              <Link className="w-3 h-3 mr-1" />
+                              파일/URL 전달
                             </Button>
                             {participant.personalized_guide && (
                               <Button
@@ -5441,6 +5456,24 @@ JSON만 출력.`
                                 <Eye className="w-3 h-3 mr-1" />
                                 가이드 보기
                               </Button>
+                            )}
+                            {/* 가이드 발송됨 상태 */}
+                            {participant.status === 'filming' && (
+                              <>
+                                <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                  <CheckCircle className="w-3 h-3" />
+                                  전달완료
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  재설정
+                                </Button>
+                              </>
                             )}
                           </div>
                         )}
@@ -12301,6 +12334,37 @@ JSON만 출력.`
               {(() => {
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                const isUSJapan = region === 'us' || region === 'japan'
+
+                // US/Japan 캠페인: AI 가이드 생성 + 파일/URL 전달 옵션만 표시
+                if (isUSJapan && !is4Week && !isOliveyoung) {
+                  return (
+                    <>
+                      {/* AI 가이드 생성 옵션 */}
+                      <button
+                        onClick={() => {
+                          setShowGuideSelectModal(false)
+                          navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${selectedParticipantForGuide.id}&region=${region}`)
+                        }}
+                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center transition-colors">
+                            <Sparkles className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                            <p className="text-sm text-gray-500">
+                              {region === 'japan' ? '일본어 맞춤형 AI 촬영 가이드' : '영어 맞춤형 AI 촬영 가이드'}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* 파일/URL 전달 옵션은 아래 ExternalGuideUploader로 표시 */}
+                    </>
+                  )
+                }
 
                 // 올영/4주: 캠페인 레벨 가이드 사용 옵션
                 if (is4Week || isOliveyoung) {
@@ -12523,15 +12587,15 @@ JSON만 출력.`
 
                         if (error) throw error
 
-                        // 알림톡 발송
+                        // 알림 발송 (한국: 카카오톡, 일본/미국: 이메일)
                         try {
                           const { data: profile } = await supabase
                             .from('user_profiles')
-                            .select('phone')
+                            .select('phone, email')
                             .eq('id', selectedParticipantForGuide.user_id)
                             .maybeSingle()
 
-                          if (profile?.phone) {
+                          if (region === 'korea' && profile?.phone) {
                             await sendGuideDeliveredNotification(
                               profile.phone,
                               creatorName,
@@ -12542,9 +12606,24 @@ JSON만 출력.`
                                   : '확인 필요'
                               }
                             )
+                          } else if ((region === 'japan' || region === 'us') && profile?.email) {
+                            // 일본/미국: 이메일 알림
+                            await fetch('/.netlify/functions/send-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                to: profile.email,
+                                subject: region === 'japan'
+                                  ? `[CNEC] 撮影ガイドが届きました - ${campaign?.title || 'キャンペーン'}`
+                                  : `[CNEC] Shooting Guide Delivered - ${campaign?.title || 'Campaign'}`,
+                                html: region === 'japan'
+                                  ? `<p>${creatorName}様、</p><p>キャンペーン「${campaign?.title || 'キャンペーン'}」の撮影ガイドが届きました。</p><p>マイページでご確認ください。</p>`
+                                  : `<p>Hi ${creatorName},</p><p>The shooting guide for campaign "${campaign?.title || 'Campaign'}" has been delivered.</p><p>Please check your dashboard.</p>`
+                              })
+                            })
                           }
                         } catch (notifError) {
-                          console.error('알림톡 발송 실패:', notifError)
+                          console.error('알림 발송 실패:', notifError)
                         }
 
                         alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
