@@ -82,16 +82,17 @@ export default function UnpaidCampaignsManagement() {
 
           // SNS 업로드 완료된 applications 조회 (최종 확정 안 된 것들)
           // sns_uploaded 상태이거나, video_submitted/completed 상태지만 아직 포인트 지급 안 된 것
+          // 참고: sns_uploaded_at 컬럼이 없는 DB도 있으므로 updated_at 사용
           const { data: applications, error } = await supabase
             .from('applications')
             .select(`
               id, campaign_id, user_id, status,
-              sns_uploaded_at, updated_at, created_at,
+              updated_at, created_at,
               applicant_name, creator_name, email,
               campaigns (id, title, brand, campaign_type)
             `)
             .in('status', ['sns_uploaded', 'video_submitted', 'completed'])
-            .order('sns_uploaded_at', { ascending: true })
+            .order('updated_at', { ascending: true })
 
           if (error) {
             debugLog.push(`[${region.id}] 조회 오류: ${error.message}`)
@@ -146,8 +147,8 @@ export default function UnpaidCampaignsManagement() {
             const key = `${app.user_id}_${app.campaign_id}`
             if (confirmedUserCampaigns.has(key)) continue
 
-            // SNS 업로드 날짜 기준 경과일 계산
-            const uploadDate = app.sns_uploaded_at || app.updated_at || app.created_at
+            // SNS 업로드 날짜 기준 경과일 계산 (sns_uploaded_at 컬럼 없으면 updated_at 사용)
+            const uploadDate = app.updated_at || app.created_at
             const daysElapsed = calcDaysElapsed(uploadDate)
             const groupId = getElapsedGroup(daysElapsed)
 
@@ -305,20 +306,30 @@ export default function UnpaidCampaignsManagement() {
           </Card>
         </div>
 
-        {/* 서브 탭 - 마감일/미지급 */}
+        {/* 서브 탭 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Button
             variant="outline"
             size="sm"
+            className="whitespace-nowrap"
+            onClick={() => navigate('/admin/campaigns')}
+          >
+            📋 전체 캠페인
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="whitespace-nowrap"
             onClick={() => navigate('/admin/campaigns/deadlines')}
           >
-            마감일 관리
+            ⏰ 마감일 관리
           </Button>
           <Button
             variant="default"
             size="sm"
+            className="whitespace-nowrap"
           >
-            포인트 미지급
+            💰 포인트 미지급
           </Button>
         </div>
 
