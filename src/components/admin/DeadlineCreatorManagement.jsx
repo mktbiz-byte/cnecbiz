@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2, Calendar, AlertTriangle, Clock, Users, ChevronDown, ChevronUp,
-  Phone, Mail, ExternalLink, RefreshCw
+  Phone, Mail, ExternalLink, RefreshCw, Edit2, Save, X
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -83,6 +84,9 @@ export default function DeadlineCreatorManagement() {
   const [pendingCreators, setPendingCreators] = useState([])
   const [loadingCreators, setLoadingCreators] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
+  const [editingCreator, setEditingCreator] = useState(null) // 마감일 수정 중인 크리에이터
+  const [newDeadline, setNewDeadline] = useState('')
+  const [savingDeadline, setSavingDeadline] = useState(false)
 
   // 데이터 로드 - 최적화된 버전
   const fetchData = async () => {
@@ -524,6 +528,58 @@ export default function DeadlineCreatorManagement() {
     }
   }
 
+  // 크리에이터 개별 마감일 수정
+  const handleEditDeadline = (creator) => {
+    setEditingCreator(creator)
+    // 캠페인 기본 마감일을 초기값으로 설정
+    setNewDeadline(selectedCampaign?.deadline || '')
+  }
+
+  const handleSaveDeadline = async () => {
+    if (!editingCreator || !newDeadline || !selectedCampaign) return
+
+    setSavingDeadline(true)
+    try {
+      const response = await fetch('/.netlify/functions/update-creator-deadline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: editingCreator.id,
+          campaignId: selectedCampaign.id,
+          region: selectedCampaign.region,
+          newDeadline: newDeadline,
+          deadlineType: selectedCampaign.stepLabel || 'content_submission',
+          stepOrWeek: selectedCampaign.stepOrWeek || null
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`마감일이 ${newDeadline}로 변경되었습니다.`)
+        // 크리에이터 목록에서 마감일 업데이트
+        setPendingCreators(prev => prev.map(c =>
+          c.id === editingCreator.id
+            ? { ...c, customDeadline: newDeadline }
+            : c
+        ))
+        setEditingCreator(null)
+        setNewDeadline('')
+      } else {
+        alert(`마감일 변경 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('마감일 변경 오류:', error)
+      alert('마감일 변경 중 오류가 발생했습니다.')
+    } finally {
+      setSavingDeadline(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingCreator(null)
+    setNewDeadline('')
+  }
+
   // 전체 통계 계산
   const getTotalStats = () => {
     let total = 0
@@ -797,48 +853,96 @@ export default function DeadlineCreatorManagement() {
                 ) : (
                   <div className="space-y-2">
                     {pendingCreators.map((creator, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">
-                            {creator.creatorName || '이름 없음'}
+                      <div key={idx} className="p-3 bg-white border rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">
+                              {creator.creatorName || '이름 없음'}
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                              {creator.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {creator.phone}
+                                </span>
+                              )}
+                              {creator.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3 h-3" />
+                                  {creator.email}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                            {creator.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {creator.phone}
-                              </span>
+                          <div className="flex items-center gap-2">
+                            {creator.submissionStatus && (
+                              <Badge variant="outline" className={
+                                creator.submissionStatus === '미제출' ? 'bg-red-50 text-red-700' :
+                                creator.submissionStatus === '반려됨' ? 'bg-orange-50 text-orange-700' :
+                                creator.submissionStatus === '수정 요청' ? 'bg-yellow-50 text-yellow-700' :
+                                'bg-gray-50 text-gray-700'
+                              }>
+                                {creator.submissionStatus}
+                              </Badge>
                             )}
-                            {creator.email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {creator.email}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {creator.submissionStatus && (
                             <Badge variant="outline" className={
-                              creator.submissionStatus === '미제출' ? 'bg-red-50 text-red-700' :
-                              creator.submissionStatus === '반려됨' ? 'bg-orange-50 text-orange-700' :
-                              creator.submissionStatus === '수정 요청' ? 'bg-yellow-50 text-yellow-700' :
+                              creator.status === 'filming' ? 'bg-blue-50 text-blue-700' :
+                              creator.status === 'selected' ? 'bg-green-50 text-green-700' :
                               'bg-gray-50 text-gray-700'
                             }>
-                              {creator.submissionStatus}
+                              {creator.status === 'filming' ? '촬영중' :
+                               creator.status === 'selected' ? '선정됨' :
+                               creator.status === 'guide_approved' ? '가이드승인' :
+                               creator.status}
                             </Badge>
-                          )}
-                          <Badge variant="outline" className={
-                            creator.status === 'filming' ? 'bg-blue-50 text-blue-700' :
-                            creator.status === 'selected' ? 'bg-green-50 text-green-700' :
-                            'bg-gray-50 text-gray-700'
-                          }>
-                            {creator.status === 'filming' ? '촬영중' :
-                             creator.status === 'selected' ? '선정됨' :
-                             creator.status === 'guide_approved' ? '가이드승인' :
-                             creator.status}
-                          </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditDeadline(creator)}
+                              className="ml-2"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
+
+                        {/* 마감일 수정 UI */}
+                        {editingCreator?.id === creator.id && (
+                          <div className="mt-3 pt-3 border-t flex items-center gap-2">
+                            <span className="text-sm text-gray-600">마감일 연장:</span>
+                            <Input
+                              type="date"
+                              value={newDeadline}
+                              onChange={(e) => setNewDeadline(e.target.value)}
+                              className="w-40"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={handleSaveDeadline}
+                              disabled={savingDeadline || !newDeadline}
+                            >
+                              {savingDeadline ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Save className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* 커스텀 마감일 표시 */}
+                        {creator.customDeadline && (
+                          <div className="mt-2 text-sm text-blue-600">
+                            📅 개별 마감일: {creator.customDeadline}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
