@@ -162,21 +162,42 @@ const CampaignGuideUS = () => {
         console.log('[DEBUG loadGuide] product_features:', data.product_features)
         console.log('[DEBUG loadGuide] product_features type:', typeof data.product_features)
         console.log('[DEBUG loadGuide] product_features isArray:', Array.isArray(data.product_features))
+
+        // JSON 문자열로 저장된 배열을 안전하게 파싱하는 헬퍼 함수
+        const safeParseArray = (value, defaultValue = ['']) => {
+          if (Array.isArray(value) && value.length > 0) {
+            return value
+          }
+          if (typeof value === 'string' && value.trim()) {
+            try {
+              const parsed = JSON.parse(value)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed
+              }
+            } catch (e) {
+              // JSON 파싱 실패 시 단일 문자열을 배열로
+              return [value]
+            }
+          }
+          return defaultValue
+        }
+
         setCampaignTitle(data.title || '')
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
         if (data.product_description) setProductDescription(data.product_description)
-        // Array.isArray로 배열 체크
-        if (Array.isArray(data.product_features) && data.product_features.length > 0) {
-          console.log('[DEBUG loadGuide] product_features 설정:', data.product_features)
-          setProductFeatures(data.product_features)
-        } else {
-          console.log('[DEBUG loadGuide] product_features가 비어있거나 배열이 아님, 기본값 유지')
+
+        // 배열 필드 파싱 (JSON 문자열 지원)
+        const parsedProductFeatures = safeParseArray(data.product_features, [''])
+        console.log('[DEBUG loadGuide] parsedProductFeatures:', parsedProductFeatures)
+        if (parsedProductFeatures.length > 0 && parsedProductFeatures[0] !== '') {
+          setProductFeatures(parsedProductFeatures)
         }
-        setRequiredDialogues(Array.isArray(data.required_dialogues) && data.required_dialogues.length > 0 ? data.required_dialogues : [''])
-        setRequiredScenes(Array.isArray(data.required_scenes) && data.required_scenes.length > 0 ? data.required_scenes : [''])
-        setRequiredHashtags(Array.isArray(data.required_hashtags) && data.required_hashtags.length > 0 ? data.required_hashtags : [''])
+
+        setRequiredDialogues(safeParseArray(data.required_dialogues, ['']))
+        setRequiredScenes(safeParseArray(data.required_scenes, ['']))
+        setRequiredHashtags(safeParseArray(data.required_hashtags, ['']))
         setVideoDuration(data.video_duration || '')
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
@@ -200,21 +221,24 @@ const CampaignGuideUS = () => {
         setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
 
-        // 영어 번역 데이터 로드 (저장된 경우에만) - Array.isArray로 배열 체크
+        // 영어 번역 데이터 로드 (저장된 경우에만) - safeParseArray 사용
         if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
         if (data.product_name_en) setTranslatedProductName(data.product_name_en)
         if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
-        if (Array.isArray(data.product_features_en) && data.product_features_en.length > 0) {
-          setTranslatedProductFeatures(data.product_features_en)
+
+        const parsedProductFeaturesEn = safeParseArray(data.product_features_en, [])
+        if (parsedProductFeaturesEn.length > 0) {
+          setTranslatedProductFeatures(parsedProductFeaturesEn)
         }
-        setTranslatedDialogues(Array.isArray(data.required_dialogues_en) ? data.required_dialogues_en : [])
-        setTranslatedScenes(Array.isArray(data.required_scenes_en) ? data.required_scenes_en : [])
-        setTranslatedHashtags(Array.isArray(data.required_hashtags_en) ? data.required_hashtags_en : [])
+
+        setTranslatedDialogues(safeParseArray(data.required_dialogues_en, []))
+        setTranslatedScenes(safeParseArray(data.required_scenes_en, []))
+        setTranslatedHashtags(safeParseArray(data.required_hashtags_en, []))
         setTranslatedDuration(data.video_duration_en || '')
         setTranslatedTempo(data.video_tempo_en || '')
         setTranslatedTone(data.video_tone_en || '')
         setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
-        setTranslatedShootingScenes(Array.isArray(data.shooting_scenes_en) ? data.shooting_scenes_en : [])
+        setTranslatedShootingScenes(safeParseArray(data.shooting_scenes_en, []))
         if (data.additional_details_en) setTranslatedAdditionalDetails(data.additional_details_en)
 
         // 데이터 로드 완료
