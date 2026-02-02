@@ -48,7 +48,7 @@ exports.handler = async (event, context) => {
       // 1. 캠페인 찾기
       const { data: campaigns, error: campError } = await supabase
         .from('campaigns')
-        .select('id, title, campaign_type, status')
+        .select('id, title, campaign_type, status, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
         .ilike('title', `%${campaignTitle}%`)
         .limit(5);
 
@@ -58,7 +58,16 @@ exports.handler = async (event, context) => {
       }
 
       results[region.name] = {
-        campaigns: campaigns || [],
+        campaigns: (campaigns || []).map(c => ({
+          id: c.id,
+          title: c.title,
+          campaign_type: c.campaign_type,
+          status: c.status,
+          week1_deadline: c.week1_deadline,
+          week2_deadline: c.week2_deadline,
+          week3_deadline: c.week3_deadline,
+          week4_deadline: c.week4_deadline
+        })),
         video_submissions: {}
       };
 
@@ -78,14 +87,40 @@ exports.handler = async (event, context) => {
         // 컬럼 구조 확인
         const columns = subs && subs.length > 0 ? Object.keys(subs[0]) : [];
 
+        // applications 조회 (비교용)
+        const { data: apps } = await supabase
+          .from('applications')
+          .select('id, user_id, status')
+          .eq('campaign_id', camp.id);
+
+        // user_profiles로 이름 조회
+        const userIds = [...new Set([
+          ...(subs || []).map(s => s.user_id),
+          ...(apps || []).map(a => a.user_id)
+        ])].filter(Boolean);
+
+        let profileMap = {};
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('user_profiles')
+            .select('user_id, name, channel_name')
+            .in('user_id', userIds);
+
+          (profiles || []).forEach(p => {
+            profileMap[p.user_id] = p.name || p.channel_name || 'Unknown';
+          });
+        }
+
         results[region.name].video_submissions[camp.id] = {
           campaign_title: camp.title,
           campaign_type: camp.campaign_type,
           total_submissions: subs?.length || 0,
+          total_applications: apps?.length || 0,
           columns: columns,
           submissions: (subs || []).map(s => ({
             id: s.id,
-            user_id: s.user_id?.substring(0, 8) + '...',
+            user_id: s.user_id,
+            user_name: profileMap[s.user_id] || 'Unknown',
             status: s.status,
             week_number: s.week_number,
             video_number: s.video_number,
@@ -93,36 +128,15 @@ exports.handler = async (event, context) => {
             week: s.week,  // 존재하는지 확인
             final_confirmed_at: s.final_confirmed_at,
             created_at: s.created_at
+          })),
+          applications: (apps || []).map(a => ({
+            id: a.id,
+            user_id: a.user_id,
+            user_name: profileMap[a.user_id] || 'Unknown',
+            status: a.status
           }))
         };
-
-        // applications 조회 (비교용)
-        const { data: apps } = await supabase
-          .from('applications')
-          .select('id, user_id, status')
-          .eq('campaign_id', camp.id);
-
-        results[region.name].video_submissions[camp.id].applications = (apps || []).map(a => ({
-          user_id: a.user_id?.substring(0, 8) + '...',
-          status: a.status
-        }));
       }
-    }
-
-    // 4주 챌린지 캠페인도 확인
-    const fourWeekResults = {};
-    for (const region of regions) {
-      if (!region.url || !region.key) continue;
-
-      const supabase = createClient(region.url, region.key);
-
-      const { data: fourWeek } = await supabase
-        .from('campaigns')
-        .select('id, title, campaign_type')
-        .eq('campaign_type', '4week_challenge')
-        .limit(3);
-
-      fourWeekResults[region.name] = fourWeek || [];
     }
 
     return {
@@ -131,8 +145,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         searchTerm: campaignTitle,
-        results: results,
-        fourWeekCampaigns: fourWeekResults
+        results: results
       }, null, 2)
     };
 
