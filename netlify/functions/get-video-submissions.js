@@ -54,9 +54,10 @@ exports.handler = async (event) => {
 
     const supabase = createClient(config.url, config.key);
 
+    // Korea DB에는 step 컬럼이 없음 - 존재하는 컬럼만 조회
     let query = supabase
       .from('video_submissions')
-      .select('id, campaign_id, user_id, status, final_confirmed_at, week_number, step, video_number, created_at');
+      .select('id, campaign_id, user_id, status, final_confirmed_at, week_number, video_number, created_at');
 
     // campaignId 또는 campaignIds로 필터링
     if (campaignId) {
