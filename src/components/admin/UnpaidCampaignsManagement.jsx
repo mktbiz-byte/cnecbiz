@@ -100,17 +100,31 @@ export default function UnpaidCampaignsManagement() {
           // 2. 모든 캠페인의 ID 배열
           const campaignIds = campaigns.map(c => c.id)
 
-          // 3. video_submissions 한번에 조회 (완료된 것과 아닌 것 모두)
+          // 3. video_submissions 한번에 조회 (Korea/BIZ만 - Japan/US는 테이블 없음)
           let allSubmissions = []
-          try {
-            const { data: submissions } = await supabase
-              .from('video_submissions')
-              .select('id, campaign_id, user_id, status, final_confirmed_at, week_number, step, video_number')
-              .in('campaign_id', campaignIds)
-            allSubmissions = submissions || []
-            debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개`)
-          } catch (e) {
-            debugLog.push(`[${region.id}] video_submissions 조회 실패: ${e.message}`)
+          if (region.id === 'korea' || region.id === 'biz') {
+            try {
+              // netlify 함수를 통해 조회 (RLS 우회, URL 길이 제한 없음)
+              const response = await fetch('/.netlify/functions/get-video-submissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  region: region.id,
+                  campaignIds: campaignIds
+                })
+              })
+              const result = await response.json()
+              if (result.success) {
+                allSubmissions = result.submissions || []
+                debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개 (via API)`)
+              } else {
+                debugLog.push(`[${region.id}] video_submissions API 오류: ${result.error}`)
+              }
+            } catch (e) {
+              debugLog.push(`[${region.id}] video_submissions 조회 실패: ${e.message}`)
+            }
+          } else {
+            debugLog.push(`[${region.id}] video_submissions 테이블 없음 (스킵)`)
           }
 
           // 4. applications 한번에 조회 (승인/완료 상태)
@@ -255,16 +269,28 @@ export default function UnpaidCampaignsManagement() {
 
       if (appError) throw appError
 
-      // video_submissions 조회
+      // video_submissions 조회 (Korea/BIZ만 - Japan/US는 테이블 없음)
       let submissions = []
-      try {
-        const { data: subs } = await supabase
-          .from('video_submissions')
-          .select('id, user_id, status, final_confirmed_at, week_number, step, video_number, created_at')
-          .eq('campaign_id', campaign.id)
-        submissions = subs || []
-      } catch (e) {
-        console.log('video_submissions 조회 실패:', e)
+      if (campaign.region === 'korea' || campaign.region === 'biz') {
+        try {
+          // netlify 함수를 통해 조회 (RLS 우회)
+          const response = await fetch('/.netlify/functions/get-video-submissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              region: campaign.region,
+              campaignId: campaign.id
+            })
+          })
+          const result = await response.json()
+          if (result.success) {
+            submissions = result.submissions || []
+          } else {
+            console.log('video_submissions API 오류:', result.error)
+          }
+        } catch (e) {
+          console.log('video_submissions 조회 실패:', e)
+        }
       }
 
       // user_profiles에서 추가 정보 조회
