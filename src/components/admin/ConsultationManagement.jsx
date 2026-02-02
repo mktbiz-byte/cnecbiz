@@ -166,7 +166,8 @@ export default function ConsultationManagement() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message,
-            isAdminNotification: true
+            isAdminNotification: true,
+            channelId: 'b9387420-7c8d-e703-0f96-dbfc72565bb5'  // 상담 히스토리 전용 채널
           })
         })
 
