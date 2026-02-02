@@ -383,11 +383,26 @@ export default function DeadlineCreatorManagement() {
       // video_submissions 조회
       let submissions = []
       try {
-        const { data: subs } = await supabase
+        const { data: subs, error: subError } = await supabase
           .from('video_submissions')
-          .select('id, user_id, status, final_confirmed_at, week_number, step, video_number, created_at')
+          .select('*')  // 모든 컬럼 조회해서 구조 확인
           .eq('campaign_id', campaign.id)
+
+        if (subError) {
+          console.error('video_submissions 조회 에러:', subError)
+        }
+
         submissions = subs || []
+        console.log('=== video_submissions 조회 결과 ===')
+        console.log('캠페인:', campaign.title)
+        console.log('조회된 submissions 수:', submissions.length)
+        if (submissions.length > 0) {
+          console.log('첫 번째 submission 컬럼:', Object.keys(submissions[0]))
+          console.log('submissions 상세:')
+          submissions.forEach(s => {
+            console.log(`  - user_id: ${s.user_id}, status: ${s.status}, week_number: ${s.week_number}, video_number: ${s.video_number}, step: ${s.step}`)
+          })
+        }
       } catch (e) {
         console.log('video_submissions 조회 실패:', e)
       }
@@ -429,18 +444,29 @@ export default function DeadlineCreatorManagement() {
 
         if (typeInfo.isMulti && campaign.stepOrWeek) {
           // 멀티비디오 캠페인: 특정 스텝/주차 확인
-          // week 컬럼은 존재하지 않음 - week_number, video_number만 사용
+          console.log(`=== 멀티비디오 매칭 시작: ${profile?.name || app.user_id} ===`)
+          console.log(`  찾는 스텝/주차: ${campaign.stepOrWeek}, is4Week: ${typeInfo.is4Week}`)
+          console.log(`  유저 submissions 수: ${userSubs.length}`)
+
           const stepSub = userSubs.find(s => {
             const weekNum = s.week_number != null ? Number(s.week_number) : null
             const videoNum = s.video_number != null ? Number(s.video_number) : null
             const stepNum = s.step != null ? Number(s.step) : null
 
+            console.log(`    submission 체크: week_number=${s.week_number}(→${weekNum}), video_number=${s.video_number}(→${videoNum}), step=${s.step}(→${stepNum}), status=${s.status}`)
+
             if (typeInfo.is4Week) {
-              return weekNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
+              const match = weekNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
+              console.log(`    4week 매칭: weekNum(${weekNum}) === ${campaign.stepOrWeek} || videoNum(${videoNum}) === ${campaign.stepOrWeek} => ${match}`)
+              return match
             } else {
-              return stepNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
+              const match = stepNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
+              console.log(`    올영 매칭: stepNum(${stepNum}) === ${campaign.stepOrWeek} || videoNum(${videoNum}) === ${campaign.stepOrWeek} => ${match}`)
+              return match
             }
           })
+
+          console.log(`  매칭된 submission: ${stepSub ? `있음 (status: ${stepSub.status})` : '없음'}`)
 
           // submitted, resubmitted = 제출됨 (검토 대기 중이지만 미제출 아님)
           // approved, completed, uploaded = 승인/완료됨
@@ -449,6 +475,7 @@ export default function DeadlineCreatorManagement() {
           if (!stepSub) {
             isPending = true
             submissionStatus = '미제출'
+            console.log(`  결과: 미제출 (submission 없음)`)
           } else if (!submittedStatuses.includes(stepSub.status)) {
             // pending, rejected, revision_requested 등만 미제출로 처리
             isPending = true
@@ -456,6 +483,9 @@ export default function DeadlineCreatorManagement() {
                                stepSub.status === 'revision_requested' ? '수정 요청' :
                                stepSub.status === 'pending' ? '대기중' :
                                stepSub.status
+            console.log(`  결과: 미제출 (status: ${stepSub.status} not in ${submittedStatuses})`)
+          } else {
+            console.log(`  결과: 제출됨 (status: ${stepSub.status})`)
           }
         } else {
           // 일반 캠페인
