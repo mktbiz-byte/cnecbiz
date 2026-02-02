@@ -5417,31 +5417,21 @@ JSON만 출력.`
                           </div>
                         )}
 
-                        {/* US/Japan 캠페인: AI 가이드 or 파일/URL 전달 선택 */}
+                        {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) */}
                         {(region === 'us' || region === 'japan') && (
                           <div className="flex items-center gap-1.5">
-                            {/* 씬 가이드 작성 버튼 (AI 가이드) */}
+                            {/* 가이드 전달 버튼 - 모달에서 AI 또는 파일/URL 선택 */}
                             <Button
                               size="sm"
-                              onClick={() => navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${participant.id}&region=${region}`)}
-                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
-                            >
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              AI 가이드 생성
-                            </Button>
-                            {/* 파일/URL 전달 선택 버튼 */}
-                            <Button
-                              size="sm"
-                              variant="outline"
                               onClick={() => {
                                 setSelectedParticipantForGuide(participant)
                                 setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                                 setShowGuideSelectModal(true)
                               }}
-                              className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-3 py-1 h-auto"
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
                             >
-                              <Link className="w-3 h-3 mr-1" />
-                              파일/URL 전달
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              가이드 전달
                             </Button>
                             {participant.personalized_guide && (
                               <Button
