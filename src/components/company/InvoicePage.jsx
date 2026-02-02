@@ -436,6 +436,15 @@ const InvoicePage = () => {
       return basePrice + addon
     }
 
+    // 미국 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'us') {
+      const usCampaignTypePrices = { regular: 300000, '4week_challenge': 600000 }
+      const usPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
+      const basePrice = usCampaignTypePrices[campaignType] || 300000
+      const addon = usPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
     // 올리브영 패키지 가격
     const oliveyoungPrices = {
       'standard': 400000,
