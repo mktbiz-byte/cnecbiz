@@ -519,8 +519,20 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
 
 // 메인 핸들러
 exports.handler = async (event, context) => {
+  console.log('========================================');
   console.log('=== 영상 제출 마감일 알림 스케줄러 시작 ===');
-  console.log('실행 시간:', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+  console.log('========================================');
+  console.log('실행 시간 (UTC):', new Date().toISOString());
+  console.log('실행 시간 (KST):', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+
+  // 환경변수 확인 로그
+  console.log('\n=== 환경변수 확인 ===');
+  console.log('VITE_SUPABASE_BIZ_URL:', process.env.VITE_SUPABASE_BIZ_URL ? '설정됨' : '❌ 미설정');
+  console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
+  console.log('VITE_SUPABASE_KOREA_URL:', process.env.VITE_SUPABASE_KOREA_URL ? '설정됨' : '❌ 미설정');
+  console.log('SUPABASE_KOREA_SERVICE_ROLE_KEY:', process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
+  console.log('GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '설정됨' : '❌ 미설정');
+  console.log('POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID ? '설정됨' : '❌ 미설정');
 
   try {
     // 오늘 날짜 (한국 시간 기준)
@@ -540,9 +552,10 @@ exports.handler = async (event, context) => {
     in3Days.setDate(today.getDate() + 3);
     const in3DaysStr = in3Days.toISOString().split('T')[0];
 
-    console.log('오늘:', todayStr);
-    console.log('2일 후:', in2DaysStr);
-    console.log('3일 후:', in3DaysStr);
+    console.log('\n=== 날짜 계산 결과 ===');
+    console.log('오늘 (당일 마감):', todayStr);
+    console.log('2일 후 마감:', in2DaysStr);
+    console.log('3일 후 마감:', in3DaysStr);
 
     // 캠페인 데이터는 BIZ DB와 Korea DB에 저장됨
     const regions = [
@@ -583,8 +596,21 @@ exports.handler = async (event, context) => {
           .in('status', ['active', 'recruiting', 'approved']);
 
         if (campaignError) {
-          console.error(`${region.name} 캠페인 조회 오류 (${date}):`, campaignError);
+          console.error(`❌ ${region.name} 캠페인 조회 오류 (${date}):`, campaignError);
           continue;
+        }
+
+        console.log(`[${region.name}] 활성 캠페인 ${(regionCampaigns || []).length}개 조회됨`);
+
+        // 각 캠페인의 마감일 로그 (디버깅용)
+        if (regionCampaigns && regionCampaigns.length > 0) {
+          console.log(`[${region.name}] 캠페인 마감일 상세:`);
+          regionCampaigns.slice(0, 10).forEach(c => {
+            console.log(`  - ${c.title} (${c.campaign_type || 'regular'}): content_deadline=${getDatePart(c.content_submission_deadline)}, step1=${getDatePart(c.step1_deadline)}, week1=${getDatePart(c.week1_deadline)}`);
+          });
+          if (regionCampaigns.length > 10) {
+            console.log(`  ... 외 ${regionCampaigns.length - 10}개`);
+          }
         }
 
         // 캠페인 타입별 마감일 필터링 (getDatePart로 timestamp/date 타입 모두 처리)
@@ -644,11 +670,12 @@ exports.handler = async (event, context) => {
         }
 
         if (!applications || applications.length === 0) {
-          console.log(`${label} - ${campaign.title} (${campaign.region}): 알림 대상 없음`);
+          console.log(`${label} - ${campaign.title} (${campaign.region}): 알림 대상 없음 (filming/selected/guide_approved 상태 신청 없음)`);
           continue;
         }
 
         console.log(`${label} - ${campaign.title} (${campaign.region}): ${applications.length}건 대상`);
+        console.log(`  신청 상태 분포: ${JSON.stringify(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {}))}`);
 
         // 각 application에 대해 알림 발송
         for (const app of applications) {
@@ -854,12 +881,30 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('\n=== 크리에이터 알림 완료 ===');
-    console.log('총 처리 결과:', JSON.stringify(allResults, null, 2));
+    console.log('\n========================================');
+    console.log('=== 크리에이터 알림 완료 ===');
+    console.log('========================================');
 
     const sentCount = allResults.filter(r => r.status === 'sent').length;
     const failedCount = allResults.filter(r => r.status === 'failed').length;
     const skippedCount = allResults.filter(r => r.status === 'skipped').length;
+
+    console.log(`📊 전체 결과 요약:`);
+    console.log(`  - 발송 성공: ${sentCount}건`);
+    console.log(`  - 발송 실패: ${failedCount}건`);
+    console.log(`  - 건너뜀: ${skippedCount}건`);
+
+    if (allResults.length === 0) {
+      console.log('⚠️ 처리된 알림이 없습니다. 다음 사항을 확인하세요:');
+      console.log('  1. 마감일이 오늘/2일후/3일후인 캠페인이 있는지');
+      console.log('  2. 해당 캠페인의 status가 active/recruiting/approved인지');
+      console.log('  3. 해당 캠페인에 filming/selected/guide_approved 상태인 신청이 있는지');
+    }
+
+    console.log('\n상세 결과:', JSON.stringify(allResults.slice(0, 20), null, 2));
+    if (allResults.length > 20) {
+      console.log(`  ... 외 ${allResults.length - 20}건`);
+    }
 
     // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송
     console.log('\n=== 기업 이메일 발송 시작 ===');

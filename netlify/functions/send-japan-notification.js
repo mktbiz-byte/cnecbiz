@@ -461,6 +461,8 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body);
     const { type, creatorId, creatorEmail, data = {} } = body;
 
+    console.log(`[send-japan-notification] 요청 수신: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}`);
+
     if (!type) {
       return {
         statusCode: 400,
@@ -474,28 +476,35 @@ exports.handler = async (event) => {
 
     // 크리에이터 정보 조회
     if (creatorId) {
-      const { data: c } = await supabase
+      console.log(`[send-japan-notification] creatorId로 조회: ${creatorId}`);
+      const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('id', creatorId)
         .single();
       creator = c;
+      if (e) console.log(`[send-japan-notification] creatorId 조회 오류: ${e.message}`);
     } else if (creatorEmail) {
-      const { data: c } = await supabase
+      console.log(`[send-japan-notification] creatorEmail로 조회: ${creatorEmail}`);
+      const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('email', creatorEmail.toLowerCase())
         .single();
       creator = c;
+      if (e) console.log(`[send-japan-notification] creatorEmail 조회 오류: ${e.message}`);
     }
 
     if (!creator) {
+      console.log(`[send-japan-notification] 크리에이터 조회 실패 - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
       return {
         statusCode: 404,
         headers,
         body: JSON.stringify({ success: false, error: 'Creator not found' })
       };
     }
+
+    console.log(`[send-japan-notification] 크리에이터 조회 성공: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
 
     // 데이터에 크리에이터 이름 추가
     data.creatorName = data.creatorName || creator.name || '크리에이터';
