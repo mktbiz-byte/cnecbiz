@@ -47,9 +47,23 @@ const getDeadlineFields = (campaignType) => {
     return ['week1_deadline', 'week2_deadline', 'week3_deadline', 'week4_deadline']
   } else if (type.includes('olive')) {
     return ['step1_deadline', 'step2_deadline']
+  } else if (type.includes('megawari')) {
+    return ['step1_deadline', 'step2_deadline']
   } else {
-    return ['content_submission_deadline']
+    // 일반 캠페인: content_submission_deadline, video_deadline, start_date 순서로 확인
+    return ['content_submission_deadline', 'video_deadline', 'start_date']
   }
+}
+
+// 캠페인에서 유효한 마감일 값 가져오기
+const getEffectiveDeadline = (campaign, fields) => {
+  for (const field of fields) {
+    const value = campaign[field]
+    if (value) {
+      return { field, value }
+    }
+  }
+  return null
 }
 
 export default function DeadlineCreatorManagement() {
@@ -61,20 +75,19 @@ export default function DeadlineCreatorManagement() {
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [pendingCreators, setPendingCreators] = useState([])
   const [loadingCreators, setLoadingCreators] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
 
   // 데이터 로드
   const fetchData = async () => {
     setRefreshing(true)
+    let debugLog = []
+
     try {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const todayStr = today.toISOString().split('T')[0]
 
-      // 날짜 범위 계산 (3일 전부터 7일 후까지)
-      const startDate = new Date(today)
-      startDate.setDate(today.getDate() - 7) // 7일 지연까지 표시
-      const endDate = new Date(today)
-      endDate.setDate(today.getDate() + 3)
+      debugLog.push(`오늘 날짜: ${todayStr}`)
 
       const result = {}
 
@@ -89,74 +102,103 @@ export default function DeadlineCreatorManagement() {
             ? supabaseBiz
             : getSupabaseClient(region.id)
 
+          if (!supabase) {
+            debugLog.push(`[${region.id}] Supabase 클라이언트 없음`)
+            continue
+          }
+
           // 활성 캠페인 조회
           const { data: campaigns, error } = await supabase
             .from('campaigns')
             .select(`
-              id, title, campaign_type, company_id, region,
-              content_submission_deadline, step1_deadline, step2_deadline,
+              id, title, campaign_type, company_id, region, status,
+              content_submission_deadline, video_deadline, start_date,
+              step1_deadline, step2_deadline,
               week1_deadline, week2_deadline, week3_deadline, week4_deadline
             `)
-            .in('status', ['active', 'recruiting', 'approved'])
+            .in('status', ['active', 'recruiting', 'approved', 'filming', 'ongoing'])
 
           if (error) {
+            debugLog.push(`[${region.id}] 캠페인 조회 오류: ${error.message}`)
             console.error(`${region.id} 캠페인 조회 오류:`, error)
             continue
           }
 
-          // 각 캠페인의 신청자 수 조회
+          debugLog.push(`[${region.id}] 활성 캠페인 ${(campaigns || []).length}개`)
+
+          // 각 캠페인의 마감일 확인
           for (const campaign of campaigns || []) {
+            const campaignType = (campaign.campaign_type || '').toLowerCase()
             const deadlineFields = getDeadlineFields(campaign.campaign_type)
 
-            for (const field of deadlineFields) {
+            // 일반 캠페인은 하나의 유효한 마감일만 사용
+            const isRegularCampaign = !campaignType.includes('4week') &&
+                                      !campaignType.includes('challenge') &&
+                                      !campaignType.includes('olive') &&
+                                      !campaignType.includes('megawari')
+
+            let fieldsToCheck = deadlineFields
+            if (isRegularCampaign) {
+              // 일반 캠페인: 첫 번째 유효한 마감일만 사용
+              const effectiveDeadline = getEffectiveDeadline(campaign, deadlineFields)
+              if (effectiveDeadline) {
+                fieldsToCheck = [effectiveDeadline.field]
+              } else {
+                debugLog.push(`[${region.id}] ${campaign.title}: 마감일 없음`)
+                continue
+              }
+            }
+
+            for (const field of fieldsToCheck) {
               const deadline = getDatePart(campaign[field])
               if (!deadline) continue
 
-              const deadlineDate = new Date(deadline)
+              const deadlineDate = new Date(deadline + 'T00:00:00')
               const diffDays = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24))
 
-              // 해당 마감일의 미제출자 수 조회
-              let query = supabase
+              // 3일 전 ~ 지연(7일까지) 범위만 표시
+              if (diffDays > 3 || diffDays < -7) continue
+
+              // 해당 캠페인의 신청자 조회 (더 넓은 상태 범위)
+              const { data: applications, error: appError } = await supabase
                 .from('applications')
-                .select('id', { count: 'exact', head: true })
+                .select('id, user_id, status, video_url, clean_video_url')
                 .eq('campaign_id', campaign.id)
-                .in('status', ['filming', 'selected', 'guide_approved'])
+                .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
 
-              const { count, error: countError } = await query
-
-              if (countError) continue
-              if (!count || count === 0) continue
-
-              // 영상 제출 확인 (video_submissions)
-              let videoQuery = supabase
-                .from('video_submissions')
-                .select('user_id')
-                .eq('campaign_id', campaign.id)
-
-              // 캠페인 타입별 영상 번호 필터
-              const type = (campaign.campaign_type || '').toLowerCase()
-              if (type.includes('4week') || type.includes('challenge')) {
-                const weekNum = parseInt(field.replace('week', '').replace('_deadline', ''))
-                videoQuery = videoQuery.eq('week_number', weekNum)
-              } else if (type.includes('olive')) {
-                const stepNum = parseInt(field.replace('step', '').replace('_deadline', ''))
-                videoQuery = videoQuery.eq('video_number', stepNum)
+              if (appError) {
+                debugLog.push(`[${region.id}] ${campaign.title} 신청 조회 오류: ${appError.message}`)
+                continue
               }
 
-              const { data: submissions } = await videoQuery
-              const submittedUserIds = (submissions || []).map(s => s.user_id)
+              if (!applications || applications.length === 0) {
+                debugLog.push(`[${region.id}] ${campaign.title}: 신청자 없음 (${deadline})`)
+                continue
+              }
 
-              // 미제출자 수 계산
-              const { count: pendingCount } = await supabase
-                .from('applications')
-                .select('id', { count: 'exact', head: true })
-                .eq('campaign_id', campaign.id)
-                .in('status', ['filming', 'selected', 'guide_approved'])
-                .not('user_id', 'in', `(${submittedUserIds.length > 0 ? submittedUserIds.join(',') : 'null'})`)
+              // video_submissions 테이블 확인 (테이블 존재 여부 먼저 확인)
+              let submittedUserIds = new Set()
+              try {
+                const { data: submissions } = await supabase
+                  .from('video_submissions')
+                  .select('user_id')
+                  .eq('campaign_id', campaign.id)
+                submittedUserIds = new Set((submissions || []).map(s => s.user_id))
+              } catch (e) {
+                // video_submissions 테이블이 없는 경우 무시
+              }
 
-              const actualPendingCount = submittedUserIds.length > 0 ? pendingCount : count
+              // 미제출자 필터링 (applications 테이블의 video_url도 체크)
+              const pendingApps = applications.filter(app => {
+                // video_submissions에 있거나 applications.video_url이 있으면 제출 완료
+                const hasSubmitted = submittedUserIds.has(app.user_id) ||
+                                    app.video_url ||
+                                    app.clean_video_url
+                return !hasSubmitted
+              })
+              const pendingCount = pendingApps.length
 
-              if (!actualPendingCount || actualPendingCount === 0) continue
+              if (pendingCount === 0) continue
 
               // 단계별 분류
               let stageId = null
@@ -173,12 +215,15 @@ export default function DeadlineCreatorManagement() {
                     ? `${field.replace('step', '').replace('_deadline', '')}단계`
                     : ''
 
+                debugLog.push(`[${region.id}] ${campaign.title} (${field}=${deadline}, ${stageId}): ${pendingCount}/${applications.length}명 미제출`)
+
                 result[region.id][stageId].push({
                   ...campaign,
                   deadlineField: field,
                   deadline,
                   diffDays,
-                  pendingCount: actualPendingCount,
+                  pendingCount,
+                  totalCount: applications.length,
                   stepLabel,
                   region: region.id
                 })
@@ -186,13 +231,18 @@ export default function DeadlineCreatorManagement() {
             }
           }
         } catch (err) {
+          debugLog.push(`[${region.id}] 오류: ${err.message}`)
           console.error(`${region.id} 데이터 조회 오류:`, err)
         }
       }
 
       setData(result)
+      setDebugInfo(debugLog.join('\n'))
+      console.log('마감일 관리 디버그:\n', debugLog.join('\n'))
     } catch (error) {
+      debugLog.push(`전체 오류: ${error.message}`)
       console.error('데이터 로드 오류:', error)
+      setDebugInfo(debugLog.join('\n'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -214,35 +264,34 @@ export default function DeadlineCreatorManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 신청자 조회
+      // 해당 캠페인의 신청자 조회 (video_url 포함)
       const { data: applications, error: appError } = await supabase
         .from('applications')
-        .select('id, user_id, status, applicant_name, creator_name, email')
+        .select('id, user_id, status, applicant_name, creator_name, email, video_url, clean_video_url')
         .eq('campaign_id', campaign.id)
-        .in('status', ['filming', 'selected', 'guide_approved'])
+        .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
 
       if (appError) throw appError
 
       // 영상 제출 확인
-      let videoQuery = supabase
-        .from('video_submissions')
-        .select('user_id')
-        .eq('campaign_id', campaign.id)
-
-      const type = (campaign.campaign_type || '').toLowerCase()
-      if (type.includes('4week') || type.includes('challenge')) {
-        const weekNum = parseInt(campaign.deadlineField.replace('week', '').replace('_deadline', ''))
-        videoQuery = videoQuery.eq('week_number', weekNum)
-      } else if (type.includes('olive')) {
-        const stepNum = parseInt(campaign.deadlineField.replace('step', '').replace('_deadline', ''))
-        videoQuery = videoQuery.eq('video_number', stepNum)
+      let submittedUserIds = new Set()
+      try {
+        const { data: submissions } = await supabase
+          .from('video_submissions')
+          .select('user_id')
+          .eq('campaign_id', campaign.id)
+        submittedUserIds = new Set((submissions || []).map(s => s.user_id))
+      } catch (e) {
+        // video_submissions 테이블이 없는 경우 무시
       }
 
-      const { data: submissions } = await videoQuery
-      const submittedUserIds = new Set((submissions || []).map(s => s.user_id))
-
-      // 미제출자 필터링
-      const pending = (applications || []).filter(app => !submittedUserIds.has(app.user_id))
+      // 미제출자 필터링 (applications 테이블의 video_url도 체크)
+      const pending = (applications || []).filter(app => {
+        const hasSubmitted = submittedUserIds.has(app.user_id) ||
+                            app.video_url ||
+                            app.clean_video_url
+        return !hasSubmitted
+      })
 
       // user_profiles에서 추가 정보 조회
       const userIds = pending.map(p => p.user_id).filter(Boolean)
@@ -403,7 +452,7 @@ export default function DeadlineCreatorManagement() {
                   const campaigns = regionData[stage.id] || []
                   if (campaigns.length === 0) return null
 
-                  const isExpanded = expandedCampaigns[`${region.id}-${stage.id}`]
+                  const isExpanded = expandedCampaigns[`${region.id}-${stage.id}`] !== false
                   const totalPending = campaigns.reduce((sum, c) => sum + (c.pendingCount || 0), 0)
 
                   return (
@@ -412,7 +461,7 @@ export default function DeadlineCreatorManagement() {
                         className="cursor-pointer hover:bg-gray-50 transition-colors"
                         onClick={() => setExpandedCampaigns(prev => ({
                           ...prev,
-                          [`${region.id}-${stage.id}`]: !prev[`${region.id}-${stage.id}`]
+                          [`${region.id}-${stage.id}`]: !isExpanded
                         }))}
                       >
                         <div className="flex items-center justify-between">
@@ -487,6 +536,17 @@ export default function DeadlineCreatorManagement() {
             <CardContent className="p-8 text-center">
               <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">마감일이 임박한 캠페인이 없습니다.</p>
+              <p className="text-sm text-gray-400 mt-2">
+                3일 이내 마감 예정이거나 마감이 지난 캠페인이 표시됩니다.
+              </p>
+              {debugInfo && (
+                <details className="mt-4 text-left">
+                  <summary className="text-xs text-gray-400 cursor-pointer">디버그 정보</summary>
+                  <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-x-auto whitespace-pre-wrap">
+                    {debugInfo}
+                  </pre>
+                </details>
+              )}
             </CardContent>
           </Card>
         )}

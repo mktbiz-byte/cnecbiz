@@ -39,10 +39,13 @@ export default function UnpaidCampaignsManagement() {
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [unpaidCreators, setUnpaidCreators] = useState([])
   const [loadingCreators, setLoadingCreators] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
 
   // 데이터 로드
   const fetchData = async () => {
     setRefreshing(true)
+    const debugLog = []
+
     try {
       const result = {}
 
@@ -54,42 +57,60 @@ export default function UnpaidCampaignsManagement() {
             ? supabaseBiz
             : getSupabaseClient(region.id)
 
-          // 완료된 캠페인 조회 (SNS 업로드 완료 또는 캠페인 완료)
+          if (!supabase) {
+            debugLog.push(`[${region.id}] Supabase 클라이언트 없음`)
+            continue
+          }
+
+          // 완료된 캠페인 조회 (더 넓은 상태 범위)
           const { data: campaigns, error } = await supabase
             .from('campaigns')
             .select(`
               id, title, campaign_type, company_id, region, status, end_date,
               reward_points, reward_amount
             `)
-            .in('status', ['completed', 'active'])
+            .in('status', ['completed', 'active', 'ongoing', 'filming'])
             .order('end_date', { ascending: false })
             .limit(100)
 
           if (error) {
+            debugLog.push(`[${region.id}] 캠페인 조회 오류: ${error.message}`)
             console.error(`${region.id} 캠페인 조회 오류:`, error)
             continue
           }
 
+          debugLog.push(`[${region.id}] 캠페인 ${(campaigns || []).length}개`)
+
           // 각 캠페인의 포인트 미지급 크리에이터 확인
           for (const campaign of campaigns || []) {
-            // SNS 업로드 완료된 신청자 수 조회
-            const { data: completedApps, count: completedCount, error: appError } = await supabase
+            // SNS 업로드 완료된 신청자 수 조회 (더 넓은 상태 범위)
+            const { data: completedApps, error: appError } = await supabase
               .from('applications')
-              .select('id, user_id, points_paid', { count: 'exact' })
+              .select('id, user_id, status, points_paid, reward_paid, point_paid')
               .eq('campaign_id', campaign.id)
-              .in('status', ['sns_uploaded', 'completed'])
+              .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
 
-            if (appError) continue
-            if (!completedCount || completedCount === 0) continue
+            if (appError) {
+              debugLog.push(`[${region.id}] ${campaign.title} 신청 조회 오류: ${appError.message}`)
+              continue
+            }
 
-            // 포인트 미지급자 수 계산
-            const unpaidApps = (completedApps || []).filter(app => !app.points_paid)
+            if (!completedApps || completedApps.length === 0) continue
+
+            // 포인트 미지급자 수 계산 (여러 가능한 필드명 체크)
+            const unpaidApps = (completedApps || []).filter(app => {
+              // points_paid, reward_paid, point_paid 중 하나라도 true면 지급 완료
+              const isPaid = app.points_paid || app.reward_paid || app.point_paid
+              return !isPaid
+            })
             const unpaidCount = unpaidApps.length
+            const completedCount = completedApps.length
 
             // 지급 완료자 수
             const paidCount = completedCount - unpaidCount
 
             if (unpaidCount > 0) {
+              debugLog.push(`[${region.id}] ${campaign.title}: ${unpaidCount}/${completedCount}명 미지급`)
               result[region.id].push({
                 ...campaign,
                 totalCompleted: completedCount,
@@ -100,13 +121,18 @@ export default function UnpaidCampaignsManagement() {
             }
           }
         } catch (err) {
+          debugLog.push(`[${region.id}] 오류: ${err.message}`)
           console.error(`${region.id} 데이터 조회 오류:`, err)
         }
       }
 
       setData(result)
+      setDebugInfo(debugLog.join('\n'))
+      console.log('포인트 미지급 디버그:\n', debugLog.join('\n'))
     } catch (error) {
+      debugLog.push(`전체 오류: ${error.message}`)
       console.error('데이터 로드 오류:', error)
+      setDebugInfo(debugLog.join('\n'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -128,12 +154,12 @@ export default function UnpaidCampaignsManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 SNS 업로드 완료된 신청자 조회
+      // 해당 캠페인의 SNS 업로드 완료된 신청자 조회 (여러 필드명 시도)
       const { data: applications, error: appError } = await supabase
         .from('applications')
-        .select('id, user_id, status, applicant_name, creator_name, email, points_paid, points_paid_at')
+        .select('id, user_id, status, applicant_name, creator_name, email, points_paid, reward_paid, point_paid, points_paid_at, reward_paid_at')
         .eq('campaign_id', campaign.id)
-        .in('status', ['sns_uploaded', 'completed'])
+        .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
 
       if (appError) throw appError
 
@@ -156,12 +182,16 @@ export default function UnpaidCampaignsManagement() {
       // 크리에이터 정보 매핑
       const creators = (applications || []).map(app => {
         const profile = profileMap[app.user_id]
+        // points_paid, reward_paid, point_paid 중 하나라도 true면 지급 완료
+        const isPaid = !!(app.points_paid || app.reward_paid || app.point_paid)
+        const paidAt = app.points_paid_at || app.reward_paid_at || null
         return {
           ...app,
           creatorName: profile?.channel_name || profile?.name || app.applicant_name || app.creator_name || '이름 없음',
           phone: profile?.phone || profile?.phone_number,
           email: profile?.email || app.email,
-          isPaid: !!app.points_paid
+          isPaid,
+          paidAt
         }
       })
 
@@ -379,7 +409,15 @@ export default function UnpaidCampaignsManagement() {
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
               <p className="text-gray-500">포인트 미지급 캠페인이 없습니다.</p>
-              <p className="text-sm text-gray-400 mt-1">모든 크리에이터에게 포인트가 지급되었습니다.</p>
+              <p className="text-sm text-gray-400 mt-1">모든 크리에이터에게 포인트가 지급되었거나 완료된 캠페인이 없습니다.</p>
+              {debugInfo && (
+                <details className="mt-4 text-left">
+                  <summary className="text-xs text-gray-400 cursor-pointer">디버그 정보</summary>
+                  <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-x-auto whitespace-pre-wrap">
+                    {debugInfo}
+                  </pre>
+                </details>
+              )}
             </CardContent>
           </Card>
         )}
@@ -460,7 +498,7 @@ export default function UnpaidCampaignsManagement() {
                                 {creator.creatorName}
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
-                                지급일: {creator.points_paid_at ? new Date(creator.points_paid_at).toLocaleDateString('ko-KR') : '-'}
+                                지급일: {creator.paidAt ? new Date(creator.paidAt).toLocaleDateString('ko-KR') : '-'}
                               </div>
                             </div>
                             <Badge className="bg-green-100 text-green-700">
