@@ -517,13 +517,18 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
   });
 };
 
+// 중복 실행 방지를 위한 설정
+const EXECUTION_KEY = 'scheduled-video-deadline-notification';
+const DUPLICATE_WINDOW_MS = 5 * 60 * 1000; // 5분 내 중복 실행 방지
+
 // 메인 핸들러
 exports.handler = async (event, context) => {
+  const executionTime = new Date();
   console.log('========================================');
   console.log('=== 영상 제출 마감일 알림 스케줄러 시작 ===');
   console.log('========================================');
-  console.log('실행 시간 (UTC):', new Date().toISOString());
-  console.log('실행 시간 (KST):', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+  console.log('실행 시간 (UTC):', executionTime.toISOString());
+  console.log('실행 시간 (KST):', executionTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
 
   // 환경변수 확인 로그
   console.log('\n=== 환경변수 확인 ===');
@@ -533,6 +538,44 @@ exports.handler = async (event, context) => {
   console.log('SUPABASE_KOREA_SERVICE_ROLE_KEY:', process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
   console.log('GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '설정됨' : '❌ 미설정');
   console.log('POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID ? '설정됨' : '❌ 미설정');
+
+  // 중복 실행 방지 체크
+  try {
+    const supabaseBizCheck = createClient(
+      process.env.VITE_SUPABASE_BIZ_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: lastExec } = await supabaseBizCheck
+      .from('scheduler_executions')
+      .select('executed_at')
+      .eq('function_name', EXECUTION_KEY)
+      .order('executed_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (lastExec) {
+      const lastExecTime = new Date(lastExec.executed_at);
+      const timeDiff = executionTime.getTime() - lastExecTime.getTime();
+      if (timeDiff < DUPLICATE_WINDOW_MS) {
+        console.log(`중복 실행 감지: ${Math.round(timeDiff / 1000)}초 전에 실행됨. 스킵합니다.`);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, skipped: true, reason: 'Duplicate execution prevented' })
+        };
+      }
+    }
+
+    // 현재 실행 기록
+    await supabaseBizCheck
+      .from('scheduler_executions')
+      .upsert({
+        function_name: EXECUTION_KEY,
+        executed_at: executionTime.toISOString()
+      }, { onConflict: 'function_name' });
+  } catch (e) {
+    console.log('중복 실행 체크 테이블 없음, 계속 진행:', e.message);
+  }
 
   try {
     // 오늘 날짜 (한국 시간 기준)
@@ -1106,7 +1149,7 @@ exports.handler = async (event, context) => {
   }
 };
 
-// Netlify Scheduled Function 설정
-exports.config = {
-  schedule: '0 1 * * *'  // UTC 1시 = 한국시간 10시
-};
+// 스케줄은 netlify.toml에서 관리 (중복 실행 방지)
+// exports.config = {
+//   schedule: '0 1 * * *'  // UTC 1시 = 한국시간 10시
+// };
