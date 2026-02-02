@@ -105,7 +105,7 @@ export default function UnpaidCampaignsManagement() {
           try {
             const { data: submissions } = await supabase
               .from('video_submissions')
-              .select('id, campaign_id, user_id, status, final_confirmed_at, week, week_number, step, video_number')
+              .select('id, campaign_id, user_id, status, final_confirmed_at, week_number, step, video_number')
               .in('campaign_id', campaignIds)
             allSubmissions = submissions || []
             debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개`)
@@ -260,7 +260,7 @@ export default function UnpaidCampaignsManagement() {
       try {
         const { data: subs } = await supabase
           .from('video_submissions')
-          .select('id, user_id, status, final_confirmed_at, week, week_number, step, video_number, created_at')
+          .select('id, user_id, status, final_confirmed_at, week_number, step, video_number, created_at')
           .eq('campaign_id', campaign.id)
         submissions = subs || []
       } catch (e) {
@@ -314,22 +314,24 @@ export default function UnpaidCampaignsManagement() {
 
           if (is4Week) {
             // 4주 챌린지: 주차별 상태 표시
-            // 타입 변환 비교 (문자열/숫자 모두 처리)
+            // week 컬럼은 존재하지 않음 - week_number, video_number만 사용
             const weekStatus = [1, 2, 3, 4].map(w => {
               const weekSub = completedSubs.find(s => {
-                const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
-                return weekVal === w
+                const weekNum = s.week_number != null ? Number(s.week_number) : null
+                const videoNum = s.video_number != null ? Number(s.video_number) : null
+                return weekNum === w || videoNum === w
               })
               return weekSub ? '✓' : '✗'
             }).join(' ')
             paymentDetail = `주차: ${weekStatus} (${completedCount}/${requiredCount})`
           } else {
             // 올영/메가와리: 스텝별 상태 표시
-            // 타입 변환 비교 (문자열/숫자 모두 처리)
+            // week 컬럼은 존재하지 않음 - step, video_number만 사용
             const stepStatus = [1, 2].map(st => {
               const stepSub = completedSubs.find(s => {
-                const stepVal = Number(s.step) || Number(s.video_number)
-                return stepVal === st
+                const stepNum = s.step != null ? Number(s.step) : null
+                const videoNum = s.video_number != null ? Number(s.video_number) : null
+                return stepNum === st || videoNum === st
               })
               return stepSub ? '✓' : '✗'
             }).join(' ')

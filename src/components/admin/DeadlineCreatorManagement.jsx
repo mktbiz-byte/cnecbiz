@@ -149,7 +149,7 @@ export default function DeadlineCreatorManagement() {
           try {
             const { data: submissions } = await supabase
               .from('video_submissions')
-              .select('id, campaign_id, user_id, status, final_confirmed_at, week, week_number, step, video_number')
+              .select('id, campaign_id, user_id, status, final_confirmed_at, week_number, step, video_number')
               .in('campaign_id', campaignIds)
             allSubmissions = submissions || []
             debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개`)
@@ -207,14 +207,19 @@ export default function DeadlineCreatorManagement() {
                   const userSubs = campaignSubs[app.user_id] || []
 
                   // 해당 스텝/주차의 제출물 찾기
-                  // 타입 변환 비교 (문자열/숫자 모두 처리)
+                  // week 컬럼은 존재하지 않음 - week_number, video_number만 사용
                   const stepSub = userSubs.find(s => {
-                    const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
+                    // week_number 또는 video_number 중 유효한 값 사용
+                    const weekNum = s.week_number != null ? Number(s.week_number) : null
+                    const videoNum = s.video_number != null ? Number(s.video_number) : null
+                    const stepNum = s.step != null ? Number(s.step) : null
+
                     if (typeInfo.is4Week) {
-                      return weekVal === stepOrWeek
+                      // 4주 챌린지: week_number 또는 video_number 사용
+                      return weekNum === stepOrWeek || videoNum === stepOrWeek
                     } else {
-                      const stepVal = Number(s.step) || Number(s.video_number)
-                      return stepVal === stepOrWeek
+                      // 올영/메가와리: step 또는 video_number 사용
+                      return stepNum === stepOrWeek || videoNum === stepOrWeek
                     }
                   })
 
@@ -380,7 +385,7 @@ export default function DeadlineCreatorManagement() {
       try {
         const { data: subs } = await supabase
           .from('video_submissions')
-          .select('id, user_id, status, final_confirmed_at, week, week_number, step, video_number, created_at')
+          .select('id, user_id, status, final_confirmed_at, week_number, step, video_number, created_at')
           .eq('campaign_id', campaign.id)
         submissions = subs || []
       } catch (e) {
@@ -424,14 +429,16 @@ export default function DeadlineCreatorManagement() {
 
         if (typeInfo.isMulti && campaign.stepOrWeek) {
           // 멀티비디오 캠페인: 특정 스텝/주차 확인
-          // 타입 변환 비교 (문자열/숫자 모두 처리)
+          // week 컬럼은 존재하지 않음 - week_number, video_number만 사용
           const stepSub = userSubs.find(s => {
-            const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
+            const weekNum = s.week_number != null ? Number(s.week_number) : null
+            const videoNum = s.video_number != null ? Number(s.video_number) : null
+            const stepNum = s.step != null ? Number(s.step) : null
+
             if (typeInfo.is4Week) {
-              return weekVal === campaign.stepOrWeek
+              return weekNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
             } else {
-              const stepVal = Number(s.step) || Number(s.video_number)
-              return stepVal === campaign.stepOrWeek
+              return stepNum === campaign.stepOrWeek || videoNum === campaign.stepOrWeek
             }
           })
 
