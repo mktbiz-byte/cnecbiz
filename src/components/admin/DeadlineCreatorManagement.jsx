@@ -40,30 +40,37 @@ const getDatePart = (dateValue) => {
   return null
 }
 
-// 캠페인 타입별 마감일 필드명 가져오기
-const getDeadlineFields = (campaignType) => {
+// 캠페인 타입 판별
+const getCampaignTypeInfo = (campaignType) => {
   const type = (campaignType || '').toLowerCase()
   if (type.includes('4week') || type.includes('challenge')) {
-    return ['week1_deadline', 'week2_deadline', 'week3_deadline', 'week4_deadline']
-  } else if (type.includes('olive')) {
-    return ['step1_deadline', 'step2_deadline']
-  } else if (type.includes('megawari')) {
-    return ['step1_deadline', 'step2_deadline']
-  } else {
-    // 일반 캠페인: content_submission_deadline, video_deadline, start_date 순서로 확인
-    return ['content_submission_deadline', 'video_deadline', 'start_date']
-  }
-}
-
-// 캠페인에서 유효한 마감일 값 가져오기
-const getEffectiveDeadline = (campaign, fields) => {
-  for (const field of fields) {
-    const value = campaign[field]
-    if (value) {
-      return { field, value }
+    return {
+      isMulti: true,
+      is4Week: true,
+      isOlive: false,
+      requiredCount: 4,
+      deadlineFields: ['week1_deadline', 'week2_deadline', 'week3_deadline', 'week4_deadline'],
+      label: '4주 챌린지'
     }
   }
-  return null
+  if (type.includes('olive') || type.includes('megawari')) {
+    return {
+      isMulti: true,
+      is4Week: false,
+      isOlive: true,
+      requiredCount: 2,
+      deadlineFields: ['step1_deadline', 'step2_deadline'],
+      label: type.includes('megawari') ? '메가와리' : '올영세일'
+    }
+  }
+  return {
+    isMulti: false,
+    is4Week: false,
+    isOlive: false,
+    requiredCount: 1,
+    deadlineFields: ['content_submission_deadline', 'video_deadline', 'start_date'],
+    label: '일반'
+  }
 }
 
 export default function DeadlineCreatorManagement() {
@@ -77,7 +84,7 @@ export default function DeadlineCreatorManagement() {
   const [loadingCreators, setLoadingCreators] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
 
-  // 데이터 로드
+  // 데이터 로드 - 최적화된 버전
   const fetchData = async () => {
     setRefreshing(true)
     let debugLog = []
@@ -107,8 +114,7 @@ export default function DeadlineCreatorManagement() {
             continue
           }
 
-          // 활성 캠페인 조회 (리전별로 다른 컬럼 존재 가능)
-          // 기본 컬럼만 조회 (존재하지 않는 컬럼은 무시됨)
+          // 1. 활성 캠페인 한번에 조회
           const { data: campaigns, error } = await supabase
             .from('campaigns')
             .select('*')
@@ -116,38 +122,154 @@ export default function DeadlineCreatorManagement() {
 
           if (error) {
             debugLog.push(`[${region.id}] 캠페인 조회 오류: ${error.message}`)
-            console.error(`${region.id} 캠페인 조회 오류:`, error)
             continue
           }
 
-          debugLog.push(`[${region.id}] 활성 캠페인 ${(campaigns || []).length}개`)
+          if (!campaigns || campaigns.length === 0) {
+            debugLog.push(`[${region.id}] 활성 캠페인 없음`)
+            continue
+          }
 
-          // 각 캠페인의 마감일 확인
-          for (const campaign of campaigns || []) {
-            const campaignType = (campaign.campaign_type || '').toLowerCase()
-            const deadlineFields = getDeadlineFields(campaign.campaign_type)
+          debugLog.push(`[${region.id}] 활성 캠페인 ${campaigns.length}개`)
 
-            // 일반 캠페인은 하나의 유효한 마감일만 사용
-            const isRegularCampaign = !campaignType.includes('4week') &&
-                                      !campaignType.includes('challenge') &&
-                                      !campaignType.includes('olive') &&
-                                      !campaignType.includes('megawari')
+          // 2. 모든 캠페인 ID
+          const campaignIds = campaigns.map(c => c.id)
 
-            let fieldsToCheck = deadlineFields
-            if (isRegularCampaign) {
+          // 3. applications 한번에 조회
+          const { data: applications } = await supabase
+            .from('applications')
+            .select('*')
+            .in('campaign_id', campaignIds)
+            .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
+
+          debugLog.push(`[${region.id}] applications ${(applications || []).length}개`)
+
+          // 4. video_submissions 한번에 조회
+          let allSubmissions = []
+          try {
+            const { data: submissions } = await supabase
+              .from('video_submissions')
+              .select('id, campaign_id, user_id, status, final_confirmed_at, week, week_number, step, video_number')
+              .in('campaign_id', campaignIds)
+            allSubmissions = submissions || []
+            debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개`)
+          } catch (e) {
+            debugLog.push(`[${region.id}] video_submissions 없음: ${e.message}`)
+          }
+
+          // 5. applications를 캠페인별로 그룹화
+          const appsByCampaign = {}
+          ;(applications || []).forEach(app => {
+            if (!appsByCampaign[app.campaign_id]) {
+              appsByCampaign[app.campaign_id] = []
+            }
+            appsByCampaign[app.campaign_id].push(app)
+          })
+
+          // 6. submissions를 캠페인별, 유저별로 그룹화
+          const submissionsByCampaign = {}
+          allSubmissions.forEach(sub => {
+            if (!submissionsByCampaign[sub.campaign_id]) {
+              submissionsByCampaign[sub.campaign_id] = {}
+            }
+            if (!submissionsByCampaign[sub.campaign_id][sub.user_id]) {
+              submissionsByCampaign[sub.campaign_id][sub.user_id] = []
+            }
+            submissionsByCampaign[sub.campaign_id][sub.user_id].push(sub)
+          })
+
+          // 7. 각 캠페인의 마감일 확인
+          for (const campaign of campaigns) {
+            const typeInfo = getCampaignTypeInfo(campaign.campaign_type)
+            const campaignApps = appsByCampaign[campaign.id] || []
+            const campaignSubs = submissionsByCampaign[campaign.id] || {}
+
+            if (campaignApps.length === 0) continue
+
+            // 멀티비디오 캠페인: 각 스텝/주차별 마감일 확인
+            if (typeInfo.isMulti) {
+              for (let idx = 0; idx < typeInfo.deadlineFields.length; idx++) {
+                const field = typeInfo.deadlineFields[idx]
+                const deadline = getDatePart(campaign[field])
+                if (!deadline) continue
+
+                const deadlineDate = new Date(deadline + 'T00:00:00')
+                const diffDays = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24))
+
+                // 3일 전 ~ 지연(7일까지) 범위만 표시
+                if (diffDays > 3 || diffDays < -7) continue
+
+                const stepOrWeek = idx + 1 // 1부터 시작
+
+                // 이 스텝/주차에서 미제출자 계산
+                let pendingCount = 0
+                for (const app of campaignApps) {
+                  const userSubs = campaignSubs[app.user_id] || []
+
+                  // 해당 스텝/주차의 제출물 찾기
+                  const stepSub = userSubs.find(s => {
+                    if (typeInfo.is4Week) {
+                      return s.week === stepOrWeek || s.week_number === stepOrWeek || s.video_number === stepOrWeek
+                    } else {
+                      return s.step === stepOrWeek || s.video_number === stepOrWeek
+                    }
+                  })
+
+                  // 제출물이 없거나 완료되지 않은 경우 미제출
+                  if (!stepSub || (stepSub.status !== 'completed' && !stepSub.final_confirmed_at)) {
+                    // 제출 자체가 없거나 아직 승인되지 않은 경우
+                    if (!stepSub || !['approved', 'completed', 'uploaded'].includes(stepSub.status)) {
+                      pendingCount++
+                    }
+                  }
+                }
+
+                if (pendingCount === 0) continue
+
+                // 단계별 분류
+                let stageId = null
+                if (diffDays < 0) stageId = 'overdue'
+                else if (diffDays === 0) stageId = 'today'
+                else if (diffDays === 1) stageId = '1day'
+                else if (diffDays === 2) stageId = '2day'
+                else if (diffDays === 3) stageId = '3day'
+
+                if (stageId) {
+                  const stepLabel = typeInfo.is4Week ? `${stepOrWeek}주차` : `${stepOrWeek}단계`
+
+                  debugLog.push(`[${region.id}] ${campaign.title} (${stepLabel}, ${deadline}, ${stageId}): ${pendingCount}/${campaignApps.length}명 미제출`)
+
+                  result[region.id][stageId].push({
+                    ...campaign,
+                    deadlineField: field,
+                    deadline,
+                    diffDays,
+                    pendingCount,
+                    totalCount: campaignApps.length,
+                    stepOrWeek,
+                    stepLabel,
+                    typeInfo,
+                    region: region.id
+                  })
+                }
+              }
+            } else {
               // 일반 캠페인: 첫 번째 유효한 마감일만 사용
-              const effectiveDeadline = getEffectiveDeadline(campaign, deadlineFields)
-              if (effectiveDeadline) {
-                fieldsToCheck = [effectiveDeadline.field]
-              } else {
+              let deadline = null
+              let field = null
+              for (const f of typeInfo.deadlineFields) {
+                const d = getDatePart(campaign[f])
+                if (d) {
+                  deadline = d
+                  field = f
+                  break
+                }
+              }
+
+              if (!deadline) {
                 debugLog.push(`[${region.id}] ${campaign.title}: 마감일 없음`)
                 continue
               }
-            }
-
-            for (const field of fieldsToCheck) {
-              const deadline = getDatePart(campaign[field])
-              if (!deadline) continue
 
               const deadlineDate = new Date(deadline + 'T00:00:00')
               const diffDays = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24))
@@ -155,44 +277,30 @@ export default function DeadlineCreatorManagement() {
               // 3일 전 ~ 지연(7일까지) 범위만 표시
               if (diffDays > 3 || diffDays < -7) continue
 
-              // 해당 캠페인의 신청자 조회 (리전별 컬럼 차이 대응)
-              const { data: applications, error: appError } = await supabase
-                .from('applications')
-                .select('*')
-                .eq('campaign_id', campaign.id)
-                .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
+              // 미제출자 계산
+              let pendingCount = 0
+              for (const app of campaignApps) {
+                const userSubs = campaignSubs[app.user_id] || []
 
-              if (appError) {
-                debugLog.push(`[${region.id}] ${campaign.title} 신청 조회 오류: ${appError.message}`)
-                continue
+                // 완료된 제출물이 있는지 확인
+                const completedSub = userSubs.find(s =>
+                  s.status === 'completed' || s.final_confirmed_at
+                )
+
+                // 완료된 것이 없으면 미제출
+                if (!completedSub) {
+                  // 승인된 것도 없는지 확인 (승인 대기중은 제출 완료로 봄)
+                  const approvedSub = userSubs.find(s =>
+                    ['approved', 'submitted', 'resubmitted'].includes(s.status)
+                  )
+                  if (!approvedSub) {
+                    // applications의 video_url도 체크
+                    if (!app.video_url && !app.clean_video_url) {
+                      pendingCount++
+                    }
+                  }
+                }
               }
-
-              if (!applications || applications.length === 0) {
-                debugLog.push(`[${region.id}] ${campaign.title}: 신청자 없음 (${deadline})`)
-                continue
-              }
-
-              // video_submissions 테이블 확인 (테이블 존재 여부 먼저 확인)
-              let submittedUserIds = new Set()
-              try {
-                const { data: submissions } = await supabase
-                  .from('video_submissions')
-                  .select('user_id')
-                  .eq('campaign_id', campaign.id)
-                submittedUserIds = new Set((submissions || []).map(s => s.user_id))
-              } catch (e) {
-                // video_submissions 테이블이 없는 경우 무시
-              }
-
-              // 미제출자 필터링 (applications 테이블의 video_url도 체크)
-              const pendingApps = applications.filter(app => {
-                // video_submissions에 있거나 applications.video_url이 있으면 제출 완료
-                const hasSubmitted = submittedUserIds.has(app.user_id) ||
-                                    app.video_url ||
-                                    app.clean_video_url
-                return !hasSubmitted
-              })
-              const pendingCount = pendingApps.length
 
               if (pendingCount === 0) continue
 
@@ -205,13 +313,7 @@ export default function DeadlineCreatorManagement() {
               else if (diffDays === 3) stageId = '3day'
 
               if (stageId) {
-                const stepLabel = field.includes('week')
-                  ? `${field.replace('week', '').replace('_deadline', '')}주차`
-                  : field.includes('step')
-                    ? `${field.replace('step', '').replace('_deadline', '')}단계`
-                    : ''
-
-                debugLog.push(`[${region.id}] ${campaign.title} (${field}=${deadline}, ${stageId}): ${pendingCount}/${applications.length}명 미제출`)
+                debugLog.push(`[${region.id}] ${campaign.title} (${deadline}, ${stageId}): ${pendingCount}/${campaignApps.length}명 미제출`)
 
                 result[region.id][stageId].push({
                   ...campaign,
@@ -219,8 +321,9 @@ export default function DeadlineCreatorManagement() {
                   deadline,
                   diffDays,
                   pendingCount,
-                  totalCount: applications.length,
-                  stepLabel,
+                  totalCount: campaignApps.length,
+                  stepLabel: '',
+                  typeInfo,
                   region: region.id
                 })
               }
@@ -260,7 +363,7 @@ export default function DeadlineCreatorManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 신청자 조회 (리전별 컬럼 차이 대응 - select * 사용)
+      // 해당 캠페인의 신청자 조회
       const { data: applications, error: appError } = await supabase
         .from('applications')
         .select('*')
@@ -269,50 +372,99 @@ export default function DeadlineCreatorManagement() {
 
       if (appError) throw appError
 
-      // 영상 제출 확인
-      let submittedUserIds = new Set()
+      // video_submissions 조회
+      let submissions = []
       try {
-        const { data: submissions } = await supabase
+        const { data: subs } = await supabase
           .from('video_submissions')
-          .select('user_id')
+          .select('id, user_id, status, final_confirmed_at, week, week_number, step, video_number, created_at')
           .eq('campaign_id', campaign.id)
-        submittedUserIds = new Set((submissions || []).map(s => s.user_id))
+        submissions = subs || []
       } catch (e) {
-        // video_submissions 테이블이 없는 경우 무시
+        console.log('video_submissions 조회 실패:', e)
       }
 
-      // 미제출자 필터링 (applications 테이블의 video_url도 체크)
-      const pending = (applications || []).filter(app => {
-        const hasSubmitted = submittedUserIds.has(app.user_id) ||
-                            app.video_url ||
-                            app.clean_video_url
-        return !hasSubmitted
-      })
-
       // user_profiles에서 추가 정보 조회
-      const userIds = pending.map(p => p.user_id).filter(Boolean)
+      const userIds = (applications || []).map(a => a.user_id).filter(Boolean)
+      let profileMap = {}
+
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('user_profiles')
           .select('id, user_id, name, channel_name, phone, phone_number, email')
           .in('id', userIds)
 
-        const profileMap = {}
         ;(profiles || []).forEach(p => {
           profileMap[p.id] = p
           if (p.user_id) profileMap[p.user_id] = p
         })
+      }
 
-        pending.forEach(p => {
-          const profile = profileMap[p.user_id]
-          if (profile) {
-            p.creatorName = profile.channel_name || profile.name || p.applicant_name || p.creator_name
-            p.phone = profile.phone || profile.phone_number
-            p.email = profile.email || p.email
-          } else {
-            p.creatorName = p.applicant_name || p.creator_name || '이름 없음'
+      // submissions를 유저별로 그룹화
+      const subsByUser = {}
+      submissions.forEach(sub => {
+        if (!subsByUser[sub.user_id]) subsByUser[sub.user_id] = []
+        subsByUser[sub.user_id].push(sub)
+      })
+
+      const typeInfo = campaign.typeInfo || getCampaignTypeInfo(campaign.campaign_type)
+
+      // 미제출 크리에이터 필터링
+      const pending = []
+
+      for (const app of applications || []) {
+        const profile = profileMap[app.user_id]
+        const userSubs = subsByUser[app.user_id] || []
+
+        let isPending = false
+        let submissionStatus = ''
+
+        if (typeInfo.isMulti && campaign.stepOrWeek) {
+          // 멀티비디오 캠페인: 특정 스텝/주차 확인
+          const stepSub = userSubs.find(s => {
+            if (typeInfo.is4Week) {
+              return s.week === campaign.stepOrWeek || s.week_number === campaign.stepOrWeek || s.video_number === campaign.stepOrWeek
+            } else {
+              return s.step === campaign.stepOrWeek || s.video_number === campaign.stepOrWeek
+            }
+          })
+
+          if (!stepSub) {
+            isPending = true
+            submissionStatus = '미제출'
+          } else if (!['approved', 'completed', 'uploaded'].includes(stepSub.status)) {
+            isPending = true
+            submissionStatus = stepSub.status === 'submitted' ? '검토 대기' :
+                               stepSub.status === 'rejected' ? '반려됨' :
+                               stepSub.status === 'revision_requested' ? '수정 요청' :
+                               stepSub.status
           }
-        })
+        } else {
+          // 일반 캠페인
+          const completedSub = userSubs.find(s =>
+            s.status === 'completed' || s.final_confirmed_at
+          )
+          const approvedSub = userSubs.find(s =>
+            ['approved', 'submitted', 'resubmitted'].includes(s.status)
+          )
+
+          if (!completedSub && !approvedSub) {
+            if (!app.video_url && !app.clean_video_url) {
+              isPending = true
+              submissionStatus = '미제출'
+            }
+          }
+        }
+
+        if (isPending) {
+          pending.push({
+            ...app,
+            creatorName: profile?.channel_name || profile?.name || app.applicant_name || app.creator_name || '이름 없음',
+            phone: profile?.phone || profile?.phone_number,
+            email: profile?.email || app.email,
+            submissionStatus
+          })
+        }
       }
 
       setPendingCreators(pending)
@@ -364,7 +516,7 @@ export default function DeadlineCreatorManagement() {
         {/* 헤더 */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">캠페인 관리</h1>
-          <p className="text-gray-600 mt-1">마감일 크리에이터 관리</p>
+          <p className="text-gray-600 mt-1">마감일 크리에이터 관리 (주차/단계별 미제출 확인)</p>
         </div>
 
         {/* 서브 탭 */}
@@ -487,12 +639,19 @@ export default function DeadlineCreatorManagement() {
                                 onClick={() => handleCampaignClick(campaign)}
                               >
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900">
-                                    {campaign.title}
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-900">
+                                      {campaign.title}
+                                    </span>
                                     {campaign.stepLabel && (
-                                      <span className="ml-2 text-sm text-gray-500">
-                                        ({campaign.stepLabel})
-                                      </span>
+                                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                        {campaign.stepLabel}
+                                      </Badge>
+                                    )}
+                                    {campaign.typeInfo?.label && campaign.typeInfo.isMulti && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {campaign.typeInfo.label}
+                                      </Badge>
                                     )}
                                   </div>
                                   <div className="text-sm text-gray-500">
@@ -560,9 +719,15 @@ export default function DeadlineCreatorManagement() {
             {selectedCampaign && (
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="font-medium text-gray-900">{selectedCampaign.title}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{selectedCampaign.title}</span>
+                    {selectedCampaign.stepLabel && (
+                      <Badge className="bg-blue-100 text-blue-700">
+                        {selectedCampaign.stepLabel}
+                      </Badge>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {selectedCampaign.stepLabel && `${selectedCampaign.stepLabel} · `}
                     마감일: {selectedCampaign.deadline}
                     {selectedCampaign.diffDays < 0 && (
                       <span className="ml-2 text-red-600 font-medium">
@@ -603,16 +768,28 @@ export default function DeadlineCreatorManagement() {
                             )}
                           </div>
                         </div>
-                        <Badge variant="outline" className={
-                          creator.status === 'filming' ? 'bg-blue-50 text-blue-700' :
-                          creator.status === 'selected' ? 'bg-green-50 text-green-700' :
-                          'bg-gray-50 text-gray-700'
-                        }>
-                          {creator.status === 'filming' ? '촬영중' :
-                           creator.status === 'selected' ? '선정됨' :
-                           creator.status === 'guide_approved' ? '가이드승인' :
-                           creator.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {creator.submissionStatus && (
+                            <Badge variant="outline" className={
+                              creator.submissionStatus === '미제출' ? 'bg-red-50 text-red-700' :
+                              creator.submissionStatus === '반려됨' ? 'bg-orange-50 text-orange-700' :
+                              creator.submissionStatus === '수정 요청' ? 'bg-yellow-50 text-yellow-700' :
+                              'bg-gray-50 text-gray-700'
+                            }>
+                              {creator.submissionStatus}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={
+                            creator.status === 'filming' ? 'bg-blue-50 text-blue-700' :
+                            creator.status === 'selected' ? 'bg-green-50 text-green-700' :
+                            'bg-gray-50 text-gray-700'
+                          }>
+                            {creator.status === 'filming' ? '촬영중' :
+                             creator.status === 'selected' ? '선정됨' :
+                             creator.status === 'guide_approved' ? '가이드승인' :
+                             creator.status}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>

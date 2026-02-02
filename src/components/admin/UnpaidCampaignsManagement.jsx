@@ -23,11 +23,26 @@ const REGIONS = [
 const campaignTypeConfig = {
   planned: { label: '기획형', color: 'bg-violet-100 text-violet-700' },
   regular: { label: '기획형', color: 'bg-violet-100 text-violet-700' },
-  oliveyoung: { label: '올영세일', color: 'bg-pink-100 text-pink-700' },
-  oliveyoung_sale: { label: '올영세일', color: 'bg-pink-100 text-pink-700' },
-  '4week_challenge': { label: '4주 챌린지', color: 'bg-orange-100 text-orange-700' },
-  '4week': { label: '4주 챌린지', color: 'bg-orange-100 text-orange-700' },
-  megawari: { label: '메가와리', color: 'bg-amber-100 text-amber-700' }
+  oliveyoung: { label: '올영세일', color: 'bg-pink-100 text-pink-700', steps: 2 },
+  oliveyoung_sale: { label: '올영세일', color: 'bg-pink-100 text-pink-700', steps: 2 },
+  '4week_challenge': { label: '4주 챌린지', color: 'bg-orange-100 text-orange-700', weeks: 4 },
+  '4week': { label: '4주 챌린지', color: 'bg-orange-100 text-orange-700', weeks: 4 },
+  megawari: { label: '메가와리', color: 'bg-amber-100 text-amber-700', steps: 2 }
+}
+
+// 멀티비디오 캠페인인지 확인
+const isMultiVideoCampaign = (campaignType) => {
+  const type = (campaignType || '').toLowerCase()
+  return type.includes('4week') || type.includes('challenge') ||
+         type.includes('olive') || type.includes('megawari')
+}
+
+// 필요 영상 수 계산
+const getRequiredVideoCount = (campaignType) => {
+  const type = (campaignType || '').toLowerCase()
+  if (type.includes('4week') || type.includes('challenge')) return 4
+  if (type.includes('olive') || type.includes('megawari')) return 2
+  return 1
 }
 
 export default function UnpaidCampaignsManagement() {
@@ -41,7 +56,7 @@ export default function UnpaidCampaignsManagement() {
   const [loadingCreators, setLoadingCreators] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
 
-  // 데이터 로드
+  // 데이터 로드 - 최적화된 버전
   const fetchData = async () => {
     setRefreshing(true)
     const debugLog = []
@@ -62,8 +77,7 @@ export default function UnpaidCampaignsManagement() {
             continue
           }
 
-          // 완료된 캠페인 조회 (리전별로 다른 컬럼 존재 가능)
-          // 기본 컬럼만 조회 (존재하지 않는 컬럼은 무시됨)
+          // 1. 완료된 캠페인 한번에 조회 (최근 100개)
           const { data: campaigns, error } = await supabase
             .from('campaigns')
             .select('*')
@@ -73,51 +87,131 @@ export default function UnpaidCampaignsManagement() {
 
           if (error) {
             debugLog.push(`[${region.id}] 캠페인 조회 오류: ${error.message}`)
-            console.error(`${region.id} 캠페인 조회 오류:`, error)
             continue
           }
 
-          debugLog.push(`[${region.id}] 캠페인 ${(campaigns || []).length}개`)
+          if (!campaigns || campaigns.length === 0) {
+            debugLog.push(`[${region.id}] 캠페인 없음`)
+            continue
+          }
 
-          // 각 캠페인의 포인트 미지급 크리에이터 확인
-          for (const campaign of campaigns || []) {
-            // SNS 업로드 완료된 신청자 수 조회 (더 넓은 상태 범위, 리전별 컬럼 차이 대응)
-            const { data: completedApps, error: appError } = await supabase
-              .from('applications')
-              .select('*')
-              .eq('campaign_id', campaign.id)
-              .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
+          debugLog.push(`[${region.id}] 캠페인 ${campaigns.length}개 조회`)
 
-            if (appError) {
-              debugLog.push(`[${region.id}] ${campaign.title} 신청 조회 오류: ${appError.message}`)
-              continue
+          // 2. 모든 캠페인의 ID 배열
+          const campaignIds = campaigns.map(c => c.id)
+
+          // 3. video_submissions 한번에 조회 (완료된 것과 아닌 것 모두)
+          let allSubmissions = []
+          try {
+            const { data: submissions } = await supabase
+              .from('video_submissions')
+              .select('id, campaign_id, user_id, status, final_confirmed_at, week, week_number, step, video_number')
+              .in('campaign_id', campaignIds)
+            allSubmissions = submissions || []
+            debugLog.push(`[${region.id}] video_submissions ${allSubmissions.length}개`)
+          } catch (e) {
+            debugLog.push(`[${region.id}] video_submissions 조회 실패: ${e.message}`)
+          }
+
+          // 4. applications 한번에 조회 (승인/완료 상태)
+          const { data: applications } = await supabase
+            .from('applications')
+            .select('*')
+            .in('campaign_id', campaignIds)
+            .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved', 'filming', 'selected'])
+
+          debugLog.push(`[${region.id}] applications ${(applications || []).length}개`)
+
+          // 5. submissions를 캠페인별, 유저별로 그룹화
+          const submissionsByCampaign = {}
+          allSubmissions.forEach(sub => {
+            if (!submissionsByCampaign[sub.campaign_id]) {
+              submissionsByCampaign[sub.campaign_id] = {}
+            }
+            if (!submissionsByCampaign[sub.campaign_id][sub.user_id]) {
+              submissionsByCampaign[sub.campaign_id][sub.user_id] = []
+            }
+            submissionsByCampaign[sub.campaign_id][sub.user_id].push(sub)
+          })
+
+          // 6. applications를 캠페인별로 그룹화
+          const appsByCampaign = {}
+          ;(applications || []).forEach(app => {
+            if (!appsByCampaign[app.campaign_id]) {
+              appsByCampaign[app.campaign_id] = []
+            }
+            appsByCampaign[app.campaign_id].push(app)
+          })
+
+          // 7. 각 캠페인별로 미지급 크리에이터 계산
+          for (const campaign of campaigns) {
+            const campaignApps = appsByCampaign[campaign.id] || []
+            const campaignSubs = submissionsByCampaign[campaign.id] || {}
+
+            if (campaignApps.length === 0) continue
+
+            const isMulti = isMultiVideoCampaign(campaign.campaign_type)
+            const requiredCount = getRequiredVideoCount(campaign.campaign_type)
+
+            let unpaidCount = 0
+            let paidCount = 0
+            let partialCount = 0 // 일부만 완료된 크리에이터
+
+            for (const app of campaignApps) {
+              const userSubs = campaignSubs[app.user_id] || []
+
+              // 완료된 영상 수 (status='completed' 또는 final_confirmed_at이 있는 것)
+              const completedSubs = userSubs.filter(s =>
+                s.status === 'completed' || s.final_confirmed_at
+              )
+              const completedCount = completedSubs.length
+
+              if (isMulti) {
+                // 멀티비디오 캠페인: 각 스텝/주차별로 확인
+                if (completedCount >= requiredCount) {
+                  paidCount++
+                } else if (completedCount > 0) {
+                  // 일부만 완료
+                  partialCount++
+                  unpaidCount++ // 아직 완료되지 않은 스텝이 있으므로 미지급에 포함
+                } else if (userSubs.length > 0) {
+                  // 제출은 있지만 완료된 것 없음
+                  unpaidCount++
+                } else {
+                  // 제출 자체가 없음 - 촬영중 상태면 아직 미지급 아님
+                  if (['sns_uploaded', 'completed', 'video_submitted'].includes(app.status)) {
+                    unpaidCount++
+                  }
+                }
+              } else {
+                // 단일 영상 캠페인
+                if (completedCount > 0) {
+                  paidCount++
+                } else if (userSubs.length > 0 && userSubs.some(s =>
+                  ['approved', 'submitted', 'resubmitted'].includes(s.status)
+                )) {
+                  // 제출했지만 아직 완료(확정) 안됨
+                  unpaidCount++
+                } else if (['sns_uploaded', 'completed', 'video_submitted'].includes(app.status)) {
+                  unpaidCount++
+                }
+              }
             }
 
-            if (!completedApps || completedApps.length === 0) continue
-
-            // 포인트 미지급자 수 계산 (여러 가능한 필드명 체크)
-            const unpaidApps = (completedApps || []).filter(app => {
-              // points_paid, reward_paid, point_paid 중 하나라도 true면 지급 완료
-              const isPaid = app.points_paid || app.reward_paid || app.point_paid
-              return !isPaid
-            })
-            const unpaidCount = unpaidApps.length
-            const completedCount = completedApps.length
-
-            // 지급 완료자 수
-            const paidCount = completedCount - unpaidCount
-
+            // 미지급자가 있는 캠페인만 표시
             if (unpaidCount > 0) {
-              debugLog.push(`[${region.id}] ${campaign.title}: ${unpaidCount}/${completedCount}명 미지급`)
+              debugLog.push(`[${region.id}] ${campaign.title}: 미지급=${unpaidCount}, 지급완료=${paidCount}, 일부완료=${partialCount}`)
               result[region.id].push({
                 ...campaign,
-                totalCompleted: completedCount,
+                totalCompleted: campaignApps.length,
                 unpaidCount,
                 paidCount,
+                partialCount,
                 region: region.id
               })
             }
           }
+
         } catch (err) {
           debugLog.push(`[${region.id}] 오류: ${err.message}`)
           console.error(`${region.id} 데이터 조회 오류:`, err)
@@ -141,7 +235,7 @@ export default function UnpaidCampaignsManagement() {
     fetchData()
   }, [])
 
-  // 캠페인 클릭 시 미지급 크리에이터 목록 조회
+  // 캠페인 클릭 시 크리에이터 목록 조회
   const handleCampaignClick = async (campaign) => {
     setSelectedCampaign(campaign)
     setLoadingCreators(true)
@@ -152,14 +246,26 @@ export default function UnpaidCampaignsManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 SNS 업로드 완료된 신청자 조회 (리전별 컬럼 차이 대응 - select * 사용)
+      // 해당 캠페인의 신청자 조회
       const { data: applications, error: appError } = await supabase
         .from('applications')
         .select('*')
         .eq('campaign_id', campaign.id)
-        .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
+        .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved', 'filming', 'selected'])
 
       if (appError) throw appError
+
+      // video_submissions 조회
+      let submissions = []
+      try {
+        const { data: subs } = await supabase
+          .from('video_submissions')
+          .select('id, user_id, status, final_confirmed_at, week, week_number, step, video_number, created_at')
+          .eq('campaign_id', campaign.id)
+        submissions = subs || []
+      } catch (e) {
+        console.log('video_submissions 조회 실패:', e)
+      }
 
       // user_profiles에서 추가 정보 조회
       const userIds = (applications || []).map(a => a.user_id).filter(Boolean)
@@ -177,18 +283,74 @@ export default function UnpaidCampaignsManagement() {
         })
       }
 
+      const isMulti = isMultiVideoCampaign(campaign.campaign_type)
+      const requiredCount = getRequiredVideoCount(campaign.campaign_type)
+      const is4Week = (campaign.campaign_type || '').toLowerCase().includes('4week') ||
+                      (campaign.campaign_type || '').toLowerCase().includes('challenge')
+
+      // submissions를 유저별로 그룹화
+      const subsByUser = {}
+      submissions.forEach(sub => {
+        if (!subsByUser[sub.user_id]) subsByUser[sub.user_id] = []
+        subsByUser[sub.user_id].push(sub)
+      })
+
       // 크리에이터 정보 매핑
       const creators = (applications || []).map(app => {
         const profile = profileMap[app.user_id]
-        // points_paid, reward_paid, point_paid 중 하나라도 true면 지급 완료
-        const isPaid = !!(app.points_paid || app.reward_paid || app.point_paid)
-        const paidAt = app.points_paid_at || app.reward_paid_at || null
+        const userSubs = subsByUser[app.user_id] || []
+
+        // 완료된 영상 (status='completed' 또는 final_confirmed_at이 있는 것)
+        const completedSubs = userSubs.filter(s =>
+          s.status === 'completed' || s.final_confirmed_at
+        )
+        const completedCount = completedSubs.length
+
+        let isPaid = false
+        let paymentDetail = ''
+
+        if (isMulti) {
+          isPaid = completedCount >= requiredCount
+
+          if (is4Week) {
+            // 4주 챌린지: 주차별 상태 표시
+            const weekStatus = [1, 2, 3, 4].map(w => {
+              const weekSub = completedSubs.find(s =>
+                (s.week === w || s.week_number === w || s.video_number === w)
+              )
+              return weekSub ? '✓' : '✗'
+            }).join(' ')
+            paymentDetail = `주차: ${weekStatus} (${completedCount}/${requiredCount})`
+          } else {
+            // 올영/메가와리: 스텝별 상태 표시
+            const stepStatus = [1, 2].map(st => {
+              const stepSub = completedSubs.find(s =>
+                (s.step === st || s.video_number === st)
+              )
+              return stepSub ? '✓' : '✗'
+            }).join(' ')
+            paymentDetail = `스텝: ${stepStatus} (${completedCount}/${requiredCount})`
+          }
+        } else {
+          isPaid = completedCount > 0
+          paymentDetail = isPaid ? '지급완료' : '미지급'
+        }
+
+        const paidAt = completedSubs.length > 0
+          ? completedSubs.sort((a, b) =>
+              new Date(b.final_confirmed_at || b.created_at) - new Date(a.final_confirmed_at || a.created_at)
+            )[0]?.final_confirmed_at
+          : null
+
         return {
           ...app,
           creatorName: profile?.channel_name || profile?.name || app.applicant_name || app.creator_name || '이름 없음',
           phone: profile?.phone || profile?.phone_number,
           email: profile?.email || app.email,
           isPaid,
+          completedCount,
+          requiredCount,
+          paymentDetail,
           paidAt
         }
       })
@@ -201,7 +363,7 @@ export default function UnpaidCampaignsManagement() {
 
       setUnpaidCreators(creators)
     } catch (error) {
-      console.error('미지급 크리에이터 조회 오류:', error)
+      console.error('크리에이터 조회 오류:', error)
     } finally {
       setLoadingCreators(false)
     }
@@ -246,7 +408,7 @@ export default function UnpaidCampaignsManagement() {
         {/* 헤더 */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">캠페인 관리</h1>
-          <p className="text-gray-600 mt-1">포인트 미지급 캠페인</p>
+          <p className="text-gray-600 mt-1">포인트 미지급 캠페인 (영상 확정 기준)</p>
         </div>
 
         {/* 서브 탭 */}
@@ -369,6 +531,11 @@ export default function UnpaidCampaignsManagement() {
                               <Badge className={typeConfig.color} variant="outline">
                                 {typeConfig.label}
                               </Badge>
+                              {(typeConfig.weeks || typeConfig.steps) && (
+                                <Badge variant="outline" className="text-xs">
+                                  {typeConfig.weeks ? `${typeConfig.weeks}주` : `${typeConfig.steps}스텝`}
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500 mt-1">
                               {campaign.end_date && `종료일: ${campaign.end_date.substring(0, 10)}`}
@@ -407,7 +574,7 @@ export default function UnpaidCampaignsManagement() {
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
               <p className="text-gray-500">포인트 미지급 캠페인이 없습니다.</p>
-              <p className="text-sm text-gray-400 mt-1">모든 크리에이터에게 포인트가 지급되었거나 완료된 캠페인이 없습니다.</p>
+              <p className="text-sm text-gray-400 mt-1">모든 영상이 확정되었거나 완료된 캠페인이 없습니다.</p>
               {debugInfo && (
                 <details className="mt-4 text-left">
                   <summary className="text-xs text-gray-400 cursor-pointer">디버그 정보</summary>
@@ -420,7 +587,7 @@ export default function UnpaidCampaignsManagement() {
           </Card>
         )}
 
-        {/* 미지급 크리에이터 상세 다이얼로그 */}
+        {/* 크리에이터 상세 다이얼로그 */}
         <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -435,7 +602,12 @@ export default function UnpaidCampaignsManagement() {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="font-medium text-gray-900">{selectedCampaign.title}</div>
                   <div className="text-sm text-gray-500 mt-1">
-                    SNS 업로드 완료: {selectedCampaign.totalCompleted}명 ·
+                    {isMultiVideoCampaign(selectedCampaign.campaign_type) && (
+                      <span className="mr-2">
+                        {(selectedCampaign.campaign_type || '').toLowerCase().includes('4week') ? '4주 챌린지' : '올영/메가와리'}
+                      </span>
+                    )}
+                    총 {selectedCampaign.totalCompleted}명 ·
                     미지급: <span className="text-red-600 font-medium">{selectedCampaign.unpaidCount}명</span> ·
                     지급완료: <span className="text-green-600 font-medium">{selectedCampaign.paidCount}명</span>
                   </div>
@@ -475,6 +647,11 @@ export default function UnpaidCampaignsManagement() {
                               </span>
                             )}
                           </div>
+                          {creator.paymentDetail && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {creator.paymentDetail}
+                            </div>
+                          )}
                         </div>
                         <Badge className="bg-red-100 text-red-700">
                           <Clock className="w-3 h-3 mr-1" />
@@ -496,8 +673,13 @@ export default function UnpaidCampaignsManagement() {
                                 {creator.creatorName}
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
-                                지급일: {creator.paidAt ? new Date(creator.paidAt).toLocaleDateString('ko-KR') : '-'}
+                                확정일: {creator.paidAt ? new Date(creator.paidAt).toLocaleDateString('ko-KR') : '-'}
                               </div>
+                              {creator.paymentDetail && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  {creator.paymentDetail}
+                                </div>
+                              )}
                             </div>
                             <Badge className="bg-green-100 text-green-700">
                               <CheckCircle className="w-3 h-3 mr-1" />
