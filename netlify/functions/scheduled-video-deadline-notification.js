@@ -703,7 +703,7 @@ exports.handler = async (event, context) => {
         // video_submitted, sns_uploaded, completed 제외 (이미 제출 완료)
         const { data: applications, error: appError } = await supabase
           .from('applications')
-          .select('id, user_id, campaign_id, status')
+          .select('id, user_id, campaign_id, status, custom_deadlines')
           .eq('campaign_id', campaign.id)
           .in('status', ['filming', 'selected', 'guide_approved']);
 
@@ -765,16 +765,53 @@ exports.handler = async (event, context) => {
           let targetVideoNumber = null; // 확인할 영상 번호 (week_number 또는 video_number)
           let videoFieldName = 'video_number'; // 필드명
 
+          // ★ 개별 크리에이터 마감일 (custom_deadlines) 우선 체크
+          const customDeadlines = app.custom_deadlines || {};
+
           if (campaignType === '4week_challenge') {
             videoFieldName = 'week_number';
-            if (getDatePart(campaign.week1_deadline) === date) targetVideoNumber = 1;
-            else if (getDatePart(campaign.week2_deadline) === date) targetVideoNumber = 2;
-            else if (getDatePart(campaign.week3_deadline) === date) targetVideoNumber = 3;
-            else if (getDatePart(campaign.week4_deadline) === date) targetVideoNumber = 4;
+            // custom_deadlines 있으면 우선 사용, 없으면 캠페인 마감일 사용
+            const week1 = getDatePart(customDeadlines.week1_deadline || campaign.week1_deadline);
+            const week2 = getDatePart(customDeadlines.week2_deadline || campaign.week2_deadline);
+            const week3 = getDatePart(customDeadlines.week3_deadline || campaign.week3_deadline);
+            const week4 = getDatePart(customDeadlines.week4_deadline || campaign.week4_deadline);
+
+            if (week1 === date) targetVideoNumber = 1;
+            else if (week2 === date) targetVideoNumber = 2;
+            else if (week3 === date) targetVideoNumber = 3;
+            else if (week4 === date) targetVideoNumber = 4;
+
+            // 개별 마감일이 설정되어 있고, 캠페인 마감일과 다르면 로그 출력
+            if (Object.keys(customDeadlines).length > 0) {
+              console.log(`  ★ 개별 마감일 적용: ${creatorName} - week1:${week1}, week2:${week2}, week3:${week3}, week4:${week4}`);
+            }
           } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
             videoFieldName = 'video_number';
-            if (getDatePart(campaign.step1_deadline) === date) targetVideoNumber = 1;
-            else if (getDatePart(campaign.step2_deadline) === date) targetVideoNumber = 2;
+            const step1 = getDatePart(customDeadlines.step1_deadline || campaign.step1_deadline);
+            const step2 = getDatePart(customDeadlines.step2_deadline || campaign.step2_deadline);
+
+            if (step1 === date) targetVideoNumber = 1;
+            else if (step2 === date) targetVideoNumber = 2;
+
+            if (Object.keys(customDeadlines).length > 0) {
+              console.log(`  ★ 개별 마감일 적용: ${creatorName} - step1:${step1}, step2:${step2}`);
+            }
+          } else {
+            // 기획형 (regular) - video_deadline 또는 content_submission_deadline
+            const videoDeadline = getDatePart(customDeadlines.video_deadline || campaign.content_submission_deadline);
+
+            if (videoDeadline === date) targetVideoNumber = null; // 기획형은 단일 영상이므로 번호 없음
+            else {
+              // 마감일이 오늘 날짜와 다르면 스킵 (캠페인 레벨 마감일이 맞았지만 개별 마감일이 다른 경우)
+              if (Object.keys(customDeadlines).length > 0 && customDeadlines.video_deadline) {
+                console.log(`  ★ 개별 마감일로 인해 스킵: ${creatorName} - 개별마감일:${videoDeadline}, 오늘:${date}`);
+                continue;
+              }
+            }
+
+            if (Object.keys(customDeadlines).length > 0 && customDeadlines.video_deadline) {
+              console.log(`  ★ 개별 마감일 적용: ${creatorName} - video_deadline:${videoDeadline}`);
+            }
           }
 
           // video_submissions에서 해당 영상이 제출됐는지 확인
@@ -918,6 +955,172 @@ exports.handler = async (event, context) => {
           }
         } // end of applications loop
       } // end of campaigns loop
+      // ★ 추가: 개별 마감일(custom_deadlines)이 해당 날짜인 크리에이터 처리
+      // 캠페인 마감일은 해당 날짜가 아니지만, 개별 마감일이 해당 날짜인 경우
+      console.log(`\n=== ${label} 개별 마감일 확인 ===`);
+      for (const region of regions) {
+        if (!region.url || !region.key) continue;
+
+        const supabase = createClient(region.url, region.key);
+
+        try {
+          // custom_deadlines가 있는 모든 applications 조회
+          const { data: customApps, error: customAppError } = await supabase
+            .from('applications')
+            .select('id, user_id, campaign_id, status, custom_deadlines')
+            .not('custom_deadlines', 'is', null)
+            .in('status', ['filming', 'selected', 'guide_approved']);
+
+          if (customAppError) {
+            console.log(`${region.name} 개별 마감일 조회 오류:`, customAppError.message);
+            continue;
+          }
+
+          if (!customApps || customApps.length === 0) {
+            console.log(`${region.name} 개별 마감일 설정된 신청 없음`);
+            continue;
+          }
+
+          console.log(`${region.name} 개별 마감일 신청 ${customApps.length}건 확인`);
+
+          for (const app of customApps) {
+            const customDeadlines = app.custom_deadlines || {};
+
+            // 이미 처리된 application인지 확인 (캠페인 마감일 기준으로 이미 알림 발송한 경우)
+            const alreadyProcessed = allResults.some(
+              r => r.userId === app.user_id && r.deadline === date && r.campaignName
+            );
+            if (alreadyProcessed) continue;
+
+            // 해당 날짜와 매칭되는 개별 마감일이 있는지 확인
+            let matchedDeadlineType = null;
+            let targetVideoNumber = null;
+
+            const deadlineFields = [
+              'video_deadline', 'content_submission_deadline',
+              'week1_deadline', 'week2_deadline', 'week3_deadline', 'week4_deadline',
+              'step1_deadline', 'step2_deadline'
+            ];
+
+            for (const field of deadlineFields) {
+              if (customDeadlines[field] && getDatePart(customDeadlines[field]) === date) {
+                matchedDeadlineType = field;
+
+                if (field.startsWith('week')) {
+                  targetVideoNumber = parseInt(field.charAt(4));
+                } else if (field.startsWith('step')) {
+                  targetVideoNumber = parseInt(field.charAt(4));
+                }
+                break;
+              }
+            }
+
+            if (!matchedDeadlineType) continue;
+
+            console.log(`  ★ 개별 마감일 매칭: user_id=${app.user_id}, ${matchedDeadlineType}=${date}`);
+
+            // 캠페인 정보 조회
+            const { data: campaignData } = await supabase
+              .from('campaigns')
+              .select('id, title, campaign_type, company_id')
+              .eq('id', app.campaign_id)
+              .single();
+
+            if (!campaignData) {
+              console.log(`  캠페인 정보 없음: ${app.campaign_id}`);
+              continue;
+            }
+
+            // 크리에이터 정보 조회
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('name, channel_name, phone, phone_number, email')
+              .eq('id', app.user_id)
+              .maybeSingle();
+
+            if (!profile) {
+              console.log(`  크리에이터 정보 없음: ${app.user_id}`);
+              continue;
+            }
+
+            const creatorName = profile.channel_name || profile.name || '크리에이터';
+            const creatorPhone = profile.phone || profile.phone_number;
+            const creatorEmail = profile.email;
+            const campaignName = campaignData.title;
+
+            // 해당 영상이 이미 제출됐는지 확인
+            let videoFieldName = matchedDeadlineType.startsWith('week') ? 'week_number' : 'video_number';
+            let submissionQuery = supabase
+              .from('video_submissions')
+              .select('id, status')
+              .eq('campaign_id', app.campaign_id)
+              .eq('user_id', app.user_id);
+
+            if (targetVideoNumber !== null) {
+              submissionQuery = submissionQuery.eq(videoFieldName, targetVideoNumber);
+            }
+
+            const { data: submittedVideos } = await submissionQuery;
+
+            if (submittedVideos && submittedVideos.length > 0) {
+              console.log(`  영상 제출 완료: ${creatorName} - 알림 건너뜀`);
+              continue;
+            }
+
+            // 마감일 포맷팅
+            const deadlineFormatted = date.replace(/-/g, '.');
+
+            // daysRemaining 계산
+            let daysRemaining = 0;
+            if (label === '3일 전') daysRemaining = 3;
+            else if (label === '2일 전') daysRemaining = 2;
+            else if (label === '당일') daysRemaining = 0;
+
+            // 알림 발송
+            let kakaoSent = false;
+            let emailSent = false;
+
+            if (creatorPhone) {
+              try {
+                await sendKakaoNotification(creatorPhone, creatorName, templateCode, campaignName, deadlineFormatted);
+                console.log(`  ★ 개별마감일 알림톡 발송: ${creatorName} (${creatorPhone})`);
+                kakaoSent = true;
+              } catch (err) {
+                console.error(`  알림톡 실패: ${creatorName}`, err.message);
+              }
+            }
+
+            if (creatorEmail) {
+              try {
+                await sendCreatorEmail(creatorEmail, creatorName, campaignName, deadlineFormatted, daysRemaining);
+                console.log(`  ★ 개별마감일 이메일 발송: ${creatorName} (${creatorEmail})`);
+                emailSent = true;
+              } catch (err) {
+                console.error(`  이메일 실패: ${creatorName}`, err.message);
+              }
+            }
+
+            if (kakaoSent || emailSent) {
+              allResults.push({
+                userId: app.user_id,
+                creatorName,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'sent',
+                phone: creatorPhone,
+                email: creatorEmail,
+                kakaoSent,
+                emailSent,
+                customDeadline: true
+              });
+            }
+          }
+        } catch (customErr) {
+          console.error(`${region.name} 개별 마감일 처리 오류:`, customErr.message);
+        }
+      }
+
       } catch (deadlineError) {
         console.error(`[ERROR] ${label} 알림 처리 중 오류:`, deadlineError.message);
         // 오류가 발생해도 다음 마감일 처리 계속
