@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib/supabaseClients';
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients';
 import TossPaymentWidget from '../payment/TossPaymentWidget';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -11,7 +11,7 @@ const PaymentMethodSelection = () => {
   const navigate = useNavigate();
   const campaignId = searchParams.get('id');
   const region = searchParams.get('region') || 'korea';
-  
+
   const [paymentMethod, setPaymentMethod] = useState(''); // 'card', 'bank_transfer', or 'voucher'
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,15 +23,6 @@ const PaymentMethodSelection = () => {
   const [companyPhone, setCompanyPhone] = useState('');  // for 알림톡
   const [processingVoucher, setProcessingVoucher] = useState(false);
 
-  // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
-  const getSupabaseClient = (region) => {
-    switch(region) {
-      case 'japan': return supabaseJapan || supabaseBiz;
-      case 'us': return supabaseUS || supabaseBiz;
-      default: return supabaseKorea || supabaseBiz;
-    }
-  };
-
   useEffect(() => {
     const fetchCampaignAndVoucher = async () => {
       if (!campaignId) {
@@ -42,14 +33,36 @@ const PaymentMethodSelection = () => {
 
       try {
         const supabase = getSupabaseClient(region);
+
+        // Supabase 클라이언트가 null인 경우 (환경변수 미설정)
+        if (!supabase) {
+          console.error(`[PaymentMethodSelection] Supabase client for region "${region}" is null`);
+          setError(`${region.toUpperCase()} 리전의 데이터베이스 연결이 설정되지 않았습니다.`);
+          setLoading(false);
+          return;
+        }
+
+        console.log(`[PaymentMethodSelection] Fetching campaign ${campaignId} from region: ${region}`);
+
         const { data, error: fetchError } = await supabase
           .from('campaigns')
           .select('*')
           .eq('id', campaignId)
           .single();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.error(`[PaymentMethodSelection] Campaign fetch error:`, fetchError);
+          throw fetchError;
+        }
 
+        if (!data) {
+          console.error(`[PaymentMethodSelection] Campaign not found: ${campaignId}`);
+          setError(`캠페인을 찾을 수 없습니다. (ID: ${campaignId}, Region: ${region})`);
+          setLoading(false);
+          return;
+        }
+
+        console.log(`[PaymentMethodSelection] Campaign found:`, data.title);
         setCampaign(data);
 
         // 수출바우처 잔액 조회 (company_email로 companies 테이블에서 조회)
@@ -71,8 +84,8 @@ const PaymentMethodSelection = () => {
 
         setLoading(false);
       } catch (err) {
-        console.error('캠페인 조회 실패:', err);
-        setError('캠페인 정보를 불러오는데 실패했습니다.');
+        console.error('[PaymentMethodSelection] 캠페인 조회 실패:', err);
+        setError(`캠페인 정보를 불러오는데 실패했습니다: ${err.message}`);
         setLoading(false);
       }
     };
