@@ -436,7 +436,8 @@ export default function UnpaidCampaignsManagement() {
                       {allCreators.map((creator, idx) => (
                         <div
                           key={`${creator.id}-${idx}`}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                          onClick={() => navigate(`/admin/campaigns/${creator.campaign_id}`)}
                         >
                           <div className="flex items-center gap-3">
                             <Badge className={creator.regionInfo.color}>
@@ -486,7 +487,7 @@ export default function UnpaidCampaignsManagement() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => window.open(`tel:${creator.phone}`)}
+                                  onClick={(e) => { e.stopPropagation(); window.open(`tel:${creator.phone}`) }}
                                 >
                                   <Phone className="w-4 h-4" />
                                 </Button>
@@ -495,11 +496,12 @@ export default function UnpaidCampaignsManagement() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => window.open(`mailto:${creator.email}`)}
+                                  onClick={(e) => { e.stopPropagation(); window.open(`mailto:${creator.email}`) }}
                                 >
                                   <Mail className="w-4 h-4" />
                                 </Button>
                               )}
+                              <ExternalLink className="w-4 h-4 text-gray-400" />
                             </div>
                           </div>
                         </div>
