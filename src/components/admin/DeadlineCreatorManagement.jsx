@@ -107,15 +107,11 @@ export default function DeadlineCreatorManagement() {
             continue
           }
 
-          // 활성 캠페인 조회
+          // 활성 캠페인 조회 (리전별로 다른 컬럼 존재 가능)
+          // 기본 컬럼만 조회 (존재하지 않는 컬럼은 무시됨)
           const { data: campaigns, error } = await supabase
             .from('campaigns')
-            .select(`
-              id, title, campaign_type, company_id, region, status,
-              content_submission_deadline, video_deadline, start_date,
-              step1_deadline, step2_deadline,
-              week1_deadline, week2_deadline, week3_deadline, week4_deadline
-            `)
+            .select('*')
             .in('status', ['active', 'recruiting', 'approved', 'filming', 'ongoing'])
 
           if (error) {

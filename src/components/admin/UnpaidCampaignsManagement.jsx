@@ -62,15 +62,13 @@ export default function UnpaidCampaignsManagement() {
             continue
           }
 
-          // 완료된 캠페인 조회 (더 넓은 상태 범위)
+          // 완료된 캠페인 조회 (리전별로 다른 컬럼 존재 가능)
+          // 기본 컬럼만 조회 (존재하지 않는 컬럼은 무시됨)
           const { data: campaigns, error } = await supabase
             .from('campaigns')
-            .select(`
-              id, title, campaign_type, company_id, region, status, end_date,
-              reward_points, reward_amount
-            `)
+            .select('*')
             .in('status', ['completed', 'active', 'ongoing', 'filming'])
-            .order('end_date', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(100)
 
           if (error) {
