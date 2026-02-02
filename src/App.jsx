@@ -115,6 +115,8 @@ import TestKakaoNotification from './components/admin/TestKakaoNotification'
 import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
 import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
+import DeadlineCreatorManagement from './components/admin/DeadlineCreatorManagement'
+import UnpaidCampaignsManagement from './components/admin/UnpaidCampaignsManagement'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
@@ -216,6 +218,8 @@ function App() {
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/consultations" element={<ConsultationManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
+        <Route path="/admin/campaigns/deadlines" element={<DeadlineCreatorManagement />} />
+        <Route path="/admin/campaigns/unpaid" element={<UnpaidCampaignsManagement />} />
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />

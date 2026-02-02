@@ -1132,9 +1132,36 @@ export default function CampaignsManagement() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white lg:ml-64">
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
           {/* 헤더 */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">캠페인 관리</h1>
             <p className="text-gray-500">전체 캠페인을 관리하고 모니터링합니다.</p>
+          </div>
+
+          {/* 서브 탭 */}
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <Button
+              variant="default"
+              size="sm"
+              className="whitespace-nowrap"
+            >
+              📋 전체 캠페인
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => navigate('/admin/campaigns/deadlines')}
+            >
+              ⏰ 마감일 관리
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => navigate('/admin/campaigns/unpaid')}
+            >
+              💰 포인트 미지급
+            </Button>
           </div>
 
           {/* 통계 카드 */}
