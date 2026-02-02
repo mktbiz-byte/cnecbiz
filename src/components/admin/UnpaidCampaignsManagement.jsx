@@ -81,10 +81,10 @@ export default function UnpaidCampaignsManagement() {
 
           // 각 캠페인의 포인트 미지급 크리에이터 확인
           for (const campaign of campaigns || []) {
-            // SNS 업로드 완료된 신청자 수 조회 (더 넓은 상태 범위)
+            // SNS 업로드 완료된 신청자 수 조회 (더 넓은 상태 범위, 리전별 컬럼 차이 대응)
             const { data: completedApps, error: appError } = await supabase
               .from('applications')
-              .select('id, user_id, status, points_paid, reward_paid, point_paid')
+              .select('*')
               .eq('campaign_id', campaign.id)
               .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
 
@@ -152,10 +152,10 @@ export default function UnpaidCampaignsManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 SNS 업로드 완료된 신청자 조회 (여러 필드명 시도)
+      // 해당 캠페인의 SNS 업로드 완료된 신청자 조회 (리전별 컬럼 차이 대응 - select * 사용)
       const { data: applications, error: appError } = await supabase
         .from('applications')
-        .select('id, user_id, status, applicant_name, creator_name, email, points_paid, reward_paid, point_paid, points_paid_at, reward_paid_at')
+        .select('*')
         .eq('campaign_id', campaign.id)
         .in('status', ['sns_uploaded', 'completed', 'video_submitted', 'approved'])
 

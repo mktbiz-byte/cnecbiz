@@ -155,10 +155,10 @@ export default function DeadlineCreatorManagement() {
               // 3일 전 ~ 지연(7일까지) 범위만 표시
               if (diffDays > 3 || diffDays < -7) continue
 
-              // 해당 캠페인의 신청자 조회 (더 넓은 상태 범위)
+              // 해당 캠페인의 신청자 조회 (리전별 컬럼 차이 대응)
               const { data: applications, error: appError } = await supabase
                 .from('applications')
-                .select('id, user_id, status, video_url, clean_video_url')
+                .select('*')
                 .eq('campaign_id', campaign.id)
                 .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
 
@@ -260,10 +260,10 @@ export default function DeadlineCreatorManagement() {
         ? supabaseBiz
         : getSupabaseClient(campaign.region)
 
-      // 해당 캠페인의 신청자 조회 (video_url 포함)
+      // 해당 캠페인의 신청자 조회 (리전별 컬럼 차이 대응 - select * 사용)
       const { data: applications, error: appError } = await supabase
         .from('applications')
-        .select('id, user_id, status, applicant_name, creator_name, email, video_url, clean_video_url')
+        .select('*')
         .eq('campaign_id', campaign.id)
         .in('status', ['filming', 'selected', 'guide_approved', 'approved', 'virtual_selected'])
 
