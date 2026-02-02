@@ -314,19 +314,23 @@ export default function UnpaidCampaignsManagement() {
 
           if (is4Week) {
             // 4주 챌린지: 주차별 상태 표시
+            // 타입 변환 비교 (문자열/숫자 모두 처리)
             const weekStatus = [1, 2, 3, 4].map(w => {
-              const weekSub = completedSubs.find(s =>
-                (s.week === w || s.week_number === w || s.video_number === w)
-              )
+              const weekSub = completedSubs.find(s => {
+                const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
+                return weekVal === w
+              })
               return weekSub ? '✓' : '✗'
             }).join(' ')
             paymentDetail = `주차: ${weekStatus} (${completedCount}/${requiredCount})`
           } else {
             // 올영/메가와리: 스텝별 상태 표시
+            // 타입 변환 비교 (문자열/숫자 모두 처리)
             const stepStatus = [1, 2].map(st => {
-              const stepSub = completedSubs.find(s =>
-                (s.step === st || s.video_number === st)
-              )
+              const stepSub = completedSubs.find(s => {
+                const stepVal = Number(s.step) || Number(s.video_number)
+                return stepVal === st
+              })
               return stepSub ? '✓' : '✗'
             }).join(' ')
             paymentDetail = `스텝: ${stepStatus} (${completedCount}/${requiredCount})`

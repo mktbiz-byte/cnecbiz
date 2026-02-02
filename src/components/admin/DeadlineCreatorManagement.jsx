@@ -207,11 +207,14 @@ export default function DeadlineCreatorManagement() {
                   const userSubs = campaignSubs[app.user_id] || []
 
                   // 해당 스텝/주차의 제출물 찾기
+                  // 타입 변환 비교 (문자열/숫자 모두 처리)
                   const stepSub = userSubs.find(s => {
+                    const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
                     if (typeInfo.is4Week) {
-                      return s.week === stepOrWeek || s.week_number === stepOrWeek || s.video_number === stepOrWeek
+                      return weekVal === stepOrWeek
                     } else {
-                      return s.step === stepOrWeek || s.video_number === stepOrWeek
+                      const stepVal = Number(s.step) || Number(s.video_number)
+                      return stepVal === stepOrWeek
                     }
                   })
 
@@ -421,11 +424,14 @@ export default function DeadlineCreatorManagement() {
 
         if (typeInfo.isMulti && campaign.stepOrWeek) {
           // 멀티비디오 캠페인: 특정 스텝/주차 확인
+          // 타입 변환 비교 (문자열/숫자 모두 처리)
           const stepSub = userSubs.find(s => {
+            const weekVal = Number(s.week) || Number(s.week_number) || Number(s.video_number)
             if (typeInfo.is4Week) {
-              return s.week === campaign.stepOrWeek || s.week_number === campaign.stepOrWeek || s.video_number === campaign.stepOrWeek
+              return weekVal === campaign.stepOrWeek
             } else {
-              return s.step === campaign.stepOrWeek || s.video_number === campaign.stepOrWeek
+              const stepVal = Number(s.step) || Number(s.video_number)
+              return stepVal === campaign.stepOrWeek
             }
           })
 
