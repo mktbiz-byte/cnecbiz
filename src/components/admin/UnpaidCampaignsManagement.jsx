@@ -195,10 +195,10 @@ export default function UnpaidCampaignsManagement() {
             const typeInfo = getCampaignTypeInfo(campaign?.campaign_type)
             const counts = submissionCounts[key] || { videoCount: 0, snsCount: 0, confirmedCount: 0 }
 
-            // ★ 지급 조건: 영상 + SNS 모두 required 이상 완료된 경우만 표시
-            // 아직 완료 안된 건 마감일 관리에서 확인
-            if (counts.videoCount < typeInfo.required || counts.snsCount < typeInfo.required) {
-              continue // 아직 지급 대상 아님
+            // ★ 지급 조건: SNS 업로드 완료 기준 (영상 제출은 체크 안함)
+            // 최종 확정을 안 누른 기업을 찾기 위함
+            if (counts.snsCount < typeInfo.required) {
+              continue // SNS 업로드 미완료 = 아직 지급 대상 아님
             }
 
             // SNS 업로드 날짜 기준 경과일 계산 (sns_uploaded_at 컬럼 없으면 updated_at 사용)
