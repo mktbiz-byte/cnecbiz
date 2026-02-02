@@ -502,6 +502,18 @@ Output format:
       // 빈 문자열을 null로 변환하는 헬퍼 함수
       const toNullIfEmpty = (val) => (val && val.trim() !== '') ? val : null
 
+      // end_date 자동 계산: 캠페인 타입에 따라 마지막 마감일 사용
+      let calculatedEndDate = campaignForm.end_date
+      if (!calculatedEndDate) {
+        if (campaignForm.campaign_type === '4week_challenge') {
+          // 4주 챌린지: week4_sns_deadline > week4_deadline > start_date 순으로
+          calculatedEndDate = campaignForm.week4_sns_deadline || campaignForm.week4_deadline || campaignForm.start_date
+        } else {
+          // 기획형: sns_deadline > video_deadline > start_date 순으로
+          calculatedEndDate = campaignForm.sns_deadline || campaignForm.video_deadline || campaignForm.start_date
+        }
+      }
+
       const campaignData = {
         title: campaignForm.title_en || campaignForm.title,  // 영어 번역 우선
         brand: campaignForm.brand_en || campaignForm.brand,
@@ -523,6 +535,7 @@ Output format:
         max_participants: campaignForm.total_slots || 10,
         application_deadline: toNullIfEmpty(campaignForm.application_deadline),
         start_date: toNullIfEmpty(campaignForm.start_date),
+        end_date: calculatedEndDate || campaignForm.start_date,  // ★ end_date 추가
         status: 'draft',
         target_platforms: campaignForm.target_platforms,
         package_type: campaignForm.package_type,
