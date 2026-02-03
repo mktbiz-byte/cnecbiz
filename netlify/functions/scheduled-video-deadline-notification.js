@@ -598,13 +598,12 @@ exports.handler = async (event, context) => {
     console.log('2일 후 마감:', in2DaysStr);
     console.log('3일 후 마감:', in3DaysStr);
 
-    // 캠페인 데이터는 BIZ DB와 Korea DB에 저장됨
+    // 캠페인 데이터는 Korea DB에 저장됨 (BIZ DB는 campaigns 테이블 스키마가 다름)
     const regions = [
-      { name: 'biz', url: process.env.VITE_SUPABASE_BIZ_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_ANON_KEY },
       { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY }
     ];
 
-    console.log('📢 영상 제출 마감일 알림 - BIZ DB + Korea DB 조회');
+    console.log('📢 영상 제출 마감일 알림 - Korea DB 조회');
 
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
     const deadlineDates = [
