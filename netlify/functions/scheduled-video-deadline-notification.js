@@ -422,12 +422,12 @@ const sendCompanyEmail = async (to, companyName, campaignName, pendingCreators, 
   }
 };
 
-// 카카오톡 알림 발송 함수
+// 카카오톡 알림 발송 함수 (팝빌 등록된 템플릿과 정확히 일치해야 함)
 const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaignName, deadline) => {
   return new Promise((resolve, reject) => {
-    // 템플릿별 메시지 내용
+    // 템플릿별 메시지 내용 (팝빌 등록 내용과 정확히 일치)
     const messages = {
-      '025100001013': `[CNEC] 참여하신 캠페인의 영상 제출 기한 3일 전 안내
+      '025100001013': `[CNEC] 참여하신 캠페인 영상 제출 기한 안내
 #{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 3일 남았습니다.
 
 캠페인: #{캠페인명}
@@ -438,7 +438,7 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
 기한 내 미제출 시 패널티가 부과됩니다.
 
 문의: 1833-6025`,
-      '025100001014': `[CNEC] 참여하신 캠페인의 영상 제출 기한 2일 전 안내
+      '025100001014': `[CNEC] 참여하신 캠페인 영상 제출 기한 임박
 #{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 2일 남았습니다.
 
 캠페인: #{캠페인명}
@@ -449,20 +449,18 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
 기한 내 미제출 시 패널티가 부과됩니다.
 
 문의: 1833-6025`,
-      '025100001015': `[CNEC] 참여하신 캠페인 영상 제출 마감일 안내
-#{크리에이터명}님, 신청하신 캠페인의 영상 제출 기한이 오늘입니다.
+      '025100001015': `[CNEC] 참여하신 캠페인 영상 제출 마감일
+#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 오늘입니다.
 
 캠페인: #{캠페인명}
 영상 제출 기한: #{제출기한} (오늘)
 
 아직 영상이 제출되지 않았습니다. 오늘 자정까지 크리에이터 대시보드에서 제출해 주세요.
 
-기한 내 미제출 시 패널티가 부과됩니다.
-특별한 사유가 있는 경우 관리자에게 문의해주세요.
+미제출 시 패널티가 부과됩니다.
 
 문의: 1833-6025`,
       '025100001021': `[CNEC] 참여하신 캠페인 제출 기한 지연
-
 #{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 지연되었습니다.
 
 캠페인: #{캠페인명}
