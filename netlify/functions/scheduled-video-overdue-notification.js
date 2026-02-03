@@ -358,168 +358,197 @@ exports.handler = async (event, context) => {
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // 지연 날짜 계산 (1~5일 전 마감 = 1~5일 지연)
-    const overdueDatesCalc = [];
-    for (let i = 1; i <= 5; i++) {
-      const overdueDate = new Date(today);
-      overdueDate.setDate(today.getDate() - i);
-      overdueDatesCalc.push({
-        date: overdueDate.toISOString().split('T')[0],
-        daysOverdue: i,
-        label: `${i}일 지연`
-      });
-    }
-
-    console.log('\n=== 지연 날짜 계산 ===');
+    console.log('\n=== 지연 캠페인 전체 조회 ===');
     console.log('오늘:', todayStr);
-    overdueDatesCalc.forEach(d => console.log(`${d.label}: ${d.date}`));
 
     const supabaseKorea = createClient(
       process.env.VITE_SUPABASE_KOREA_URL,
       process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
     );
 
-    const overdueDates = overdueDatesCalc;
+    // 모든 활성 캠페인 조회
+    const { data: allCampaigns, error: campaignError } = await supabaseKorea
+      .from('campaigns')
+      .select('id, title, company_id, campaign_type, content_submission_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
+      .in('status', ['active', 'recruiting', 'approved']);
+
+    if (campaignError) {
+      console.error('캠페인 조회 오류:', campaignError);
+      throw campaignError;
+    }
+
+    console.log(`총 ${(allCampaigns || []).length}개 활성 캠페인 조회됨`);
+
+    // 지연일 계산 함수
+    const calcDaysOverdue = (deadlineStr) => {
+      if (!deadlineStr) return null;
+      const deadline = new Date(deadlineStr);
+      deadline.setHours(0, 0, 0, 0);
+      const diff = Math.floor((today - deadline) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : null; // 양수일 때만 지연
+    };
+
+    // 마감일이 지난 캠페인과 지연일 정보 수집
+    const overdueCampaigns = [];
+    for (const campaign of (allCampaigns || [])) {
+      const type = (campaign.campaign_type || '').toLowerCase();
+
+      if (type.includes('4week') || type.includes('challenge')) {
+        // 4주 챌린지: 각 주차별 확인
+        [campaign.week1_deadline, campaign.week2_deadline, campaign.week3_deadline, campaign.week4_deadline].forEach((deadline, idx) => {
+          const daysOverdue = calcDaysOverdue(deadline);
+          if (daysOverdue) {
+            overdueCampaigns.push({
+              ...campaign,
+              overdueDeadline: deadline,
+              daysOverdue,
+              weekNumber: idx + 1,
+              label: `${daysOverdue}일 지연`
+            });
+          }
+        });
+      } else if (type.includes('olive') || type.includes('올리브')) {
+        // 올리브영: step1, step2 확인
+        [campaign.step1_deadline, campaign.step2_deadline].forEach((deadline, idx) => {
+          const daysOverdue = calcDaysOverdue(deadline);
+          if (daysOverdue) {
+            overdueCampaigns.push({
+              ...campaign,
+              overdueDeadline: deadline,
+              daysOverdue,
+              stepNumber: idx + 1,
+              label: `${daysOverdue}일 지연`
+            });
+          }
+        });
+      } else {
+        // 기획형: content_submission_deadline 확인
+        const daysOverdue = calcDaysOverdue(campaign.content_submission_deadline);
+        if (daysOverdue) {
+          overdueCampaigns.push({
+            ...campaign,
+            overdueDeadline: campaign.content_submission_deadline,
+            daysOverdue,
+            label: `${daysOverdue}일 지연`
+          });
+        }
+      }
+    }
+
+    console.log(`지연 캠페인: ${overdueCampaigns.length}건 발견`);
 
     const allResults = [];
 
-    for (const { date, daysOverdue, label } of overdueDates) {
-      console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
+    for (const campaign of overdueCampaigns) {
+      const { daysOverdue, label, overdueDeadline, weekNumber, stepNumber } = campaign;
 
-      // 해당 날짜가 마감일인 캠페인 조회
-      const { data: campaigns, error: campaignError } = await supabaseKorea
-        .from('campaigns')
-        .select('id, title, company_id, campaign_type, content_submission_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
-        .in('status', ['active', 'recruiting', 'approved']);
+      // 아직 영상 미제출인 신청 조회
+      const { data: applications, error: appError } = await supabaseKorea
+        .from('applications')
+        .select('id, user_id, campaign_id, status')
+        .eq('campaign_id', campaign.id)
+        .in('status', ['filming', 'selected', 'guide_approved']);
 
-      if (campaignError) {
-        console.error(`캠페인 조회 오류:`, campaignError);
+      if (appError || !applications || applications.length === 0) {
         continue;
       }
 
-      // 마감일 필터링
-      const matchingCampaigns = (campaigns || []).filter(campaign => {
-        const type = (campaign.campaign_type || '').toLowerCase();
-        if (type.includes('4week') || type.includes('challenge')) {
-          return getDatePart(campaign.week1_deadline) === date ||
-                 getDatePart(campaign.week2_deadline) === date ||
-                 getDatePart(campaign.week3_deadline) === date ||
-                 getDatePart(campaign.week4_deadline) === date;
-        } else if (type.includes('olive') || type.includes('올리브')) {
-          return getDatePart(campaign.step1_deadline) === date ||
-                 getDatePart(campaign.step2_deadline) === date;
-        } else {
-          return getDatePart(campaign.content_submission_deadline) === date;
-        }
-      });
+      console.log(`\n=== ${campaign.title} (${label}) - ${applications.length}명 대상 ===`);
 
-      if (matchingCampaigns.length === 0) {
-        console.log(`${label}: 해당 날짜에 마감된 캠페인 없음`);
-        continue;
-      }
+      for (const app of applications) {
+        try {
+          // user_profiles에서 크리에이터 정보 조회
+          const { data: profile } = await supabaseKorea
+            .from('user_profiles')
+            .select('name, email, phone')
+            .eq('id', app.user_id)
+            .maybeSingle();
 
-      console.log(`${label}: ${matchingCampaigns.length}개 캠페인 발견`);
-
-      for (const campaign of matchingCampaigns) {
-        // 아직 영상 미제출인 신청 조회
-        const { data: applications, error: appError } = await supabaseKorea
-          .from('applications')
-          .select('id, user_id, campaign_id, status')
-          .eq('campaign_id', campaign.id)
-          .in('status', ['filming', 'selected', 'guide_approved']);
-
-        if (appError || !applications || applications.length === 0) {
-          continue;
-        }
-
-        console.log(`${label} - ${campaign.title}: ${applications.length}건 대상`);
-
-        for (const app of applications) {
-          try {
-            // user_profiles에서 크리에이터 정보 조회
-            const { data: profile } = await supabaseKorea
+          let creatorProfile = profile;
+          if (!creatorProfile) {
+            const { data: profile2 } = await supabaseKorea
               .from('user_profiles')
               .select('name, email, phone')
-              .eq('id', app.user_id)
+              .eq('user_id', app.user_id)
               .maybeSingle();
-
-            let creatorProfile = profile;
-            if (!creatorProfile) {
-              const { data: profile2 } = await supabaseKorea
-                .from('user_profiles')
-                .select('name, email, phone')
-                .eq('user_id', app.user_id)
-                .maybeSingle();
-              creatorProfile = profile2;
-            }
-
-            if (!creatorProfile) {
-              console.log(`크리에이터 정보 없음 (user_id: ${app.user_id})`);
-              continue;
-            }
-
-            const creatorName = creatorProfile.name || '크리에이터';
-            const creatorPhone = creatorProfile.phone;
-            const creatorEmail = creatorProfile.email;
-
-            if (!creatorPhone && !creatorEmail) {
-              continue;
-            }
-
-            // 이미 영상 제출했는지 확인
-            const { data: submissions } = await supabaseKorea
-              .from('video_submissions')
-              .select('id')
-              .eq('campaign_id', app.campaign_id)
-              .eq('user_id', app.user_id);
-
-            if (submissions && submissions.length > 0) {
-              console.log(`✓ 영상 제출 완료: ${creatorName} - 건너뜀`);
-              continue;
-            }
-
-            const deadlineFormatted = date.replace(/-/g, '.');
-
-            // 알림톡 발송
-            let kakaoSent = false;
-            if (creatorPhone) {
-              try {
-                await sendKakaoNotification(creatorPhone, creatorName, campaign.title, deadlineFormatted);
-                console.log(`🚨 지연 알림톡 발송: ${creatorName} (${creatorPhone}) - ${daysOverdue}일 지연`);
-                kakaoSent = true;
-              } catch (e) {
-                console.error(`알림톡 실패: ${creatorName}`, e.message);
-              }
-            }
-
-            // 이메일 발송
-            let emailSent = false;
-            if (creatorEmail) {
-              try {
-                await sendOverdueEmail(creatorEmail, creatorName, campaign.title, deadlineFormatted, daysOverdue);
-                console.log(`🚨 지연 이메일 발송: ${creatorName} (${creatorEmail}) - ${daysOverdue}일 지연`);
-                emailSent = true;
-              } catch (e) {
-                console.error(`이메일 실패: ${creatorName}`, e.message);
-              }
-            }
-
-            if (kakaoSent || emailSent) {
-              allResults.push({
-                creatorName,
-                campaignName: campaign.title,
-                deadline: date,
-                daysOverdue,
-                label,
-                phone: creatorPhone,
-                email: creatorEmail,
-                kakaoSent,
-                emailSent
-              });
-            }
-          } catch (error) {
-            console.error(`처리 오류:`, error);
+            creatorProfile = profile2;
           }
+
+          if (!creatorProfile) {
+            console.log(`크리에이터 정보 없음 (user_id: ${app.user_id})`);
+            continue;
+          }
+
+          const creatorName = creatorProfile.name || '크리에이터';
+          const creatorPhone = creatorProfile.phone;
+          const creatorEmail = creatorProfile.email;
+
+          if (!creatorPhone && !creatorEmail) {
+            continue;
+          }
+
+          // 4주 챌린지의 경우 해당 주차 영상만 확인
+          let submissionQuery = supabaseKorea
+            .from('video_submissions')
+            .select('id')
+            .eq('campaign_id', app.campaign_id)
+            .eq('user_id', app.user_id);
+
+          if (weekNumber) {
+            submissionQuery = submissionQuery.eq('week_number', weekNumber);
+          } else if (stepNumber) {
+            submissionQuery = submissionQuery.eq('video_number', stepNumber);
+          }
+
+          const { data: submissions } = await submissionQuery;
+
+          if (submissions && submissions.length > 0) {
+            console.log(`✓ 영상 제출 완료: ${creatorName} - 건너뜀`);
+            continue;
+          }
+
+          const deadlineStr = getDatePart(overdueDeadline);
+          const deadlineFormatted = deadlineStr ? deadlineStr.replace(/-/g, '.') : '';
+
+          // 알림톡 발송
+          let kakaoSent = false;
+          if (creatorPhone) {
+            try {
+              await sendKakaoNotification(creatorPhone, creatorName, campaign.title, deadlineFormatted);
+              console.log(`🚨 지연 알림톡 발송: ${creatorName} (${creatorPhone}) - ${daysOverdue}일 지연`);
+              kakaoSent = true;
+            } catch (e) {
+              console.error(`알림톡 실패: ${creatorName}`, e.message);
+            }
+          }
+
+          // 이메일 발송
+          let emailSent = false;
+          if (creatorEmail) {
+            try {
+              await sendOverdueEmail(creatorEmail, creatorName, campaign.title, deadlineFormatted, daysOverdue);
+              console.log(`🚨 지연 이메일 발송: ${creatorName} (${creatorEmail}) - ${daysOverdue}일 지연`);
+              emailSent = true;
+            } catch (e) {
+              console.error(`이메일 실패: ${creatorName}`, e.message);
+            }
+          }
+
+          if (kakaoSent || emailSent) {
+            allResults.push({
+              creatorName,
+              campaignName: campaign.title,
+              deadline: deadlineStr,
+              daysOverdue,
+              label,
+              phone: creatorPhone,
+              email: creatorEmail,
+              kakaoSent,
+              emailSent
+            });
+          }
+        } catch (error) {
+          console.error(`처리 오류:`, error);
         }
       }
     }
@@ -552,31 +581,32 @@ exports.handler = async (event, context) => {
         reportMessage += `총 지연 크리에이터: ${allResults.length}명\n\n`;
         reportMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-        const overdue1 = allResults.filter(r => r.daysOverdue === 1);
-        const overdue3 = allResults.filter(r => r.daysOverdue === 3);
-        const overdue5 = allResults.filter(r => r.daysOverdue === 5);
+        // 지연일별 그룹화
+        const groupedByDays = {};
+        allResults.forEach(r => {
+          if (!groupedByDays[r.daysOverdue]) {
+            groupedByDays[r.daysOverdue] = [];
+          }
+          groupedByDays[r.daysOverdue].push(r);
+        });
 
-        if (overdue1.length > 0) {
-          reportMessage += `\n⚠️ 1일 지연 (${overdue1.length}명) - 10% 차감\n`;
-          overdue1.forEach(r => {
-            reportMessage += `  • ${r.creatorName}\n`;
-            reportMessage += `    캠페인: ${r.campaignName}\n`;
-            reportMessage += `    마감일: ${r.deadline}\n`;
-          });
-        }
+        // 지연일 오름차순 정렬
+        const sortedDays = Object.keys(groupedByDays).map(Number).sort((a, b) => a - b);
 
-        if (overdue3.length > 0) {
-          reportMessage += `\n🔶 3일 지연 (${overdue3.length}명) - 30% 차감\n`;
-          overdue3.forEach(r => {
-            reportMessage += `  • ${r.creatorName}\n`;
-            reportMessage += `    캠페인: ${r.campaignName}\n`;
-            reportMessage += `    마감일: ${r.deadline}\n`;
-          });
-        }
+        for (const days of sortedDays) {
+          const results = groupedByDays[days];
+          let emoji = '⚠️';
+          let penalty = '10% 차감';
+          if (days >= 5) {
+            emoji = '🔴';
+            penalty = '캠페인 취소/제품값 배상';
+          } else if (days >= 3) {
+            emoji = '🔶';
+            penalty = '30% 차감';
+          }
 
-        if (overdue5.length > 0) {
-          reportMessage += `\n🔴 5일 지연 (${overdue5.length}명) - 캠페인 취소/제품값 배상\n`;
-          overdue5.forEach(r => {
+          reportMessage += `\n${emoji} ${days}일 지연 (${results.length}명) - ${penalty}\n`;
+          results.forEach(r => {
             reportMessage += `  • ${r.creatorName}\n`;
             reportMessage += `    캠페인: ${r.campaignName}\n`;
             reportMessage += `    마감일: ${r.deadline}\n`;
