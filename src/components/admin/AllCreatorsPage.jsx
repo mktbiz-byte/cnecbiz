@@ -2169,7 +2169,7 @@ export default function AllCreatorsPage() {
                       <Award className="w-5 h-5 text-white" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-amber-700">{formatNumber(selectedCreator.points || 0)}</p>
+                  <p className="text-2xl font-bold text-amber-700">{(selectedCreator.points || 0).toLocaleString()}P</p>
                   <p className="text-xs text-amber-600">총 포인트</p>
                 </div>
                 <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 text-center">
