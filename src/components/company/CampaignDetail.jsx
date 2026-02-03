@@ -1101,12 +1101,13 @@ export default function CampaignDetail() {
         }
       })
 
-      // Korea DB에서 SNS URL 데이터 가져오기 (applications 우선 - cnec-kr은 여기에 저장)
+      // Korea DB에서 SNS URL 데이터 가져오기 (Korea 캠페인만 - Japan/US는 별도 스키마)
       let partnershipData = []
-      console.log('[fetchParticipants] supabaseKorea available:', !!supabaseKorea)
+      console.log('[fetchParticipants] region:', region, 'supabaseKorea available:', !!supabaseKorea)
       console.log('[fetchParticipants] Campaign ID:', id)
 
-      if (supabaseKorea) {
+      // Korea 캠페인만 Korea DB에서 partnership 데이터 조회 (Japan/US는 스키마가 다름)
+      if (region === 'korea' && supabaseKorea) {
         // 1. 먼저 applications 테이블에서 시도 (cnec-kr은 여기에 저장)
         console.log('[fetchParticipants] Trying Korea DB applications table first...')
         const { data: appData, error: appError } = await supabaseKorea
@@ -1162,7 +1163,7 @@ export default function CampaignDetail() {
           console.warn('[fetchParticipants] No partnership data found in Korea DB')
         }
       } else {
-        console.warn('[fetchParticipants] supabaseKorea not available')
+        console.log('[fetchParticipants] Skipping Korea DB query (region:', region, ')')
       }
 
       // partnership_code 및 올영/4주챌린지 필드 병합
