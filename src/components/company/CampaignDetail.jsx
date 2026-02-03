@@ -1827,10 +1827,6 @@ export default function CampaignDetail() {
       return
     }
 
-    if (!confirm(`${selectedParticipants.length}명의 크리에이터에게 AI 가이드를 생성하시겠습니까?`)) {
-      return
-    }
-
     setIsGeneratingBulkGuides(true)
     setBulkGuideProgress({ current: 0, total: selectedParticipants.length })
 
@@ -5437,10 +5433,10 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
-              {/* 모든 캠페인: 가이드 전체 생성 & 전체 발송 버튼 */}
+              {/* 가이드 전체 생성/발송 통합 버튼 → 모달 열기 */}
               <Button
-                onClick={handleBulkGuideGeneration}
-                disabled={isGeneratingBulkGuides}
+                onClick={() => setShowBulkGuideModal(true)}
+                disabled={isGeneratingBulkGuides || sendingBulkGuideEmail}
                 className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
                 size="sm"
               >
@@ -5449,28 +5445,15 @@ Questions? Contact us.
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                     생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
                   </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    가이드 전체 생성
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowBulkGuideModal(true)}
-                disabled={sendingBulkGuideEmail}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                size="sm"
-              >
-                {sendingBulkGuideEmail ? (
+                ) : sendingBulkGuideEmail ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                     발송 중...
                   </>
                 ) : (
                   <>
-                    <Mail className="w-4 h-4 mr-1" />
-                    가이드 전체 발송
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    가이드 전체 생성
                   </>
                 )}
               </Button>
@@ -13061,7 +13044,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white relative">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-5 text-white relative">
               <button
                 onClick={() => {
                   setShowBulkGuideModal(false)
@@ -13073,12 +13056,12 @@ Questions? Contact us.
               </button>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Mail className="w-6 h-6" />
+                  <Sparkles className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">가이드 전체 발송</h2>
+                  <h2 className="text-xl font-bold">가이드 전체 생성 / 발송</h2>
                   <p className="text-sm opacity-90">
-                    {selectedParticipants.length}명에게 발송 • 이메일 + {region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE/SMS' : 'SMS'}
+                    {selectedParticipants.length}명 선택됨 • {region === 'korea' ? '알림톡 + 이메일' : region === 'japan' ? 'LINE/SMS + 이메일' : 'SMS + 이메일'}
                   </p>
                 </div>
               </div>
@@ -13086,12 +13069,15 @@ Questions? Contact us.
 
             {/* 본문 */}
             <div className="p-6 space-y-4">
-              {/* 발송 방법 선택 */}
+              {/* 방법 선택 */}
               <div className="space-y-3">
-                {/* Option 1: AI 가이드 발송 */}
+                {/* Option 1: AI 가이드 생성 */}
                 <button
-                  onClick={() => handleBulkGuideDelivery('ai')}
-                  disabled={sendingBulkGuideEmail}
+                  onClick={() => {
+                    setShowBulkGuideModal(false)
+                    handleBulkGuideGeneration()
+                  }}
+                  disabled={isGeneratingBulkGuides}
                   className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
                 >
                   <div className="flex items-center gap-4">
@@ -13099,15 +13085,15 @@ Questions? Contact us.
                       <Sparkles className="w-6 h-6 text-purple-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
+                      <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
                       <p className="text-sm text-gray-500">
-                        이미 생성된 AI 가이드를 발송합니다
+                        크리에이터별 맞춤 AI 가이드를 자동 생성합니다
                       </p>
                       <p className="text-xs text-purple-600 mt-1">
-                        ※ 가이드가 생성된 크리에이터에게만 발송됩니다
+                        ※ 생성 완료 후 개별적으로 발송할 수 있습니다
                       </p>
                     </div>
-                    {sendingBulkGuideEmail ? (
+                    {isGeneratingBulkGuides ? (
                       <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
                     ) : (
                       <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
@@ -13115,7 +13101,34 @@ Questions? Contact us.
                   </div>
                 </button>
 
-                {/* Option 2: 외부 가이드 (PDF/URL) 발송 */}
+                {/* Option 2: AI 가이드 발송 (이미 생성된 가이드) */}
+                <button
+                  onClick={() => handleBulkGuideDelivery('ai')}
+                  disabled={sendingBulkGuideEmail}
+                  className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                      <Mail className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
+                      <p className="text-sm text-gray-500">
+                        이미 생성된 AI 가이드를 크리에이터에게 발송합니다
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        ※ 가이드가 생성된 크리에이터에게만 발송됩니다
+                      </p>
+                    </div>
+                    {sendingBulkGuideEmail ? (
+                      <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Option 3: 외부 가이드 (PDF/URL) 발송 */}
                 <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-4 p-4 bg-blue-50">
                     <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
