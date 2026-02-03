@@ -60,6 +60,7 @@ import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhan
 import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
+import WithdrawalAudit from './components/admin/WithdrawalAudit'
 import CreatorPointHistory from './components/admin/CreatorPointHistory'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
@@ -218,6 +219,7 @@ function App() {
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
+        <Route path="/admin/withdrawal-audit" element={<WithdrawalAudit />} />
         <Route path="/admin/point-history" element={<CreatorPointHistory />} />
         <Route path="/admin/tax-feedback" element={<TaxFeedbackManagement />} />
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
