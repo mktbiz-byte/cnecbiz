@@ -60,8 +60,9 @@
 [functions."scheduled-video-deadline-notification"]
   schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
 
-[functions."auto-confirm-videos"]
-  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
+# 자동 확정 스케줄 비활성화 - 수동으로 처리
+# [functions."auto-confirm-videos"]
+#   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
 
 [functions."scheduled-overdue-notification"]
   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 영상 제출 지연 알림
