@@ -2764,11 +2764,27 @@ JSON만 출력.`
       // 알림 발송 (지역별)
       let notificationSent = false
       try {
-        const { data: profile } = await supabase
+        // user_profiles 조회 (id 또는 user_id로 시도)
+        let profile = null
+        const { data: profileById } = await supabase
           .from('user_profiles')
           .select('email, phone, line_user_id')
           .eq('id', cancellingApp.user_id)
           .maybeSingle()
+
+        if (profileById) {
+          profile = profileById
+        } else {
+          // id로 못 찾으면 user_id 컬럼으로 재시도
+          const { data: profileByUserId } = await supabase
+            .from('user_profiles')
+            .select('email, phone, line_user_id')
+            .eq('user_id', cancellingApp.user_id)
+            .maybeSingle()
+          profile = profileByUserId
+        }
+
+        console.log('[Notification] user_id:', cancellingApp.user_id, 'profile found:', !!profile, 'line_user_id:', profile?.line_user_id)
 
         // 한국: 알림톡
         if (region === 'korea' && profile?.phone) {
@@ -2785,9 +2801,8 @@ JSON만 출력.`
         }
 
         // 일본: LINE 메시지 (한글 입력 → 일본어 자동 번역)
-        console.log('[LINE Debug] region:', region, 'line_user_id:', profile?.line_user_id)
         if (region === 'japan' && profile?.line_user_id) {
-          console.log('[LINE] Sending LINE message to:', profile.line_user_id)
+          console.log('[LINE] Sending to:', profile.line_user_id)
           const lineResponse = await fetch('/.netlify/functions/send-line-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
