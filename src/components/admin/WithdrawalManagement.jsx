@@ -874,6 +874,33 @@ export default function WithdrawalManagement() {
       const isFromPointTransactions = selectedWithdrawal.source_db === 'korea_pt'
 
       if (actionType === 'approve') {
+        // BIZ DB 출금: 실제 잔액 검증
+        if (!isKoreaDB && selectedWithdrawal.creator_id) {
+          const { data: pointsData } = await supabaseBiz
+            .from('creator_points')
+            .select('amount')
+            .eq('creator_id', selectedWithdrawal.creator_id)
+
+          const totalBalance = (pointsData || []).reduce((sum, p) => sum + (p.amount || 0), 0)
+
+          // 이 건을 제외한 다른 처리 중인 출금 합계
+          const { data: otherPending } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .select('requested_points')
+            .eq('creator_id', selectedWithdrawal.creator_id)
+            .in('status', ['pending', 'approved', 'processing'])
+            .neq('id', selectedWithdrawal.id)
+
+          const otherPendingTotal = (otherPending || []).reduce((sum, w) => sum + (w.requested_points || 0), 0)
+          const availableBalance = totalBalance - otherPendingTotal
+
+          if (selectedWithdrawal.requested_points > availableBalance) {
+            alert(`잔액 부족: 출금 요청 ${selectedWithdrawal.requested_points?.toLocaleString()}P > 출금 가능 잔액 ${availableBalance.toLocaleString()}P (총 잔액: ${totalBalance.toLocaleString()}P, 다른 처리중: ${otherPendingTotal.toLocaleString()}P)`)
+            setShowActionModal(false)
+            return
+          }
+        }
+
         if (isKoreaDB && supabaseKorea) {
           if (isFromPointTransactions) {
             // point_transactions에서 온 데이터는 withdrawals 테이블에 새로 생성
