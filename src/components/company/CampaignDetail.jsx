@@ -5906,7 +5906,7 @@ Questions? Contact us.
                                 선택 후 발송
                               </Button>
                               {/* 가이드 발송됨 상태이면 재설정 버튼 표시 */}
-                              {(participant.status === 'filming' || participant.week1_guide_delivered || participant.week2_guide_delivered || participant.week3_guide_delivered || participant.week4_guide_delivered) && (
+                              {participant.status === 'filming' && (
                                 <>
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
@@ -6103,17 +6103,8 @@ Questions? Contact us.
         status: 'selected' // 선정됨 상태로 되돌림
       }
 
-      // 4주 챌린지 주차별 데이터 초기화
-      if (campaign.campaign_type === '4week_challenge') {
-        updateData.week1_guide_delivered = false
-        updateData.week1_guide_delivered_at = null
-        updateData.week2_guide_delivered = false
-        updateData.week2_guide_delivered_at = null
-        updateData.week3_guide_delivered = false
-        updateData.week3_guide_delivered_at = null
-        updateData.week4_guide_delivered = false
-        updateData.week4_guide_delivered_at = null
-      }
+      // 4주 챌린지/메가와리: personalized_guide와 status 초기화만 수행
+      // (week1_guide_delivered 등 컬럼은 applications 테이블에 존재하지 않음)
 
       const { error } = await supabase
         .from('applications')
