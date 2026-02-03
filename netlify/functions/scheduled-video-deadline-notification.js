@@ -741,6 +741,42 @@ exports.handler = async (event, context) => {
             creatorProfile = profile2;
           }
 
+          // user_profiles에 없으면 creators 테이블에서 조회
+          if (!creatorProfile) {
+            const { data: creator } = await supabase
+              .from('creators')
+              .select('name, channel_name, phone, email')
+              .eq('id', app.user_id)
+              .maybeSingle();
+            if (creator) {
+              creatorProfile = {
+                name: creator.name,
+                channel_name: creator.channel_name,
+                phone: creator.phone,
+                phone_number: creator.phone,
+                email: creator.email
+              };
+            }
+          }
+
+          // creators 테이블에서 user_id로도 조회
+          if (!creatorProfile) {
+            const { data: creator2 } = await supabase
+              .from('creators')
+              .select('name, channel_name, phone, email')
+              .eq('user_id', app.user_id)
+              .maybeSingle();
+            if (creator2) {
+              creatorProfile = {
+                name: creator2.name,
+                channel_name: creator2.channel_name,
+                phone: creator2.phone,
+                phone_number: creator2.phone,
+                email: creator2.email
+              };
+            }
+          }
+
           if (!creatorProfile) {
             console.log(`크리에이터 정보 없음 (user_id: ${app.user_id}), 알림 건너뜀`);
             allResults.push({
