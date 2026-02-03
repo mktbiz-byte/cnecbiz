@@ -223,183 +223,134 @@ export default function WithdrawalAudit() {
         return
       }
 
-      // ========== 2단계: 크리에이터별 실제 포인트 잔액 계산 ==========
-      // Korea DB: point_transactions에 출금 시 즉시 -금액이 기록됨
-      //   → 잔액 = 전체 합계 (이미 출금 차감 포함)
-      //   → 잔액이 음수면 오지급
-      // BIZ DB: creator_points에는 출금이 기록되지 않음
-      //   → 잔액에서 처리중 출금을 빼서 비교해야 함
+      // ========== 2단계: 유저별 수입 계산 (UUID 기준, 해당 유저만 조회) ==========
+      const userIds = [...new Set(allWithdrawals.map(w => w.user_id).filter(Boolean))]
+      const earningsByUser = {} // UUID → 총 수입 (출금 제외 양수만)
 
-      // Korea: 수입만 (출금 제외) + 전체 합계 두 가지 모두 계산
-      const koreaEarningsByUser = {} // 출금 제외한 수입 합계
-      const koreaFullBalanceByUser = {} // 전체 합계 (출금 차감 포함)
-      const bizBalanceByUser = {} // BIZ DB 잔액
+      // 배치 쿼리 헬퍼 (Supabase 기본 1000행 제한 우회)
+      const batchIn = async (client, table, fields, col, ids, extraFilter) => {
+        let all = []
+        for (let i = 0; i < ids.length; i += 30) {
+          const batch = ids.slice(i, i + 30)
+          let query = client.from(table).select(fields).in(col, batch)
+          if (extraFilter) query = extraFilter(query)
+          const { data } = await query
+          if (data) all = [...all, ...data]
+        }
+        return all
+      }
 
-      // 2-1. Korea DB point_transactions
+      // 2-1. Korea point_transactions (양수 + 출금 아닌 것만 수입으로 집계)
       if (supabaseKorea) {
         try {
-          const { data: allPt } = await supabaseKorea
-            .from('point_transactions')
-            .select('user_id, amount, transaction_type, type, description')
+          const ptData = await batchIn(supabaseKorea, 'point_transactions',
+            'user_id, amount, transaction_type, description', 'user_id', userIds)
+          ptData.forEach(pt => {
+            if (!pt.user_id) return
+            const isWithdraw = pt.transaction_type === 'withdraw' ||
+              (pt.description && pt.description.includes('출금'))
+            if (!isWithdraw && (pt.amount || 0) > 0) {
+              earningsByUser[pt.user_id] = (earningsByUser[pt.user_id] || 0) + pt.amount
+            }
+          })
+        } catch (e) { console.error('Korea point_transactions:', e) }
 
-          if (allPt) {
-            allPt.forEach(pt => {
-              if (!pt.user_id) return
-              const amt = pt.amount || 0
-              // 전체 합계
-              if (!koreaFullBalanceByUser[pt.user_id]) koreaFullBalanceByUser[pt.user_id] = 0
-              koreaFullBalanceByUser[pt.user_id] += amt
-              // 수입만 (출금/차감 제외)
-              if (!koreaEarningsByUser[pt.user_id]) koreaEarningsByUser[pt.user_id] = 0
-              const isWithdraw = pt.transaction_type === 'withdraw' || pt.type === 'withdraw' ||
-                (pt.description && pt.description.includes('출금'))
-              if (!isWithdraw && amt > 0) {
-                koreaEarningsByUser[pt.user_id] += amt
-              }
-            })
-          }
-        } catch (e) {
-          console.error('Korea point_transactions 조회 오류:', e)
-        }
-
-        // 2-2. Korea DB point_history (캠페인 완료 포인트 - 항상 양수)
+        // 2-2. Korea point_history
         try {
-          const { data: allPh } = await supabaseKorea
-            .from('point_history')
-            .select('user_id, amount')
-
-          if (allPh) {
-            allPh.forEach(ph => {
-              if (!ph.user_id) return
-              const amt = ph.amount || 0
-              if (!koreaFullBalanceByUser[ph.user_id]) koreaFullBalanceByUser[ph.user_id] = 0
-              koreaFullBalanceByUser[ph.user_id] += amt
-              if (!koreaEarningsByUser[ph.user_id]) koreaEarningsByUser[ph.user_id] = 0
-              if (amt > 0) koreaEarningsByUser[ph.user_id] += amt
-            })
-          }
-        } catch (e) { /* point_history 테이블 없을 수 있음 */ }
+          const phData = await batchIn(supabaseKorea, 'point_history',
+            'user_id, amount', 'user_id', userIds)
+          phData.forEach(ph => {
+            if (!ph.user_id || !ph.amount || ph.amount <= 0) return
+            earningsByUser[ph.user_id] = (earningsByUser[ph.user_id] || 0) + ph.amount
+          })
+        } catch (e) { /* point_history 없을 수 있음 */ }
 
         // 2-3. Korea applications (completed) - 중복 제외
         try {
-          const { data: completedApps } = await supabaseKorea
-            .from('applications')
-            .select('user_id, campaign_id')
-            .eq('status', 'completed')
+          const completedApps = await batchIn(supabaseKorea, 'applications',
+            'user_id, campaign_id', 'user_id', userIds,
+            q => q.eq('status', 'completed'))
 
-          if (completedApps && completedApps.length > 0) {
+          if (completedApps.length > 0) {
             const campaignIds = [...new Set(completedApps.map(a => a.campaign_id).filter(Boolean))]
             let campaignRewards = {}
             if (campaignIds.length > 0) {
-              const { data: campaigns } = await supabaseKorea
-                .from('campaigns')
-                .select('id, reward_points')
-                .in('id', campaignIds)
-              if (campaigns) campaigns.forEach(c => { campaignRewards[c.id] = c.reward_points || 0 })
+              const campData = await batchIn(supabaseKorea, 'campaigns',
+                'id, reward_points', 'id', campaignIds)
+              campData.forEach(c => { campaignRewards[c.id] = c.reward_points || 0 })
             }
 
-            // 이미 기록된 캠페인+유저 키 수집
-            const existingPtKeys = new Set()
+            // 이미 point_transactions/point_history에 기록된 캠페인 키
+            const existingKeys = new Set()
             try {
-              const { data: ptKeys } = await supabaseKorea
-                .from('point_transactions')
-                .select('user_id, related_campaign_id')
-                .not('related_campaign_id', 'is', null)
-              if (ptKeys) ptKeys.forEach(pt => {
-                if (pt.related_campaign_id && pt.user_id) existingPtKeys.add(`${pt.related_campaign_id}_${pt.user_id}`)
+              const ptKeys = await batchIn(supabaseKorea, 'point_transactions',
+                'user_id, related_campaign_id', 'user_id', userIds)
+              ptKeys.forEach(pt => {
+                if (pt.related_campaign_id && pt.user_id)
+                  existingKeys.add(`${pt.related_campaign_id}_${pt.user_id}`)
               })
             } catch (e) { /* skip */ }
             try {
-              const { data: phKeys } = await supabaseKorea
-                .from('point_history')
-                .select('user_id, campaign_id')
-                .not('campaign_id', 'is', null)
-              if (phKeys) phKeys.forEach(ph => {
-                if (ph.campaign_id && ph.user_id) existingPtKeys.add(`${ph.campaign_id}_${ph.user_id}`)
+              const phKeys = await batchIn(supabaseKorea, 'point_history',
+                'user_id, campaign_id', 'user_id', userIds)
+              phKeys.forEach(ph => {
+                if (ph.campaign_id && ph.user_id)
+                  existingKeys.add(`${ph.campaign_id}_${ph.user_id}`)
               })
             } catch (e) { /* skip */ }
 
             completedApps.forEach(app => {
               if (!app.user_id || !app.campaign_id) return
-              if (existingPtKeys.has(`${app.campaign_id}_${app.user_id}`)) return
+              if (existingKeys.has(`${app.campaign_id}_${app.user_id}`)) return
               const reward = campaignRewards[app.campaign_id] || 0
               if (reward <= 0) return
-              if (!koreaFullBalanceByUser[app.user_id]) koreaFullBalanceByUser[app.user_id] = 0
-              koreaFullBalanceByUser[app.user_id] += reward
-              if (!koreaEarningsByUser[app.user_id]) koreaEarningsByUser[app.user_id] = 0
-              koreaEarningsByUser[app.user_id] += reward
+              earningsByUser[app.user_id] = (earningsByUser[app.user_id] || 0) + reward
             })
           }
         } catch (e) { /* skip */ }
       }
 
-      // 2-4. BIZ DB creator_points (출금 차감이 포함되지 않음)
+      // 2-4. BIZ creator_points (양수만 수입)
       try {
-        const { data: bizPts } = await supabaseBiz
-          .from('creator_points')
-          .select('creator_id, amount')
+        const bizPts = await batchIn(supabaseBiz, 'creator_points',
+          'creator_id, amount', 'creator_id', userIds)
+        bizPts.forEach(pt => {
+          if (!pt.creator_id || !pt.amount || pt.amount <= 0) return
+          earningsByUser[pt.creator_id] = (earningsByUser[pt.creator_id] || 0) + pt.amount
+        })
+      } catch (e) { console.error('BIZ creator_points:', e) }
 
-        if (bizPts) {
-          bizPts.forEach(pt => {
-            if (!pt.creator_id) return
-            if (!bizBalanceByUser[pt.creator_id]) bizBalanceByUser[pt.creator_id] = 0
-            bizBalanceByUser[pt.creator_id] += (pt.amount || 0)
-          })
-        }
-      } catch (e) {
-        console.error('BIZ creator_points 조회 오류:', e)
-      }
-
-      // ========== 3단계: 감사 결과 생성 ==========
-      // Korea에서 처리중 출금 합계 (Korea withdrawals)
-      const koreaWithdrawalsByUser = {}
-      // BIZ에서 처리중 출금 합계
-      const bizWithdrawalsByUser = {}
+      // ========== 3단계: 유저별 출금 합계 (allWithdrawals 기준) ==========
+      const completedWdByUser = {}
+      const pendingWdByUser = {}
       allWithdrawals.forEach(w => {
-        if (['pending', 'approved', 'processing'].includes(w.status)) {
-          const uid = w.user_id
-          if (!uid) return
-          if (w.source_db === 'biz') {
-            bizWithdrawalsByUser[uid] = (bizWithdrawalsByUser[uid] || 0) + (w.requested_points || 0)
-          } else {
-            koreaWithdrawalsByUser[uid] = (koreaWithdrawalsByUser[uid] || 0) + (w.requested_points || 0)
-          }
+        const uid = w.user_id
+        if (!uid) return
+        const amt = w.requested_points || 0
+        if (w.status === 'completed') {
+          completedWdByUser[uid] = (completedWdByUser[uid] || 0) + amt
+        } else if (['pending', 'approved', 'processing'].includes(w.status)) {
+          pendingWdByUser[uid] = (pendingWdByUser[uid] || 0) + amt
         }
       })
 
+      // ========== 4단계: 감사 결과 (통합 로직) ==========
       const results = allWithdrawals.map(w => {
         const uid = w.user_id
-        const isKorea = w.source_db !== 'biz'
-        let actualBalance, totalEarnings, totalPendingWithdrawals, isOverpaid, balanceDiff
-
-        if (isKorea) {
-          // Korea: point_transactions에 출금이 이미 차감되어 있음
-          // 전체 합계 = 수입 - 출금 차감 (이미 반영됨)
-          const fullBalance = koreaFullBalanceByUser[uid] ?? 0
-          totalEarnings = koreaEarningsByUser[uid] ?? 0
-          totalPendingWithdrawals = koreaWithdrawalsByUser[uid] || 0
-
-          // 잔액이 음수 = 총 출금이 총 수입을 초과 = 오지급
-          actualBalance = fullBalance // 이미 출금 차감 포함
-          isOverpaid = fullBalance < 0 && ['pending', 'approved', 'processing'].includes(w.status)
-          balanceDiff = fullBalance // 음수면 초과 금액
-        } else {
-          // BIZ: creator_points에 출금이 미포함
-          actualBalance = bizBalanceByUser[uid] ?? 0
-          totalEarnings = actualBalance
-          totalPendingWithdrawals = bizWithdrawalsByUser[uid] || 0
-
-          // 처리중 출금 합계가 잔액 초과 = 오지급
-          isOverpaid = totalPendingWithdrawals > actualBalance && ['pending', 'approved', 'processing'].includes(w.status)
-          balanceDiff = actualBalance - totalPendingWithdrawals
-        }
+        const totalEarnings = earningsByUser[uid] ?? 0
+        const completedWd = completedWdByUser[uid] ?? 0
+        const pendingWd = pendingWdByUser[uid] ?? 0
+        const availableBalance = totalEarnings - completedWd
+        const isPending = ['pending', 'approved', 'processing'].includes(w.status)
+        const isOverpaid = isPending && pendingWd > availableBalance
+        const balanceDiff = availableBalance - pendingWd
 
         return {
           ...w,
-          actual_balance: actualBalance,
           total_earnings: totalEarnings,
+          actual_balance: availableBalance,
           balance_diff: balanceDiff,
-          total_pending: totalPendingWithdrawals,
+          total_pending: pendingWd,
           is_overpaid: isOverpaid
         }
       })
@@ -613,7 +564,7 @@ export default function WithdrawalAudit() {
       '상태': r.status,
       '신청 포인트': r.requested_points,
       '총 수입': r.total_earnings,
-      '순 잔액': r.actual_balance,
+      '가용 잔액': r.actual_balance,
       '잔액 차이': r.balance_diff,
       '초과 여부': r.is_overpaid ? 'YES' : 'NO'
     }))
@@ -794,7 +745,7 @@ export default function WithdrawalAudit() {
                     <div className="col-span-1">DB</div>
                     <div className="col-span-2 text-right">신청 포인트</div>
                     <div className="col-span-1 text-right">총 수입</div>
-                    <div className="col-span-1 text-right">순 잔액</div>
+                    <div className="col-span-1 text-right">가용 잔액</div>
                     <div className="col-span-2 text-right">결과</div>
                     <div className="col-span-1 text-center">상세</div>
                   </div>
