@@ -147,6 +147,12 @@ const MESSAGE_TEMPLATES = {
     text: `🎯 ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
   }),
 
+  // 선정 취소 알림
+  selection_cancelled: (data) => ({
+    type: 'text',
+    text: `❌ 캠페인 선정 취소 안내\n\n${data.creatorName}님, 안타깝게도 "${data.campaignName}" 캠페인 선정이 취소되었습니다.\n\n📌 취소 사유:\n${data.reason || '별도 안내 없음'}\n\n문의사항이 있으시면 담당자에게 연락 부탁드립니다.\n\n다른 캠페인 참여 기회를 기다려주세요!`
+  }),
+
   // 일반 알림
   general: (data) => ({
     type: 'text',

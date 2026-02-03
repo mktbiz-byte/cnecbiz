@@ -2760,15 +2760,17 @@ JSON만 출력.`
         if (updateError) throw updateError
       }
 
-      // 알림톡 발송
+      // 알림 발송 (지역별)
+      let notificationSent = false
       try {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('email, phone')
+          .select('email, phone, line_user_id')
           .eq('id', cancellingApp.user_id)
           .maybeSingle()
-        
-        if (profile?.phone) {
+
+        // 한국: 알림톡
+        if (region === 'korea' && profile?.phone) {
           await sendCampaignCancelledNotification(
             profile.phone,
             cancellingApp.applicant_name,
@@ -2778,21 +2780,50 @@ JSON만 출력.`
             }
           )
           console.log('Cancellation alimtalk sent successfully')
+          notificationSent = true
+        }
+
+        // 일본/미국: LINE 메시지 (한글 입력 → 자동 번역)
+        if ((region === 'japan' || region === 'us') && profile?.line_user_id) {
+          const targetLang = region === 'japan' ? 'ja' : 'en'
+          const lineResponse = await fetch('/.netlify/functions/send-line-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: profile.line_user_id,
+              templateType: 'selection_cancelled',
+              templateData: {
+                creatorName: cancellingApp.applicant_name,
+                campaignName: campaign?.title || '캠페인',
+                reason: cancelReason
+              },
+              translate: true,
+              targetLanguage: targetLang
+            })
+          })
+
+          if (lineResponse.ok) {
+            console.log(`Cancellation LINE message sent to ${region} creator`)
+            notificationSent = true
+          } else {
+            console.error('LINE message send failed:', await lineResponse.text())
+          }
         }
       } catch (notificationError) {
         console.error('Notification error:', notificationError)
       }
-      
+
       // 목록 새로고침
       await fetchApplications()
       await fetchParticipants()
-      
+
       // 모달 닫기
       setCancelModalOpen(false)
       setCancellingApp(null)
       setCancelReason('')
-      
-      alert('확정이 취소되었습니다. 알림톡이 발송되었습니다.')
+
+      const notifyMethod = region === 'korea' ? '알림톡' : 'LINE 메시지'
+      alert(`확정이 취소되었습니다.${notificationSent ? ` ${notifyMethod}가 발송되었습니다.` : ''}`)
     } catch (error) {
       console.error('Error cancelling confirmation:', error)
       alert('취소 처리에 실패했습니다: ' + error.message)
