@@ -279,6 +279,75 @@ export default function WithdrawalAudit() {
         console.error('BIZ creator_points 조회 오류:', e)
       }
 
+      // 2-4. Korea DB applications (completed) - 캠페인 보상 포인트
+      // point_history에 저장되지 않은 캠페인 완료 보상을 applications 테이블에서 조회
+      if (supabaseKorea) {
+        try {
+          const { data: completedApps } = await supabaseKorea
+            .from('applications')
+            .select('user_id, campaign_id, status, updated_at')
+            .eq('status', 'completed')
+
+          if (completedApps && completedApps.length > 0) {
+            // 캠페인별 reward_points 조회
+            const campaignIds = [...new Set(completedApps.map(a => a.campaign_id).filter(Boolean))]
+            let campaignRewards = {}
+            if (campaignIds.length > 0) {
+              const { data: campaigns } = await supabaseKorea
+                .from('campaigns')
+                .select('id, reward_points')
+                .in('id', campaignIds)
+              if (campaigns) {
+                campaigns.forEach(c => { campaignRewards[c.id] = c.reward_points || 0 })
+              }
+            }
+
+            // point_transactions에 이미 기록된 campaign_id+user_id 조합 확인 (중복 방지)
+            const existingPtKeys = new Set()
+            try {
+              const { data: allPtWithCampaign } = await supabaseKorea
+                .from('point_transactions')
+                .select('user_id, related_campaign_id')
+                .not('related_campaign_id', 'is', null)
+              if (allPtWithCampaign) {
+                allPtWithCampaign.forEach(pt => {
+                  if (pt.related_campaign_id && pt.user_id) {
+                    existingPtKeys.add(`${pt.related_campaign_id}_${pt.user_id}`)
+                  }
+                })
+              }
+            } catch (e) { /* skip */ }
+
+            // point_history에 이미 기록된 것도 확인
+            try {
+              const { data: allPhWithCampaign } = await supabaseKorea
+                .from('point_history')
+                .select('user_id, campaign_id')
+                .not('campaign_id', 'is', null)
+              if (allPhWithCampaign) {
+                allPhWithCampaign.forEach(ph => {
+                  if (ph.campaign_id && ph.user_id) {
+                    existingPtKeys.add(`${ph.campaign_id}_${ph.user_id}`)
+                  }
+                })
+              }
+            } catch (e) { /* skip */ }
+
+            completedApps.forEach(app => {
+              if (!app.user_id || !app.campaign_id) return
+              const key = `${app.campaign_id}_${app.user_id}`
+              if (existingPtKeys.has(key)) return // 이미 point_transactions/point_history에 있음
+              const reward = campaignRewards[app.campaign_id] || 0
+              if (reward <= 0) return
+              if (!balanceByUser[app.user_id]) balanceByUser[app.user_id] = { total: 0, source: 'korea' }
+              balanceByUser[app.user_id].total += reward
+            })
+          }
+        } catch (e) {
+          console.error('Korea applications 조회 오류:', e)
+        }
+      }
+
       // ========== 3단계: 감사 결과 생성 ==========
       // 크리에이터별 처리중 출금 합계
       const pendingByUser = {}
@@ -331,15 +400,16 @@ export default function WithdrawalAudit() {
     }
   }
 
-  // 크리에이터 상세 보기 - 해당 크리에이터의 포인트 내역 조회
+  // 크리에이터 상세 보기 - 해당 크리에이터의 포인트 내역 조회 (모든 DB 소스에서)
   const handleViewCreator = async (result) => {
     const uid = result.user_id
     if (!uid) return
 
     let transactions = []
 
-    // Korea DB
-    if (supabaseKorea && (result.source_db === 'korea' || result.source_db === 'korea_pt')) {
+    // Korea DB - 항상 조회 (source_db와 관계없이)
+    if (supabaseKorea) {
+      // 1. point_transactions
       try {
         const { data: ptData } = await supabaseKorea
           .from('point_transactions')
@@ -347,14 +417,16 @@ export default function WithdrawalAudit() {
           .eq('user_id', uid)
           .order('created_at', { ascending: false })
 
-        if (ptData) {
+        if (ptData && ptData.length > 0) {
           transactions = [...transactions, ...ptData.map(t => ({
             ...t,
+            description: t.description || '',
             source: 'point_transactions'
           }))]
         }
       } catch (e) { /* skip */ }
 
+      // 2. point_history
       try {
         const { data: phData } = await supabaseKorea
           .from('point_history')
@@ -362,40 +434,82 @@ export default function WithdrawalAudit() {
           .eq('user_id', uid)
           .order('created_at', { ascending: false })
 
-        if (phData) {
+        if (phData && phData.length > 0) {
           transactions = [...transactions, ...phData.map(t => ({
-            id: t.id,
+            id: `ph_${t.id}`,
             user_id: t.user_id,
             amount: t.amount,
-            description: t.reason || t.description || '',
+            description: t.reason || t.description || '캠페인 완료',
             created_at: t.created_at,
             source: 'point_history'
           }))]
         }
       } catch (e) { /* skip */ }
-    }
 
-    // BIZ DB
-    if (result.source_db === 'biz') {
+      // 3. completed applications (중복 제외)
       try {
-        const { data: cpData } = await supabaseBiz
-          .from('creator_points')
-          .select('*')
-          .eq('creator_id', uid)
-          .order('created_at', { ascending: false })
+        const { data: completedApps } = await supabaseKorea
+          .from('applications')
+          .select('id, user_id, campaign_id, status, updated_at, created_at')
+          .eq('user_id', uid)
+          .eq('status', 'completed')
 
-        if (cpData) {
-          transactions = [...transactions, ...cpData.map(t => ({
-            id: t.id,
-            user_id: t.creator_id,
-            amount: t.amount,
-            description: t.description || t.reason || '',
-            created_at: t.created_at,
-            source: 'creator_points'
-          }))]
+        if (completedApps && completedApps.length > 0) {
+          const campaignIds = [...new Set(completedApps.map(a => a.campaign_id).filter(Boolean))]
+          let campaignMap = {}
+          if (campaignIds.length > 0) {
+            const { data: campaigns } = await supabaseKorea
+              .from('campaigns')
+              .select('id, title, reward_points')
+              .in('id', campaignIds)
+            if (campaigns) campaigns.forEach(c => { campaignMap[c.id] = c })
+          }
+
+          // 이미 point_transactions/point_history에 있는 campaign+user 조합 확인
+          const existingKeys = new Set(
+            transactions
+              .filter(t => t.related_campaign_id || t.campaign_id)
+              .map(t => `${t.related_campaign_id || t.campaign_id}_${t.user_id}`)
+          )
+
+          completedApps.forEach(app => {
+            const key = `${app.campaign_id}_${app.user_id}`
+            if (existingKeys.has(key)) return
+            const campaign = campaignMap[app.campaign_id]
+            const reward = campaign?.reward_points || 0
+            if (reward <= 0) return
+            transactions.push({
+              id: `app_${app.id}`,
+              user_id: app.user_id,
+              amount: reward,
+              description: `캠페인 완료: ${campaign?.title || ''}`,
+              created_at: app.updated_at || app.created_at,
+              source: 'applications'
+            })
+          })
         }
       } catch (e) { /* skip */ }
     }
+
+    // BIZ DB - 항상 조회
+    try {
+      const { data: cpData } = await supabaseBiz
+        .from('creator_points')
+        .select('*')
+        .eq('creator_id', uid)
+        .order('created_at', { ascending: false })
+
+      if (cpData && cpData.length > 0) {
+        transactions = [...transactions, ...cpData.map(t => ({
+          id: `biz_${t.id}`,
+          user_id: t.creator_id,
+          amount: t.amount,
+          description: t.description || t.reason || '',
+          created_at: t.created_at,
+          source: 'creator_points'
+        }))]
+      }
+    } catch (e) { /* skip */ }
 
     transactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
