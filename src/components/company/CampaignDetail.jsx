@@ -3152,7 +3152,8 @@ JSON만 출력.`
   const handleDeliverOliveYoung4WeekGuide = async () => {
     const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
       ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
-      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides)
+      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+         campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
     if (!hasGuide) {
       alert('먼저 가이드를 생성해주세요.')
@@ -5558,7 +5559,8 @@ JSON만 출력.`
                             {/* 가이드 보기/설정 버튼 */}
                             <div className="flex items-center gap-1.5">
                               {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
+                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+                                campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
                                 <Button
                                   size="sm"
                                   onClick={() => {
@@ -5606,7 +5608,8 @@ JSON만 출력.`
                             </div>
 
                             {/* 주차별 발송 버튼 - 캠페인 레벨 가이드가 있으면 표시 */}
-                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
+                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+                              campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
@@ -7708,7 +7711,8 @@ JSON만 출력.`
                       <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
                         {/* 가이드 존재 여부 확인 */}
                         {(() => {
-                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai
+                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai ||
+                                           campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en
                           const hasAnyWeekGuide = hasGuide || campaign.week1_external_url || campaign.week2_external_url || campaign.week3_external_url || campaign.week4_external_url
 
                           if (!hasAnyWeekGuide) {
@@ -12444,8 +12448,10 @@ JSON만 출력.`
                 if (is4Week || isOliveyoung) {
                   // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
                   // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
+                  // 일본/미국: challenge_guide_data_ja / challenge_guide_data_en 도 체크
                   const hasGuide = is4Week
-                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai)
+                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
+                       campaign?.challenge_guide_data_ja || campaign?.challenge_guide_data_en)
                     : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
                   return (
@@ -12464,7 +12470,13 @@ JSON만 출력.`
                         let guidePayload
                         if (is4Week) {
                           // 4주 챌린지: challenge_guide_data 사용 (기업이 설정한 미션, 필수대사, 필수장면, 참고URL 등)
-                          const guideData = campaign?.challenge_guide_data || {}
+                          // 일본/미국의 경우 번역된 데이터 우선 사용
+                          let guideData = campaign?.challenge_guide_data || {}
+                          if (region === 'japan' && campaign?.challenge_guide_data_ja) {
+                            guideData = campaign.challenge_guide_data_ja
+                          } else if (region === 'us' && campaign?.challenge_guide_data_en) {
+                            guideData = campaign.challenge_guide_data_en
+                          }
                           guidePayload = {
                             type: '4week_guide',
                             campaignId: campaign.id,
