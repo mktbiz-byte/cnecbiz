@@ -358,35 +358,28 @@ exports.handler = async (event, context) => {
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // 지연 날짜 계산 (1일, 3일, 5일 전 마감 = 1일, 3일, 5일 지연)
-    const overdue1Day = new Date(today);
-    overdue1Day.setDate(today.getDate() - 1);
-    const overdue1DayStr = overdue1Day.toISOString().split('T')[0];
-
-    const overdue3Days = new Date(today);
-    overdue3Days.setDate(today.getDate() - 3);
-    const overdue3DaysStr = overdue3Days.toISOString().split('T')[0];
-
-    const overdue5Days = new Date(today);
-    overdue5Days.setDate(today.getDate() - 5);
-    const overdue5DaysStr = overdue5Days.toISOString().split('T')[0];
+    // 지연 날짜 계산 (1~5일 전 마감 = 1~5일 지연)
+    const overdueDatesCalc = [];
+    for (let i = 1; i <= 5; i++) {
+      const overdueDate = new Date(today);
+      overdueDate.setDate(today.getDate() - i);
+      overdueDatesCalc.push({
+        date: overdueDate.toISOString().split('T')[0],
+        daysOverdue: i,
+        label: `${i}일 지연`
+      });
+    }
 
     console.log('\n=== 지연 날짜 계산 ===');
     console.log('오늘:', todayStr);
-    console.log('1일 지연 (어제 마감):', overdue1DayStr);
-    console.log('3일 지연:', overdue3DaysStr);
-    console.log('5일 지연:', overdue5DaysStr);
+    overdueDatesCalc.forEach(d => console.log(`${d.label}: ${d.date}`));
 
     const supabaseKorea = createClient(
       process.env.VITE_SUPABASE_KOREA_URL,
       process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
     );
 
-    const overdueDates = [
-      { date: overdue1DayStr, daysOverdue: 1, label: '1일 지연' },
-      { date: overdue3DaysStr, daysOverdue: 3, label: '3일 지연' },
-      { date: overdue5DaysStr, daysOverdue: 5, label: '5일 지연' }
-    ];
+    const overdueDates = overdueDatesCalc;
 
     const allResults = [];
 
