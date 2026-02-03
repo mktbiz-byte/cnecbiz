@@ -17,6 +17,8 @@ import CampaignGuideOliveYoung from './components/company/CampaignGuideOliveYoun
 import OliveYoungGuideViewer from './components/company/OliveYoungGuideViewer'
 import OliveYoungFinalGuide from './components/company/OliveYoungFinalGuide'
 import CampaignGuide4WeekChallenge from './components/company/CampaignGuide4WeekChallenge'
+import CampaignGuide4WeekChallengeJapan from './components/company/CampaignGuide4WeekChallengeJapan'
+import CampaignGuide4WeekChallengeUS from './components/company/CampaignGuide4WeekChallengeUS'
 import FourWeekChallengeFinalGuide from './components/company/FourWeekChallengeFinalGuide'
 import FourWeekChallengeGuideViewer from './components/company/FourWeekChallengeGuideViewer'
 import OliveYoungInvoice from './components/company/OliveYoungInvoice'
@@ -171,6 +173,8 @@ function App() {
         <Route path="/company/campaigns/:id/guide/oliveyoung/review" element={<OliveYoungGuideViewer />} />
         <Route path="/company/campaigns/guide/oliveyoung/final" element={<OliveYoungFinalGuide />} />
         <Route path="/company/campaigns/guide/4week" element={<CampaignGuide4WeekChallenge />} />
+        <Route path="/company/campaigns/guide/4week/japan" element={<CampaignGuide4WeekChallengeJapan />} />
+        <Route path="/company/campaigns/guide/4week/us" element={<CampaignGuide4WeekChallengeUS />} />
         <Route path="/company/campaigns/:id/guide/4week/review" element={<FourWeekChallengeGuideViewer />} />
         <Route path="/company/campaigns/guide/4week/final" element={<FourWeekChallengeFinalGuide />} />
         <Route path="/company/campaigns/:id/invoice/oliveyoung" element={<OliveYoungInvoice />} />
