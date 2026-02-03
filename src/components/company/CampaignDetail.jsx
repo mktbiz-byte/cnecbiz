@@ -42,7 +42,8 @@ import {
   Info,
   Search,
   Instagram,
-  Youtube
+  Youtube,
+  ChevronRight
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -647,6 +648,9 @@ export default function CampaignDetail() {
   const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
   // Bulk guide email sending state
   const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
+  // Bulk guide delivery modal state (전체 발송 모달)
+  const [showBulkGuideModal, setShowBulkGuideModal] = useState(false)
+  const [bulkExternalGuideData, setBulkExternalGuideData] = useState({ type: null, url: '', fileUrl: null, fileName: null, title: '' })
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   // Admin SNS/Ad code edit state
@@ -1094,6 +1098,8 @@ export default function CampaignDetail() {
           phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
           phone_number: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
           creator_phone: profile?.phone || profile?.phone_number || profile?.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+          // LINE user ID (일본 알림용)
+          line_user_id: profile?.line_user_id || app.line_user_id || null,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
@@ -2144,6 +2150,220 @@ JSON만 출력.`
     } catch (error) {
       console.error('Bulk email error:', error)
       alert('이메일 발송 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setSendingBulkGuideEmail(false)
+    }
+  }
+
+  // 전체 가이드 발송 (이메일 + 알림톡/LINE/SMS) - AI 가이드 & 외부 가이드 통합
+  const handleBulkGuideDelivery = async (deliveryType = 'ai') => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 발송할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    let targetParticipants = []
+
+    if (deliveryType === 'ai') {
+      // AI 가이드: personalized_guide가 있는 크리에이터만
+      targetParticipants = participants.filter(p =>
+        selectedParticipants.includes(p.id) && p.personalized_guide
+      )
+      if (targetParticipants.length === 0) {
+        alert('선택된 크리에이터 중 가이드가 생성된 크리에이터가 없습니다.\n먼저 가이드를 생성해주세요.')
+        return
+      }
+    } else {
+      // 외부 가이드 (URL/PDF): 모든 선택된 크리에이터
+      if (!bulkExternalGuideData.url && !bulkExternalGuideData.fileUrl) {
+        alert('URL을 입력하거나 PDF 파일을 업로드해주세요.')
+        return
+      }
+      targetParticipants = participants.filter(p => selectedParticipants.includes(p.id))
+    }
+
+    const regionLabel = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE' : 'SMS'
+    if (!confirm(`${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})`)) {
+      return
+    }
+
+    setSendingBulkGuideEmail(true)
+    let successCount = 0
+    let failCount = 0
+    const results = { email: 0, notification: 0 }
+
+    try {
+      for (const participant of targetParticipants) {
+        const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
+        try {
+          // 1. 외부 가이드인 경우 DB에 저장
+          if (deliveryType === 'external') {
+            const guidePayload = {
+              type: bulkExternalGuideData.fileUrl ? 'external_pdf' : 'external_url',
+              url: bulkExternalGuideData.url || null,
+              fileUrl: bulkExternalGuideData.fileUrl || null,
+              fileName: bulkExternalGuideData.fileName || null,
+              title: bulkExternalGuideData.title || ''
+            }
+            await supabase
+              .from('applications')
+              .update({
+                personalized_guide: JSON.stringify(guidePayload),
+                status: 'filming',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', participant.id)
+          }
+
+          // 2. 이메일 발송
+          if (participant.email) {
+            let emailResponse
+            if (deliveryType === 'ai') {
+              // AI 가이드 이메일
+              const guide = typeof participant.personalized_guide === 'string'
+                ? JSON.parse(participant.personalized_guide)
+                : participant.personalized_guide
+
+              const guideContent = {
+                campaign_title: campaign?.title || campaign?.product_name,
+                brand_name: campaign?.brand_name || campaign?.brand,
+                dialogue_style: guide.dialogue_style,
+                tempo: guide.tempo,
+                mood: guide.mood,
+                scenes: (guide.scenes || []).map(scene => ({
+                  order: scene.order,
+                  scene_type: scene.scene_type,
+                  scene_description: scene.scene_description_translated || scene.scene_description,
+                  dialogue: scene.dialogue_translated || scene.dialogue,
+                  shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+                })),
+                required_dialogues: guide.required_dialogues || [],
+                required_scenes: guide.required_scenes || []
+              }
+
+              emailResponse = await fetch('/.netlify/functions/send-scene-guide-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  campaign_id: id,
+                  region,
+                  guide_content: guideContent,
+                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                })
+              })
+            } else {
+              // 외부 가이드 이메일
+              emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  campaign_id: id,
+                  region,
+                  campaign_title: campaign?.title || campaign?.product_name,
+                  brand_name: campaign?.brand_name || campaign?.brand,
+                  guide_url: bulkExternalGuideData.url || bulkExternalGuideData.fileUrl,
+                  guide_title: bulkExternalGuideData.title || '촬영 가이드',
+                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                })
+              })
+            }
+            if (emailResponse?.ok) results.email++
+          }
+
+          // 3. 알림 발송 (지역별)
+          // participant에 이미 enrichment된 phone, line_user_id 사용 (재조회 불필요)
+          const creatorPhone = participant.phone || participant.phone_number || participant.creator_phone
+          const creatorLineUserId = participant.line_user_id
+
+          const deadline = campaign?.content_deadline || campaign?.video_deadline
+            ? new Date(campaign.content_deadline || campaign.video_deadline).toLocaleDateString(
+                region === 'japan' ? 'ja-JP' : region === 'us' ? 'en-US' : 'ko-KR'
+              )
+            : '확인 필요'
+
+          // 한국: 알림톡
+          if (region === 'korea' && creatorPhone) {
+            try {
+              await sendGuideDeliveredNotification(
+                creatorPhone,
+                creatorName,
+                { campaignName: campaign?.title || '캠페인', deadline }
+              )
+              results.notification++
+            } catch (e) { console.error('알림톡 발송 실패:', e) }
+          }
+
+          // 일본: LINE + SMS
+          if (region === 'japan') {
+            if (creatorLineUserId) {
+              try {
+                await fetch('/.netlify/functions/send-line-message', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: creatorLineUserId,
+                    templateType: 'guide_delivered',
+                    templateData: {
+                      creatorName,
+                      campaignName: campaign?.title || 'キャンペーン',
+                      deadline
+                    },
+                    translate: true,
+                    targetLanguage: 'ja'
+                  })
+                })
+                results.notification++
+              } catch (e) { console.error('LINE 발송 실패:', e) }
+            }
+            // LINE 없거나 실패 시 SMS
+            if (!creatorLineUserId && creatorPhone) {
+              try {
+                await fetch('/.netlify/functions/send-sms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: creatorPhone,
+                    message: `[CNEC] ${creatorName}様、「${campaign?.title || 'キャンペーン'}」の撮影ガイドが届きました。メールをご確認ください。締切: ${deadline}`
+                  })
+                })
+                results.notification++
+              } catch (e) { console.error('SMS 발송 실패:', e) }
+            }
+          }
+
+          // 미국: SMS
+          if (region === 'us' && creatorPhone) {
+            try {
+              await fetch('/.netlify/functions/send-sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: creatorPhone,
+                  message: `[CNEC] Hi ${creatorName}, your filming guide for "${campaign?.title || 'Campaign'}" has been delivered. Please check your email. Deadline: ${deadline}`
+                })
+              })
+              results.notification++
+            } catch (e) { console.error('SMS 발송 실패:', e) }
+          }
+
+          successCount++
+        } catch (err) {
+          failCount++
+          console.error(`Error sending guide to ${creatorName}:`, err)
+        }
+      }
+
+      const regionLabel = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE/SMS' : 'SMS'
+      alert(`가이드 발송 완료!\n\n성공: ${successCount}명\n실패: ${failCount}명\n\n이메일: ${results.email}건\n${regionLabel}: ${results.notification}건`)
+
+      // 모달 닫기 & 상태 초기화
+      setShowBulkGuideModal(false)
+      setBulkExternalGuideData({ type: null, url: '', fileUrl: null, fileName: null, title: '' })
+      fetchParticipants()
+    } catch (error) {
+      console.error('Bulk guide delivery error:', error)
+      alert('가이드 발송 중 오류가 발생했습니다: ' + error.message)
     } finally {
       setSendingBulkGuideEmail(false)
     }
@@ -4803,23 +5023,49 @@ Questions? Contact us.
         })
         .eq('id', updatedCreator.id)
 
-      // 알림톡 발송
+      // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
       try {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('email, phone')
-          .eq('id', updatedCreator.user_id)
-          .maybeSingle()
+        const creatorPhone = updatedCreator.phone || updatedCreator.phone_number || updatedCreator.creator_phone
+        const creatorEmail = updatedCreator.email
+        const creatorName = updatedCreator.applicant_name || updatedCreator.creator_name || '크리에이터'
 
-        if (profile?.phone) {
+        if (region === 'korea' && creatorPhone) {
           await sendGuideDeliveredNotification(
-            profile.phone,
-            updatedCreator.applicant_name || updatedCreator.creator_name,
+            creatorPhone,
+            creatorName,
             {
               campaignName: campaign?.title || '캠페인',
               deliveryInfo: `${updatedCreator.shipping_company} ${updatedCreator.tracking_number}`
             }
           )
+        } else if (region === 'japan' && (creatorEmail || updatedCreator.line_user_id)) {
+          await fetch('/.netlify/functions/send-japan-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'guide_confirm_request',
+              creatorEmail: creatorEmail,
+              data: {
+                creatorName,
+                campaignName: campaign?.title || 'キャンペーン',
+                brandName: campaign?.brand_name || campaign?.brand
+              }
+            })
+          })
+        } else if (region === 'us' && creatorEmail) {
+          await fetch('/.netlify/functions/send-us-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'guide_confirm_request',
+              creatorEmail: creatorEmail,
+              data: {
+                creatorName,
+                campaignName: campaign?.title || 'Campaign',
+                brandName: campaign?.brand_name || campaign?.brand
+              }
+            })
+          })
         }
       } catch (notifError) {
         console.error('Notification error:', notifError)
@@ -4871,6 +5117,9 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === participantId) ||
                              applications.find(a => a.id === participantId)
           if (participant) {
+            const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+            const pName = participant.applicant_name || participant.creator_name || '크리에이터'
+            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
             try {
               // 1. 선정 알림 발송 (LINE → SMS → Email)
               await fetch('/.netlify/functions/send-japan-notification', {
@@ -4878,9 +5127,9 @@ Questions? Contact us.
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   type: 'campaign_selected',
-                  creatorEmail: participant.creator_email || participant.user_email,
+                  creatorEmail: pEmail,
                   data: {
-                    creatorName: participant.creator_name || participant.applicant_name,
+                    creatorName: pName,
                     campaignName: campaign.title,
                     brandName: campaign.brand_name || campaign.company_name,
                     reward: campaign.reward_text || campaign.compensation,
@@ -4895,9 +5144,9 @@ Questions? Contact us.
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  name: participant.creator_name || participant.applicant_name,
-                  email: participant.creator_email || participant.user_email,
-                  phone: participant.phone || participant.creator_phone,
+                  name: pName,
+                  email: pEmail,
+                  phone: pPhone,
                   language: 'ja'
                 })
               })
@@ -4909,23 +5158,26 @@ Questions? Contact us.
         alert('일본 크리에이터 알림 발송 완료!')
       }
 
-      // 미국 크리에이터 선정 알림 발송 (LINE + Email)
+      // 미국 크리에이터 선정 알림 발송 (Email + SMS)
       if (region === 'us') {
         alert('미국 크리에이터에게 선정 알림을 발송합니다...')
         for (const participantId of selectedParticipants) {
           const participant = participants.find(p => p.id === participantId) ||
                              applications.find(a => a.id === participantId)
           if (participant) {
+            const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+            const pName = participant.applicant_name || participant.creator_name || 'Creator'
+            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
             try {
-              // 1. 선정 알림 발송 (LINE + Email)
+              // 1. 선정 알림 발송 (Email + SMS)
               await fetch('/.netlify/functions/send-us-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   type: 'campaign_selected',
-                  creatorEmail: participant.creator_email || participant.user_email,
+                  creatorEmail: pEmail,
                   data: {
-                    creatorName: participant.creator_name || participant.applicant_name,
+                    creatorName: pName,
                     campaignName: campaign.title,
                     brandName: campaign.brand_name || campaign.company_name,
                     reward: campaign.reward_text || campaign.compensation,
@@ -4940,12 +5192,24 @@ Questions? Contact us.
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  name: participant.creator_name || participant.applicant_name,
-                  email: participant.creator_email || participant.user_email,
-                  phone: participant.phone || participant.creator_phone,
+                  name: pName,
+                  email: pEmail,
+                  phone: pPhone,
                   language: 'en'
                 })
               })
+
+              // 3. SMS 발송 (US는 Email + SMS)
+              if (pPhone) {
+                await fetch('/.netlify/functions/send-sms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: pPhone,
+                    message: `[CNEC] Hi ${pName}, you've been selected for the "${campaign.title}" campaign! Check your email for details.`
+                  })
+                })
+              }
             } catch (notifError) {
               console.error('[US] Notification error:', notifError.message)
             }
@@ -5226,47 +5490,43 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
-              {/* US/Japan 캠페인: 가이드 전체 생성 버튼 */}
-              {(region === 'us' || region === 'japan') && (
-                <>
-                  <Button
-                    onClick={handleBulkGuideGeneration}
-                    disabled={isGeneratingBulkGuides}
-                    className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
-                    size="sm"
-                  >
-                    {isGeneratingBulkGuides ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 mr-1" />
-                        가이드 전체 생성
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleBulkGuideEmailSend}
-                    disabled={sendingBulkGuideEmail}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                    size="sm"
-                  >
-                    {sendingBulkGuideEmail ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        발송 중...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4 mr-1" />
-                        가이드 이메일 발송
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
+              {/* 모든 캠페인: 가이드 전체 생성 & 전체 발송 버튼 */}
+              <Button
+                onClick={handleBulkGuideGeneration}
+                disabled={isGeneratingBulkGuides}
+                className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                size="sm"
+              >
+                {isGeneratingBulkGuides ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    가이드 전체 생성
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setShowBulkGuideModal(true)}
+                disabled={sendingBulkGuideEmail}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                size="sm"
+              >
+                {sendingBulkGuideEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4 mr-1" />
+                    가이드 전체 발송
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </div>
@@ -7381,7 +7641,14 @@ Questions? Contact us.
                             <button
                               onClick={async () => {
                                 try {
-                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  let profile = null
+                                  const { data: p1 } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  if (p1) {
+                                    profile = p1
+                                  } else {
+                                    const { data: p2 } = await supabase.from('user_profiles').select('*').eq('user_id', app.user_id).maybeSingle()
+                                    profile = p2
+                                  }
                                   // profile_photo_url은 app에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
                                   const photoUrl = app.profile_photo_url || profile?.profile_photo_url
                                   setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
@@ -7733,7 +8000,14 @@ Questions? Contact us.
                             <button
                               onClick={async () => {
                                 try {
-                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  let profile = null
+                                  const { data: p1 } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  if (p1) {
+                                    profile = p1
+                                  } else {
+                                    const { data: p2 } = await supabase.from('user_profiles').select('*').eq('user_id', app.user_id).maybeSingle()
+                                    profile = p2
+                                  }
                                   // profile_photo_url은 app에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
                                   const photoUrl = app.profile_photo_url || profile?.profile_photo_url
                                   setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
@@ -12776,17 +13050,15 @@ Questions? Contact us.
 
                         if (error) throw error
 
-                        // 알림 발송 (한국: 카카오톡, 일본/미국: LINE + 이메일)
+                        // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
                         try {
-                          const { data: profile } = await supabase
-                            .from('user_profiles')
-                            .select('phone, email')
-                            .eq('id', selectedParticipantForGuide.user_id)
-                            .maybeSingle()
+                          const pPhone = selectedParticipantForGuide.phone || selectedParticipantForGuide.phone_number || selectedParticipantForGuide.creator_phone
+                          const pEmail = selectedParticipantForGuide.email
+                          const pLineUserId = selectedParticipantForGuide.line_user_id
 
-                          if (region === 'korea' && profile?.phone) {
+                          if (region === 'korea' && pPhone) {
                             await sendGuideDeliveredNotification(
-                              profile.phone,
+                              pPhone,
                               creatorName,
                               {
                                 campaignName: campaign?.title || '캠페인',
@@ -12795,14 +13067,14 @@ Questions? Contact us.
                                   : '확인 필요'
                               }
                             )
-                          } else if (region === 'japan' && profile?.email) {
+                          } else if (region === 'japan' && (pEmail || pLineUserId)) {
                             // 일본: LINE + 이메일 알림
                             await fetch('/.netlify/functions/send-japan-notification', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 type: 'guide_confirm_request',
-                                creatorEmail: profile.email,
+                                creatorEmail: pEmail,
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'キャンペーン',
@@ -12812,14 +13084,14 @@ Questions? Contact us.
                                 }
                               })
                             })
-                          } else if (region === 'us' && profile?.email) {
-                            // 미국: LINE + 이메일 알림
+                          } else if (region === 'us' && pEmail) {
+                            // 미국: 이메일 + SMS 알림
                             await fetch('/.netlify/functions/send-us-notification', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 type: 'guide_confirm_request',
-                                creatorEmail: profile.email,
+                                creatorEmail: pEmail,
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'Campaign',
@@ -12850,6 +13122,140 @@ Questions? Contact us.
                     가이드 전달하기
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전체 가이드 발송 모달 (AI/PDF/URL 선택) */}
+      {showBulkGuideModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white relative">
+              <button
+                onClick={() => {
+                  setShowBulkGuideModal(false)
+                  setBulkExternalGuideData({ type: null, url: '', fileUrl: null, fileName: null, title: '' })
+                }}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">가이드 전체 발송</h2>
+                  <p className="text-sm opacity-90">
+                    {selectedParticipants.length}명에게 발송 • 이메일 + {region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE/SMS' : 'SMS'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-4">
+              {/* 발송 방법 선택 */}
+              <div className="space-y-3">
+                {/* Option 1: AI 가이드 발송 */}
+                <button
+                  onClick={() => handleBulkGuideDelivery('ai')}
+                  disabled={sendingBulkGuideEmail}
+                  className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                      <Sparkles className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
+                      <p className="text-sm text-gray-500">
+                        이미 생성된 AI 가이드를 발송합니다
+                      </p>
+                      <p className="text-xs text-purple-600 mt-1">
+                        ※ 가이드가 생성된 크리에이터에게만 발송됩니다
+                      </p>
+                    </div>
+                    {sendingBulkGuideEmail ? (
+                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Option 2: 외부 가이드 (PDF/URL) 발송 */}
+                <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-4 p-4 bg-blue-50">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Link className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900">PDF / URL 가이드 발송</h3>
+                      <p className="text-sm text-gray-500">구글 슬라이드, PDF 파일 등 직접 전달</p>
+                    </div>
+                  </div>
+
+                  {/* URL 입력 */}
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        가이드 제목 (선택)
+                      </label>
+                      <input
+                        type="text"
+                        value={bulkExternalGuideData.title}
+                        onChange={(e) => setBulkExternalGuideData(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="예: 촬영 가이드"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        가이드 URL
+                      </label>
+                      <input
+                        type="url"
+                        value={bulkExternalGuideData.url}
+                        onChange={(e) => setBulkExternalGuideData(prev => ({ ...prev, url: e.target.value }))}
+                        placeholder="https://docs.google.com/... 또는 PDF URL"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* 발송 버튼 */}
+                    <Button
+                      onClick={() => handleBulkGuideDelivery('external')}
+                      disabled={sendingBulkGuideEmail || (!bulkExternalGuideData.url && !bulkExternalGuideData.fileUrl)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                    >
+                      {sendingBulkGuideEmail ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          발송 중...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-2" />
+                          선택된 {selectedParticipants.length}명에게 발송
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 알림 정보 */}
+              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                <p className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-500" />
+                  {region === 'korea' && '이메일과 알림톡(카카오)으로 동시 발송됩니다.'}
+                  {region === 'japan' && '이메일과 LINE(또는 SMS)으로 동시 발송됩니다.'}
+                  {region === 'us' && '이메일과 SMS로 동시 발송됩니다.'}
+                </p>
               </div>
             </div>
           </div>
