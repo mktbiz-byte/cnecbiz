@@ -5,10 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   AlertTriangle, CheckCircle, Loader2, RefreshCw,
-  Wallet, ArrowDownCircle, Download, Search
+  Wallet, Download, Search, User, Eye, X
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
 
@@ -17,7 +23,7 @@ export default function WithdrawalAudit() {
   const [loading, setLoading] = useState(false)
   const [auditResults, setAuditResults] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all') // all, overpaid, pending, approved
+  const [filterType, setFilterType] = useState('all')
   const [stats, setStats] = useState({
     total: 0,
     overpaid: 0,
@@ -26,6 +32,11 @@ export default function WithdrawalAudit() {
     approved: 0,
     completed: 0
   })
+
+  // 크리에이터 상세 모달
+  const [selectedCreator, setSelectedCreator] = useState(null)
+  const [creatorTransactions, setCreatorTransactions] = useState([])
+  const [showDetailModal, setShowDetailModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -56,90 +67,258 @@ export default function WithdrawalAudit() {
     setLoading(true)
 
     try {
-      // 1. 모든 출금 요청 조회 (rejected 제외)
-      const { data: withdrawals, error: wError } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .select('*')
-        .not('status', 'eq', 'rejected')
-        .order('created_at', { ascending: false })
+      // ========== 1단계: 모든 출금 요청 수집 ==========
+      let allWithdrawals = []
 
-      if (wError) throw wError
+      // 1-1. Korea DB withdrawals
+      if (supabaseKorea) {
+        try {
+          const { data: koreaData, error: koreaError } = await supabaseKorea
+            .from('withdrawals')
+            .select('*')
+            .order('created_at', { ascending: false })
 
-      if (!withdrawals || withdrawals.length === 0) {
+          if (!koreaError && koreaData && koreaData.length > 0) {
+            // user_profiles 조회
+            const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
+            let profileMap = {}
+            if (userIds.length > 0) {
+              let { data: profiles } = await supabaseKorea
+                .from('user_profiles')
+                .select('id, user_id, name, email, channel_name')
+                .in('id', userIds)
+              if (!profiles || profiles.length === 0) {
+                const { data: profiles2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('id, user_id, name, email, channel_name')
+                  .in('user_id', userIds)
+                profiles = profiles2
+              }
+              if (profiles) {
+                profiles.forEach(p => {
+                  if (p.id) profileMap[p.id] = p
+                  if (p.user_id) profileMap[p.user_id] = p
+                })
+              }
+            }
+
+            const koreaWithdrawals = koreaData.map(w => {
+              const profile = profileMap[w.user_id]
+              return {
+                id: w.id,
+                user_id: w.user_id,
+                creator_name: profile?.channel_name || profile?.name || w.bank_account_holder || 'Unknown',
+                creator_email: profile?.email || '',
+                requested_points: w.amount || 0,
+                status: w.status || 'pending',
+                created_at: w.created_at,
+                source_db: 'korea',
+                region: 'korea',
+                bank_name: w.bank_name,
+                account_holder: w.bank_account_holder
+              }
+            })
+            allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
+          }
+        } catch (e) {
+          console.error('Korea withdrawals 조회 오류:', e)
+        }
+
+        // 1-2. Korea DB point_transactions (withdraw type)
+        try {
+          const { data: ptData, error: ptError } = await supabaseKorea
+            .from('point_transactions')
+            .select('*')
+            .eq('transaction_type', 'withdraw')
+            .order('created_at', { ascending: false })
+
+          if (!ptError && ptData && ptData.length > 0) {
+            // 중복 체크
+            const existingKeys = new Set(
+              allWithdrawals.map(w => `${w.user_id}_${Math.abs(w.requested_points)}_${new Date(w.created_at).toDateString()}`)
+            )
+
+            const ptWithdrawals = ptData
+              .filter(pt => {
+                if (pt.related_withdrawal_id) return false
+                const key = `${pt.user_id}_${Math.abs(pt.amount)}_${new Date(pt.created_at).toDateString()}`
+                return !existingKeys.has(key)
+              })
+              .map(pt => {
+                const desc = pt.description || ''
+                const bankMatch = desc.match(/\|\s*([^\d]+)\s+(\d+)\s*\(([^)]+)\)/)
+                return {
+                  id: pt.id,
+                  user_id: pt.user_id,
+                  creator_name: bankMatch ? bankMatch[3] : 'Unknown',
+                  creator_email: '',
+                  requested_points: Math.abs(pt.amount),
+                  status: 'pending',
+                  created_at: pt.created_at,
+                  source_db: 'korea_pt',
+                  region: 'korea',
+                  bank_name: bankMatch ? bankMatch[1]?.trim() : '',
+                  account_holder: bankMatch ? bankMatch[3] : ''
+                }
+              })
+
+            allWithdrawals = [...allWithdrawals, ...ptWithdrawals]
+          }
+        } catch (e) {
+          console.error('Korea point_transactions 조회 오류:', e)
+        }
+      }
+
+      // 1-3. BIZ DB creator_withdrawal_requests
+      try {
+        const { data: bizData, error: bizError } = await supabaseBiz
+          .from('creator_withdrawal_requests')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (!bizError && bizData && bizData.length > 0) {
+          // featured_creators 조회
+          const creatorIds = [...new Set(bizData.map(w => w.creator_id).filter(Boolean))]
+          let creatorMap = {}
+          if (creatorIds.length > 0) {
+            const { data: creators } = await supabaseBiz
+              .from('featured_creators')
+              .select('id, channel_name, name, email, region, points_balance')
+              .in('id', creatorIds)
+            if (creators) {
+              creators.forEach(c => { creatorMap[c.id] = c })
+            }
+          }
+
+          const bizWithdrawals = bizData.map(w => {
+            const creator = creatorMap[w.creator_id]
+            return {
+              id: `biz_${w.id}`,
+              user_id: w.creator_id,
+              creator_name: creator?.channel_name || creator?.name || w.creator_name || 'Unknown',
+              creator_email: creator?.email || '',
+              requested_points: w.requested_points || w.amount || 0,
+              status: w.status || 'pending',
+              created_at: w.created_at,
+              source_db: 'biz',
+              region: w.region || creator?.region || 'korea',
+              bank_name: w.bank_name,
+              account_holder: w.account_holder,
+              cached_balance: creator?.points_balance || 0
+            }
+          })
+          allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
+        }
+      } catch (e) {
+        console.error('BIZ creator_withdrawal_requests 조회 오류:', e)
+      }
+
+      // rejected 제외
+      allWithdrawals = allWithdrawals.filter(w => w.status !== 'rejected')
+
+      if (allWithdrawals.length === 0) {
         setAuditResults([])
         setStats({ total: 0, overpaid: 0, totalOverpaidAmount: 0, pending: 0, approved: 0, completed: 0 })
         setLoading(false)
         return
       }
 
-      // 2. 고유 크리에이터 ID 추출
-      const creatorIds = [...new Set(withdrawals.map(w => w.creator_id).filter(Boolean))]
+      // ========== 2단계: 크리에이터별 실제 포인트 잔액 계산 ==========
+      const balanceByUser = {}
 
-      // 3. 각 크리에이터의 포인트 합계 계산
-      const balanceMap = {}
-      for (const creatorId of creatorIds) {
-        const { data: pointsData } = await supabaseBiz
+      // 2-1. Korea DB point_transactions 전체 조회
+      if (supabaseKorea) {
+        try {
+          const { data: allPt } = await supabaseKorea
+            .from('point_transactions')
+            .select('user_id, amount')
+
+          if (allPt) {
+            allPt.forEach(pt => {
+              if (!pt.user_id) return
+              if (!balanceByUser[pt.user_id]) balanceByUser[pt.user_id] = { total: 0, source: 'korea' }
+              balanceByUser[pt.user_id].total += (pt.amount || 0)
+            })
+          }
+        } catch (e) {
+          console.error('Korea point_transactions 전체 조회 오류:', e)
+        }
+
+        // 2-2. Korea DB point_history
+        try {
+          const { data: allPh } = await supabaseKorea
+            .from('point_history')
+            .select('user_id, amount')
+
+          if (allPh) {
+            allPh.forEach(ph => {
+              if (!ph.user_id) return
+              if (!balanceByUser[ph.user_id]) balanceByUser[ph.user_id] = { total: 0, source: 'korea' }
+              balanceByUser[ph.user_id].total += (ph.amount || 0)
+            })
+          }
+        } catch (e) {
+          // point_history 테이블 없을 수 있음
+        }
+      }
+
+      // 2-3. BIZ DB creator_points
+      try {
+        const { data: bizPts } = await supabaseBiz
           .from('creator_points')
-          .select('amount')
-          .eq('creator_id', creatorId)
+          .select('creator_id, amount')
 
-        const totalBalance = (pointsData || []).reduce((sum, p) => sum + (p.amount || 0), 0)
-        balanceMap[creatorId] = totalBalance
+        if (bizPts) {
+          bizPts.forEach(pt => {
+            if (!pt.creator_id) return
+            if (!balanceByUser[pt.creator_id]) balanceByUser[pt.creator_id] = { total: 0, source: 'biz' }
+            balanceByUser[pt.creator_id].total += (pt.amount || 0)
+          })
+        }
+      } catch (e) {
+        console.error('BIZ creator_points 조회 오류:', e)
       }
 
-      // 4. 각 크리에이터의 featured_creators 정보 조회
-      const { data: creatorsData } = await supabaseBiz
-        .from('featured_creators')
-        .select('id, channel_name, name, email, region, points_balance')
-        .in('id', creatorIds)
-
-      const creatorMap = {}
-      if (creatorsData) {
-        creatorsData.forEach(c => { creatorMap[c.id] = c })
-      }
-
-      // 5. 크리에이터별 처리중 출금 합계 계산
-      const pendingByCreator = {}
-      withdrawals.forEach(w => {
+      // ========== 3단계: 감사 결과 생성 ==========
+      // 크리에이터별 처리중 출금 합계
+      const pendingByUser = {}
+      allWithdrawals.forEach(w => {
         if (['pending', 'approved', 'processing'].includes(w.status)) {
-          pendingByCreator[w.creator_id] = (pendingByCreator[w.creator_id] || 0) + (w.requested_points || 0)
+          const uid = w.user_id
+          if (uid) {
+            pendingByUser[uid] = (pendingByUser[uid] || 0) + (w.requested_points || 0)
+          }
         }
       })
 
-      // 6. 감사 결과 생성
-      const results = withdrawals.map(w => {
-        const actualBalance = balanceMap[w.creator_id] ?? 0
-        const cachedBalance = creatorMap[w.creator_id]?.points_balance ?? 0
-        const creatorInfo = creatorMap[w.creator_id]
-        const totalPendingForCreator = pendingByCreator[w.creator_id] || 0
+      const results = allWithdrawals.map(w => {
+        const uid = w.user_id
+        const actualBalance = balanceByUser[uid]?.total ?? 0
+        const totalPending = pendingByUser[uid] || 0
 
-        // 이 출금 요청 시점에서 초과 여부 판단
-        // 완료된 출금은 이미 처리됨 → 실제 잔액에서 초과 여부만 판단
+        // 초과 여부: 처리중 출금이 실제 잔액 초과
         const isOverpaid = w.requested_points > actualBalance && ['pending', 'approved', 'processing'].includes(w.status)
+        // 크리에이터 전체 처리중 합계가 잔액 초과하는 경우도 표시
+        const isPendingOverBalance = totalPending > actualBalance && ['pending', 'approved', 'processing'].includes(w.status)
         const balanceDiff = actualBalance - w.requested_points
 
         return {
           ...w,
-          creator_name: creatorInfo?.channel_name || creatorInfo?.name || w.creator_name || 'Unknown',
-          creator_email: creatorInfo?.email || '',
-          creator_region: creatorInfo?.region || '',
           actual_balance: actualBalance,
-          cached_balance: cachedBalance,
           balance_diff: balanceDiff,
-          total_pending: totalPendingForCreator,
-          is_overpaid: isOverpaid,
-          balance_mismatch: Math.abs(actualBalance - cachedBalance) > 1
+          total_pending: totalPending,
+          is_overpaid: isOverpaid || isPendingOverBalance
         }
       })
 
-      // 7. 통계 계산
+      // 통계
       const overpaidItems = results.filter(r => r.is_overpaid)
       setStats({
         total: results.length,
         overpaid: overpaidItems.length,
-        totalOverpaidAmount: overpaidItems.reduce((sum, r) => sum + Math.abs(r.balance_diff), 0),
+        totalOverpaidAmount: overpaidItems.reduce((sum, r) => sum + Math.max(0, Math.abs(r.balance_diff)), 0),
         pending: results.filter(r => r.status === 'pending').length,
-        approved: results.filter(r => r.status === 'approved').length,
+        approved: results.filter(r => r.status === 'approved' || r.status === 'processing').length,
         completed: results.filter(r => r.status === 'completed').length
       })
 
@@ -152,6 +331,88 @@ export default function WithdrawalAudit() {
     }
   }
 
+  // 크리에이터 상세 보기 - 해당 크리에이터의 포인트 내역 조회
+  const handleViewCreator = async (result) => {
+    const uid = result.user_id
+    if (!uid) return
+
+    let transactions = []
+
+    // Korea DB
+    if (supabaseKorea && (result.source_db === 'korea' || result.source_db === 'korea_pt')) {
+      try {
+        const { data: ptData } = await supabaseKorea
+          .from('point_transactions')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false })
+
+        if (ptData) {
+          transactions = [...transactions, ...ptData.map(t => ({
+            ...t,
+            source: 'point_transactions'
+          }))]
+        }
+      } catch (e) { /* skip */ }
+
+      try {
+        const { data: phData } = await supabaseKorea
+          .from('point_history')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false })
+
+        if (phData) {
+          transactions = [...transactions, ...phData.map(t => ({
+            id: t.id,
+            user_id: t.user_id,
+            amount: t.amount,
+            description: t.reason || t.description || '',
+            created_at: t.created_at,
+            source: 'point_history'
+          }))]
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    // BIZ DB
+    if (result.source_db === 'biz') {
+      try {
+        const { data: cpData } = await supabaseBiz
+          .from('creator_points')
+          .select('*')
+          .eq('creator_id', uid)
+          .order('created_at', { ascending: false })
+
+        if (cpData) {
+          transactions = [...transactions, ...cpData.map(t => ({
+            id: t.id,
+            user_id: t.creator_id,
+            amount: t.amount,
+            description: t.description || t.reason || '',
+            created_at: t.created_at,
+            source: 'creator_points'
+          }))]
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    transactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+    const totalReceived = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
+    const totalDeducted = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0)
+
+    setSelectedCreator({
+      ...result,
+      totalReceived,
+      totalDeducted,
+      netBalance: totalReceived - totalDeducted,
+      transactionCount: transactions.length
+    })
+    setCreatorTransactions(transactions)
+    setShowDetailModal(true)
+  }
+
   const getFilteredResults = () => {
     let filtered = auditResults
 
@@ -161,8 +422,8 @@ export default function WithdrawalAudit() {
       filtered = filtered.filter(r => r.status === 'pending')
     } else if (filterType === 'approved') {
       filtered = filtered.filter(r => r.status === 'approved' || r.status === 'processing')
-    } else if (filterType === 'mismatch') {
-      filtered = filtered.filter(r => r.balance_mismatch)
+    } else if (filterType === 'completed') {
+      filtered = filtered.filter(r => r.status === 'completed')
     }
 
     if (searchTerm) {
@@ -170,7 +431,8 @@ export default function WithdrawalAudit() {
       filtered = filtered.filter(r =>
         r.creator_name?.toLowerCase().includes(search) ||
         r.creator_email?.toLowerCase().includes(search) ||
-        r.creator_id?.toLowerCase().includes(search)
+        r.user_id?.toLowerCase().includes(search) ||
+        r.account_holder?.toLowerCase().includes(search)
       )
     }
 
@@ -188,6 +450,16 @@ export default function WithdrawalAudit() {
     return <Badge className={badge.color}>{badge.label}</Badge>
   }
 
+  const getSourceBadge = (source) => {
+    const badges = {
+      korea: { color: 'bg-blue-50 text-blue-600', label: 'Korea' },
+      korea_pt: { color: 'bg-indigo-50 text-indigo-600', label: 'Korea PT' },
+      biz: { color: 'bg-gray-100 text-gray-600', label: 'BIZ' }
+    }
+    const badge = badges[source] || { color: 'bg-gray-50 text-gray-500', label: source }
+    return <Badge className={`text-[10px] ${badge.color}`}>{badge.label}</Badge>
+  }
+
   const handleDownloadExcel = () => {
     const filtered = getFilteredResults()
     if (filtered.length === 0) {
@@ -198,24 +470,23 @@ export default function WithdrawalAudit() {
     const excelData = filtered.map(r => ({
       '신청일': new Date(r.created_at).toLocaleDateString('ko-KR'),
       '크리에이터': r.creator_name,
-      '이메일': r.creator_email,
-      '리전': r.creator_region,
+      '예금주': r.account_holder || '',
+      '리전': r.region,
+      'DB': r.source_db,
       '상태': r.status,
       '신청 포인트': r.requested_points,
-      '실제 잔액 (creator_points)': r.actual_balance,
-      '캐시 잔액 (featured_creators)': r.cached_balance,
+      '실제 잔액': r.actual_balance,
       '잔액 차이': r.balance_diff,
       '처리중 출금 합계': r.total_pending,
-      '초과 여부': r.is_overpaid ? 'YES' : 'NO',
-      '캐시 불일치': r.balance_mismatch ? 'YES' : 'NO'
+      '초과 여부': r.is_overpaid ? 'YES' : 'NO'
     }))
 
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.json_to_sheet(excelData)
     ws['!cols'] = [
-      { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 8 }, { wch: 8 },
-      { wch: 12 }, { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
-      { wch: 10 }, { wch: 12 }
+      { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 8 }, { wch: 10 },
+      { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
+      { wch: 10 }
     ]
     XLSX.utils.book_append_sheet(wb, ws, '출금감사')
 
@@ -236,7 +507,7 @@ export default function WithdrawalAudit() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">출금 감사</h1>
-                <p className="text-gray-600">크리에이터 출금 요청의 포인트 잔액 초과 여부를 점검합니다</p>
+                <p className="text-gray-600">Korea DB + BIZ DB에서 출금 요청을 조회하고, 실제 포인트 잔액과 비교합니다</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={runAudit} disabled={loading}>
@@ -256,7 +527,7 @@ export default function WithdrawalAudit() {
           </div>
 
           {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-gray-600 mb-1">전체 출금 요청</p>
@@ -268,11 +539,11 @@ export default function WithdrawalAudit() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <AlertTriangle className={`w-4 h-4 ${stats.overpaid > 0 ? 'text-red-600' : 'text-gray-400'}`} />
-                  <p className={`text-sm ${stats.overpaid > 0 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>초과 출금 요청</p>
+                  <p className={`text-sm ${stats.overpaid > 0 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>초과 출금</p>
                 </div>
                 <p className={`text-2xl font-bold ${stats.overpaid > 0 ? 'text-red-700' : ''}`}>{stats.overpaid}건</p>
                 {stats.totalOverpaidAmount > 0 && (
-                  <p className="text-sm text-red-600 mt-1">총 초과액: {stats.totalOverpaidAmount.toLocaleString()}P</p>
+                  <p className="text-xs text-red-600 mt-1">초과액: {stats.totalOverpaidAmount.toLocaleString()}P</p>
                 )}
               </CardContent>
             </Card>
@@ -290,6 +561,13 @@ export default function WithdrawalAudit() {
                 <p className="text-2xl font-bold text-blue-600">{stats.approved}건</p>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm text-gray-600 mb-1">완료</p>
+                <p className="text-2xl font-bold text-green-600">{stats.completed}건</p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* 필터 */}
@@ -299,7 +577,7 @@ export default function WithdrawalAudit() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
-                    placeholder="크리에이터명, 이메일, ID로 검색..."
+                    placeholder="크리에이터명, 예금주, 이메일, ID로 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -339,12 +617,12 @@ export default function WithdrawalAudit() {
                     승인/처리중 ({stats.approved})
                   </Button>
                   <Button
-                    variant={filterType === 'mismatch' ? 'default' : 'outline'}
+                    variant={filterType === 'completed' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setFilterType('mismatch')}
-                    className={filterType !== 'mismatch' ? 'text-orange-600 border-orange-300' : ''}
+                    onClick={() => setFilterType('completed')}
+                    className={filterType !== 'completed' ? 'text-green-600 border-green-300' : ''}
                   >
-                    캐시 불일치
+                    완료 ({stats.completed})
                   </Button>
                 </div>
               </div>
@@ -363,34 +641,33 @@ export default function WithdrawalAudit() {
               {loading ? (
                 <div className="flex items-center justify-center py-12 text-gray-500">
                   <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  감사 실행 중...
+                  Korea DB + BIZ DB 감사 실행 중...
                 </div>
               ) : filteredResults.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   {auditResults.length === 0 ? '출금 요청이 없습니다.' : '필터 조건에 맞는 결과가 없습니다.'}
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {/* 테이블 헤더 */}
                   <div className="hidden lg:grid lg:grid-cols-12 gap-2 px-4 py-2 bg-gray-100 rounded-lg text-xs font-medium text-gray-600">
                     <div className="col-span-1">신청일</div>
                     <div className="col-span-2">크리에이터</div>
                     <div className="col-span-1">상태</div>
+                    <div className="col-span-1">DB</div>
                     <div className="col-span-2 text-right">신청 포인트</div>
                     <div className="col-span-2 text-right">실제 잔액</div>
-                    <div className="col-span-2 text-right">캐시 잔액</div>
                     <div className="col-span-2 text-right">초과/부족</div>
+                    <div className="col-span-1 text-center">상세</div>
                   </div>
 
-                  {filteredResults.map((result) => (
+                  {filteredResults.map((result, idx) => (
                     <div
-                      key={result.id}
-                      className={`grid grid-cols-1 lg:grid-cols-12 gap-2 p-4 rounded-lg border-2 transition-colors ${
+                      key={`${result.source_db}-${result.id}-${idx}`}
+                      className={`grid grid-cols-1 lg:grid-cols-12 gap-2 p-3 rounded-lg border-2 transition-colors ${
                         result.is_overpaid
                           ? 'bg-red-50 border-red-300'
-                          : result.balance_mismatch
-                            ? 'bg-orange-50 border-orange-200'
-                            : 'bg-white border-gray-200'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
                       }`}
                     >
                       {/* 신청일 */}
@@ -401,15 +678,20 @@ export default function WithdrawalAudit() {
                       {/* 크리에이터 */}
                       <div className="col-span-2">
                         <p className="text-sm font-medium truncate">{result.creator_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{result.creator_email || result.creator_id?.substring(0, 12)}</p>
-                        {result.creator_region && (
-                          <Badge className="mt-1 text-[10px] bg-gray-100 text-gray-600">{result.creator_region}</Badge>
+                        {result.account_holder && result.account_holder !== result.creator_name && (
+                          <p className="text-xs text-gray-500 truncate">예금주: {result.account_holder}</p>
                         )}
+                        <p className="text-xs text-gray-400 font-mono truncate">{result.user_id?.substring(0, 12)}...</p>
                       </div>
 
                       {/* 상태 */}
                       <div className="col-span-1 flex items-center">
                         {getStatusBadge(result.status)}
+                      </div>
+
+                      {/* DB */}
+                      <div className="col-span-1 flex items-center">
+                        {getSourceBadge(result.source_db)}
                       </div>
 
                       {/* 신청 포인트 */}
@@ -418,22 +700,17 @@ export default function WithdrawalAudit() {
                       </div>
 
                       {/* 실제 잔액 */}
-                      <div className="col-span-2 flex items-center justify-end">
-                        <span className={`text-sm font-semibold ${result.actual_balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <div className="col-span-2 flex flex-col items-end justify-center">
+                        <span className={`text-sm font-semibold ${result.actual_balance < 0 ? 'text-red-600' : result.actual_balance > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                           {result.actual_balance?.toLocaleString()}P
                         </span>
-                      </div>
-
-                      {/* 캐시 잔액 */}
-                      <div className="col-span-2 flex flex-col items-end justify-center">
-                        <span className="text-sm text-gray-500">{result.cached_balance?.toLocaleString()}P</span>
-                        {result.balance_mismatch && (
-                          <span className="text-[10px] text-orange-600">불일치</span>
+                        {result.total_pending > 0 && result.total_pending !== result.requested_points && (
+                          <span className="text-[10px] text-orange-500">처리중: {result.total_pending.toLocaleString()}P</span>
                         )}
                       </div>
 
                       {/* 초과/부족 */}
-                      <div className="col-span-2 flex items-center justify-end gap-2">
+                      <div className="col-span-2 flex items-center justify-end gap-1">
                         {result.is_overpaid ? (
                           <div className="flex items-center gap-1">
                             <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -441,12 +718,26 @@ export default function WithdrawalAudit() {
                               {result.balance_diff?.toLocaleString()}P
                             </span>
                           </div>
+                        ) : result.status === 'completed' ? (
+                          <span className="text-sm text-gray-400">완료</span>
                         ) : (
                           <div className="flex items-center gap-1">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span className="text-sm text-green-600">정상</span>
                           </div>
                         )}
+                      </div>
+
+                      {/* 상세 */}
+                      <div className="col-span-1 flex items-center justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewCreator(result)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -456,6 +747,106 @@ export default function WithdrawalAudit() {
           </Card>
         </div>
       </div>
+
+      {/* 크리에이터 포인트 상세 모달 */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              포인트 상세 - {selectedCreator?.creator_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCreator && (
+            <div className="space-y-6">
+              {/* 출금 요청 정보 */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-3">출금 요청 정보</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-gray-500">크리에이터:</span> <span className="font-medium">{selectedCreator.creator_name}</span></div>
+                  <div><span className="text-gray-500">상태:</span> {getStatusBadge(selectedCreator.status)}</div>
+                  <div><span className="text-gray-500">신청 포인트:</span> <span className="font-bold">{selectedCreator.requested_points?.toLocaleString()}P</span></div>
+                  <div><span className="text-gray-500">신청일:</span> {new Date(selectedCreator.created_at).toLocaleDateString('ko-KR')}</div>
+                  <div><span className="text-gray-500">DB:</span> {selectedCreator.source_db}</div>
+                  <div><span className="text-gray-500">User ID:</span> <span className="font-mono text-xs">{selectedCreator.user_id}</span></div>
+                </div>
+              </div>
+
+              {/* 포인트 요약 */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-green-600 mb-1">총 받은 포인트</p>
+                  <p className="text-xl font-bold text-green-700">
+                    +{selectedCreator.totalReceived?.toLocaleString()}P
+                  </p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-red-600 mb-1">총 차감 포인트</p>
+                  <p className="text-xl font-bold text-red-700">
+                    -{selectedCreator.totalDeducted?.toLocaleString()}P
+                  </p>
+                </div>
+                <div className={`p-4 rounded-lg text-center ${selectedCreator.netBalance < 0 ? 'bg-red-100' : 'bg-blue-50'}`}>
+                  <p className={`text-sm mb-1 ${selectedCreator.netBalance < 0 ? 'text-red-600' : 'text-blue-600'}`}>순 지급액</p>
+                  <p className={`text-xl font-bold ${selectedCreator.netBalance < 0 ? 'text-red-700' : 'text-blue-700'}`}>
+                    {selectedCreator.netBalance?.toLocaleString()}P
+                  </p>
+                </div>
+              </div>
+
+              {/* 초과 여부 알림 */}
+              {selectedCreator.is_overpaid && (
+                <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <p className="font-bold text-red-800">초과 출금 감지</p>
+                  </div>
+                  <p className="text-sm text-red-700">
+                    신청 포인트 ({selectedCreator.requested_points?.toLocaleString()}P)가
+                    실제 잔액 ({selectedCreator.actual_balance?.toLocaleString()}P)을 초과합니다.
+                    차이: <strong>{selectedCreator.balance_diff?.toLocaleString()}P</strong>
+                  </p>
+                </div>
+              )}
+
+              {/* 거래 내역 */}
+              <div>
+                <h3 className="font-semibold mb-3">
+                  포인트 내역 ({creatorTransactions.length}건)
+                </h3>
+                {creatorTransactions.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">포인트 내역이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {creatorTransactions.map((tx, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="text-gray-500 text-xs whitespace-nowrap">
+                            {new Date(tx.created_at).toLocaleDateString('ko-KR')}
+                          </div>
+                          <Badge className={tx.amount > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                            {tx.amount > 0 ? '지급' : '차감'}
+                          </Badge>
+                          <div className="text-gray-700 truncate max-w-[250px]">
+                            {tx.description || tx.reason || '-'}
+                          </div>
+                        </div>
+                        <div className={`font-bold whitespace-nowrap ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount?.toLocaleString()}P
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
