@@ -1823,13 +1823,13 @@ export default function CampaignDetail() {
 
   // US/Japan 캠페인: 선택된 크리에이터 전체 가이드 생성
   const handleBulkGuideGeneration = async () => {
-    // 4주 챌린지/메가와리는 씬 가이드가 아닌 전용 가이드 사용
+    // 4주 챌린지/메가와리/올영은 씬 가이드가 아닌 캠페인 레벨 가이드 전달 사용
     const is4Week = campaign?.campaign_type === '4week_challenge'
     const isMegawari = region === 'japan' && campaign?.campaign_type === 'megawari'
-    if (is4Week || isMegawari) {
-      alert(is4Week
-        ? '4주 챌린지 캠페인은 캠페인 가이드 설정에서 주차별 가이드를 먼저 작성해주세요.'
-        : '메가와리 캠페인은 캠페인 가이드 설정에서 STEP별 가이드를 먼저 작성해주세요.')
+    const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+    if (is4Week || isMegawari || isOliveyoung) {
+      // 캠페인 레벨 가이드 전달 함수로 위임
+      handleDeliverOliveYoung4WeekGuide()
       return
     }
 
@@ -3534,13 +3534,24 @@ Questions? Contact us.
 
   // 올영/4주 챌린지 가이드 일괄 발송 (체크박스 선택 또는 전체)
   const handleDeliverOliveYoung4WeekGuide = async () => {
-    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const isMegawariType = region === 'japan' && campaign.campaign_type === 'megawari'
+    const isOliveyoungType = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const hasGuide = (isOliveyoungType || isMegawariType)
       ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
       : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
          campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
     if (!hasGuide) {
-      alert('먼저 가이드를 생성해주세요.')
+      // 가이드가 없으면 설정 페이지로 이동 안내
+      const is4Week = campaign.campaign_type === '4week_challenge'
+      const guidePath = is4Week
+        ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+        : isMegawariType
+          ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+          : `/company/campaigns/guide/oliveyoung?id=${id}`
+      if (confirm('가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?')) {
+        navigate(guidePath)
+      }
       return
     }
 
@@ -12832,11 +12843,20 @@ Questions? Contact us.
                     <button
                       onClick={async () => {
                         if (!hasGuide) {
-                          alert(is4Week
-                            ? '4주 챌린지 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.'
+                          // 가이드가 없으면 가이드 설정 페이지로 이동
+                          const guidePath = is4Week
+                            ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
                             : isMegawari
-                              ? '메가와리 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.'
-                              : '올영 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.')
+                              ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                              : `/company/campaigns/guide/oliveyoung?id=${id}`
+                          if (confirm(is4Week
+                            ? '4주 챌린지 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?'
+                            : isMegawari
+                              ? 'メガ割ガイドがまだ設定されていません。ガイド設定ページに移動しますか？'
+                              : '올영 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?')) {
+                            setShowGuideSelectModal(false)
+                            navigate(guidePath)
+                          }
                           return
                         }
 
@@ -12931,26 +12951,20 @@ Questions? Contact us.
                           alert('가이드 설정에 실패했습니다: ' + error.message)
                         }
                       }}
-                      disabled={!hasGuide}
-                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
-                        hasGuide
-                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
-                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                      }`}
+                      className="w-full p-4 border-2 rounded-xl transition-all text-left group border-purple-200 hover:border-purple-500 hover:bg-purple-50"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          hasGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
-                        }`}>
-                          <Sparkles className={`w-6 h-6 ${hasGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-purple-100 group-hover:bg-purple-200">
+                          <Sparkles className="w-6 h-6 text-purple-600" />
                         </div>
                         <div>
-                          <h3 className={`font-bold ${hasGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                          <h3 className="font-bold text-gray-900">
                             {is4Week ? '4주 챌린지 가이드 전달' : isMegawari ? 'メガ割 가이드 전달' : '올영 세일 가이드 전달'}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            {is4Week ? '1~4주차 미션 및 주의사항' : isMegawari ? 'STEP 1~2 가이드' : 'STEP 1~3 가이드'}
-                            {!hasGuide && ' (캠페인 설정에서 먼저 설정 필요)'}
+                            {hasGuide
+                              ? (is4Week ? '1~4주차 미션 및 주의사항' : isMegawari ? 'STEP 1~2 가이드' : 'STEP 1~3 가이드')
+                              : '클릭하면 가이드 설정 페이지로 이동합니다'}
                           </p>
                         </div>
                       </div>
