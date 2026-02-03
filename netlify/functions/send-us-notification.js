@@ -364,13 +364,27 @@ exports.handler = async (event) => {
     // 크리에이터 정보 조회
     if (creatorId) {
       console.log(`[send-us-notification] Looking up by creatorId: ${creatorId}`);
+      // 먼저 id 컬럼으로 시도
       const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('id', creatorId)
-        .single();
-      creator = c;
-      if (e) console.log(`[send-us-notification] creatorId lookup error: ${e.message}`);
+        .maybeSingle();
+
+      if (c) {
+        creator = c;
+      } else {
+        // id로 못 찾으면 user_id 컬럼으로 재시도
+        console.log(`[send-us-notification] id lookup failed, trying user_id column`);
+        const { data: c2, error: e2 } = await supabase
+          .from('user_profiles')
+          .select('id, name, email, phone, line_user_id')
+          .eq('user_id', creatorId)
+          .maybeSingle();
+        creator = c2;
+        if (e2) console.log(`[send-us-notification] user_id lookup error: ${e2.message}`);
+      }
+      if (e) console.log(`[send-us-notification] id lookup error: ${e.message}`);
     } else if (creatorEmail) {
       console.log(`[send-us-notification] Looking up by creatorEmail: ${creatorEmail}`);
       const { data: c, error: e } = await supabase

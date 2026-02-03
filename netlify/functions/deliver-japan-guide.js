@@ -295,29 +295,51 @@ exports.handler = async (event) => {
       // user_profiles에서 line_user_id 조회 (여러 방법으로 시도)
       let lineUserId = participant.line_user_id;
 
-      // 1. user_id로 조회
+      // 1. user_id로 조회 (id 컬럼 먼저, 실패시 user_id 컬럼)
       if (!lineUserId && participant.user_id) {
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('line_user_id')
           .eq('id', participant.user_id)
-          .single();
+          .maybeSingle();
         if (profile?.line_user_id) {
           lineUserId = profile.line_user_id;
-          console.log(`[deliver-japan-guide] user_id로 line_user_id 조회 성공: ${creatorName}`);
+          console.log(`[deliver-japan-guide] user_id(id컬럼)로 line_user_id 조회 성공: ${creatorName}`);
+        } else {
+          // id 컬럼으로 못 찾으면 user_id 컬럼으로 재시도
+          const { data: profile2 } = await supabase
+            .from('user_profiles')
+            .select('line_user_id')
+            .eq('user_id', participant.user_id)
+            .maybeSingle();
+          if (profile2?.line_user_id) {
+            lineUserId = profile2.line_user_id;
+            console.log(`[deliver-japan-guide] user_id(user_id컬럼)로 line_user_id 조회 성공: ${creatorName}`);
+          }
         }
       }
 
-      // 2. creator_id로 조회
+      // 2. creator_id로 조회 (id 컬럼 먼저, 실패시 user_id 컬럼)
       if (!lineUserId && participant.creator_id) {
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('line_user_id')
           .eq('id', participant.creator_id)
-          .single();
+          .maybeSingle();
         if (profile?.line_user_id) {
           lineUserId = profile.line_user_id;
-          console.log(`[deliver-japan-guide] creator_id로 line_user_id 조회 성공: ${creatorName}`);
+          console.log(`[deliver-japan-guide] creator_id(id컬럼)로 line_user_id 조회 성공: ${creatorName}`);
+        } else {
+          // id 컬럼으로 못 찾으면 user_id 컬럼으로 재시도
+          const { data: profile2 } = await supabase
+            .from('user_profiles')
+            .select('line_user_id')
+            .eq('user_id', participant.creator_id)
+            .maybeSingle();
+          if (profile2?.line_user_id) {
+            lineUserId = profile2.line_user_id;
+            console.log(`[deliver-japan-guide] creator_id(user_id컬럼)로 line_user_id 조회 성공: ${creatorName}`);
+          }
         }
       }
 

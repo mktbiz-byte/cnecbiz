@@ -259,11 +259,25 @@ exports.handler = async (event) => {
     }
     // 3. creatorId로 조회
     else if (creatorId) {
-      const { data: creator } = await supabase
+      // 먼저 id 컬럼으로 시도
+      let creator = null;
+      const { data: c1 } = await supabase
         .from('user_profiles')
         .select('line_user_id, name')
         .eq('id', creatorId)
-        .single();
+        .maybeSingle();
+
+      if (c1) {
+        creator = c1;
+      } else {
+        // id로 못 찾으면 user_id 컬럼으로 재시도
+        const { data: c2 } = await supabase
+          .from('user_profiles')
+          .select('line_user_id, name')
+          .eq('user_id', creatorId)
+          .maybeSingle();
+        creator = c2;
+      }
 
       if (creator?.line_user_id) {
         targetUserIds = [creator.line_user_id];
@@ -272,14 +286,30 @@ exports.handler = async (event) => {
     }
     // 4. 여러 creatorId로 조회
     else if (creatorIds && Array.isArray(creatorIds)) {
-      const { data: creators } = await supabase
+      // id 컬럼으로 조회
+      const { data: creators1 } = await supabase
         .from('user_profiles')
-        .select('line_user_id')
+        .select('id, line_user_id')
         .in('id', creatorIds)
         .not('line_user_id', 'is', null);
 
-      if (creators) {
-        targetUserIds = creators.map(c => c.line_user_id);
+      const foundIds = (creators1 || []).map(c => c.id);
+      const notFoundIds = creatorIds.filter(id => !foundIds.includes(id));
+
+      // 못 찾은 id들은 user_id 컬럼으로 재시도
+      let creators2 = [];
+      if (notFoundIds.length > 0) {
+        const { data: c2 } = await supabase
+          .from('user_profiles')
+          .select('line_user_id')
+          .in('user_id', notFoundIds)
+          .not('line_user_id', 'is', null);
+        creators2 = c2 || [];
+      }
+
+      const allCreators = [...(creators1 || []), ...creators2];
+      if (allCreators.length > 0) {
+        targetUserIds = allCreators.map(c => c.line_user_id);
       }
     }
     // 5. 이메일로 조회
