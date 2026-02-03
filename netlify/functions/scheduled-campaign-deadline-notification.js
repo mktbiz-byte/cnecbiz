@@ -22,9 +22,20 @@ const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
 const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
+const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
 
-// 팝빌 카카오톡 서비스 초기화 (credentials 직접 전달 방식)
-const kakaoService = popbill.KakaoService(POPBILL_LINK_ID, POPBILL_SECRET_KEY);
+// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
+popbill.config({
+  LinkID: POPBILL_LINK_ID,
+  SecretKey: POPBILL_SECRET_KEY,
+  IsTest: false, // 운영환경
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true
+});
+
+// 팝빌 카카오톡 서비스 초기화
+const kakaoService = popbill.KakaoService();
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -175,6 +186,16 @@ const createSupabaseClient = () => {
   return null;
 };
 
+// BIZ DB 클라이언트 (기업 정보 조회용)
+const getSupabaseBiz = () => {
+  const bizUrl = process.env.VITE_SUPABASE_BIZ_URL;
+  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_ANON_KEY;
+  if (bizUrl && bizKey) {
+    return createClient(bizUrl, bizKey);
+  }
+  return null;
+};
+
 // 이메일 발송 함수
 const sendEmail = async (to, companyName, campaignTitle, applicantCount) => {
   const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
@@ -257,9 +278,10 @@ const sendEmail = async (to, companyName, campaignTitle, applicantCount) => {
   }
 };
 
-// 카카오톡 알림 발송 함수
+// 카카오톡 알림 발송 함수 (sendATS_one 사용 - send-kakao-notification.js와 동일)
 const sendKakaoNotification = (receiverNum, receiverName, templateCode, variables) => {
   return new Promise((resolve, reject) => {
+    // 템플릿 내용 (팝빌 등록된 템플릿과 정확히 일치해야 함)
     const templateContent = `[CNEC] 신청하신 캠페인 모집 마감
 #{회사명}님, 신청하신 캠페인의 크리에이터 모집이 마감되었습니다.
 캠페인: #{캠페인명}
@@ -273,25 +295,32 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, variable
       content = content.replace(new RegExp(`#\\{${key}\\}`, 'g'), value);
     }
 
-    kakaoService.sendATS(
+    // 전화번호 형식 정리 (하이픈 제거)
+    const cleanPhoneNum = receiverNum.replace(/-/g, '');
+
+    console.log(`[sendKakaoNotification] 발송 시도: ${cleanPhoneNum}, 템플릿: ${templateCode}`);
+    console.log(`[sendKakaoNotification] 메시지 내용:`, content);
+
+    // sendATS_one 사용 (send-kakao-notification.js와 동일한 방식)
+    kakaoService.sendATS_one(
       POPBILL_CORP_NUM,
       templateCode,
       POPBILL_SENDER_NUM,
       content,
-      '',  // altContent
-      '',  // altSendType
-      receiverNum,
-      receiverName,
-      '',  // sndDT (즉시 발송)
-      '',  // requestNum
-      '',  // userID
-      null,  // btns
-      (result) => {
-        console.log(`카카오 알림톡 발송 성공: ${receiverNum}`, result);
-        resolve(result);
+      content, // altContent (대체 문자)
+      'C', // altSendType: C=동일내용
+      '', // requestNum
+      cleanPhoneNum,
+      receiverName || '',
+      POPBILL_USER_ID,
+      '', // reserveDT (예약시간, 빈값=즉시발송)
+      null, // btns
+      (receiptNum) => {
+        console.log(`[sendKakaoNotification] 알림톡 발송 성공: ${cleanPhoneNum}`, receiptNum);
+        resolve({ receiptNum });
       },
       (error) => {
-        console.error(`카카오 알림톡 발송 실패: ${receiverNum}`, error);
+        console.error(`[sendKakaoNotification] 알림톡 발송 실패: ${cleanPhoneNum}`, error);
         reject(error);
       }
     );
@@ -397,13 +426,64 @@ exports.handler = async (event, context) => {
         console.log(`지원자 수: ${applicantCount || 0}명`);
 
         // 기업 정보 조회 (전화번호, 회사명, 이메일)
+        // ★ BIZ DB에서 우선 조회 (다른 함수들과 동일하게)
         let companyPhone = null;
         let companyEmail = campaign.company_email || null;
         let companyName = campaign.brand || '기업';
 
-        // 1. company_id로 companies 테이블에서 조회
-        if (campaign.company_id) {
-          // 1-1. user_id로 조회 (company_id는 auth user.id를 저장)
+        const supabaseBiz = getSupabaseBiz();
+
+        // 1. BIZ DB에서 company_email로 조회 (가장 확실한 방법)
+        if (supabaseBiz && companyEmail) {
+          const { data: bizCompany, error: bizError } = await supabaseBiz
+            .from('companies')
+            .select('company_name, phone, representative_phone, email, notification_phone')
+            .eq('email', companyEmail.toLowerCase())
+            .maybeSingle();
+
+          if (!bizError && bizCompany) {
+            companyPhone = bizCompany.notification_phone || bizCompany.phone || bizCompany.representative_phone;
+            companyName = bizCompany.company_name || companyName;
+            console.log(`[BIZ DB] 이메일로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
+          }
+        }
+
+        // 2. BIZ DB에서 company_id로 조회 (company_email로 못 찾은 경우)
+        if (supabaseBiz && !companyPhone && campaign.company_id) {
+          // 2-1. user_id로 조회
+          const { data: bizCompanyByUserId, error: bizError1 } = await supabaseBiz
+            .from('companies')
+            .select('company_name, phone, representative_phone, email, notification_phone')
+            .eq('user_id', campaign.company_id)
+            .maybeSingle();
+
+          if (!bizError1 && bizCompanyByUserId) {
+            companyPhone = bizCompanyByUserId.notification_phone || bizCompanyByUserId.phone || bizCompanyByUserId.representative_phone;
+            companyName = bizCompanyByUserId.company_name || companyName;
+            companyEmail = companyEmail || bizCompanyByUserId.email;
+            console.log(`[BIZ DB] user_id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
+          }
+
+          // 2-2. id로 조회 (레거시 데이터 호환)
+          if (!companyPhone) {
+            const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
+              .from('companies')
+              .select('company_name, phone, representative_phone, email, notification_phone')
+              .eq('id', campaign.company_id)
+              .maybeSingle();
+
+            if (!bizError2 && bizCompanyById) {
+              companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone || bizCompanyById.representative_phone;
+              companyName = bizCompanyById.company_name || companyName;
+              companyEmail = companyEmail || bizCompanyById.email;
+              console.log(`[BIZ DB] id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
+            }
+          }
+        }
+
+        // 3. 지역 DB에서 보조 조회 (BIZ DB에서 못 찾은 경우)
+        if (!companyPhone && campaign.company_id) {
+          // 3-1. user_id로 조회 (company_id는 auth user.id를 저장)
           const { data: companyByUserId, error: companyError1 } = await supabase
             .from('companies')
             .select('company_name, phone, representative_phone, email')
@@ -414,9 +494,10 @@ exports.handler = async (event, context) => {
             companyPhone = companyByUserId.phone || companyByUserId.representative_phone;
             companyName = companyByUserId.company_name || campaign.brand || '기업';
             companyEmail = companyEmail || companyByUserId.email;
+            console.log(`[지역 DB] user_id로 기업 정보 찾음: ${companyName}`);
           }
 
-          // 1-2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
+          // 3-2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
           if (!companyPhone && !companyEmail) {
             const { data: companyById, error: companyError2 } = await supabase
               .from('companies')
@@ -431,7 +512,7 @@ exports.handler = async (event, context) => {
             }
           }
 
-          // 1-3. user_profiles에서도 조회
+          // 3-3. user_profiles에서도 조회
           if (!companyPhone || !companyEmail) {
             const { data: profile, error: profileError } = await supabase
               .from('user_profiles')
@@ -446,7 +527,7 @@ exports.handler = async (event, context) => {
           }
         }
 
-        // 2. company_email로 companies 테이블에서 조회 (일본 등 company_id 없는 경우)
+        // 4. company_email로 지역 DB companies 테이블에서 조회 (일본 등 company_id 없는 경우)
         if ((!companyPhone || !companyName || companyName === '기업') && companyEmail) {
           const { data: company, error: companyError } = await supabase
             .from('companies')
@@ -459,6 +540,8 @@ exports.handler = async (event, context) => {
             companyName = company.company_name || companyName;
           }
         }
+
+        console.log(`[최종] 기업 정보 - 이름: ${companyName}, 전화번호: ${companyPhone || 'NONE'}, 이메일: ${companyEmail || 'NONE'}`);
 
         // 알림 발송 결과 추적
         let kakaoSent = false;

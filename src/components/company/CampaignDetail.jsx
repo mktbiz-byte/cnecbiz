@@ -3152,7 +3152,8 @@ JSON만 출력.`
   const handleDeliverOliveYoung4WeekGuide = async () => {
     const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
       ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
-      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides)
+      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+         campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
     if (!hasGuide) {
       alert('먼저 가이드를 생성해주세요.')
@@ -3755,8 +3756,47 @@ JSON만 출력.`
           }
         }
 
-        // 이메일 발송
-        if (email) {
+        // 일본/미국: LINE + 이메일 알림 발송
+        if (region === 'japan' && email) {
+          try {
+            await fetch('/.netlify/functions/send-japan-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'sns_upload_request',
+                creatorEmail: email,
+                data: {
+                  creatorName,
+                  campaignName: campaign?.title || 'キャンペーン',
+                  deadline: inputDeadline
+                }
+              })
+            })
+            console.log('✓ 일본 SNS 업로드 요청 알림 발송 성공 (LINE + Email)')
+          } catch (japanError) {
+            console.error('일본 알림 발송 실패:', japanError)
+          }
+        } else if (region === 'us' && email) {
+          try {
+            await fetch('/.netlify/functions/send-us-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'sns_upload_request',
+                creatorEmail: email,
+                data: {
+                  creatorName,
+                  campaignName: campaign?.title || 'Campaign',
+                  deadline: inputDeadline
+                }
+              })
+            })
+            console.log('✓ 미국 SNS 업로드 요청 알림 발송 성공 (LINE + Email)')
+          } catch (usError) {
+            console.error('미국 알림 발송 실패:', usError)
+          }
+        } else if (email) {
+          // 한국: 이메일 발송
           try {
             await fetch('/.netlify/functions/send-email', {
               method: 'POST',
@@ -4766,6 +4806,51 @@ JSON만 출력.`
         alert('일본 크리에이터 알림 발송 완료!')
       }
 
+      // 미국 크리에이터 선정 알림 발송 (LINE + Email)
+      if (region === 'us') {
+        alert('미국 크리에이터에게 선정 알림을 발송합니다...')
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            try {
+              // 1. 선정 알림 발송 (LINE + Email)
+              await fetch('/.netlify/functions/send-us-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'campaign_selected',
+                  creatorEmail: participant.creator_email || participant.user_email,
+                  data: {
+                    creatorName: participant.creator_name || participant.applicant_name,
+                    campaignName: campaign.title,
+                    brandName: campaign.brand_name || campaign.company_name,
+                    reward: campaign.reward_text || campaign.compensation,
+                    deadline: campaign.content_submission_deadline,
+                    guideUrl: `https://cnec.us/creator/campaigns/${id}`
+                  }
+                })
+              })
+
+              // 2. LINE 초대장 발송 (Email)
+              await fetch('/.netlify/functions/send-line-invitation-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: participant.creator_name || participant.applicant_name,
+                  email: participant.creator_email || participant.user_email,
+                  phone: participant.phone || participant.creator_phone,
+                  language: 'en'
+                })
+              })
+            } catch (notifError) {
+              console.error('[US] Notification error:', notifError.message)
+            }
+          }
+        }
+        alert('미국 크리에이터 알림 발송 완료!')
+      }
+
       // 기획형 캠페인인 경우 맞춤 가이드 생성
       if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
@@ -5474,7 +5559,8 @@ JSON만 출력.`
                             {/* 가이드 보기/설정 버튼 */}
                             <div className="flex items-center gap-1.5">
                               {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
+                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+                                campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
                                 <Button
                                   size="sm"
                                   onClick={() => {
@@ -5522,7 +5608,8 @@ JSON만 출력.`
                             </div>
 
                             {/* 주차별 발송 버튼 - 캠페인 레벨 가이드가 있으면 표시 */}
-                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
+                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
+                              campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
@@ -7624,7 +7711,8 @@ JSON만 출력.`
                       <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
                         {/* 가이드 존재 여부 확인 */}
                         {(() => {
-                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai
+                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai ||
+                                           campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en
                           const hasAnyWeekGuide = hasGuide || campaign.week1_external_url || campaign.week2_external_url || campaign.week3_external_url || campaign.week4_external_url
 
                           if (!hasAnyWeekGuide) {
@@ -12360,8 +12448,10 @@ JSON만 출력.`
                 if (is4Week || isOliveyoung) {
                   // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
                   // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
+                  // 일본/미국: challenge_guide_data_ja / challenge_guide_data_en 도 체크
                   const hasGuide = is4Week
-                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai)
+                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
+                       campaign?.challenge_guide_data_ja || campaign?.challenge_guide_data_en)
                     : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
                   return (
@@ -12380,7 +12470,13 @@ JSON만 출력.`
                         let guidePayload
                         if (is4Week) {
                           // 4주 챌린지: challenge_guide_data 사용 (기업이 설정한 미션, 필수대사, 필수장면, 참고URL 등)
-                          const guideData = campaign?.challenge_guide_data || {}
+                          // 일본/미국의 경우 번역된 데이터 우선 사용
+                          let guideData = campaign?.challenge_guide_data || {}
+                          if (region === 'japan' && campaign?.challenge_guide_data_ja) {
+                            guideData = campaign.challenge_guide_data_ja
+                          } else if (region === 'us' && campaign?.challenge_guide_data_en) {
+                            guideData = campaign.challenge_guide_data_en
+                          }
                           guidePayload = {
                             type: '4week_guide',
                             campaignId: campaign.id,
@@ -12577,7 +12673,7 @@ JSON만 출력.`
 
                         if (error) throw error
 
-                        // 알림 발송 (한국: 카카오톡, 일본/미국: 이메일)
+                        // 알림 발송 (한국: 카카오톡, 일본/미국: LINE + 이메일)
                         try {
                           const { data: profile } = await supabase
                             .from('user_profiles')
@@ -12596,19 +12692,38 @@ JSON만 출력.`
                                   : '확인 필요'
                               }
                             )
-                          } else if ((region === 'japan' || region === 'us') && profile?.email) {
-                            // 일본/미국: 이메일 알림
-                            await fetch('/.netlify/functions/send-email', {
+                          } else if (region === 'japan' && profile?.email) {
+                            // 일본: LINE + 이메일 알림
+                            await fetch('/.netlify/functions/send-japan-notification', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
-                                to: profile.email,
-                                subject: region === 'japan'
-                                  ? `[CNEC] 撮影ガイドが届きました - ${campaign?.title || 'キャンペーン'}`
-                                  : `[CNEC] Shooting Guide Delivered - ${campaign?.title || 'Campaign'}`,
-                                html: region === 'japan'
-                                  ? `<p>${creatorName}様、</p><p>キャンペーン「${campaign?.title || 'キャンペーン'}」の撮影ガイドが届きました。</p><p>マイページでご確認ください。</p>`
-                                  : `<p>Hi ${creatorName},</p><p>The shooting guide for campaign "${campaign?.title || 'Campaign'}" has been delivered.</p><p>Please check your dashboard.</p>`
+                                type: 'guide_confirm_request',
+                                creatorEmail: profile.email,
+                                data: {
+                                  creatorName,
+                                  campaignName: campaign?.title || 'キャンペーン',
+                                  deadline: campaign?.content_deadline
+                                    ? new Date(campaign.content_deadline).toLocaleDateString('ja-JP')
+                                    : '確認してください'
+                                }
+                              })
+                            })
+                          } else if (region === 'us' && profile?.email) {
+                            // 미국: LINE + 이메일 알림
+                            await fetch('/.netlify/functions/send-us-notification', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                type: 'guide_confirm_request',
+                                creatorEmail: profile.email,
+                                data: {
+                                  creatorName,
+                                  campaignName: campaign?.title || 'Campaign',
+                                  deadline: campaign?.content_deadline
+                                    ? new Date(campaign.content_deadline).toLocaleDateString('en-US')
+                                    : 'Check your dashboard'
+                                }
                               })
                             })
                           }

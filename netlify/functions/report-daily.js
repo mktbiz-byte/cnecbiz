@@ -424,27 +424,57 @@ exports.handler = async (event) => {
       }
     } catch (e) { /* 테이블이 없을 수 있음 */ }
 
-    // ===== 5. 신규 캠페인 수 (리전별) =====
+    // ===== 5. 신규 캠페인 수 및 매출 (리전별) =====
     console.log('[report-daily] 신규 캠페인 조회...');
-    const campaignResult = { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } };
+    const campaignResult = {
+      total: 0,
+      byRegion: { korea: 0, japan: 0, us: 0 },
+      revenue: { total: 0, byRegion: { korea: 0, japan: 0, us: 0 } },
+      details: []
+    };
 
     for (const r of regionClients) {
       if (!r.client) continue;
       try {
         const { data: campaigns, error } = await r.client
           .from('campaigns')
-          .select('id')
+          .select('id, title, brand, total_budget, reward_points, selected_participants_count, campaign_type')
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString());
 
         if (!error && campaigns) {
           campaignResult.total += campaigns.length;
           campaignResult.byRegion[r.key] = campaigns.length;
+
+          // 각 캠페인의 매출 계산
+          for (const c of campaigns) {
+            // 예상 매출 = total_budget 또는 (reward_points * selected_participants_count)
+            let revenue = c.total_budget || 0;
+            if (!revenue && c.reward_points && c.selected_participants_count) {
+              revenue = c.reward_points * c.selected_participants_count;
+            }
+            campaignResult.revenue.total += revenue;
+            campaignResult.revenue.byRegion[r.key] += revenue;
+
+            if (revenue > 0) {
+              campaignResult.details.push({
+                region: r.key,
+                title: c.title || c.brand || '캠페인',
+                revenue: revenue
+              });
+            }
+          }
         }
       } catch (e) { console.error(`[${r.key} 신규 캠페인 조회 오류]`, e.message); }
     }
 
     // ===== 6. 네이버웍스 메시지 =====
+    const formatRevenue = (amount) => {
+      if (amount >= 10000) return `${Math.round(amount / 10000)}만원`;
+      if (amount >= 1000) return `${Math.round(amount / 1000)}천원`;
+      return `${amount}원`;
+    };
+
     const nwMessage = `📊 일일 리포트 (${dateStr})
 
 👥 신규 크리에이터: ${creatorResult.total}명
@@ -456,7 +486,9 @@ ${videoOverdueResult.total > 0 ? `🚨 영상 마감 미제출: ${videoOverdueRe
 📩 신규 문의: ${newInquiryCount}건
 
 📢 신규 캠페인: ${campaignResult.total}개
-   🇰🇷${campaignResult.byRegion.korea} / 🇯🇵${campaignResult.byRegion.japan} / 🇺🇸${campaignResult.byRegion.us}`;
+   🇰🇷${campaignResult.byRegion.korea} / 🇯🇵${campaignResult.byRegion.japan} / 🇺🇸${campaignResult.byRegion.us}
+${campaignResult.revenue.total > 0 ? `💰 예상 매출: ${formatRevenue(campaignResult.revenue.total)}
+   🇰🇷${formatRevenue(campaignResult.revenue.byRegion.korea)} / 🇯🇵${formatRevenue(campaignResult.revenue.byRegion.japan)} / 🇺🇸${formatRevenue(campaignResult.revenue.byRegion.us)}` : ''}`;
 
     try {
       const clientId = process.env.NAVER_WORKS_CLIENT_ID;
@@ -534,6 +566,13 @@ ${videoOverdueResult.total > 0 ? `🚨 영상 마감 미제출: ${videoOverdueRe
       <div style="font-size:24px;font-weight:bold;color:#7c3aed">${campaignResult.total}개</div>
       <div style="font-size:10px;color:#666">🇰🇷${campaignResult.byRegion.korea} 🇯🇵${campaignResult.byRegion.japan} 🇺🇸${campaignResult.byRegion.us}</div>
     </div>
+    ${campaignResult.revenue.total > 0 ? `
+    <div style="flex:1;background:#fef9c3;padding:15px;border-radius:8px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:#ca8a04">💰 예상 매출</div>
+      <div style="font-size:24px;font-weight:bold;color:#ca8a04">${formatRevenue(campaignResult.revenue.total)}</div>
+      <div style="font-size:10px;color:#666">🇰🇷${formatRevenue(campaignResult.revenue.byRegion.korea)} 🇯🇵${formatRevenue(campaignResult.revenue.byRegion.japan)} 🇺🇸${formatRevenue(campaignResult.revenue.byRegion.us)}</div>
+    </div>
+    ` : ''}
   </div>
 
   <!-- 모집 마감 당일 상세 -->
