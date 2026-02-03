@@ -2784,7 +2784,9 @@ JSON만 출력.`
         }
 
         // 일본: LINE 메시지 (한글 입력 → 일본어 자동 번역)
+        console.log('[LINE Debug] region:', region, 'line_user_id:', profile?.line_user_id)
         if (region === 'japan' && profile?.line_user_id) {
+          console.log('[LINE] Sending LINE message to:', profile.line_user_id)
           const lineResponse = await fetch('/.netlify/functions/send-line-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2801,12 +2803,16 @@ JSON만 출력.`
             })
           })
 
+          const lineResult = await lineResponse.json()
+          console.log('[LINE] Response:', lineResponse.status, lineResult)
           if (lineResponse.ok) {
             console.log('Cancellation LINE message sent to Japan creator')
             notificationSent = true
           } else {
-            console.error('LINE message send failed:', await lineResponse.text())
+            console.error('LINE message send failed:', lineResult)
           }
+        } else if (region === 'japan' && !profile?.line_user_id) {
+          console.warn('[LINE] No line_user_id for this creator - cannot send LINE message')
         }
 
         // 미국: SMS + WhatsApp 동시 발송 (영어)
