@@ -2783,9 +2783,8 @@ JSON만 출력.`
           notificationSent = true
         }
 
-        // 일본/미국: LINE 메시지 (한글 입력 → 자동 번역)
-        if ((region === 'japan' || region === 'us') && profile?.line_user_id) {
-          const targetLang = region === 'japan' ? 'ja' : 'en'
+        // 일본: LINE 메시지 (한글 입력 → 일본어 자동 번역)
+        if (region === 'japan' && profile?.line_user_id) {
           const lineResponse = await fetch('/.netlify/functions/send-line-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2798,15 +2797,51 @@ JSON만 출력.`
                 reason: cancelReason
               },
               translate: true,
-              targetLanguage: targetLang
+              targetLanguage: 'ja'
             })
           })
 
           if (lineResponse.ok) {
-            console.log(`Cancellation LINE message sent to ${region} creator`)
+            console.log('Cancellation LINE message sent to Japan creator')
             notificationSent = true
           } else {
             console.error('LINE message send failed:', await lineResponse.text())
+          }
+        }
+
+        // 미국: WhatsApp 메시지 (영어)
+        if (region === 'us' && profile?.phone) {
+          const whatsappMessage = `❌ Campaign Selection Cancelled
+
+Hi ${cancellingApp.applicant_name},
+
+Unfortunately, your selection for "${campaign?.title || 'Campaign'}" has been cancelled.
+
+📌 Reason:
+${cancelReason || 'No specific reason provided'}
+
+If you have any questions, please contact our team.
+
+We hope to see you in future campaigns!
+
+- CNEC Team`
+
+          const whatsappResponse = await fetch('/.netlify/functions/send-whatsapp-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phoneNumber: profile.phone,
+              message: whatsappMessage,
+              creatorId: cancellingApp.user_id,
+              creatorName: cancellingApp.applicant_name
+            })
+          })
+
+          if (whatsappResponse.ok) {
+            console.log('Cancellation WhatsApp message sent to US creator')
+            notificationSent = true
+          } else {
+            console.error('WhatsApp message send failed:', await whatsappResponse.text())
           }
         }
       } catch (notificationError) {
@@ -2822,7 +2857,7 @@ JSON만 출력.`
       setCancellingApp(null)
       setCancelReason('')
 
-      const notifyMethod = region === 'korea' ? '알림톡' : 'LINE 메시지'
+      const notifyMethod = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE 메시지' : 'WhatsApp'
       alert(`확정이 취소되었습니다.${notificationSent ? ` ${notifyMethod}가 발송되었습니다.` : ''}`)
     } catch (error) {
       console.error('Error cancelling confirmation:', error)
