@@ -591,10 +591,12 @@ ${textToTranslate}
         if (error) throw error
 
         setSuccess('캠페인이 업데이트되었습니다!')
-        // 4주 챌린지인 경우 전용 가이드 페이지로 이동
+        // 캠페인 타입에 따라 전용 가이드 페이지로 이동
         const guidePath = campaignForm.campaign_type === '4week_challenge'
           ? `/company/campaigns/guide/4week/japan?id=${editId}`
-          : `/company/campaigns/guide/japan?id=${editId}`
+          : campaignForm.campaign_type === 'megawari'
+            ? `/company/campaigns/guide/oliveyoung/japan?id=${editId}`
+            : `/company/campaigns/guide/japan?id=${editId}`
         setTimeout(() => navigate(guidePath), 1500)
       } else {
         const { data, error } = await supabase
@@ -605,10 +607,12 @@ ${textToTranslate}
         if (error) throw error
 
         setSuccess('캠페인이 생성되었습니다!')
-        // 4주 챌린지인 경우 전용 가이드 페이지로 이동
+        // 캠페인 타입에 따라 전용 가이드 페이지로 이동
         const guidePath = campaignForm.campaign_type === '4week_challenge'
           ? `/company/campaigns/guide/4week/japan?id=${data[0].id}`
-          : `/company/campaigns/guide/japan?id=${data[0].id}`
+          : campaignForm.campaign_type === 'megawari'
+            ? `/company/campaigns/guide/oliveyoung/japan?id=${data[0].id}`
+            : `/company/campaigns/guide/japan?id=${data[0].id}`
         setTimeout(() => navigate(guidePath), 1500)
       }
     } catch (err) {
