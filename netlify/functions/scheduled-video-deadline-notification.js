@@ -700,7 +700,7 @@ exports.handler = async (event, context) => {
         // video_submitted, sns_uploaded, completed 제외 (이미 제출 완료)
         const { data: applications, error: appError } = await supabase
           .from('applications')
-          .select('id, user_id, campaign_id, status, applicant_name, creator_name, applicant_phone, creator_phone, applicant_email, creator_email')
+          .select('id, user_id, campaign_id, status')
           .eq('campaign_id', campaign.id)
           .in('status', ['filming', 'selected', 'guide_approved']);
 
@@ -723,10 +723,40 @@ exports.handler = async (event, context) => {
             const campaignName = campaign.title;
             const campaignType = campaign.campaign_type;
 
-            // applications 테이블에서 직접 크리에이터 정보 가져오기
-            const creatorName = app.applicant_name || app.creator_name || '크리에이터';
-            const creatorPhone = app.applicant_phone || app.creator_phone;
-            const creatorEmail = app.applicant_email || app.creator_email;
+            // user_profiles에서 크리에이터 정보 조회
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('name, email, phone')
+              .eq('id', app.user_id)
+              .maybeSingle();
+
+            // user_id로 못 찾으면 user_id 컬럼으로 재시도
+            let creatorProfile = profile;
+            if (!creatorProfile) {
+              const { data: profile2 } = await supabase
+                .from('user_profiles')
+                .select('name, email, phone')
+                .eq('user_id', app.user_id)
+                .maybeSingle();
+              creatorProfile = profile2;
+            }
+
+            if (!creatorProfile) {
+              console.log(`크리에이터 정보 없음 (user_id: ${app.user_id}), 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: '크리에이터 정보 없음'
+              });
+              continue;
+            }
+
+            const creatorName = creatorProfile.name || '크리에이터';
+            const creatorPhone = creatorProfile.phone;
+            const creatorEmail = creatorProfile.email;
 
             if (!creatorPhone && !creatorEmail) {
               console.log(`크리에이터 연락처 없음 (user_id: ${app.user_id}, name: ${creatorName}), 알림 건너뜀`);
