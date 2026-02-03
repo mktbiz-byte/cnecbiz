@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ArrowLeft, CheckCircle, Loader2, CreditCard, Wallet } from 'lucide-react'
@@ -10,6 +9,8 @@ import CompanyNavigation from './CompanyNavigation'
 export default function FourWeekChallengeInvoice() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [paymentMethod, setPaymentMethod] = useState(null) // 'card' or 'bank_transfer'
@@ -53,6 +54,13 @@ export default function FourWeekChallengeInvoice() {
 
   const loadCampaignData = async () => {
     try {
+      const supabase = getSupabaseClient(region)
+      if (!supabase) {
+        console.error(`[FourWeekChallengeInvoice] Supabase client for region "${region}" is null`)
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')

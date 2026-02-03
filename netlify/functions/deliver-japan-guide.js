@@ -292,8 +292,24 @@ exports.handler = async (event) => {
         email_result: null
       };
 
+      // user_profiles에서 line_user_id 조회 (applications에 없는 경우 fallback)
+      let lineUserId = participant.line_user_id;
+      if (!lineUserId && participant.user_id) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('line_user_id')
+          .eq('id', participant.user_id)
+          .single();
+        if (profile?.line_user_id) {
+          lineUserId = profile.line_user_id;
+          console.log(`[deliver-japan-guide] user_profiles에서 line_user_id 조회 성공: ${creatorName}`);
+        }
+      }
+
+      console.log(`[deliver-japan-guide] 참가자: ${creatorName}, line_user_id: ${lineUserId || 'NONE'}, email: ${participant.email || 'NONE'}`);
+
       // LINE 메시지 발송
-      if (send_line !== false && participant.line_user_id) {
+      if (send_line !== false && lineUserId) {
         const lineMessage = `📋 撮影ガイドのお知らせ
 
 ${creatorName}様
@@ -309,14 +325,17 @@ ${guide_url ? `詳細ガイド：${guide_url}` : ''}
 
 CNEC BIZ`;
 
-        const lineResult = await sendLineMessage(participant.line_user_id, lineMessage);
+        const lineResult = await sendLineMessage(lineUserId, lineMessage);
         detail.line_result = lineResult;
+        console.log(`[deliver-japan-guide] LINE 발송 결과: ${creatorName} - ${lineResult.success ? '성공' : '실패: ' + lineResult.error}`);
 
         if (lineResult.success) {
           results.line_sent++;
         } else {
           results.line_failed++;
         }
+      } else if (send_line !== false && !lineUserId) {
+        console.log(`[deliver-japan-guide] LINE 발송 건너뜀 (line_user_id 없음): ${creatorName}`);
       }
 
       // 이메일 발송

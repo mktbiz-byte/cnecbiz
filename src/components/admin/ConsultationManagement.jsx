@@ -140,6 +140,48 @@ export default function ConsultationManagement() {
         ...selectedConsultation,
         records: updatedRecords
       })
+
+      // 네이버웍스 알림 전송
+      try {
+        const recordTypeLabels = {
+          phone: '📞 전화 상담',
+          email: '📧 이메일',
+          meeting: '🤝 미팅',
+          note: '📝 메모'
+        }
+        const typeLabel = recordTypeLabels[recordType] || recordType
+
+        const message = `📋 상담 기록 추가\n\n` +
+          `🏢 기업: ${selectedConsultation.company_name || '미입력'}\n` +
+          `👤 담당자: ${selectedConsultation.name || '미입력'}\n` +
+          `📱 연락처: ${selectedConsultation.phone || '미입력'}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `${typeLabel}\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `${newRecord}\n\n` +
+          `⏰ ${new Date().toLocaleString('ko-KR')}`
+
+        const response = await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            isAdminNotification: true,
+            channelId: 'b9387420-7c8d-e703-0f96-dbfc72565bb5'  // 상담 히스토리 전용 채널
+          })
+        })
+
+        const result = await response.json()
+        if (!response.ok || !result.success) {
+          console.error('네이버웍스 알림 응답 오류:', result)
+        } else {
+          console.log('네이버웍스 알림 전송 성공')
+        }
+      } catch (notifyError) {
+        console.error('네이버웍스 알림 실패:', notifyError)
+        // 알림 실패해도 저장은 성공했으므로 에러 표시 안함
+      }
+
       setNewRecord('')
     } catch (error) {
       console.error('상담 기록 저장 오류:', error)

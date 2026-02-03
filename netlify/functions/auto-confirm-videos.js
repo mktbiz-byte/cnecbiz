@@ -11,9 +11,14 @@ const { createClient } = require('@supabase/supabase-js');
  * schedule = "0 15 * * *"  # UTC 15:00 = KST 00:00
  */
 
+// 중복 실행 방지를 위한 실행 ID
+const EXECUTION_KEY = 'auto-confirm-videos';
+const DUPLICATE_WINDOW_MS = 5 * 60 * 1000; // 5분 내 중복 실행 방지
+
 exports.handler = async (event, context) => {
+  const executionTime = new Date();
   console.log('=== 자동 확정 스케줄러 시작 ===');
-  console.log('실행 시간:', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+  console.log('실행 시간:', executionTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
 
   // Supabase 클라이언트 설정
   const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
@@ -28,6 +33,40 @@ exports.handler = async (event, context) => {
 
   const supabaseKorea = createClient(koreaUrl, koreaKey);
   const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : supabaseKorea;
+
+  // 중복 실행 방지 체크
+  try {
+    const { data: lastExec } = await supabaseBiz
+      .from('scheduler_executions')
+      .select('executed_at')
+      .eq('function_name', EXECUTION_KEY)
+      .order('executed_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (lastExec) {
+      const lastExecTime = new Date(lastExec.executed_at);
+      const timeDiff = executionTime.getTime() - lastExecTime.getTime();
+      if (timeDiff < DUPLICATE_WINDOW_MS) {
+        console.log(`중복 실행 감지: ${Math.round(timeDiff / 1000)}초 전에 실행됨. 스킵합니다.`);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, skipped: true, reason: 'Duplicate execution prevented' })
+        };
+      }
+    }
+
+    // 현재 실행 기록
+    await supabaseBiz
+      .from('scheduler_executions')
+      .upsert({
+        function_name: EXECUTION_KEY,
+        executed_at: executionTime.toISOString()
+      }, { onConflict: 'function_name' });
+  } catch (e) {
+    // scheduler_executions 테이블이 없어도 계속 진행
+    console.log('중복 실행 체크 테이블 없음, 계속 진행:', e.message);
+  }
 
   // 지급 내역 기록용
   const paymentRecords = [];
