@@ -2809,39 +2809,54 @@ JSON만 출력.`
           }
         }
 
-        // 미국: WhatsApp 메시지 (영어)
+        // 미국: SMS + WhatsApp 동시 발송 (영어)
         if (region === 'us' && profile?.phone) {
-          const whatsappMessage = `❌ Campaign Selection Cancelled
+          const usMessage = `[CNEC] Campaign Selection Cancelled
 
 Hi ${cancellingApp.applicant_name},
 
-Unfortunately, your selection for "${campaign?.title || 'Campaign'}" has been cancelled.
+Your selection for "${campaign?.title || 'Campaign'}" has been cancelled.
 
-📌 Reason:
-${cancelReason || 'No specific reason provided'}
+Reason: ${cancelReason || 'No specific reason provided'}
 
-If you have any questions, please contact our team.
-
-We hope to see you in future campaigns!
-
+Questions? Contact us.
 - CNEC Team`
 
-          const whatsappResponse = await fetch('/.netlify/functions/send-whatsapp-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phoneNumber: profile.phone,
-              message: whatsappMessage,
-              creatorId: cancellingApp.user_id,
-              creatorName: cancellingApp.applicant_name
+          // SMS 발송 (Twilio)
+          try {
+            const smsResponse = await fetch('/.netlify/functions/send-sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: profile.phone,
+                message: usMessage
+              })
             })
-          })
+            if (smsResponse.ok) {
+              console.log('Cancellation SMS sent to US creator')
+              notificationSent = true
+            }
+          } catch (smsErr) {
+            console.error('SMS send failed:', smsErr)
+          }
 
-          if (whatsappResponse.ok) {
-            console.log('Cancellation WhatsApp message sent to US creator')
-            notificationSent = true
-          } else {
-            console.error('WhatsApp message send failed:', await whatsappResponse.text())
+          // WhatsApp 발송 (Twilio) - SMS와 병렬로
+          try {
+            const whatsappResponse = await fetch('/.netlify/functions/send-whatsapp-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phoneNumber: profile.phone,
+                message: usMessage,
+                creatorId: cancellingApp.user_id,
+                creatorName: cancellingApp.applicant_name
+              })
+            })
+            if (whatsappResponse.ok) {
+              console.log('Cancellation WhatsApp sent to US creator')
+            }
+          } catch (waErr) {
+            console.error('WhatsApp send failed:', waErr)
           }
         }
       } catch (notificationError) {
@@ -2857,8 +2872,8 @@ We hope to see you in future campaigns!
       setCancellingApp(null)
       setCancelReason('')
 
-      const notifyMethod = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE 메시지' : 'WhatsApp'
-      alert(`확정이 취소되었습니다.${notificationSent ? ` ${notifyMethod}가 발송되었습니다.` : ''}`)
+      const notifyMethod = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE' : 'SMS+WhatsApp'
+      alert(`확정이 취소되었습니다.${notificationSent ? ` ${notifyMethod} 발송 완료` : ''}`)
     } catch (error) {
       console.error('Error cancelling confirmation:', error)
       alert('취소 처리에 실패했습니다: ' + error.message)
