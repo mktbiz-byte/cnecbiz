@@ -651,6 +651,7 @@ export default function CampaignDetail() {
   // Bulk guide delivery modal state (전체 발송 모달)
   const [showBulkGuideModal, setShowBulkGuideModal] = useState(false)
   const [bulkExternalGuideData, setBulkExternalGuideData] = useState({ type: null, url: '', fileUrl: null, fileName: null, title: '' })
+  const [uploadingBulkPdf, setUploadingBulkPdf] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   // Admin SNS/Ad code edit state
@@ -1838,12 +1839,19 @@ export default function CampaignDetail() {
     }
 
     const isJapan = region === 'japan'
+    const isKorea = region === 'korea'
     const regionContext = isJapan
       ? `[일본 시장 특성]
 - 일본 소비자의 라이프스타일에 맞게 작성
 - 정중하고 세련된 표현 사용
 - 제품의 섬세한 디테일과 품질 강조
 - 미니멀하고 깔끔한 촬영 스타일`
+      : isKorea
+      ? `[한국 시장 특성]
+- 한국 소비자 트렌드에 맞게 작성
+- 친근하고 자연스러운 표현 사용
+- 솔직한 리뷰와 실제 사용 후기 강조
+- 트렌디하고 감각적인 촬영 스타일`
       : `[미국 시장 특성]
 - 미국 소비자의 라이프스타일에 맞게 작성
 - 직접적이고 자신감 있는 표현 사용
@@ -1872,8 +1880,9 @@ export default function CampaignDetail() {
       setBulkGuideProgress({ current: i + 1, total: selectedParticipants.length })
 
       try {
+        const targetMarket = isJapan ? '일본' : isKorea ? '한국' : '미국'
         const prompt = `당신은 UGC 영상 촬영 가이드 전문가입니다.
-${isJapan ? '일본' : '미국'} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
+${targetMarket} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
 
 ⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성!
 대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
@@ -1893,7 +1902,7 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 [핵심 요청사항]
 1. ⚡ 첫 번째 씬은 반드시 "훅(Hook)" - 3초 내 시청자 관심 집중
 2. 🔄 B&A(Before & After) 중심 구성
-3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
+3. 📍 ${targetMarket} 라이프스타일 반영
 4. 필수 대사/촬영장면 반드시 포함
 5. 마지막 씬은 CTA로 마무리
 6. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
@@ -1933,9 +1942,14 @@ JSON만 출력.`
           throw new Error('AI 응답에 scenes 배열이 없습니다')
         }
 
-        // 자동 번역 - 영어(US) 또는 일본어(Japan)
+        // 자동 번역 - 한국은 번역 불필요, 일본어(Japan) 또는 영어(US)
         const targetLang = isJapan ? '일본어' : '영어'
-        const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
+        const skipTranslation = isKorea
+        let translations = []
+
+        // 한국은 번역 불필요 (한국어로 생성됨), 일본/미국은 번역 필요
+        if (!skipTranslation) {
+          const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
 자연스럽고 현지화된 표현을 사용하세요.
 
 번역할 내용:
@@ -1948,33 +1962,34 @@ ${result.scenes.map((s, i) => `장면 ${i + 1}:
 {"translations": [{"scene_description": "번역된 장면 설명", "dialogue": "번역된 대사", "shooting_tip": "번역된 촬영 팁"}]}
 JSON만 출력.`
 
-        let translations = []
-        try {
-          // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
-          const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: translatePrompt }] }],
-                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
-              })
-            }
-          )
+          try {
+            const transResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: translatePrompt }] }],
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+                })
+              }
+            )
 
-          if (transResponse.ok) {
-            const transData = await transResponse.json()
-            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
-            const transMatch = transText.match(/\{[\s\S]*\}/)
-            if (transMatch) {
-              const transResult = JSON.parse(transMatch[0])
-              translations = transResult.translations || []
+            if (transResponse.ok) {
+              const transData = await transResponse.json()
+              const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+              const transMatch = transText.match(/\{[\s\S]*\}/)
+              if (transMatch) {
+                const transResult = JSON.parse(transMatch[0])
+                translations = transResult.translations || []
+              }
             }
+            console.log('[Bulk Guide] 번역 완료 - translations:', translations.length)
+          } catch (transErr) {
+            console.error('[Bulk Guide] 번역 실패:', transErr)
           }
-          console.log('[Bulk Guide] 번역 완료 - translations:', translations.length)
-        } catch (transErr) {
-          console.error('[Bulk Guide] 번역 실패:', transErr)
+        } else {
+          console.log('[Bulk Guide] 한국 리전 - 번역 스킵')
         }
 
         const guideData = {
@@ -1991,7 +2006,7 @@ JSON만 출력.`
           dialogue_style: 'natural',
           tempo: 'normal',
           mood: 'bright',
-          target_language: isJapan ? 'japanese' : 'english',
+          target_language: isJapan ? 'japanese' : isKorea ? 'korean' : 'english',
           updated_at: new Date().toISOString()
         }
 
@@ -13140,7 +13155,7 @@ Questions? Contact us.
                     </div>
                   </div>
 
-                  {/* URL 입력 */}
+                  {/* PDF 업로드 또는 URL 입력 */}
                   <div className="p-4 space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -13154,6 +13169,119 @@ Questions? Contact us.
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
+
+                    {/* PDF 파일 업로드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        PDF 파일 업로드
+                      </label>
+                      {bulkExternalGuideData.fileUrl ? (
+                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {bulkExternalGuideData.originalFileName || 'PDF 파일'}
+                              </p>
+                              <a
+                                href={bulkExternalGuideData.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                미리보기
+                              </a>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (bulkExternalGuideData.fileName) {
+                                try {
+                                  const client = getSupabaseClient(region)
+                                  await client.storage.from('campaign-images').remove([bulkExternalGuideData.fileName])
+                                } catch (e) {
+                                  console.warn('파일 삭제 실패:', e)
+                                }
+                              }
+                              setBulkExternalGuideData(prev => ({ ...prev, fileUrl: null, fileName: null, originalFileName: null }))
+                            }}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                          <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-xs text-gray-500 mb-2">PDF 파일 (최대 50MB)</p>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            className="hidden"
+                            id="bulk-pdf-upload"
+                            disabled={uploadingBulkPdf}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              if (file.type !== 'application/pdf') {
+                                alert('PDF 파일만 업로드 가능합니다.')
+                                return
+                              }
+                              if (file.size > 50 * 1024 * 1024) {
+                                alert('파일 크기는 50MB 이하만 가능합니다.')
+                                return
+                              }
+                              setUploadingBulkPdf(true)
+                              try {
+                                const client = getSupabaseClient(region)
+                                const timestamp = Date.now()
+                                const filePath = `guides/bulk_guide_${campaign.id}_${timestamp}.pdf`
+                                const { error: uploadError } = await client.storage
+                                  .from('campaign-images')
+                                  .upload(filePath, file, { cacheControl: '3600', upsert: true })
+                                if (uploadError) throw uploadError
+                                const { data: { publicUrl } } = client.storage
+                                  .from('campaign-images')
+                                  .getPublicUrl(filePath)
+                                setBulkExternalGuideData(prev => ({
+                                  ...prev,
+                                  type: 'pdf',
+                                  fileUrl: publicUrl,
+                                  fileName: filePath,
+                                  originalFileName: file.name,
+                                  title: prev.title || file.name.replace('.pdf', '')
+                                }))
+                              } catch (err) {
+                                console.error('PDF 업로드 실패:', err)
+                                alert('업로드 실패: ' + err.message)
+                              } finally {
+                                setUploadingBulkPdf(false)
+                                e.target.value = ''
+                              }
+                            }}
+                          />
+                          <label htmlFor="bulk-pdf-upload">
+                            <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg cursor-pointer ${uploadingBulkPdf ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
+                              {uploadingBulkPdf ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> 업로드 중...</>
+                              ) : (
+                                <><Upload className="w-3 h-3" /> 파일 선택</>
+                              )}
+                            </span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 구분선 */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 border-t border-gray-200"></div>
+                      <span className="text-xs text-gray-400">또는</span>
+                      <div className="flex-1 border-t border-gray-200"></div>
+                    </div>
+
+                    {/* URL 입력 */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         가이드 URL
@@ -13164,13 +13292,17 @@ Questions? Contact us.
                         onChange={(e) => setBulkExternalGuideData(prev => ({ ...prev, url: e.target.value }))}
                         placeholder="https://docs.google.com/... 또는 PDF URL"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!!bulkExternalGuideData.fileUrl}
                       />
+                      {bulkExternalGuideData.fileUrl && (
+                        <p className="text-xs text-gray-400 mt-1">PDF 파일이 업로드되어 URL 입력이 비활성화됩니다.</p>
+                      )}
                     </div>
 
                     {/* 발송 버튼 */}
                     <Button
                       onClick={() => handleBulkGuideDelivery('external')}
-                      disabled={sendingBulkGuideEmail || (!bulkExternalGuideData.url && !bulkExternalGuideData.fileUrl)}
+                      disabled={sendingBulkGuideEmail || uploadingBulkPdf || (!bulkExternalGuideData.url && !bulkExternalGuideData.fileUrl)}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                     >
                       {sendingBulkGuideEmail ? (
