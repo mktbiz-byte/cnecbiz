@@ -477,13 +477,27 @@ exports.handler = async (event) => {
     // 크리에이터 정보 조회
     if (creatorId) {
       console.log(`[send-japan-notification] creatorId로 조회: ${creatorId}`);
+      // 먼저 id 컬럼으로 시도
       const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('id', creatorId)
-        .single();
-      creator = c;
-      if (e) console.log(`[send-japan-notification] creatorId 조회 오류: ${e.message}`);
+        .maybeSingle();
+
+      if (c) {
+        creator = c;
+      } else {
+        // id로 못 찾으면 user_id 컬럼으로 재시도
+        console.log(`[send-japan-notification] id로 못 찾음, user_id 컬럼으로 재시도`);
+        const { data: c2, error: e2 } = await supabase
+          .from('user_profiles')
+          .select('id, name, email, phone, line_user_id')
+          .eq('user_id', creatorId)
+          .maybeSingle();
+        creator = c2;
+        if (e2) console.log(`[send-japan-notification] user_id 조회 오류: ${e2.message}`);
+      }
+      if (e) console.log(`[send-japan-notification] id 조회 오류: ${e.message}`);
     } else if (creatorEmail) {
       console.log(`[send-japan-notification] creatorEmail로 조회: ${creatorEmail}`);
       const { data: c, error: e } = await supabase

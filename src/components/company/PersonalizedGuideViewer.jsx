@@ -1625,17 +1625,49 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                   </td>
                   <td className="px-4 py-3">
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={scene.shooting_tip}
-                        onChange={(e) => {
-                          const newScenes = [...editedGuide.shooting_scenes]
-                          newScenes[index].shooting_tip = e.target.value
-                          setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
-                        }}
-                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                        placeholder="촬영 팁"
-                      />
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={scene.shooting_tip}
+                          onChange={(e) => {
+                            const newScenes = [...editedGuide.shooting_scenes]
+                            newScenes[index].shooting_tip = e.target.value
+                            setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                          }}
+                          className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                          placeholder="촬영 팁"
+                        />
+                        {/* 자율 공간 편집 */}
+                        <div>
+                          <label className="text-[10px] font-semibold text-orange-600 mb-0.5 block">🎨 자율 공간</label>
+                          <textarea
+                            value={scene.flexibility_note || ''}
+                            onChange={(e) => {
+                              const newScenes = [...editedGuide.shooting_scenes]
+                              newScenes[index].flexibility_note = e.target.value
+                              setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                            }}
+                            className="w-full px-3 py-1.5 border border-orange-200 rounded-lg text-xs focus:ring-2 focus:ring-orange-400 bg-orange-50/50 resize-none"
+                            placeholder="자율 공간 내용"
+                            rows={2}
+                          />
+                        </div>
+                        {/* 예시 편집 */}
+                        <div>
+                          <label className="text-[10px] font-semibold text-indigo-600 mb-0.5 block">💡 예시</label>
+                          <textarea
+                            value={scene.example_scenario || ''}
+                            onChange={(e) => {
+                              const newScenes = [...editedGuide.shooting_scenes]
+                              newScenes[index].example_scenario = e.target.value
+                              setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                            }}
+                            className="w-full px-3 py-1.5 border border-indigo-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400 bg-indigo-50/50 resize-none"
+                            placeholder="예시 시나리오"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-1">
                         <div className="flex items-start gap-1.5">

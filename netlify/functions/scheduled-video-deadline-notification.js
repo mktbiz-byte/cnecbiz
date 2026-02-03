@@ -598,13 +598,12 @@ exports.handler = async (event, context) => {
     console.log('2일 후 마감:', in2DaysStr);
     console.log('3일 후 마감:', in3DaysStr);
 
-    // 캠페인 데이터는 BIZ DB와 Korea DB에 저장됨
+    // 캠페인 데이터는 Korea DB에 저장됨 (BIZ DB는 campaigns 테이블 스키마가 다름)
     const regions = [
-      { name: 'biz', url: process.env.VITE_SUPABASE_BIZ_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_ANON_KEY },
       { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY }
     ];
 
-    console.log('📢 영상 제출 마감일 알림 - BIZ DB + Korea DB 조회');
+    console.log('📢 영상 제출 마감일 알림 - Korea DB 조회');
 
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
     const deadlineDates = [
@@ -724,40 +723,53 @@ exports.handler = async (event, context) => {
             const campaignName = campaign.title;
             const campaignType = campaign.campaign_type;
 
-            // user_profiles에서 크리에이터 정보 조회 (email 포함)
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('name, channel_name, phone, phone_number, email')
-            .eq('id', app.user_id)
-            .maybeSingle();
-
-          // id로 못 찾으면 user_id로 재시도
-          let creatorProfile = profile;
-          if (!creatorProfile) {
-            const { data: profile2 } = await supabase
+            // user_profiles에서 크리에이터 정보 조회
+            const { data: profile } = await supabase
               .from('user_profiles')
-              .select('name, channel_name, phone, phone_number, email')
-              .eq('user_id', app.user_id)
+              .select('name, email, phone')
+              .eq('id', app.user_id)
               .maybeSingle();
-            creatorProfile = profile2;
-          }
 
-          if (!creatorProfile) {
-            console.log(`크리에이터 정보 없음 (user_id: ${app.user_id}), 알림 건너뜀`);
-            allResults.push({
-              userId: app.user_id,
-              campaignName,
-              deadline: date,
-              label,
-              status: 'skipped',
-              reason: '크리에이터 정보 없음'
-            });
-            continue;
-          }
+            // user_id로 못 찾으면 user_id 컬럼으로 재시도
+            let creatorProfile = profile;
+            if (!creatorProfile) {
+              const { data: profile2 } = await supabase
+                .from('user_profiles')
+                .select('name, email, phone')
+                .eq('user_id', app.user_id)
+                .maybeSingle();
+              creatorProfile = profile2;
+            }
 
-          const creatorName = creatorProfile.channel_name || creatorProfile.name || '크리에이터';
-          const creatorPhone = creatorProfile.phone || creatorProfile.phone_number;
-          const creatorEmail = creatorProfile.email;
+            if (!creatorProfile) {
+              console.log(`크리에이터 정보 없음 (user_id: ${app.user_id}), 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: '크리에이터 정보 없음'
+              });
+              continue;
+            }
+
+            const creatorName = creatorProfile.name || '크리에이터';
+            const creatorPhone = creatorProfile.phone;
+            const creatorEmail = creatorProfile.email;
+
+            if (!creatorPhone && !creatorEmail) {
+              console.log(`크리에이터 연락처 없음 (user_id: ${app.user_id}, name: ${creatorName}), 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: '연락처 없음'
+              });
+              continue;
+            }
 
           // 캠페인 타입에 따라 해당 마감일의 영상이 제출됐는지 확인
           let targetVideoNumber = null; // 확인할 영상 번호 (week_number 또는 video_number)

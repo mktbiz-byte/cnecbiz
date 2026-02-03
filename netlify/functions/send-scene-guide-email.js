@@ -1,7 +1,7 @@
 /**
  * 씬 가이드 이메일 전송 Function
- * US/Japan 캠페인용 10씬 가이드를 크리에이터에게 이메일로 전송
- * 모바일 최적화 버전
+ * Korea/Japan/US 캠페인용 씬 가이드를 크리에이터에게 이메일로 전송
+ * 모바일 최적화 버전 - 3개 리전 지원
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -61,11 +61,21 @@ const SCENE_TYPE_TRANSLATIONS = {
 function translateSceneType(sceneType, region) {
   if (!sceneType) return ''
 
+  // Korea: 원본 한국어 그대로 사용
+  if (region === 'korea') return sceneType
+
   const lang = region === 'japan' ? 'ja' : 'en'
   const translations = SCENE_TYPE_TRANSLATIONS[lang]
 
   // Return translated value if exists, otherwise return original (might already be in target language)
   return translations[sceneType] || sceneType
+}
+
+// 리전별 텍스트 헬퍼
+function getLocaleText(region, ko, ja, en) {
+  if (region === 'korea') return ko
+  if (region === 'japan') return ja
+  return en
 }
 
 exports.handler = async (event) => {
@@ -83,14 +93,18 @@ exports.handler = async (event) => {
       }
     }
 
-    // Supabase client setup
-    const supabaseUrl = region === 'japan'
-      ? process.env.VITE_SUPABASE_JAPAN_URL
-      : process.env.VITE_SUPABASE_US_URL
-
-    const supabaseKey = region === 'japan'
-      ? process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY
-      : process.env.VITE_SUPABASE_US_SERVICE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY
+    // Supabase client setup (리전별)
+    let supabaseUrl, supabaseKey
+    if (region === 'korea') {
+      supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
+    } else if (region === 'japan') {
+      supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
+      supabaseKey = process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+    } else {
+      supabaseUrl = process.env.VITE_SUPABASE_US_URL
+      supabaseKey = process.env.VITE_SUPABASE_US_SERVICE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -114,9 +128,9 @@ exports.handler = async (event) => {
       }
     })
 
-    // Generate mobile-optimized email HTML
+    // Generate mobile-optimized email HTML (Korea/Japan/US 3개 리전 지원)
     const generateEmailHtml = (creatorName) => {
-      const isJapanese = region === 'japan'
+      const t = (ko, ja, en) => getLocaleText(region, ko, ja, en)
 
       const sceneCards = guide_content.scenes.map(scene => `
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: white; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -131,20 +145,20 @@ exports.handler = async (event) => {
                     </div>
                   </td>
                   <td valign="middle" style="padding-left: 8px;">
-                    <span style="font-weight: bold; font-size: 15px; color: #1F2937;">Scene ${scene.order}</span>
+                    <span style="font-weight: bold; font-size: 15px; color: #1F2937;">${t('씬', 'Scene', 'Scene')} ${scene.order}</span>
                     ${scene.scene_type ? `<br><span style="background: #E0E7FF; color: #4338CA; padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block; margin-top: 4px;">${translateSceneType(scene.scene_type, region)}</span>` : ''}
                   </td>
                 </tr>
               </table>
               ${scene.scene_description ? `
                 <div style="margin-bottom: 10px;">
-                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">📹 ${isJapanese ? '撮影シーン' : 'Scene Description'}</div>
+                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">📹 ${t('촬영 씬', '撮影シーン', 'Scene Description')}</div>
                   <div style="background: #F9FAFB; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.5; color: #374151;">${scene.scene_description}</div>
                 </div>
               ` : ''}
               ${scene.dialogue ? `
                 <div style="margin-bottom: 10px;">
-                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">💬 ${isJapanese ? 'セリフ' : 'Dialogue'}</div>
+                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">💬 ${t('대사', 'セリフ', 'Dialogue')}</div>
                   <div style="background: #EEF2FF; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.5; border-left: 3px solid #6366F1; color: #3730A3;">
                     "${scene.dialogue}"
                   </div>
@@ -152,7 +166,7 @@ exports.handler = async (event) => {
               ` : ''}
               ${scene.shooting_tip ? `
                 <div>
-                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">💡 ${isJapanese ? '撮影ヒント' : 'Shooting Tip'}</div>
+                  <div style="font-size: 11px; color: #6B7280; margin-bottom: 4px;">💡 ${t('촬영 팁', '撮影ヒント', 'Shooting Tip')}</div>
                   <div style="background: #FEF3C7; padding: 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; color: #92400E;">${scene.shooting_tip}</div>
                 </div>
               ` : ''}
@@ -165,7 +179,7 @@ exports.handler = async (event) => {
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: white; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="padding: 16px;">
-              <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 10px;">🎯 ${isJapanese ? '必須セリフ' : 'Required Dialogues'}</div>
+              <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 10px;">🎯 ${t('필수 대사', '必須セリフ', 'Required Dialogues')}</div>
               <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.6;">
                 ${guide_content.required_dialogues.filter(d => d?.trim()).map(d => `<li style="margin-bottom: 6px;">${d}</li>`).join('')}
               </ul>
@@ -178,7 +192,7 @@ exports.handler = async (event) => {
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: white; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="padding: 16px;">
-              <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 10px;">📸 ${isJapanese ? '必須撮影シーン' : 'Required Scenes'}</div>
+              <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 10px;">📸 ${t('필수 촬영 씬', '必須撮影シーン', 'Required Scenes')}</div>
               <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.6;">
                 ${guide_content.required_scenes.filter(s => s?.trim()).map(s => `<li style="margin-bottom: 6px;">${s}</li>`).join('')}
               </ul>
@@ -223,7 +237,7 @@ exports.handler = async (event) => {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #3B82F6 100%); padding: 24px 20px; border-radius: 16px 16px 0 0; text-align: center;">
-              <div class="mobile-title" style="color: white; margin: 0; font-size: 24px; font-weight: bold; line-height: 1.2;">Creator Guide</div>
+              <div class="mobile-title" style="color: white; margin: 0; font-size: 24px; font-weight: bold; line-height: 1.2;">${t('촬영 가이드', 'Creator Guide', 'Creator Guide')}</div>
               <div style="color: rgba(255,255,255,0.9); margin-top: 8px; font-size: 14px; line-height: 1.4;">
                 ${guide_content.campaign_title}
               </div>
@@ -239,10 +253,11 @@ exports.handler = async (event) => {
                 <tr>
                   <td style="padding: 16px;">
                     <div class="mobile-text" style="font-size: 14px; color: #1F2937; line-height: 1.6;">
-                      ${isJapanese
-                        ? `${creatorName}様、こんにちは！<br><br>このたびは「${guide_content.campaign_title}」キャンペーンにご参加いただき、誠にありがとうございます。<br>以下の撮影ガイドをご確認ください。`
-                        : `Hi ${creatorName}!<br><br>Thank you for participating in the "${guide_content.campaign_title}" campaign.<br>Please review the shooting guide below.`
-                      }
+                      ${t(
+                        `${creatorName}님, 안녕하세요!<br><br>"${guide_content.campaign_title}" 캠페인에 참여해 주셔서 감사합니다.<br>아래 촬영 가이드를 확인해 주세요.`,
+                        `${creatorName}様、こんにちは！<br><br>このたびは「${guide_content.campaign_title}」キャンペーンにご参加いただき、誠にありがとうございます。<br>以下の撮影ガイドをご確認ください。`,
+                        `Hi ${creatorName}!<br><br>Thank you for participating in the "${guide_content.campaign_title}" campaign.<br>Please review the shooting guide below.`
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -259,13 +274,14 @@ exports.handler = async (event) => {
                         </td>
                         <td valign="top" style="padding-left: 8px;">
                           <div style="font-weight: 600; color: #92400E; font-size: 13px; margin-bottom: 4px;">
-                            ${isJapanese ? '注意事項' : 'Notice'}
+                            ${t('안내사항', '注意事項', 'Notice')}
                           </div>
                           <div style="color: #B45309; font-size: 12px; line-height: 1.5;">
-                            ${isJapanese
-                              ? 'このガイドは100%同一に撮影するものではなく、クリエイターのスタイルに合わせて変更して撮影することができます。'
-                              : 'This guide does not need to be followed exactly. Feel free to adapt the content to match your personal style.'
-                            }
+                            ${t(
+                              '이 가이드는 100% 동일하게 촬영하는 것이 아니라, 크리에이터님의 스타일에 맞게 변경하여 촬영하실 수 있습니다.',
+                              'このガイドは100%同一に撮影するものではなく、クリエイターのスタイルに合わせて変更して撮影することができます。',
+                              'This guide does not need to be followed exactly. Feel free to adapt the content to match your personal style.'
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -279,21 +295,21 @@ exports.handler = async (event) => {
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: white; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <tr>
                   <td style="padding: 16px;">
-                    <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 12px;">🎬 ${isJapanese ? '動画スタイル' : 'Video Style'}</div>
+                    <div style="font-weight: bold; font-size: 14px; color: #1F2937; margin-bottom: 12px;">🎬 ${t('영상 스타일', '動画スタイル', 'Video Style')}</div>
                     <div>
                       ${guide_content.dialogue_style ? `
                         <span style="display: inline-block; background: #DBEAFE; color: #1E40AF; padding: 5px 10px; border-radius: 16px; font-size: 12px; margin: 0 4px 6px 0;">
-                          ${isJapanese ? 'スタイル' : 'Style'}: ${guide_content.dialogue_style}
+                          ${t('스타일', 'スタイル', 'Style')}: ${guide_content.dialogue_style}
                         </span>
                       ` : ''}
                       ${guide_content.tempo ? `
                         <span style="display: inline-block; background: #D1FAE5; color: #065F46; padding: 5px 10px; border-radius: 16px; font-size: 12px; margin: 0 4px 6px 0;">
-                          ${isJapanese ? 'テンポ' : 'Tempo'}: ${guide_content.tempo}
+                          ${t('템포', 'テンポ', 'Tempo')}: ${guide_content.tempo}
                         </span>
                       ` : ''}
                       ${guide_content.mood ? `
                         <span style="display: inline-block; background: #FEE2E2; color: #991B1B; padding: 5px 10px; border-radius: 16px; font-size: 12px; margin: 0 4px 6px 0;">
-                          ${isJapanese ? '雰囲気' : 'Mood'}: ${guide_content.mood}
+                          ${t('분위기', '雰囲気', 'Mood')}: ${guide_content.mood}
                         </span>
                       ` : ''}
                     </div>
@@ -308,7 +324,7 @@ exports.handler = async (event) => {
 
               <!-- Scenes Title -->
               <div style="font-size: 16px; font-weight: bold; color: #1F2937; margin-bottom: 12px;">
-                📋 ${isJapanese ? '撮影シーン一覧' : 'Scene Breakdown'} (${guide_content.scenes.length} ${isJapanese ? 'シーン' : 'Scenes'})
+                📋 ${t('촬영 씬 구성', '撮影シーン一覧', 'Scene Breakdown')} (${guide_content.scenes.length} ${t('씬', 'シーン', 'Scenes')})
               </div>
 
               <!-- Scene Cards -->
@@ -319,10 +335,11 @@ exports.handler = async (event) => {
                 <tr>
                   <td style="padding: 16px; text-align: center;">
                     <div style="color: #6B7280; font-size: 12px; line-height: 1.5; margin-bottom: 8px;">
-                      ${isJapanese
-                        ? 'ご不明な点がございましたら、お気軽にお問い合わせください。'
-                        : 'If you have any questions, please feel free to contact us.'
-                      }
+                      ${t(
+                        '문의사항이 있으시면 언제든지 연락 주세요.',
+                        'ご不明な点がございましたら、お気軽にお問い合わせください。',
+                        'If you have any questions, please feel free to contact us.'
+                      )}
                     </div>
                     <div style="color: #9CA3AF; font-size: 11px;">
                       © ${new Date().getFullYear()} CNEC BIZ
@@ -354,10 +371,13 @@ exports.handler = async (event) => {
       }
 
       try {
-        const emailHtml = generateEmailHtml(creator.name || 'Creator')
-        const subject = region === 'japan'
-          ? `【撮影ガイド】${guide_content.campaign_title}`
-          : `[Creator Guide] ${guide_content.campaign_title}`
+        const emailHtml = generateEmailHtml(creator.name || getLocaleText(region, '크리에이터', 'Creator', 'Creator'))
+        const subject = getLocaleText(
+          region,
+          `[크넥] 촬영 가이드 - ${guide_content.campaign_title}`,
+          `【撮影ガイド】${guide_content.campaign_title}`,
+          `[Creator Guide] ${guide_content.campaign_title}`
+        )
 
         await transporter.sendMail({
           from: `"CNEC BIZ" <${gmailUser}>`,

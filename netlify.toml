@@ -58,7 +58,10 @@
   schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
 
 [functions."scheduled-video-deadline-notification"]
-  schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
+  schedule = "15 1 * * *"  # 매일 오전 10:15 (KST) - 마감 전 알림 (3일전/2일전/당일)
+
+[functions."scheduled-video-overdue-notification"]
+  schedule = "15 1 * * *"  # 매일 오전 10:15 (KST) - 마감 지연 알림 (1일/3일/5일 지연)
 
 # 자동 확정 스케줄 비활성화 - 수동으로 처리
 # [functions."auto-confirm-videos"]

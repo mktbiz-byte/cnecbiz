@@ -364,13 +364,27 @@ exports.handler = async (event) => {
     // 크리에이터 정보 조회
     if (creatorId) {
       console.log(`[send-us-notification] Looking up by creatorId: ${creatorId}`);
+      // 먼저 id 컬럼으로 시도
       const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('id', creatorId)
-        .single();
-      creator = c;
-      if (e) console.log(`[send-us-notification] creatorId lookup error: ${e.message}`);
+        .maybeSingle();
+
+      if (c) {
+        creator = c;
+      } else {
+        // id로 못 찾으면 user_id 컬럼으로 재시도
+        console.log(`[send-us-notification] id lookup failed, trying user_id column`);
+        const { data: c2, error: e2 } = await supabase
+          .from('user_profiles')
+          .select('id, name, email, phone, line_user_id')
+          .eq('user_id', creatorId)
+          .maybeSingle();
+        creator = c2;
+        if (e2) console.log(`[send-us-notification] user_id lookup error: ${e2.message}`);
+      }
+      if (e) console.log(`[send-us-notification] id lookup error: ${e.message}`);
     } else if (creatorEmail) {
       console.log(`[send-us-notification] Looking up by creatorEmail: ${creatorEmail}`);
       const { data: c, error: e } = await supabase
@@ -409,6 +423,7 @@ exports.handler = async (event) => {
     const messages = template(data);
     const results = {
       line: { attempted: false, success: false },
+      sms: { attempted: false, success: false },
       email: { attempted: false, success: false }
     };
 
@@ -422,7 +437,30 @@ exports.handler = async (event) => {
       console.log(`[US Notification] LINE result:`, lineResult);
     }
 
-    // 2. 이메일 발송 (항상)
+    // 2. SMS 발송 (LINE 미등록 시 또는 항상)
+    if (creator.phone && !results.line.success) {
+      results.sms.attempted = true;
+      try {
+        const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+        const smsResponse = await fetch(`${baseUrl}/.netlify/functions/send-sms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: creator.phone,
+            message: messages.line.substring(0, 160)  // SMS는 160자 제한
+          })
+        });
+        const smsResult = await smsResponse.json();
+        results.sms.success = smsResult.success || false;
+        results.sms.error = smsResult.error;
+        console.log(`[US Notification] SMS result:`, smsResult);
+      } catch (smsError) {
+        results.sms.error = smsError.message;
+        console.error(`[US Notification] SMS error:`, smsError.message);
+      }
+    }
+
+    // 3. 이메일 발송 (항상)
     if (creator.email) {
       results.email.attempted = true;
 
@@ -440,7 +478,7 @@ exports.handler = async (event) => {
     }
 
     // 결과 요약
-    const anySuccess = results.line.success || results.email.success;
+    const anySuccess = results.line.success || results.sms.success || results.email.success;
 
     return {
       statusCode: anySuccess ? 200 : 500,
@@ -448,7 +486,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: anySuccess,
         message: anySuccess
-          ? `Notification sent (LINE: ${results.line.success}, Email: ${results.email.success})`
+          ? `Notification sent (LINE: ${results.line.success}, SMS: ${results.sms.success}, Email: ${results.email.success})`
           : 'All notifications failed',
         results,
         creatorId: creator.id

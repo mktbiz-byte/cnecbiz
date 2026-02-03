@@ -147,6 +147,18 @@ const MESSAGE_TEMPLATES = {
     text: `🎯 ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnectotal.netlify.app/creator/mypage'}`
   }),
 
+  // 선정 취소 알림
+  selection_cancelled: (data) => ({
+    type: 'text',
+    text: `❌ 캠페인 선정 취소 안내\n\n${data.creatorName}님, 안타깝게도 "${data.campaignName}" 캠페인 선정이 취소되었습니다.\n\n📌 취소 사유:\n${data.reason || '별도 안내 없음'}\n\n문의사항이 있으시면 담당자에게 연락 부탁드립니다.\n\n다른 캠페인 참여 기회를 기다려주세요!`
+  }),
+
+  // 가이드 전달 알림
+  guide_delivered: (data) => ({
+    type: 'text',
+    text: `📋 촬영 가이드 전달\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 촬영 가이드가 도착했습니다!\n\n📅 제출 마감일: ${data.deadline || '확인 필요'}\n\n이메일을 확인하시고 가이드에 따라 촬영을 진행해주세요.\n\n문의사항이 있으시면 언제든 연락 주세요! 🙏`
+  }),
+
   // 일반 알림
   general: (data) => ({
     type: 'text',
@@ -253,11 +265,25 @@ exports.handler = async (event) => {
     }
     // 3. creatorId로 조회
     else if (creatorId) {
-      const { data: creator } = await supabase
+      // 먼저 id 컬럼으로 시도
+      let creator = null;
+      const { data: c1 } = await supabase
         .from('user_profiles')
         .select('line_user_id, name')
         .eq('id', creatorId)
-        .single();
+        .maybeSingle();
+
+      if (c1) {
+        creator = c1;
+      } else {
+        // id로 못 찾으면 user_id 컬럼으로 재시도
+        const { data: c2 } = await supabase
+          .from('user_profiles')
+          .select('line_user_id, name')
+          .eq('user_id', creatorId)
+          .maybeSingle();
+        creator = c2;
+      }
 
       if (creator?.line_user_id) {
         targetUserIds = [creator.line_user_id];
@@ -266,14 +292,30 @@ exports.handler = async (event) => {
     }
     // 4. 여러 creatorId로 조회
     else if (creatorIds && Array.isArray(creatorIds)) {
-      const { data: creators } = await supabase
+      // id 컬럼으로 조회
+      const { data: creators1 } = await supabase
         .from('user_profiles')
-        .select('line_user_id')
+        .select('id, line_user_id')
         .in('id', creatorIds)
         .not('line_user_id', 'is', null);
 
-      if (creators) {
-        targetUserIds = creators.map(c => c.line_user_id);
+      const foundIds = (creators1 || []).map(c => c.id);
+      const notFoundIds = creatorIds.filter(id => !foundIds.includes(id));
+
+      // 못 찾은 id들은 user_id 컬럼으로 재시도
+      let creators2 = [];
+      if (notFoundIds.length > 0) {
+        const { data: c2 } = await supabase
+          .from('user_profiles')
+          .select('line_user_id')
+          .in('user_id', notFoundIds)
+          .not('line_user_id', 'is', null);
+        creators2 = c2 || [];
+      }
+
+      const allCreators = [...(creators1 || []), ...creators2];
+      if (allCreators.length > 0) {
+        targetUserIds = allCreators.map(c => c.line_user_id);
       }
     }
     // 5. 이메일로 조회

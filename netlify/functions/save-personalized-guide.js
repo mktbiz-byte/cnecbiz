@@ -37,20 +37,26 @@ export async function handler(event) {
     }
 
     // Get the appropriate Supabase URL and service_role_key based on region
+    // 환경변수 이름이 프로젝트마다 다를 수 있으므로 여러 이름으로 fallback
     let supabaseUrl, serviceRoleKey
 
     switch (region) {
       case 'korea':
         supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
-        serviceRoleKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        serviceRoleKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+          || process.env.VITE_SUPABASE_KOREA_SERVICE_KEY
         break
       case 'japan':
         supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
-        serviceRoleKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        serviceRoleKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+          || process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY
+          || process.env.SUPABASE_JAPAN_SERVICE_KEY
         break
       case 'us':
         supabaseUrl = process.env.VITE_SUPABASE_US_URL
-        serviceRoleKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        serviceRoleKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+          || process.env.VITE_SUPABASE_US_SERVICE_KEY
+          || process.env.SUPABASE_US_SERVICE_KEY
         break
       default:
         return {
