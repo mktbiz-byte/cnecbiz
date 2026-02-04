@@ -146,10 +146,20 @@ const columnLetterToIndex = (letter) => {
   return result - 1
 }
 
-// 이메일 유효성 검사
+// 이메일 유효성 검사 (Unicode 특수문자 이메일 필터링)
 const isValidEmail = (email) => {
+  // 기본 형식 체크
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return re.test(email)
+  if (!re.test(email)) return false
+
+  // Unicode 수학 기호/특수 스타일 문자 필터 (Stibee에서 failWrongEmail 발생)
+  // Mathematical Alphanumeric Symbols: U+1D400-U+1D7FF
+  // Enclosed Alphanumerics: U+2460-U+24FF
+  // 일반 ASCII 범위(0x20-0x7E)와 일부 확장 문자만 허용
+  const hasUnicodeSpecial = /[^\x20-\x7E\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/.test(email)
+  if (hasUnicodeSpecial) return false
+
+  return true
 }
 
 // 기존 가입자/크리에이터 필터링
@@ -380,9 +390,19 @@ exports.handler = async (event) => {
             try { syncedEmails = new Set(JSON.parse(syncedData.value)) } catch (e) { /* ignore */ }
           }
 
-          // 4c. 새 이메일 필터
-          const newSubscribers = sheetResult.data.filter(s => !syncedEmails.has(s.email))
-          console.log(`[sync_to_stibee] ${regionKey}: sheet=${sheetResult.data.length}, synced=${syncedEmails.size}, new=${newSubscribers.length}`)
+          // 4c. 이메일 중복 제거 (같은 시트 내 중복)
+          const uniqueMap = new Map()
+          for (const s of sheetResult.data) {
+            if (!uniqueMap.has(s.email)) {
+              uniqueMap.set(s.email, s)
+            }
+          }
+          const uniqueData = [...uniqueMap.values()]
+          const dedupCount = sheetResult.data.length - uniqueData.length
+
+          // 새 이메일 필터
+          const newSubscribers = uniqueData.filter(s => !syncedEmails.has(s.email))
+          console.log(`[sync_to_stibee] ${regionKey}: sheet=${sheetResult.data.length}, dedup=${dedupCount}, unique=${uniqueData.length}, synced=${syncedEmails.size}, new=${newSubscribers.length}`)
 
           if (newSubscribers.length === 0) {
             results.push({ region: regionKey, status: 'skip', message: '변경없음', total: sheetResult.data.length, syncedCount: syncedEmails.size })
@@ -391,11 +411,25 @@ exports.handler = async (event) => {
 
           // 4d. 스티비 주소록에 추가 (직접 API 호출)
           const stibeeResults = { success: 0, update: 0, fail: 0 }
-          const groupIds = config.stibeeGroupId ? [Number(config.stibeeGroupId)] : []
+          // groupIds는 문자열 배열이어야 함 (숫자 아님! Go 파싱 에러 방지)
+          const groupIds = config.stibeeGroupId ? [String(config.stibeeGroupId)] : []
           const BATCH_SIZE = 100
 
           for (let bi = 0; bi < newSubscribers.length; bi += BATCH_SIZE) {
             const batch = newSubscribers.slice(bi, bi + BATCH_SIZE)
+
+            // groupIds를 구독자 추가 요청에 직접 포함 (별도 API 아님)
+            const requestBody = {
+              eventOccuredBy: 'MANUAL',
+              confirmEmailYN: 'N',
+              subscribers: batch.map(s => ({
+                email: s.email,
+                name: s.name || ''
+              }))
+            }
+            if (groupIds.length > 0) {
+              requestBody.groupIds = groupIds
+            }
 
             const addRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
               method: 'POST',
@@ -403,14 +437,7 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json',
                 'AccessToken': stibeeApiKey
               },
-              body: JSON.stringify({
-                eventOccuredBy: 'MANUAL',
-                confirmEmailYN: 'N',
-                subscribers: batch.map(s => ({
-                  email: s.email,
-                  name: s.name || ''
-                }))
-              })
+              body: JSON.stringify(requestBody)
             })
 
             if (!addRes.ok) {
@@ -424,35 +451,25 @@ exports.handler = async (event) => {
             console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} result:`, JSON.stringify(addResult).substring(0, 500))
 
             const value = addResult.Value || addResult.value || {}
-            // 배열인지 확인하고 안전하게 처리
+            // 스티비 API 실제 응답 필드명 사용
             const successArr = Array.isArray(value.success) ? value.success : []
             const updateArr = Array.isArray(value.update) ? value.update : []
-            const failDupArr = Array.isArray(value.failDuplicate) ? value.failDuplicate : []
-            const failUnkArr = Array.isArray(value.failUnknown) ? value.failUnknown : []
+            // 실패 필드: failDuplicatedEmail, failWrongEmail, failValidation, failNoEmail, failExistEmail, failUnknown 등
+            const failDupEmailArr = Array.isArray(value.failDuplicatedEmail) ? value.failDuplicatedEmail : []
+            const failWrongEmailArr = Array.isArray(value.failWrongEmail) ? value.failWrongEmail : []
+            const failValidationArr = Array.isArray(value.failValidation) ? value.failValidation : []
+            const failNoEmailArr = Array.isArray(value.failNoEmail) ? value.failNoEmail : []
+            const failExistEmailArr = Array.isArray(value.failExistEmail) ? value.failExistEmail : []
+            const failUnknownArr = Array.isArray(value.failUnknown) ? value.failUnknown : []
+            const totalFail = failDupEmailArr.length + failWrongEmailArr.length + failValidationArr.length + failNoEmailArr.length + failExistEmailArr.length + failUnknownArr.length
             stibeeResults.success += successArr.length
             stibeeResults.update += updateArr.length
-            stibeeResults.fail += failDupArr.length + failUnkArr.length
-            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} parsed: sent=${batch.length}, success=${successArr.length}, update=${updateArr.length}, failDup=${failDupArr.length}, failUnk=${failUnkArr.length}`)
+            stibeeResults.fail += totalFail
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} parsed: sent=${batch.length}, success=${successArr.length}, update=${updateArr.length}, failDupEmail=${failDupEmailArr.length}, failWrongEmail=${failWrongEmailArr.length}, failOther=${failValidationArr.length + failNoEmailArr.length + failExistEmailArr.length + failUnknownArr.length}`)
 
             // Rate limiting between batches
             if (bi + BATCH_SIZE < newSubscribers.length) {
               await new Promise(resolve => setTimeout(resolve, 200))
-            }
-          }
-
-          // 그룹 ID가 있으면 구독자를 그룹에 추가 (별도 API)
-          if (groupIds.length > 0 && stibeeResults.success + stibeeResults.update > 0) {
-            try {
-              const emailsToGroup = newSubscribers.map(s => s.email)
-              const groupRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/groups/${groupIds[0]}/subscribers`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'AccessToken': stibeeApiKey },
-                body: JSON.stringify(emailsToGroup)
-              })
-              const groupResult = await groupRes.text()
-              console.log(`[sync_to_stibee] ${regionKey} group assign result:`, groupResult.substring(0, 200))
-            } catch (groupErr) {
-              console.error(`[sync_to_stibee] ${regionKey} group assign error:`, groupErr.message)
             }
           }
 
@@ -470,6 +487,8 @@ exports.handler = async (event) => {
             region: regionKey,
             status: 'success',
             total: sheetResult.data.length,
+            deduplicated: dedupCount,
+            unique: uniqueData.length,
             syncedBefore: syncedEmails.size - newSubscribers.length,
             newCount: newSubscribers.length,
             stibeeResults
