@@ -123,13 +123,26 @@ function columnLetterToIndex(letter) {
   return result - 1
 }
 
-// 스티비 주소록에 구독자 일괄 추가 (100명씩)
-async function addToStibeeList(apiKey, listId, subscribers) {
+// 스티비 주소록에 구독자 일괄 추가 (100명씩, 그룹 지정 가능)
+async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
   const BATCH_SIZE = 100
   const results = { success: 0, update: 0, failDuplicate: 0, failUnknown: 0 }
 
   for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
     const batch = subscribers.slice(i, i + BATCH_SIZE)
+
+    const requestBody = {
+      eventOccurredBy: 'MANUAL',
+      confirmEmailYN: 'N',
+      subscribers: batch.map(s => ({
+        email: s.email,
+        name: s.name || ''
+      }))
+    }
+    // 그룹 ID가 있으면 추가
+    if (groupIds && groupIds.length > 0) {
+      requestBody.groupIds = groupIds
+    }
 
     const response = await fetch(`${STIBEE_API_URL}/lists/${listId}/subscribers`, {
       method: 'POST',
@@ -137,14 +150,7 @@ async function addToStibeeList(apiKey, listId, subscribers) {
         'Content-Type': 'application/json',
         'AccessToken': apiKey
       },
-      body: JSON.stringify({
-        eventOccurredBy: 'MANUAL',
-        confirmEmailYN: 'N',
-        subscribers: batch.map(s => ({
-          email: s.email,
-          name: s.name || ''
-        }))
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
@@ -199,7 +205,7 @@ async function saveSyncedEmails(supabase, region, emailSet) {
 
 // 메인 동기화 로직
 async function syncRegion(supabase, apiKey, sheetConfig) {
-  const { region, sheetUrl, nameColumn, emailColumn, sheetTab, stibeeListId } = sheetConfig
+  const { region, sheetUrl, nameColumn, emailColumn, sheetTab, stibeeListId, stibeeGroupId } = sheetConfig
 
   console.log(`[stibee-sync] === Syncing ${region} ===`)
 
@@ -223,8 +229,9 @@ async function syncRegion(supabase, apiKey, sheetConfig) {
     return { region, status: 'skip', message: 'No new subscribers', total: sheetData.length }
   }
 
-  // 4. 스티비 주소록에 추가
-  const addResults = await addToStibeeList(apiKey, stibeeListId, newSubscribers)
+  // 4. 스티비 주소록에 추가 (그룹 지정 가능)
+  const groupIds = stibeeGroupId ? [Number(stibeeGroupId)] : []
+  const addResults = await addToStibeeList(apiKey, stibeeListId, newSubscribers, groupIds)
   console.log(`[stibee-sync] Stibee results:`, addResults)
 
   // 5. 동기화된 이메일 목록 업데이트
@@ -324,6 +331,7 @@ exports.handler = async (event) => {
         emailColumn: config.emailColumn || 'B',
         sheetTab: config.sheetTab || '',
         stibeeListId: config.stibeeListId,
+        stibeeGroupId: config.stibeeGroupId || '',
         enabled: config.autoSync !== false
       }))
 

@@ -119,10 +119,10 @@ export default function YoutuberSearchPage() {
 
   // Google Sheets 상태
   const [sheetSettings, setSheetSettings] = useState({
-    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false }
+    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false }
   })
   const [lastSyncResult, setLastSyncResult] = useState(null)
   const [runningSyncManual, setRunningSyncManual] = useState(false)
@@ -206,10 +206,10 @@ export default function YoutuberSearchPage() {
       if (result.success && result.settings) {
         // 기존 설정과 병합 (누락된 필드에 기본값 적용)
         const defaultSettings = {
-          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
-          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false }
+          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false }
         }
         const mergedSettings = {
           korea: { ...defaultSettings.korea, ...(result.settings.korea || {}) },
@@ -1612,16 +1612,29 @@ export default function YoutuberSearchPage() {
                               />
                             </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">스티비 주소록 ID</label>
-                            <Input
-                              placeholder="주소록 ID (숫자)"
-                              value={sheetSettings[key]?.stibeeListId || ''}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                [key]: { ...prev[key], stibeeListId: e.target.value }
-                              }))}
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">스티비 주소록 ID</label>
+                              <Input
+                                placeholder="예: 345842"
+                                value={sheetSettings[key]?.stibeeListId || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], stibeeListId: e.target.value }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">그룹 ID (선택)</label>
+                              <Input
+                                placeholder="예: 475584"
+                                value={sheetSettings[key]?.stibeeGroupId || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], stibeeGroupId: e.target.value }
+                                }))}
+                              />
+                            </div>
                           </div>
                           {sheetSettings[key]?.autoSync && (
                             <p className="text-xs text-green-700 bg-green-100 rounded px-2 py-1">
@@ -1645,8 +1658,11 @@ export default function YoutuberSearchPage() {
                       첫 번째 탭은 0입니다.
                     </p>
                     <p className="text-xs text-yellow-700 ml-6">
-                      <strong>스티비 주소록 ID:</strong> 스티비 대시보드 → 주소록 → URL의 <code className="bg-yellow-100 px-1">lists/123456</code> 숫자가 ID입니다.
-                      자동 발송을 켜면 스케줄에 따라 새 이메일이 주소록에 자동 추가되고, 스티비 자동 이메일이 발송됩니다.
+                      <strong>스티비 주소록 ID:</strong> URL의 <code className="bg-yellow-100 px-1">lists/<strong>345842</strong>/subscribers</code> 숫자가 주소록 ID입니다.
+                    </p>
+                    <p className="text-xs text-yellow-700 ml-6">
+                      <strong>그룹 ID:</strong> URL의 <code className="bg-yellow-100 px-1">subscribers/S/<strong>475584</strong></code> 숫자가 그룹 ID입니다.
+                      그룹을 지정하면 하나의 주소록에서 리전별로 구분할 수 있습니다.
                     </p>
                   </div>
 
