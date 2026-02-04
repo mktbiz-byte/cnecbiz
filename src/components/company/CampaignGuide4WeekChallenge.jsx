@@ -1016,7 +1016,7 @@ JSON 형식으로 작성해주세요.`
           })}
 
           {/* 액션 버튼 */}
-          <div className="flex gap-4 justify-end sticky bottom-6 bg-gradient-to-r from-white to-purple-50 p-5 rounded-lg border-2 border-purple-200 shadow-xl">
+          <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-end sticky bottom-6 bg-gradient-to-r from-white to-purple-50 p-4 lg:p-5 rounded-lg border-2 border-purple-200 shadow-xl">
             <Button
               onClick={handleSave}
               variant="outline"
