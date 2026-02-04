@@ -593,34 +593,34 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-6">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-              <FileText className="h-8 w-8 text-orange-600" />
+      <div className="max-w-4xl mx-auto p-4 lg:p-6 pt-14 pb-20 lg:pt-6 lg:pb-6">
+        <div className="mb-4 lg:mb-6">
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-4 lg:p-6">
+            <h1 className="text-xl lg:text-3xl font-bold mb-2 flex items-center gap-2">
+              <FileText className="h-6 w-6 lg:h-8 lg:w-8 text-orange-600" />
               メガ割キャンペーン ガイド作成
             </h1>
-            <p className="text-gray-700 text-base">
+            <p className="text-gray-700 text-sm lg:text-base">
               キャンペーン: <span className="font-semibold text-orange-700">{campaign.title}</span>
             </p>
           </div>
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-5 mb-6 flex items-start gap-3">
-          <Info className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-4 lg:p-5 mb-4 lg:mb-6 flex items-start gap-3">
+          <Info className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-orange-900">
-            <p className="font-bold text-base mb-2">メガ割キャンペーンガイド</p>
+            <p className="font-bold text-sm lg:text-base mb-2">メガ割キャンペーンガイド</p>
             <p className="leading-relaxed">2段階のコンテンツ制作のための統合ガイドを作成してください。</p>
             <p className="mt-2 font-semibold">STEP 1: 認知拡大（商品レビュー） → STEP 2: セール促進（メガ割宣伝）</p>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* 제품 기본 정보 */}
-          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold flex items-center gap-2">
+          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+              <h3 className="text-lg lg:text-xl font-bold flex items-center gap-2">
                 <Package className="h-6 w-6 text-purple-600" />
                 제품 기본 정보 / 商品基本情報
               </h3>
@@ -642,20 +642,21 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
                   <label className="block mb-2">
-                    <span className="text-base font-semibold">{label}</span>
+                    <span className="text-sm lg:text-base font-semibold">{label}</span>
                     <span className="text-red-500 ml-1">*</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <Input
                       value={productData[key]}
                       onChange={(e) => setProductData({ ...productData, [key]: e.target.value })}
                       placeholder={`한국어 - ${placeholder}`}
+                      className="h-11"
                     />
                     <Input
                       value={productDataJa[key]}
                       onChange={(e) => setProductDataJa({ ...productDataJa, [key]: e.target.value })}
                       placeholder="日本語"
-                      className="border-blue-200 bg-blue-50/50"
+                      className="h-11 border-blue-200 bg-blue-50/50"
                     />
                   </div>
                 </div>
@@ -667,21 +668,21 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
                   <label className="block mb-2">
-                    <span className="text-base font-semibold">{label}</span>
+                    <span className="text-sm lg:text-base font-semibold">{label}</span>
                     <span className="text-red-500 ml-1">*</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <textarea
                       value={productData[key]}
                       onChange={(e) => setProductData({ ...productData, [key]: e.target.value })}
                       placeholder={placeholder}
-                      className="w-full h-24 p-3 border rounded-lg resize-none"
+                      className="w-full h-24 p-3 border rounded-lg resize-none text-sm"
                     />
                     <textarea
                       value={productDataJa[key]}
                       onChange={(e) => setProductDataJa({ ...productDataJa, [key]: e.target.value })}
                       placeholder="日本語"
-                      className="w-full h-24 p-3 border border-blue-200 bg-blue-50/50 rounded-lg resize-none"
+                      className="w-full h-24 p-3 border border-blue-200 bg-blue-50/50 rounded-lg resize-none text-sm"
                     />
                   </div>
                 </div>
@@ -693,11 +694,11 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
           {stepConfig.map(({ num, label, labelKo, guide, setGuide, guideJa, setGuideJa, deadline }) => {
             const stepKey = `step${num}`
             return (
-              <div key={num} className="bg-white rounded-lg border border-orange-200 p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">STEP {num}</span>
-                  <h3 className="text-xl font-semibold">{label}</h3>
-                  <span className="text-sm text-gray-500">({labelKo})</span>
+              <div key={num} className="bg-white rounded-lg border border-orange-200 p-4 lg:p-6">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs lg:text-sm font-semibold">STEP {num}</span>
+                  <h3 className="text-lg lg:text-xl font-semibold">{label}</h3>
+                  <span className="text-xs lg:text-sm text-gray-500">({labelKo})</span>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   마감일: <span className="font-semibold">{deadline || '미설정'}</span>
@@ -777,7 +778,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
                             日本語に翻訳
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                           <textarea
                             value={guide}
                             onChange={(e) => setGuide(e.target.value)}
@@ -785,13 +786,13 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
                               ? "예:\n[콘텐츠 개요]\n- 제품 구매 장면\n- 제품 언박싱 및 텍스처 소개\n- 사용 후기 및 효과 리뷰\n\n[필수 포함 요소]\n- 제품 패키징 클로즈업\n- 텍스처 시연\n- 사용 전후 비교"
                               : "예:\n[콘텐츠 개요]\n- 메가와리 세일 예고 및 할인 정보\n- 제품 재사용 후기 및 추천 이유\n- 세일 기간 및 구매 방법 안내\n\n[필수 포함 요소]\n- 할인율 또는 특가 정보\n- 제품 사용 장면\n- 세일 기간 명시"
                             }
-                            className="w-full h-48 p-3 border rounded-lg resize-none"
+                            className="w-full h-48 p-3 border rounded-lg resize-none text-sm"
                           />
                           <textarea
                             value={guideJa}
                             onChange={(e) => setGuideJa(e.target.value)}
                             placeholder="日本語ガイド内容"
-                            className="w-full h-48 p-3 border border-blue-200 bg-blue-50/50 rounded-lg resize-none"
+                            className="w-full h-48 p-3 border border-blue-200 bg-blue-50/50 rounded-lg resize-none text-sm"
                           />
                         </div>
                       </>
@@ -803,13 +804,13 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
           })}
 
           {/* 업로드 스케줄 체크리스트 */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-4 lg:p-6">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">📅</span>
-              <h3 className="text-xl font-semibold text-blue-900">アップロードスケジュール</h3>
+              <span className="text-xl lg:text-2xl">📅</span>
+              <h3 className="text-lg lg:text-xl font-semibold text-blue-900">アップロードスケジュール</h3>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 lg:space-y-4">
               {stepConfig.map(({ num, label, deadline }) => (
                 <div key={num} className="bg-white rounded-lg p-4 border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
@@ -832,14 +833,14 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
         </div>
 
         {/* 버튼 */}
-        <div className="flex gap-4 mt-8 pt-6 border-t-2">
+        <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mt-6 lg:mt-8 pt-4 lg:pt-6 border-t-2">
           <Button
             type="button"
             onClick={handleSaveDraft}
             variant="outline"
             size="lg"
             disabled={loading || generating}
-            className="flex-1 h-12 text-base font-semibold border-2"
+            className="flex-1 h-12 text-sm lg:text-base font-semibold border-2"
           >
             {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : '一時保存'}
           </Button>
@@ -849,7 +850,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (セール促進 - メガ割宣伝動�
             onClick={handleGenerateGuide}
             disabled={loading || generating}
             size="lg"
-            className="flex-1 h-12 text-base font-bold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg"
+            className="flex-1 h-12 text-sm lg:text-base font-bold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg"
           >
             {generating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />ガイド生成中...</> : <><Sparkles className="w-4 h-4 mr-2" />ガイド生成 & 見積確認</>}
           </Button>

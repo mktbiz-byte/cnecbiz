@@ -39,6 +39,10 @@
     /* Custom shadows */
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
     --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+    /* Mobile nav spacing */
+    --mobile-header-h: 3.5rem;   /* 56px */
+    --mobile-tabbar-h: 4rem;     /* 64px */
   }
 
   .dark {
@@ -71,13 +75,20 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 모바일에서 텍스트 줄바꿈 */
+  h1, h2, h3, h4, h5, h6, p, span, td, th {
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 }
 
 
-
 /* ========================================
-   NEW DESIGN SYSTEM COMPONENTS
+   DESIGN SYSTEM COMPONENTS
    ======================================== */
 
 @layer components {
@@ -119,7 +130,7 @@
     transform: translateY(-2px);
   }
 
-  /* Stats Card - Like reference design */
+  /* Stats Card */
   .stats-card {
     @apply bg-white rounded-xl border border-gray-100 p-5 flex flex-col;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -146,7 +157,7 @@
     @apply text-xs font-medium mt-2 flex items-center gap-1;
   }
 
-  /* Schedule Item - Like reference design */
+  /* Schedule Item */
   .schedule-item {
     @apply flex items-start gap-3 p-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-l-4 border-transparent;
   }
@@ -239,61 +250,77 @@
 }
 
 
-/* 모바일 최적화 - 관리자 페이지 전용 */
-@layer components {
-  /* 모바일에서 컨테이너 패딩 축소 */
-  @media (max-width: 768px) {
-    .min-h-screen {
-      padding-left: 0.75rem !important;
-      padding-right: 0.75rem !important;
-    }
-    
-    /* 카드 패딩 축소 */
-    [class*="CardContent"],
-    [class*="card"],
-    .border.rounded-lg {
-      padding: 1rem !important;
-    }
-    
-    /* 텍스트 크기 조정 */
-    .text-3xl { font-size: 1.5rem !important; }
-    .text-2xl { font-size: 1.25rem !important; }
-    .text-xl { font-size: 1.125rem !important; }
-    
-    /* 그리드 간격 축소 */
-    .gap-6 { gap: 0.75rem !important; }
-    .gap-4 { gap: 0.5rem !important; }
-    .gap-3 { gap: 0.5rem !important; }
-    
-    /* 공간 축소 */
-    .space-y-6 > * + * { margin-top: 1rem !important; }
-    .space-y-4 > * + * { margin-top: 0.75rem !important; }
-    
-    /* 모바일에서 flex 레이아웃을 세로로 */
-    .flex.items-start.justify-between,
-    .flex.items-center.justify-between {
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      gap: 0.5rem !important;
-    }
-    
-    /* 그리드를 모바일에서 1열로 */
-    .grid.grid-cols-2,
-    .grid.grid-cols-3,
-    .grid.grid-cols-4 {
-      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
-    }
-    
-    /* 텍스트 줄바꿈 */
-    h1, h2, h3, h4, h5, h6, p, span {
-      word-break: break-word !important;
-      overflow-wrap: break-word !important;
-    }
-    
-    /* 버튼 전체 너비 */
-    .flex > button,
-    .flex > .button {
-      width: 100% !important;
-    }
+/* ========================================
+   MOBILE RESPONSIVE SYSTEM
+   ======================================== */
+
+/* 모바일 기업 페이지: 상단 헤더바 + 하단 탭바 여백 */
+@media (max-width: 1023px) {
+  /* 기업 관리자 메인 컨텐츠 영역 */
+  .mobile-company-content {
+    padding-top: var(--mobile-header-h);
+    padding-bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom));
   }
+
+  /* 모바일 터치 타겟 최소 44px */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+
+  /* 모바일 입력 필드 16px 이상 (iOS 줌 방지) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* 모바일에서 테이블 가로 스크롤 */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 모바일 스크롤바 숨김 (깔끔한 UX) */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* 모바일 Safe Area (노치/홈바 대응) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* 모바일 바텀시트 애니메이션 */
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUpSheet 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 모바일에서 스크롤 힌트 - 수평 스크롤 가능 표시 */
+.scroll-hint {
+  position: relative;
+}
+.scroll-hint::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to left, white 30%, transparent);
+  pointer-events: none;
 }

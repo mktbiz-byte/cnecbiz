@@ -75,25 +75,25 @@ export default function LoginPageNew() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4 py-6 lg:px-8 lg:py-8">
       <Card className="w-full max-w-md shadow-2xl border-none">
-        <CardHeader className="space-y-4 text-center pb-8">
+        <CardHeader className="space-y-4 text-center pb-6 lg:pb-8 px-4 lg:px-6">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-              <Globe className="w-10 h-10 text-white" />
+            <div className="w-14 h-14 lg:w-16 lg:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+              <Globe className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">
+          <CardTitle className="text-2xl lg:text-3xl font-bold">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               CNEC BIZ
             </span>
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-sm lg:text-base">
             글로벌 인플루언서 마케팅 플랫폼
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 px-4 lg:px-6">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -143,7 +143,7 @@ export default function LoginPageNew() {
           </form>
 
 
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-3">
             <div className="text-sm text-gray-600">
               계정이 없으신가요?{' '}
               <button
@@ -157,7 +157,7 @@ export default function LoginPageNew() {
             <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
               <button
                 type="button"
-                className="hover:text-blue-600 hover:underline"
+                className="hover:text-blue-600 hover:underline py-1"
                 onClick={() => navigate('/find-email')}
               >
                 ID 찾기
@@ -165,7 +165,7 @@ export default function LoginPageNew() {
               <span className="text-gray-400">|</span>
               <button
                 type="button"
-                className="hover:text-blue-600 hover:underline"
+                className="hover:text-blue-600 hover:underline py-1"
                 onClick={() => navigate('/find-password')}
               >
                 비밀번호 찾기
@@ -176,7 +176,7 @@ export default function LoginPageNew() {
           <div className="pt-4 border-t">
             <button
               type="button"
-              className="w-full text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              className="w-full text-sm text-gray-600 hover:text-gray-900 transition-colors py-2"
               onClick={() => navigate('/')}
             >
               ← 메인으로 돌아가기

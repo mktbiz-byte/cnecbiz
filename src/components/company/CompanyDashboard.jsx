@@ -374,43 +374,43 @@ export default function CompanyDashboard() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         {/* Main Content */}
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
+            {/* Dashboard Header - 모바일: 컴팩트 / PC: 기존 */}
+            <div className="mb-5 lg:mb-8">
+              <div className="flex items-center gap-3 lg:gap-4">
+                <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 flex-shrink-0">
+                  <LayoutDashboard className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg lg:text-3xl font-bold text-gray-900 truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
+                  <p className="text-xs lg:text-sm text-gray-500 mt-0.5">캠페인 현황을 확인하세요</p>
+                </div>
+              </div>
+            </div>
+
             {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative max-w-2xl">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="mb-5 lg:mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="캠페인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 max-w-2xl"
                 />
               </div>
             </div>
 
-            {/* Dashboard Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                  <LayoutDashboard className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">대시보드</h1>
-                  <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Cards Grid - 클릭 시 캠페인 목록으로 이동 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+            {/* Stats Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-5 lg:mb-8">
               {/* 진행 예산 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
@@ -434,7 +434,7 @@ export default function CompanyDashboard() {
               {/* 진행 캠페인 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
@@ -468,7 +468,7 @@ export default function CompanyDashboard() {
               {/* 확정 크리에이터 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
