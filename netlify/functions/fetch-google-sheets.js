@@ -300,6 +300,167 @@ exports.handler = async (event) => {
       }
     }
 
+    if (action === 'sync_to_stibee') {
+      // 구글 시트 → 스티비 주소록 자동 싱크
+      console.log('[sync_to_stibee] Starting sync...')
+
+      // 1. 설정 로드
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: false, error: '동기화 설정이 없습니다. 설정을 먼저 저장해주세요.' })
+        }
+      }
+
+      const syncSettings = JSON.parse(settingsData.value)
+
+      // 2. 스티비 API 키
+      let stibeeApiKey = process.env.STIBEE_API_KEY
+      if (!stibeeApiKey) {
+        const { data: keyData } = await supabase
+          .from('api_keys')
+          .select('api_key')
+          .eq('service_name', 'stibee')
+          .eq('is_active', true)
+          .maybeSingle()
+        stibeeApiKey = keyData?.api_key
+      }
+      if (!stibeeApiKey) {
+        throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
+      }
+
+      // 3. 리전 필터 (body.targetRegions로 필터 가능)
+      const targetRegions = body.targetRegions || null
+
+      // 4. 각 리전 동기화
+      const results = []
+      const regionKeys = Object.keys(syncSettings)
+
+      for (let r = 0; r < regionKeys.length; r++) {
+        const regionKey = regionKeys[r]
+        const config = syncSettings[regionKey]
+
+        // 필터 + 유효성 체크
+        if (!config || !config.url || !config.stibeeListId) continue
+        if (config.autoSync === false) continue
+        if (targetRegions && !targetRegions.includes(regionKey)) continue
+
+        console.log(`[sync_to_stibee] Syncing ${regionKey}...`)
+
+        try {
+          // 4a. 구글 시트 데이터 가져오기
+          const sheetResult = await fetchSheetData(
+            config.url,
+            config.nameColumn || 'A',
+            config.emailColumn || 'B',
+            config.sheetTab || ''
+          )
+          if (!sheetResult.success || !sheetResult.data || sheetResult.data.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '시트 데이터 없음' })
+            continue
+          }
+
+          // 4b. 이미 동기화된 이메일 체크
+          const syncedKey = `stibee_synced_emails_${regionKey}`
+          const { data: syncedData } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', syncedKey)
+            .maybeSingle()
+
+          let syncedEmails = new Set()
+          if (syncedData && syncedData.value) {
+            try { syncedEmails = new Set(JSON.parse(syncedData.value)) } catch (e) { /* ignore */ }
+          }
+
+          // 4c. 새 이메일 필터
+          const newSubscribers = sheetResult.data.filter(s => !syncedEmails.has(s.email))
+          console.log(`[sync_to_stibee] ${regionKey}: ${sheetResult.data.length} total, ${newSubscribers.length} new`)
+
+          if (newSubscribers.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '변경없음', total: sheetResult.data.length })
+            continue
+          }
+
+          // 4d. 스티비 주소록에 추가 (100명씩 배치)
+          const BATCH_SIZE = 100
+          const stibeeResults = { success: 0, update: 0, fail: 0 }
+          const groupIds = config.stibeeGroupId ? [Number(config.stibeeGroupId)] : []
+
+          for (let bi = 0; bi < newSubscribers.length; bi += BATCH_SIZE) {
+            const batch = newSubscribers.slice(bi, bi + BATCH_SIZE)
+            const reqBody = {
+              eventOccurredBy: 'MANUAL',
+              confirmEmailYN: 'N',
+              subscribers: batch.map(s => ({ email: s.email, name: s.name || '' }))
+            }
+            if (groupIds.length > 0) reqBody.groupIds = groupIds
+
+            const stibeeRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'AccessToken': stibeeApiKey },
+              body: JSON.stringify(reqBody)
+            })
+
+            if (stibeeRes.ok) {
+              const stibeeData = await stibeeRes.json()
+              const val = stibeeData.Value || stibeeData.value || {}
+              stibeeResults.success += (val.success || []).length
+              stibeeResults.update += (val.update || []).length
+              stibeeResults.fail += (val.failDuplicate || []).length + (val.failUnknown || []).length
+            } else {
+              console.error(`[sync_to_stibee] Stibee API error: ${stibeeRes.status}`)
+              stibeeResults.fail += batch.length
+            }
+
+            if (bi + BATCH_SIZE < newSubscribers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+          }
+
+          // 4e. 동기화 이메일 목록 업데이트
+          for (let ni = 0; ni < newSubscribers.length; ni++) {
+            syncedEmails.add(newSubscribers[ni].email)
+          }
+          await supabase.from('site_settings').upsert({
+            key: syncedKey,
+            value: JSON.stringify([...syncedEmails]),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+
+          results.push({
+            region: regionKey,
+            status: 'success',
+            total: sheetResult.data.length,
+            newCount: newSubscribers.length,
+            stibeeResults
+          })
+        } catch (regionErr) {
+          console.error(`[sync_to_stibee] Error ${regionKey}:`, regionErr)
+          results.push({ region: regionKey, status: 'error', error: regionErr.message })
+        }
+      }
+
+      // 5. 결과 저장
+      await supabase.from('site_settings').upsert({
+        key: 'stibee_sync_last_result',
+        value: JSON.stringify({ timestamp: new Date().toISOString(), results }),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' }).catch(() => {})
+
+      console.log('[sync_to_stibee] Done:', JSON.stringify(results))
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, results })
+      }
+    }
+
     if (action === 'load_settings') {
       // 시트 설정 불러오기 (커스텀 키 지원)
       const settingsKey = body.settingsKey || 'google_sheets_creator_import'

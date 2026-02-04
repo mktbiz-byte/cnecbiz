@@ -1685,18 +1685,12 @@ export default function YoutuberSearchPage() {
                       onClick={async () => {
                         setRunningSyncManual(true)
                         try {
-                          const res = await fetch('/.netlify/functions/scheduled-stibee-sync', {
+                          const res = await fetch('/.netlify/functions/fetch-google-sheets', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({})
+                            body: JSON.stringify({ action: 'sync_to_stibee' })
                           })
-                          const text = await res.text()
-                          let result
-                          try {
-                            result = JSON.parse(text)
-                          } catch {
-                            throw new Error(`서버 응답 오류 (${res.status}): ${text.substring(0, 200)}`)
-                          }
+                          const result = await res.json()
                           if (result.success) {
                             const summary = (result.results || []).map(r =>
                               `${r.region}: ${r.status === 'success' ? `+${r.newCount}명 추가` : r.message || r.status}`
