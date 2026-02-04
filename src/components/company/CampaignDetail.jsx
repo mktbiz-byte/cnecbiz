@@ -655,6 +655,8 @@ export default function CampaignDetail() {
   const [uploadingBulkPdf, setUploadingBulkPdf] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  // Stibee 자동 이메일 발송 상태
+  const [sendingStibeeInvitation, setSendingStibeeInvitation] = useState(false)
   // Admin SNS/Ad code edit state
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
   const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
@@ -5145,6 +5147,46 @@ Questions? Contact us.
             }
           }
         }
+        // 3. 스티비 자동 이메일 초대장 발송
+        try {
+          const stibeeSubscribers = []
+          for (const participantId of selectedParticipants) {
+            const participant = participants.find(p => p.id === participantId) ||
+                               applications.find(a => a.id === participantId)
+            if (participant) {
+              const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+              const pName = participant.applicant_name || participant.creator_name || 'クリエイター'
+              if (pEmail) {
+                stibeeSubscribers.push({
+                  email: pEmail,
+                  name: pName,
+                  variables: {
+                    name: pName,
+                    campaign_name: campaign.title,
+                    brand_name: campaign.brand_name || campaign.company_name || '',
+                    reward: campaign.reward_text || campaign.compensation || '',
+                    deadline: campaign.content_submission_deadline || ''
+                  }
+                })
+              }
+            }
+          }
+
+          if (stibeeSubscribers.length > 0) {
+            await fetch('/.netlify/functions/send-stibee-auto-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                preset: 'japan_invitation',
+                subscribers: stibeeSubscribers
+              })
+            })
+            console.log(`[Japan] Stibee invitation sent to ${stibeeSubscribers.length} creators`)
+          }
+        } catch (stibeeError) {
+          console.error('[Japan] Stibee invitation error:', stibeeError.message)
+        }
+
         alert('일본 크리에이터 알림 발송 완료!')
       }
 
@@ -5220,6 +5262,71 @@ Questions? Contact us.
     } catch (error) {
       console.error('Error confirming selection:', error)
       alert('선택 확정에 실패했습니다.')
+    }
+  }
+
+  // 스티비 자동 이메일로 일본 크리에이터 초대장 발송
+  const handleSendStibeeInvitation = async () => {
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    if (targetParticipants.length === 0) {
+      alert('발송 대상이 없습니다.')
+      return
+    }
+
+    // 이메일이 있는 참여자만 필터
+    const withEmail = targetParticipants.filter(p =>
+      p.email || p.creator_email || p.applicant_email || p.user_email
+    )
+
+    if (withEmail.length === 0) {
+      alert('이메일 주소가 있는 크리에이터가 없습니다.')
+      return
+    }
+
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${withEmail.length}명에게 스티비 초대장을 발송하시겠습니까?`
+      : `전체 ${withEmail.length}명에게 스티비 초대장을 발송하시겠습니까?`
+
+    if (!confirm(confirmMsg)) return
+
+    setSendingStibeeInvitation(true)
+    try {
+      const subscribers = withEmail.map(p => ({
+        email: p.email || p.creator_email || p.applicant_email || p.user_email,
+        name: p.applicant_name || p.creator_name || '',
+        variables: {
+          name: p.applicant_name || p.creator_name || 'クリエイター',
+          campaign_name: campaign?.title || '',
+          brand_name: campaign?.brand_name || campaign?.company_name || '',
+          reward: campaign?.reward_text || campaign?.compensation || '',
+          deadline: campaign?.content_submission_deadline || ''
+        }
+      }))
+
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preset: 'japan_invitation',
+          subscribers
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`스티비 초대장 발송 완료!\n${result.results.sent}명 성공, ${result.results.failed}명 실패`)
+      } else {
+        alert(`발송 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('[Stibee Invitation] Error:', error)
+      alert('스티비 초대장 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingStibeeInvitation(false)
     }
   }
 
@@ -8171,6 +8278,23 @@ Questions? Contact us.
                           선택된 {selectedParticipants.length}명에게 가이드 전달
                         </Button>
                       </div>
+                    )}
+
+                    {/* 일본 캠페인: 스티비 초대장 발송 */}
+                    {region === 'japan' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleSendStibeeInvitation}
+                        className="bg-white border-blue-200 hover:bg-blue-50 text-blue-700"
+                        disabled={participants.length === 0 || sendingStibeeInvitation}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {sendingStibeeInvitation ? '발송 중...' : (
+                          selectedParticipants.length > 0
+                            ? `선택 ${selectedParticipants.length}명 스티비 초대장`
+                            : '스티비 초대장 발송'
+                        )}
+                      </Button>
                     )}
 
                     {/* US 캠페인: 배송정보 요청 이메일 발송 */}
