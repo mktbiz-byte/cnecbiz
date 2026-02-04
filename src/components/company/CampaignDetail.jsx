@@ -6822,7 +6822,24 @@ Questions? Contact us.
                                     return
                                   }
 
-                                  if (!confirm(`${creator.name || creator.channel_name}님에게 캠페인 초대장을 발송하시겠습니까?`)) {
+                                  // 채널 정보 구성
+                                  const channelInfo = creator.main_platform || creator.primary_interest || '채널 미등록'
+                                  const creatorDisplayName = creator.name || creator.channel_name || '크리에이터'
+                                  const followersText = creator.followers_count ? ` (팔로워 ${creator.followers_count.toLocaleString()})` : ''
+
+                                  const warningMsg = `⚠️ 초대장 발송 = 100% 선정 확정 ⚠️\n\n` +
+                                    `크리에이터: ${creatorDisplayName}\n` +
+                                    `채널: ${channelInfo}${followersText}\n` +
+                                    `캠페인: ${campaign?.title || ''}\n\n` +
+                                    `초대장을 발송하면 해당 크리에이터가 수락 시\n자동으로 선정 처리됩니다.\n\n` +
+                                    `정말 발송하시겠습니까?`
+
+                                  if (!confirm(warningMsg)) return
+
+                                  // 2차 확인: "발송" 입력 요구
+                                  const confirmInput = prompt('초대장을 발송하려면 "발송"을 입력해주세요.')
+                                  if (confirmInput !== '발송') {
+                                    if (confirmInput !== null) alert('입력이 올바르지 않습니다. 초대장 발송이 취소되었습니다.')
                                     return
                                   }
 

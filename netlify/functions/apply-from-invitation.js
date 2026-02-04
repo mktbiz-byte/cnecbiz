@@ -193,14 +193,31 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' }) };
     }
 
-    // 4. 기업 정보
-    const { data: company } = await supabase
+    // 4. 기업 정보 (user_profiles + companies 테이블 모두 조회)
+    const { data: companyProfile } = await supabase
       .from('user_profiles')
       .select('id, full_name, company_name, phone, email')
       .eq('id', invitation.invited_by)
       .single();
 
-    const companyName = company?.company_name || company?.full_name || '기업';
+    // companies 테이블에서 phone, notification_phone 조회 (user_id로 매핑)
+    const { data: companyRecord } = await supabase
+      .from('companies')
+      .select('id, company_name, email, phone, notification_phone, user_id')
+      .eq('user_id', invitation.invited_by)
+      .single();
+
+    // 기업 정보 병합: companies 테이블 우선, user_profiles 보조
+    const company = {
+      id: companyProfile?.id || companyRecord?.user_id,
+      full_name: companyProfile?.full_name,
+      company_name: companyRecord?.company_name || companyProfile?.company_name,
+      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
+      email: companyRecord?.email || companyProfile?.email
+    };
+
+    const companyName = company.company_name || company.full_name || '기업';
+    console.log(`[INFO] Company info: name=${companyName}, phone=${company.phone}, email=${company.email}`);
 
     // 5. 주요 채널
     let mainChannel = '인스타그램';
@@ -286,10 +303,10 @@ exports.handler = async (event) => {
       .eq('id', invitationId);
 
     // 8. 기업에게 알림톡
-    if (company?.phone) {
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
+    if (company.phone) {
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.com';
-        await fetch(`${process.env.URL}/.netlify/functions/send-kakao-notification`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -309,12 +326,13 @@ exports.handler = async (event) => {
       } catch (e) {
         console.error('[ERROR] Company notification failed:', e);
       }
+    } else {
+      console.log('[WARN] Company phone not found - AlimTalk skipped. invited_by:', invitation.invited_by);
     }
 
     // 9. 기업에게 이메일
-    if (company?.email) {
+    if (company.email) {
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.com';
         const emailHtml = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -349,7 +367,7 @@ exports.handler = async (event) => {
 </td></tr></table>
 </body></html>`;
 
-        await fetch(`${process.env.URL}/.netlify/functions/send-email`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

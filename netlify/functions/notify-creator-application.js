@@ -120,15 +120,30 @@ exports.handler = async (event) => {
       };
     }
 
-    // 4. 기업 정보 조회
-    const { data: company, error: companyError } = await supabase
+    // 4. 기업 정보 조회 (user_profiles + companies 테이블)
+    const { data: companyProfile } = await supabase
       .from('user_profiles')
       .select('id, full_name, company_name, email, phone')
       .eq('id', campaign.company_id)
       .single();
 
-    if (companyError || !company) {
-      console.error('[ERROR] Company not found:', companyError);
+    // companies 테이블에서 phone 조회 (user_id로 매핑)
+    const { data: companyRecord } = await supabase
+      .from('companies')
+      .select('id, company_name, email, phone, notification_phone, user_id')
+      .eq('user_id', campaign.company_id)
+      .single();
+
+    const company = {
+      id: companyProfile?.id || companyRecord?.user_id,
+      full_name: companyProfile?.full_name,
+      company_name: companyRecord?.company_name || companyProfile?.company_name,
+      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
+      email: companyRecord?.email || companyProfile?.email
+    };
+
+    if (!companyProfile && !companyRecord) {
+      console.error('[ERROR] Company not found for company_id:', campaign.company_id);
       return {
         statusCode: 404,
         headers,
@@ -138,6 +153,8 @@ exports.handler = async (event) => {
         })
       };
     }
+
+    console.log(`[INFO] Company: name=${company.company_name}, phone=${company.phone}, email=${company.email}`);
 
     // 5. 초대된 크리에이터인지 확인 (featured_creators 또는 campaign_invitations)
     const { data: invitation } = await supabase
@@ -150,9 +167,14 @@ exports.handler = async (event) => {
     const isFeaturedCreator = !!invitation;
 
     // 6. 팔로워 수 계산
-    const totalFollowers = (creator.instagram_followers || 0) + 
-                          (creator.youtube_subscribers || 0) + 
+    const totalFollowers = (creator.instagram_followers || 0) +
+                          (creator.youtube_subscribers || 0) +
                           (creator.tiktok_followers || 0);
+
+    // 주요 채널 판별
+    let mainChannel = '인스타그램';
+    if (creator.youtube_subscribers > (creator.instagram_followers || 0)) mainChannel = '유튜브';
+    else if (creator.tiktok_followers > (creator.instagram_followers || 0)) mainChannel = '틱톡';
 
     // 7. 추천 크리에이터만 알림 발송 (일반 지원자는 알림 안 보냄)
     if (isFeaturedCreator) {
@@ -166,22 +188,25 @@ exports.handler = async (event) => {
           .eq('id', invitation.id);
       }
 
+      const baseUrl = process.env.URL || 'https://cnecbiz.com';
+
       // 카카오 알림톡 발송 (기업에게)
       if (company.phone) {
         try {
-          const kakaoResponse = await fetch(`${process.env.URL}/.netlify/functions/send-kakao-notification`, {
+          const kakaoResponse = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               receiverNum: company.phone,
               receiverName: company.company_name || company.full_name,
-              templateCode: '025110000797', // 추천 크리에이터 지원 알림 템플릿
+              templateCode: '025110000797',
               variables: {
                 '기업명': company.company_name || company.full_name,
-                '캠페인명': campaign.title,
                 '크리에이터명': creator.full_name,
+                '주요채널': mainChannel,
                 '팔로워수': totalFollowers.toLocaleString(),
-                '캠페인ID': campaign.id
+                '캠페인명': campaign.title,
+                '캠페인관리링크': `${baseUrl}/company/campaigns/${campaign.id}`
               }
             })
           });
@@ -196,26 +221,24 @@ exports.handler = async (event) => {
       // 이메일 발송 (기업에게)
       if (company.email) {
         try {
-          const emailResponse = await fetch(`${process.env.URL}/.netlify/functions/send-email`, {
+          const emailResponse = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: company.email,
-              subject: `[CNEC] 추천 크리에이터가 캠페인에 지원했습니다 - ${campaign.title}`,
+              subject: `[CNEC] 초대한 크리에이터(${creator.full_name})가 캠페인에 지원했습니다`,
               html: `
-                <h2>추천 크리에이터 지원 알림</h2>
-                <p>${company.company_name || company.full_name}님, 추천 크리에이터가 캠페인에 지원했습니다.</p>
+                <h2>초대한 크리에이터 지원 알림</h2>
+                <p>${company.company_name || company.full_name}님, 초대한 크리에이터가 캠페인에 지원했습니다.</p>
                 <ul>
                   <li><strong>캠페인:</strong> ${campaign.title}</li>
                   <li><strong>크리에이터:</strong> ${creator.full_name}</li>
+                  <li><strong>주요 채널:</strong> ${mainChannel}</li>
                   <li><strong>총 팔로워:</strong> ${totalFollowers.toLocaleString()}명</li>
-                  <li><strong>Instagram:</strong> ${(creator.instagram_followers || 0).toLocaleString()}명</li>
-                  <li><strong>YouTube:</strong> ${(creator.youtube_subscribers || 0).toLocaleString()}명</li>
-                  <li><strong>TikTok:</strong> ${(creator.tiktok_followers || 0).toLocaleString()}명</li>
                 </ul>
                 <p>
-                  <a href="https://cnectotal.netlify.app/company/campaigns/${campaign.id}" 
-                     style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  <a href="${baseUrl}/company/campaigns/${campaign.id}"
+                     style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                     지원자 프로필 확인하기
                   </a>
                 </p>
