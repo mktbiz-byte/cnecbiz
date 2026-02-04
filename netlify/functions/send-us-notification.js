@@ -346,9 +346,9 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body);
-    const { type, creatorId, creatorEmail, data = {} } = body;
+    const { type, creatorId, creatorEmail, creatorPhone, data = {} } = body;
 
-    console.log(`[send-us-notification] Request received: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}`);
+    console.log(`[send-us-notification] Request received: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}, creatorPhone=${creatorPhone || 'N/A'}`);
 
     if (!type) {
       return {
@@ -397,15 +397,31 @@ exports.handler = async (event) => {
     }
 
     if (!creator) {
-      console.log(`[send-us-notification] Creator not found - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ success: false, error: 'Creator not found' })
-      };
+      // DB에서 못 찾은 경우: 요청에서 전달받은 정보로 대체
+      if (creatorEmail || creatorPhone) {
+        console.log(`[send-us-notification] DB lookup failed, using request data: email=${creatorEmail}, phone=${creatorPhone}`);
+        creator = {
+          name: data.creatorName || 'Creator',
+          email: creatorEmail,
+          phone: creatorPhone,
+          line_user_id: null
+        };
+      } else {
+        console.log(`[send-us-notification] Creator not found - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Creator not found' })
+        };
+      }
     }
 
-    console.log(`[send-us-notification] Creator found: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, email: ${creator.email || 'NONE'}`);
+    // 요청에서 전달받은 phone이 있으면 DB 값 보완
+    if (creatorPhone && !creator.phone) {
+      creator.phone = creatorPhone;
+    }
+
+    console.log(`[send-us-notification] Creator info: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
 
     // 데이터에 크리에이터 이름 추가
     data.creatorName = data.creatorName || creator.name || 'Creator';

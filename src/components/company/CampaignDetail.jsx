@@ -5120,6 +5120,7 @@ Questions? Contact us.
                 body: JSON.stringify({
                   type: 'campaign_selected',
                   creatorEmail: pEmail,
+                  creatorPhone: pPhone,
                   data: {
                     creatorName: pName,
                     campaignName: campaign.title,
@@ -5208,6 +5209,7 @@ Questions? Contact us.
                 body: JSON.stringify({
                   type: 'campaign_selected',
                   creatorEmail: pEmail,
+                  creatorPhone: pPhone,
                   data: {
                     creatorName: pName,
                     campaignName: campaign.title,
@@ -11314,45 +11316,87 @@ Questions? Contact us.
                         fileUrl={campaign.guide_pdf_url}
                         title={campaign.title ? `${campaign.title} 촬영 가이드` : '촬영 가이드'}
                       />
-                    ) : (
-                    <USJapanGuideViewer
-                      guide={selectedGuide.personalized_guide}
-                      creator={selectedGuide}
-                      region={region}
-                      onSave={async (updatedGuide) => {
-                        // US/Japan use API to bypass RLS
-                        try {
-                          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              region: region,
-                              applicationId: selectedGuide.id,
-                              guide: updatedGuide
-                            })
-                          })
+                    ) : (() => {
+                      // 가이드 타입 판별: non-scene 가이드는 PersonalizedGuideViewer 사용
+                      let guideType = null
+                      try {
+                        const pg = selectedGuide.personalized_guide
+                        const parsed = typeof pg === 'string' ? JSON.parse(pg) : pg
+                        guideType = parsed?.type
+                      } catch {}
+                      const nonSceneTypes = ['4week_guide', 'oliveyoung_guide', 'megawari_guide', '4week_ai', 'oliveyoung_ai', 'external_pdf', 'external_url']
 
-                          if (!saveResponse.ok) {
-                            const errorData = await saveResponse.json()
-                            throw new Error(errorData.error || 'Failed to save guide')
-                          }
+                      if (nonSceneTypes.includes(guideType)) {
+                        // 4주/올영/PDF/URL 가이드 → PersonalizedGuideViewer (모든 가이드 타입 지원)
+                        return (
+                          <PersonalizedGuideViewer
+                            guide={selectedGuide.personalized_guide}
+                            creator={selectedGuide}
+                            onSave={async (updatedGuide) => {
+                              try {
+                                const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    region: region,
+                                    applicationId: selectedGuide.id,
+                                    guide: updatedGuide
+                                  })
+                                })
+                                if (!saveResponse.ok) {
+                                  const errorData = await saveResponse.json()
+                                  throw new Error(errorData.error || 'Failed to save guide')
+                                }
+                                setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                                const updatedParticipants = participants.map(p =>
+                                  p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                                )
+                                setParticipants(updatedParticipants)
+                                await fetchParticipants()
+                              } catch (error) {
+                                console.error('가이드 저장 실패:', error)
+                                throw new Error('데이터베이스 저장 실패: ' + error.message)
+                              }
+                            }}
+                          />
+                        )
+                      }
 
-                          // Update local state
-                          setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                          const updatedParticipants = participants.map(p =>
-                            p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
-                          )
-                          setParticipants(updatedParticipants)
-
-                          // Refresh participants to ensure data consistency
-                          await fetchParticipants()
-                        } catch (error) {
-                          console.error('가이드 저장 실패:', error)
-                          throw new Error('데이터베이스 저장 실패: ' + error.message)
-                        }
-                      }}
-                    />
-                    )
+                      // 씬 기반 가이드 → USJapanGuideViewer (번역 지원)
+                      return (
+                        <USJapanGuideViewer
+                          guide={selectedGuide.personalized_guide}
+                          creator={selectedGuide}
+                          region={region}
+                          onSave={async (updatedGuide) => {
+                            try {
+                              const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  region: region,
+                                  applicationId: selectedGuide.id,
+                                  guide: updatedGuide
+                                })
+                              })
+                              if (!saveResponse.ok) {
+                                const errorData = await saveResponse.json()
+                                throw new Error(errorData.error || 'Failed to save guide')
+                              }
+                              setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                              const updatedParticipants = participants.map(p =>
+                                p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                              )
+                              setParticipants(updatedParticipants)
+                              await fetchParticipants()
+                            } catch (error) {
+                              console.error('가이드 저장 실패:', error)
+                              throw new Error('데이터베이스 저장 실패: ' + error.message)
+                            }
+                          }}
+                        />
+                      )
+                    })()
                   ) : (
                     <PersonalizedGuideViewer
                       guide={
