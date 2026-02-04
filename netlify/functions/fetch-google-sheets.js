@@ -30,8 +30,9 @@ const fetchSheetData = async (sheetUrl, nameColumn, emailColumn, sheetTab) => {
       }
     }
 
-    // 공개 시트의 경우 CSV export URL 사용 (gid 포함)
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`
+    // 공개 시트의 경우 CSV export URL 사용 (gid 포함, 캐시 방지)
+    const cacheBuster = Date.now()
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}&_t=${cacheBuster}`
 
     console.log(`Fetching sheet: ${csvUrl}`)
 
@@ -381,10 +382,10 @@ exports.handler = async (event) => {
 
           // 4c. 새 이메일 필터
           const newSubscribers = sheetResult.data.filter(s => !syncedEmails.has(s.email))
-          console.log(`[sync_to_stibee] ${regionKey}: ${sheetResult.data.length} total, ${newSubscribers.length} new`)
+          console.log(`[sync_to_stibee] ${regionKey}: sheet=${sheetResult.data.length}, synced=${syncedEmails.size}, new=${newSubscribers.length}`)
 
           if (newSubscribers.length === 0) {
-            results.push({ region: regionKey, status: 'skip', message: '변경없음', total: sheetResult.data.length })
+            results.push({ region: regionKey, status: 'skip', message: '변경없음', total: sheetResult.data.length, syncedCount: syncedEmails.size })
             continue
           }
 
@@ -410,13 +411,16 @@ exports.handler = async (event) => {
 
             if (stibeeRes.ok) {
               const stibeeData = await stibeeRes.json()
+              console.log(`[sync_to_stibee] ${regionKey} Stibee response:`, JSON.stringify(stibeeData))
               const val = stibeeData.Value || stibeeData.value || {}
               stibeeResults.success += (val.success || []).length
               stibeeResults.update += (val.update || []).length
               stibeeResults.fail += (val.failDuplicate || []).length + (val.failUnknown || []).length
             } else {
-              console.error(`[sync_to_stibee] Stibee API error: ${stibeeRes.status}`)
+              const errText = await stibeeRes.text()
+              console.error(`[sync_to_stibee] Stibee API error ${stibeeRes.status}:`, errText)
               stibeeResults.fail += batch.length
+              stibeeResults.apiError = `${stibeeRes.status}: ${errText.substring(0, 200)}`
             }
 
             if (bi + BATCH_SIZE < newSubscribers.length) {
@@ -438,6 +442,7 @@ exports.handler = async (event) => {
             region: regionKey,
             status: 'success',
             total: sheetResult.data.length,
+            syncedBefore: syncedEmails.size - newSubscribers.length,
             newCount: newSubscribers.length,
             stibeeResults
           })
@@ -460,6 +465,35 @@ exports.handler = async (event) => {
       return {
         statusCode: 200, headers,
         body: JSON.stringify({ success: true, results })
+      }
+    }
+
+    if (action === 'reset_sync') {
+      // 동기화 이력 초기화 (전체 재동기화용)
+      console.log('[reset_sync] Clearing synced email records...')
+
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (settingsData && settingsData.value) {
+        const syncSettings = JSON.parse(settingsData.value)
+        const regionKeys = Object.keys(syncSettings)
+
+        for (let r = 0; r < regionKeys.length; r++) {
+          const syncedKey = `stibee_synced_emails_${regionKeys[r]}`
+          try {
+            await supabase.from('site_settings').delete().eq('key', syncedKey)
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      console.log('[reset_sync] Done')
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, message: '동기화 이력이 초기화되었습니다. 수동 동기화를 실행하면 전체 재등록됩니다.' })
       }
     }
 

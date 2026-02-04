@@ -1692,49 +1692,81 @@ export default function YoutuberSearchPage() {
                   </div>
 
                   {/* 수동 싱크 + 마지막 싱크 결과 */}
-                  <div className="mt-4 flex items-center justify-between">
+                  <div className="mt-4 flex flex-col gap-2">
                     <div className="text-xs text-gray-500">
                       {lastSyncResult?.timestamp && (
                         <span>마지막 동기화: {new Date(lastSyncResult.timestamp).toLocaleString('ko-KR')}</span>
                       )}
                       {lastSyncResult?.results?.map((r, i) => (
                         <span key={i} className="ml-3">
-                          {r.region}: {r.status === 'success' ? `+${r.newCount}명` : r.status === 'skip' ? '변경없음' : r.status}
+                          {r.region}: {r.status === 'success'
+                            ? `+${r.newCount}명 (시트:${r.total}, 스티비:${r.stibeeResults?.success || 0}신규/${r.stibeeResults?.update || 0}기존)`
+                            : r.status === 'skip'
+                              ? `변경없음 (시트:${r.total || '?'})`
+                              : r.error || r.status}
                         </span>
                       ))}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={runningSyncManual}
-                      onClick={async () => {
-                        setRunningSyncManual(true)
-                        try {
-                          const res = await fetch('/.netlify/functions/fetch-google-sheets', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'sync_to_stibee' })
-                          })
-                          const result = await res.json()
-                          if (result.success) {
-                            const summary = (result.results || []).map(r =>
-                              `${r.region}: ${r.status === 'success' ? `+${r.newCount}명 추가` : r.message || r.status}`
-                            ).join('\n')
-                            alert(`동기화 완료!\n${summary}`)
-                            setLastSyncResult({ timestamp: new Date().toISOString(), results: result.results })
-                          } else {
-                            alert('동기화 실패: ' + (result.error || '알 수 없는 오류'))
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs text-gray-400 hover:text-red-500"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          if (!confirm('동기화 이력을 초기화하시겠습니까?\n초기화 후 수동 동기화를 하면 전체 재등록됩니다.\n(이미 등록된 이메일은 스티비에서 중복 처리됩니다)')) return
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'reset_sync' })
+                            })
+                            const result = await res.json()
+                            alert(result.message || '초기화 완료')
+                          } catch (e) {
+                            alert('오류: ' + e.message)
                           }
-                        } catch (e) {
-                          alert('동기화 오류: ' + e.message)
-                        } finally {
-                          setRunningSyncManual(false)
-                        }
-                      }}
-                    >
-                      {runningSyncManual ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                      수동 동기화
-                    </Button>
+                        }}
+                      >
+                        이력 초기화
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          setRunningSyncManual(true)
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'sync_to_stibee' })
+                            })
+                            const result = await res.json()
+                            if (result.success) {
+                              const summary = (result.results || []).map(r => {
+                                if (r.status === 'success') {
+                                  const s = r.stibeeResults || {}
+                                  return `${r.region}: +${r.newCount}명 추가 (스티비 신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                }
+                                return `${r.region}: ${r.message || r.error || r.status} (시트:${r.total || '?'}명)`
+                              }).join('\n')
+                              alert(`동기화 완료!\n${summary}`)
+                              setLastSyncResult({ timestamp: new Date().toISOString(), results: result.results })
+                            } else {
+                              alert('동기화 실패: ' + (result.error || '알 수 없는 오류'))
+                            }
+                          } catch (e) {
+                            alert('동기화 오류: ' + e.message)
+                          } finally {
+                            setRunningSyncManual(false)
+                          }
+                        }}
+                      >
+                        {runningSyncManual ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                        수동 동기화
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
