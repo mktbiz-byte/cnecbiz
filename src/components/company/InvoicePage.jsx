@@ -519,7 +519,7 @@ const InvoicePage = () => {
     <>
       <style>{printStyles}</style>
       <CompanyNavigation />
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:ml-64 pt-14 pb-20 lg:pt-6 lg:pb-6">
       <Button
         variant="ghost"
         onClick={() => navigate(`/company/campaigns/payment?id=${id}&region=${region}`)}
@@ -531,8 +531,8 @@ const InvoicePage = () => {
 
       <Card className="printable-area">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl">견적서 및 입금 안내</CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-xl lg:text-2xl">견적서 및 입금 안내</CardTitle>
             {isPaymentConfirmed ? (
               <Badge variant="success" className="text-sm bg-green-600 text-white">
                 <CheckCircle className="w-3 h-3 mr-1" />
@@ -551,8 +551,8 @@ const InvoicePage = () => {
           {/* 견적서 정보 */}
           <div>
             <h3 className="font-semibold text-lg mb-4">견적 내역</h3>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full min-w-[500px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold">항목</th>
@@ -606,7 +606,7 @@ const InvoicePage = () => {
           {paymentAccount ? (
             <div>
               <h3 className="font-semibold text-lg mb-4">입금 계좌 정보</h3>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border-2 border-blue-200">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 lg:p-6 rounded-lg border-2 border-blue-200">
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">은행명</p>
@@ -614,8 +614,8 @@ const InvoicePage = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">계좌번호</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-2xl font-bold text-blue-600 tracking-wider">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-lg lg:text-2xl font-bold text-blue-600 tracking-wider">
                         {paymentAccount.account_number}
                       </p>
                       <Button
@@ -644,7 +644,7 @@ const InvoicePage = () => {
                   </div>
                   <div className="pt-3 border-t border-blue-200">
                     <p className="text-sm text-gray-600 mb-1">입금 금액</p>
-                    <p className="text-2xl font-bold text-blue-600">
+                    <p className="text-xl lg:text-2xl font-bold text-blue-600">
                       {totalCost.toLocaleString()}원
                     </p>
                   </div>

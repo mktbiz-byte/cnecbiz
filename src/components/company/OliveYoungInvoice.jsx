@@ -435,7 +435,7 @@ export default function OliveYoungInvoice() {
     <div className="min-h-screen bg-gray-50">
       <CompanyNavigation />
       
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-4 pt-14 pb-20 lg:pt-8 lg:pb-8 max-w-5xl">
         <Button
           variant="ghost"
           onClick={() => navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)}
@@ -445,8 +445,8 @@ export default function OliveYoungInvoice() {
           가이드 수정으로 돌아가기
         </Button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{campaign.title}</h1>
+        <div className="mb-6 lg:mb-8">
+          <h1 className="text-xl lg:text-3xl font-bold mb-2">{campaign.title}</h1>
           <p className="text-gray-600">캠페인 가이드</p>
         </div>
 
@@ -457,7 +457,7 @@ export default function OliveYoungInvoice() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">브랜드</p>
                   <p className="font-medium">{campaign.brand || '-'}</p>
@@ -771,7 +771,7 @@ export default function OliveYoungInvoice() {
 
         {/* 제출 버튼 */}
         {showPaymentForm && paymentMethod === 'bank_transfer' && (
-        <div className="flex gap-4 mt-8">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 lg:mt-8">
           <Button
             variant="outline"
             onClick={() => navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)}

@@ -407,7 +407,7 @@ export default function NewsletterShowcase() {
 
       {/* 상세 보기 모달 */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 mx-2 sm:mx-auto">
           <DialogHeader className="p-4 border-b">
             <DialogTitle className="flex items-center gap-2 pr-8">
               {selectedNewsletter?.is_featured && (
@@ -565,8 +565,8 @@ export default function NewsletterShowcase() {
             )}
           </div>
 
-          <DialogFooter className="p-4 border-t bg-gray-50">
-            <div className="flex items-center justify-between w-full">
+          <DialogFooter className="p-3 sm:p-4 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
               <div className="text-sm text-gray-500">
                 {selectedNewsletter?.published_at && (
                   <>

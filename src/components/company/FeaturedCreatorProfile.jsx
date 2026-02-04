@@ -364,7 +364,13 @@ const FeaturedCreatorProfile = () => {
 const Container = styled.div`
   max-width: 1000px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 20px 16px;
+  padding-top: 70px;
+  padding-bottom: 90px;
+
+  @media (min-width: 1024px) {
+    padding: 40px 20px;
+  }
 `;
 
 const BackButtonTop = styled.button`
@@ -406,25 +412,36 @@ const ProfileImageSection = styled.div`
 `;
 
 const ProfileImageLarge = styled.img`
-  width: 150px;
-  height: 150px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  @media (min-width: 768px) {
+    width: 150px;
+    height: 150px;
+  }
 `;
 
 const ProfilePlaceholderLarge = styled.div`
-  width: 150px;
-  height: 150px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  @media (min-width: 768px) {
+    width: 150px;
+    height: 150px;
+    font-size: 48px;
+  }
 `;
 
 const ProfileInfo = styled.div`
@@ -432,10 +449,15 @@ const ProfileInfo = styled.div`
 `;
 
 const CreatorName = styled.h1`
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+    margin-bottom: 20px;
+  }
 `;
 
 const Bio = styled.p`
@@ -465,16 +487,26 @@ const CategoryTag = styled.span`
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
-  margin-top: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+  }
 `;
 
 const StatCard = styled.div`
-  padding: 20px;
+  padding: 12px;
   background: #f9f9f9;
   border-radius: 12px;
   text-align: center;
+
+  @media (min-width: 768px) {
+    padding: 20px;
+  }
 `;
 
 const StatIcon = styled.div`
@@ -491,17 +523,26 @@ const StatLabel = styled.div`
 `;
 
 const StatValue = styled.div`
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
+
+  @media (min-width: 768px) {
+    font-size: 24px;
+  }
 `;
 
 const AdditionalFeeSection = styled.div`
   background: linear-gradient(135deg, #fff5e6 0%, #ffe6cc 100%);
   border: 2px solid #ffb366;
   border-radius: 16px;
-  padding: 30px;
-  margin-bottom: 30px;
+  padding: 20px;
+  margin-bottom: 24px;
+
+  @media (min-width: 768px) {
+    padding: 30px;
+    margin-bottom: 30px;
+  }
 `;
 
 const AdditionalFeeHeader = styled.div`
@@ -522,10 +563,14 @@ const AdditionalFeeTitle = styled.h3`
 `;
 
 const AdditionalFeeAmount = styled.div`
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
   color: #ff8c00;
   margin-bottom: 12px;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+  }
 `;
 
 const AdditionalFeeDescription = styled.div`
@@ -558,16 +603,26 @@ const SectionTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+
+  @media (min-width: 768px) {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
 `;
 
 const RecentVideosGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
 `;
 
 const VideoCard = styled.a`
@@ -683,8 +738,13 @@ const ContentBox = styled.div`
 
 const PortfolioGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
 `;
 
 const PortfolioImage = styled.img`
@@ -725,15 +785,24 @@ const VideoLink = styled.a`
 const ContactSection = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
-  padding: 40px;
+  padding: 24px 16px;
   text-align: center;
   color: white;
+
+  @media (min-width: 768px) {
+    padding: 40px;
+  }
 `;
 
 const ContactTitle = styled.h3`
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+
+  @media (min-width: 768px) {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
 `;
 
 const ContactButton = styled.button`
@@ -796,7 +865,11 @@ const ModalOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 12px;
+
+  @media (min-width: 768px) {
+    padding: 20px;
+  }
 `;
 
 const ModalContent = styled.div`
@@ -804,9 +877,13 @@ const ModalContent = styled.div`
   border-radius: 16px;
   max-width: 500px;
   width: 100%;
-  max-height: 90vh;
+  max-height: 95vh;
   overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+
+  @media (max-width: 640px) {
+    border-radius: 12px;
+  }
 `;
 
 const ModalHeader = styled.div`

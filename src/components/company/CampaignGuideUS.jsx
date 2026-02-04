@@ -649,20 +649,20 @@ Apple
   return (
     <>
       <CompanyNavigation />
-      <div className="container mx-auto p-6 max-w-7xl">
+      <div className="container mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6 max-w-7xl">
         {translationError && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {translationError}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* 왼쪽: 한국어 입력 */}
           <Card className="border-2 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
-              <div className="flex items-center justify-between">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 p-4 lg:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-2xl flex items-center gap-2">
+                  <CardTitle className="text-xl lg:text-2xl flex items-center gap-2">
                     <FileText className="h-6 w-6 text-blue-600" />
                     크리에이터 가이드 작성 (한국어)
                   </CardTitle>
@@ -679,12 +679,12 @@ Apple
               </div>
             </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 lg:space-y-6 p-4 lg:p-6">
           {/* 제품 정보 */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <Label className="text-lg font-bold text-blue-900 mb-4 block">📦 제품 정보</Label>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                 <div>
                   <Label className="text-sm font-semibold">브랜드명</Label>
                   <Input
@@ -813,10 +813,10 @@ Apple
           <div>
             <Label className="text-base font-semibold mb-3 block">필수 촬영 장면</Label>
             <p className="text-sm text-gray-600 mb-3">필요한 촬영 장면을 선택하세요</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="ba-photo" 
+                <Checkbox
+                  id="ba-photo"
                   checked={shootingScenes.baPhoto}
                   onCheckedChange={(checked) => handleShootingSceneChange('baPhoto', checked)}
                 />
@@ -1017,7 +1017,7 @@ Apple
           </div>
 
           {/* 메타광고코드 발급 요청 */}
-          <div className="border-t pt-6 mt-6">
+          <div className="border-t pt-4 lg:pt-6 mt-4 lg:mt-6">
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center space-x-3">
                 <Checkbox 
@@ -1037,7 +1037,7 @@ Apple
           </div>
 
           {/* 영어 번역 기능 */}
-          <div className="border-t pt-6 mt-6">
+          <div className="border-t pt-4 lg:pt-6 mt-4 lg:mt-6">
             <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
               <div className="flex items-start gap-3 mb-3">
                 <Globe className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -1099,14 +1099,14 @@ Apple
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">Creator Guide</CardTitle>
+            <CardTitle className="text-2xl lg:text-3xl font-bold">Creator Guide</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
             {campaignTitle || 'Campaign Title'} - English Preview
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-8 p-6">
+        <CardContent className="space-y-6 lg:space-y-8 p-4 lg:p-6">
           {/* 제품 정보 미리보기 */}
           {(translatedBrandName || translatedProductName || translatedProductDesc || translatedProductFeatures.length > 0) && (
             <div className="border-l-4 border-indigo-500 pl-4">
@@ -1114,7 +1114,7 @@ Apple
                 <span className="text-2xl">📦</span>
                 <Label className="text-xl font-bold text-gray-800">Product Information</Label>
               </div>
-              <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
+              <div className="p-4 lg:p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
                 {translatedBrandName && (
                   <div>
                     <Label className="text-xs font-semibold text-indigo-600 mb-1">Brand Name</Label>
@@ -1288,7 +1288,7 @@ Apple
                 <span className="text-2xl">🎬</span>
                 <Label className="text-xl font-bold text-gray-800">Video Specifications</Label>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
                 {translatedDuration && (
                   <div className="p-3 bg-orange-50 rounded-lg">
                     <Label className="text-xs text-gray-600 mb-2">Duration</Label>
@@ -1357,7 +1357,7 @@ Apple
 
           {/* 메타광고코드 발급 요청 미리보기 */}
           {metaAdCodeRequested && (
-            <div className="border-t pt-6 mt-6">
+            <div className="border-t pt-4 lg:pt-6 mt-4 lg:mt-6">
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">

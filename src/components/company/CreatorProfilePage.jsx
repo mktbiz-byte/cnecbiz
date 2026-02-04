@@ -51,7 +51,7 @@ export default function CreatorProfilePage() {
   const activityScores = capiAnalysis.activity_scores || {}
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-8 lg:pb-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="mb-6">
@@ -61,18 +61,18 @@ export default function CreatorProfilePage() {
           >
             ← 돌아가기
           </button>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-start gap-6">
+          <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 lg:gap-6">
               {creator.profile_image && (
                 <img
                   src={creator.profile_image}
                   alt={creator.channel_name}
-                  className="w-24 h-24 rounded-full object-cover"
+                  className="w-20 h-20 lg:w-24 lg:h-24 rounded-full object-cover"
                 />
               )}
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold mb-2">{creator.channel_name}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex-1 text-center sm:text-left">
+                <h1 className="text-lg lg:text-2xl font-bold mb-2">{creator.channel_name}</h1>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 lg:gap-4 text-sm text-gray-600">
                   <span className="capitalize">{creator.platform}</span>
                   <span>•</span>
                   <span>{creator.followers?.toLocaleString()} 구독자</span>
@@ -94,11 +94,11 @@ export default function CreatorProfilePage() {
                   채널 방문 →
                 </a>
               </div>
-              <div className="text-right">
-                <div className="text-4xl font-bold text-purple-600 mb-1">
+              <div className="text-center sm:text-right">
+                <div className="text-2xl lg:text-4xl font-bold text-purple-600 mb-1">
                   {creator.capi_score}점
                 </div>
-                <div className="text-lg font-semibold text-gray-700 mb-2">
+                <div className="text-base lg:text-lg font-semibold text-gray-700 mb-2">
                   {creator.capi_grade}급
                 </div>
                 {creator.capi_reliability > 0 && (
@@ -112,11 +112,11 @@ export default function CreatorProfilePage() {
         </div>
 
         {/* CAPI Score Breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-6">
           {/* Content Score */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold mb-4">📊 콘텐츠 제작 역량</h2>
-            <div className="text-3xl font-bold text-purple-600 mb-4">
+          <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4">📊 콘텐츠 제작 역량</h2>
+            <div className="text-2xl lg:text-3xl font-bold text-purple-600 mb-4">
               {creator.capi_content_score}/70점
             </div>
             <div className="space-y-3">
@@ -132,9 +132,9 @@ export default function CreatorProfilePage() {
           </div>
 
           {/* Activity Score */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold mb-4">📈 계정 활성도</h2>
-            <div className="text-3xl font-bold text-purple-600 mb-4">
+          <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4">📈 계정 활성도</h2>
+            <div className="text-2xl lg:text-3xl font-bold text-purple-600 mb-4">
               {creator.capi_activity_score}/30점
             </div>
             <div className="space-y-3">
@@ -151,8 +151,8 @@ export default function CreatorProfilePage() {
         </div>
 
         {/* Detailed Evaluation */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">💡 상세 평가</h2>
+        <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">💡 상세 평가</h2>
           <div className="space-y-4">
             {Object.entries(contentScores).map(([key, data]) => (
               <div key={key} className="border-b pb-4 last:border-b-0">
@@ -169,9 +169,9 @@ export default function CreatorProfilePage() {
         </div>
 
         {/* Strengths & Weaknesses */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-green-50 rounded-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-green-800">👍 강점</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-6">
+          <div className="bg-green-50 rounded-lg p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4 text-green-800">👍 강점</h2>
             <ul className="space-y-2">
               {(capiAnalysis.strengths || []).map((strength, idx) => (
                 <li key={idx} className="text-sm text-green-900">• {strength}</li>
@@ -179,8 +179,8 @@ export default function CreatorProfilePage() {
             </ul>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-yellow-800">⚠️ 개선 필요</h2>
+          <div className="bg-yellow-50 rounded-lg p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4 text-yellow-800">⚠️ 개선 필요</h2>
             <ul className="space-y-2">
               {(capiAnalysis.weaknesses || []).map((weakness, idx) => (
                 <li key={idx} className="text-sm text-yellow-900">• {weakness}</li>
@@ -191,8 +191,8 @@ export default function CreatorProfilePage() {
 
         {/* Analyzed Videos */}
         {capiAnalysis.analyzed_videos && capiAnalysis.analyzed_videos.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">🎬 분석된 영상 ({capiAnalysis.analyzed_videos.length}개)</h2>
+          <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4">🎬 분석된 영상 ({capiAnalysis.analyzed_videos.length}개)</h2>
             <div className="space-y-3">
               {capiAnalysis.analyzed_videos.map((video, idx) => (
                 <div key={idx} className="flex justify-between items-center border-b pb-3 last:border-b-0">
@@ -222,8 +222,8 @@ export default function CreatorProfilePage() {
 
         {/* Company Review (if exists) */}
         {creator.user_profiles?.company_review && (
-          <div className="bg-blue-50 rounded-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-blue-800">📝 기업 후기</h2>
+          <div className="bg-blue-50 rounded-lg p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-4 text-blue-800">📝 기업 후기</h2>
             <p className="text-sm text-blue-900 whitespace-pre-wrap">
               {creator.user_profiles.company_review}
             </p>

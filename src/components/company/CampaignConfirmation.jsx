@@ -96,7 +96,7 @@ const CampaignConfirmation = () => {
     return (
       <>
         <CompanyNavigation />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center pt-14 lg:pt-0">
           <p className="text-gray-600">로딩 중...</p>
         </div>
       </>
@@ -108,10 +108,10 @@ const CampaignConfirmation = () => {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gray-50 py-8 pb-32">
+      <div className="min-h-screen bg-gray-50 pt-14 pb-32 lg:pt-8 lg:pb-32">
         <div className="container mx-auto px-4 max-w-4xl">
           {/* 스텝 인디케이터 */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 lg:mb-8 overflow-x-auto pb-2">
             {[
               { step: 1, label: '캠페인 선택', completed: true },
               { step: 2, label: '상품 정보', completed: true },
@@ -141,25 +141,25 @@ const CampaignConfirmation = () => {
                   </span>
                 </div>
                 {index < 4 && (
-                  <div className={`w-16 md:w-24 h-0.5 mx-2 ${item.completed ? 'bg-purple-600' : 'bg-gray-200'}`} />
+                  <div className={`w-8 md:w-24 h-0.5 mx-1 md:mx-2 flex-shrink-0 ${item.completed ? 'bg-purple-600' : 'bg-gray-200'}`} />
                 )}
               </div>
             ))}
           </div>
 
           {/* 헤더 */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">최종 확인</h1>
+          <div className="mb-6 lg:mb-8">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">최종 확인</h1>
             <p className="text-gray-600 mt-1">입력하신 내용을 확인하고 캠페인을 등록하세요</p>
           </div>
 
           {/* 캠페인 요약 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">📋</span>
-                  <h2 className="text-lg font-semibold">캠페인 요약</h2>
+                  <span className="text-lg lg:text-xl">📋</span>
+                  <h2 className="text-base lg:text-lg font-semibold">캠페인 요약</h2>
                 </div>
                 <button
                   onClick={() => navigate(`/company/campaigns/wizard?id=${campaignId}`)}
@@ -170,25 +170,25 @@ const CampaignConfirmation = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">캠페인 타입</span>
-                  <span className="text-gray-900 font-medium">
+                <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 text-sm">캠페인 타입</span>
+                  <span className="text-gray-900 font-medium text-sm">
                     기획형 캠페인 · {getCampaignTypeName(campaign?.campaign_type)}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">브랜드 / 제품</span>
-                  <span className="text-gray-900">
+                <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 text-sm">브랜드 / 제품</span>
+                  <span className="text-gray-900 text-sm">
                     {campaign?.brand || '-'} · {campaign?.product_name || '-'}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">모집 채널</span>
-                  <span className="text-gray-900">{getChannelName(campaign?.platform)}</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 text-sm">모집 채널</span>
+                  <span className="text-gray-900 text-sm">{getChannelName(campaign?.platform)}</span>
                 </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-600">예상 비용</span>
-                  <span className="text-gray-900 font-semibold text-lg">
+                <div className="flex flex-col sm:flex-row sm:justify-between py-2 gap-1">
+                  <span className="text-gray-600 text-sm">예상 비용</span>
+                  <span className="text-gray-900 font-semibold text-base lg:text-lg">
                     {formatPrice(campaign?.budget || campaign?.estimated_cost)}
                   </span>
                 </div>
@@ -197,12 +197,12 @@ const CampaignConfirmation = () => {
           </Card>
 
           {/* 스케줄 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4 lg:mb-6">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">📅</span>
-                  <h2 className="text-lg font-semibold">스케줄</h2>
+                  <span className="text-lg lg:text-xl">📅</span>
+                  <h2 className="text-base lg:text-lg font-semibold">스케줄</h2>
                 </div>
                 <button
                   onClick={() => navigate(`/company/campaigns/wizard?id=${campaignId}&step=schedule`)}
@@ -235,12 +235,12 @@ const CampaignConfirmation = () => {
           </Card>
 
           {/* 크리에이터 가이드 요약 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">🎯</span>
-                  <h2 className="text-lg font-semibold">크리에이터 가이드 요약</h2>
+                  <span className="text-lg lg:text-xl">🎯</span>
+                  <h2 className="text-base lg:text-lg font-semibold">크리에이터 가이드 요약</h2>
                 </div>
                 <button
                   onClick={() => navigate(`/company/campaigns/guide?id=${campaignId}`)}
@@ -251,29 +251,29 @@ const CampaignConfirmation = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex py-2 border-b border-gray-100">
-                  <span className="text-gray-600 w-28 flex items-center gap-1">
+                <div className="flex flex-col sm:flex-row py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 w-28 flex-shrink-0 flex items-center gap-1 text-sm">
                     <span>⚡</span> 1초 후킹
                   </span>
-                  <span className="text-gray-900">"{guideData.hookingPoint || '-'}"</span>
+                  <span className="text-gray-900 text-sm">"{guideData.hookingPoint || '-'}"</span>
                 </div>
-                <div className="flex py-2 border-b border-gray-100">
-                  <span className="text-gray-600 w-28 flex items-center gap-1">
+                <div className="flex flex-col sm:flex-row py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 w-28 flex-shrink-0 flex items-center gap-1 text-sm">
                     <span>💬</span> 핵심 메시지
                   </span>
-                  <span className="text-gray-900">{guideData.coreMessage || '-'}</span>
+                  <span className="text-gray-900 text-sm">{guideData.coreMessage || '-'}</span>
                 </div>
-                <div className="flex py-2 border-b border-gray-100">
-                  <span className="text-gray-600 w-28 flex items-center gap-1">
+                <div className="flex flex-col sm:flex-row py-2 border-b border-gray-100 gap-1">
+                  <span className="text-gray-600 w-28 flex-shrink-0 flex items-center gap-1 text-sm">
                     <span>🎬</span> 필수 미션
                   </span>
-                  <span className="text-gray-900">{getMissionLabels(guideData.missions)}</span>
+                  <span className="text-gray-900 text-sm">{getMissionLabels(guideData.missions)}</span>
                 </div>
-                <div className="flex py-2">
-                  <span className="text-gray-600 w-28 flex items-center gap-1">
+                <div className="flex flex-col sm:flex-row py-2 gap-1">
+                  <span className="text-gray-600 w-28 flex-shrink-0 flex items-center gap-1 text-sm">
                     <span>#</span> 해시태그
                   </span>
-                  <span className="text-gray-900">
+                  <span className="text-gray-900 text-sm">
                     {guideData.hashtags?.length > 0 ? guideData.hashtags.join(' ') : '-'}
                   </span>
                 </div>
@@ -301,8 +301,8 @@ const CampaignConfirmation = () => {
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
-        <div className="max-w-4xl mx-auto px-4 py-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 pb-safe">
+        <div className="max-w-4xl mx-auto px-4 py-3 lg:py-3">
           <div className="flex items-center justify-between">
             <Button
               type="button"

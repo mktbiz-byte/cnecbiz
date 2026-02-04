@@ -65,9 +65,9 @@ const FindPasswordPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4 py-6 lg:px-8 lg:py-8">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 px-4 lg:px-6">
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
@@ -79,12 +79,12 @@ const FindPasswordPage = () => {
               로그인으로 돌아가기
             </Button>
           </div>
-          <CardTitle className="text-2xl font-bold">비밀번호 찾기</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl lg:text-2xl font-bold">비밀번호 찾기</CardTitle>
+          <CardDescription className="text-sm lg:text-base">
             가입한 이메일로 비밀번호 재설정 링크를 보내드립니다.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 lg:px-6">
           {!success ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -97,6 +97,7 @@ const FindPasswordPage = () => {
                   value={email}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-12"
                 />
                 {error && (
                   <p className="text-sm text-red-500">{error}</p>
@@ -105,7 +106,7 @@ const FindPasswordPage = () => {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full h-12"
                 disabled={loading}
               >
                 {loading ? '전송 중...' : '비밀번호 재설정 이메일 받기'}
@@ -149,7 +150,7 @@ const FindPasswordPage = () => {
               </div>
 
               <Button
-                className="w-full"
+                className="w-full h-12"
                 onClick={() => navigate('/login')}
               >
                 로그인 페이지로 이동

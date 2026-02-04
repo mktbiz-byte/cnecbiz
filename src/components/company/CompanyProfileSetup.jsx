@@ -307,16 +307,16 @@ export default function CompanyProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 px-4 lg:py-12 pt-14 pb-20 lg:pt-12 lg:pb-12">
       <div className="max-w-4xl mx-auto">
         <Card className="shadow-2xl border-none">
-          <CardHeader className="space-y-4 text-center pb-8">
+          <CardHeader className="space-y-4 text-center pb-6 lg:pb-8">
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-                <Building className="w-10 h-10 text-white" />
+              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+                <Building className="w-7 h-7 lg:w-10 lg:h-10 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">
+            <CardTitle className="text-2xl lg:text-3xl font-bold">
               기업 정보 등록
             </CardTitle>
             <CardDescription className="text-base">
@@ -324,7 +324,7 @@ export default function CompanyProfileSetup() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-6 lg:space-y-8 p-4 lg:p-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -332,20 +332,20 @@ export default function CompanyProfileSetup() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-8">
               {/* 회원가입 시 입력한 정보 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="font-semibold text-blue-900 mb-4 text-lg">회원가입 시 입력한 정보</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 lg:p-6">
+                <h3 className="font-semibold text-blue-900 mb-4 text-base lg:text-lg">회원가입 시 입력한 정보</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
+                  <div className="min-w-0 truncate">
                     <span className="text-gray-600">담당자:</span>
                     <span className="ml-2 font-medium">{formData.contactPerson}</span>
                   </div>
-                  <div>
+                  <div className="min-w-0 truncate">
                     <span className="text-gray-600">이메일:</span>
                     <span className="ml-2 font-medium">{formData.email}</span>
                   </div>
-                  <div>
+                  <div className="min-w-0 truncate">
                     <span className="text-gray-600">전화번호:</span>
                     <span className="ml-2 font-medium">{formData.phone}</span>
                   </div>
@@ -354,7 +354,7 @@ export default function CompanyProfileSetup() {
 
               {/* 회사 기본 정보 */}
               <div className="space-y-6">
-                <h3 className="font-bold text-xl text-gray-900 border-b pb-3">회사 기본 정보</h3>
+                <h3 className="font-bold text-lg lg:text-xl text-gray-900 border-b pb-3">회사 기본 정보</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -393,7 +393,7 @@ export default function CompanyProfileSetup() {
 
               {/* 세금계산서 발행 정보 */}
               <div className="space-y-6">
-                <h3 className="font-bold text-xl text-gray-900 border-b pb-3">세금계산서 발행 정보</h3>
+                <h3 className="font-bold text-lg lg:text-xl text-gray-900 border-b pb-3">세금계산서 발행 정보</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -516,7 +516,7 @@ export default function CompanyProfileSetup() {
 
               {/* 알림 설정 */}
               <div className="space-y-6">
-                <h3 className="font-bold text-xl text-gray-900 border-b pb-3">알림 설정</h3>
+                <h3 className="font-bold text-lg lg:text-xl text-gray-900 border-b pb-3">알림 설정</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">

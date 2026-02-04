@@ -55,16 +55,16 @@ export default function FourWeekChallengeCampaignIntro() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
       {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-16 lg:px-6">
         <div className="text-center mb-12">
           <div className="inline-block bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
             🏆 4주 챌린지 가이드
           </div>
-          <h1 className="text-5xl font-bold mb-6 text-gray-900">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-6 text-gray-900">
             4주간 지속되는<br />
             강력한 브랜드 각인 효과
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 mb-8">
             4개의 미션 가이드로 4주간 연속 노출되는 프리미엄 장기 캠페인
           </p>
           <Button
@@ -101,17 +101,17 @@ export default function FourWeekChallengeCampaignIntro() {
         {/* 이 캠페인을 선택해야 하는 이유 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Sparkles className="inline w-8 h-8 text-purple-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Sparkles className="inline w-7 h-7 sm:w-8 sm:h-8 text-purple-600 mr-2" />
               왜 4주 챌린지를 선택해야 할까요?
             </h2>
             <p className="text-gray-600">4주간 지속적인 노출로 브랜드를 깊이 각인시키는 프리미엄 장기 캠페인입니다</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-purple-100">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
+                  <div className="bg-purple-100 p-3 rounded-lg flex-shrink-0">
                     <TrendingUp className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
@@ -181,13 +181,13 @@ export default function FourWeekChallengeCampaignIntro() {
         {/* 캠페인 생성 방법 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <FileText className="inline w-8 h-8 text-purple-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <FileText className="inline w-7 h-7 sm:w-8 sm:h-8 text-purple-600 mr-2" />
               캠페인 생성 방법
             </h2>
             <p className="text-gray-600">간단한 5단계로 캠페인을 시작하세요</p>
           </div>
-          <div className="grid md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {[
               { step: '1', title: '캠페인 타입 선택', desc: '4주 챌린지 선택' },
               { step: '2', title: '참여 인원 선택', desc: '크리에이터 수 결정' },
@@ -211,8 +211,8 @@ export default function FourWeekChallengeCampaignIntro() {
         {/* 프로세스 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Calendar className="inline w-8 h-8 text-purple-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Calendar className="inline w-7 h-7 sm:w-8 sm:h-8 text-purple-600 mr-2" />
               캠페인 진행 프로세스
             </h2>
             <p className="text-gray-600">4주간 매주 새로운 미션으로 브랜드를 각인시킵니다</p>
@@ -270,13 +270,13 @@ export default function FourWeekChallengeCampaignIntro() {
         {referenceVideos.length > 0 && (
           <div className="mb-16">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-4">
-                <Video className="inline w-8 h-8 text-purple-600 mr-2" />
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+                <Video className="inline w-7 h-7 sm:w-8 sm:h-8 text-purple-600 mr-2" />
                 레퍼런스 영상 확인
               </h2>
               <p className="text-gray-600">실제 4주 챌린지 캠페인으로 제작된 영상을 확인해보세요</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {referenceVideos.map((video) => {
                 const videoId = getVideoId(video.video_url)
                 return (
@@ -312,11 +312,11 @@ export default function FourWeekChallengeCampaignIntro() {
         )}
 
         {/* CTA */}
-        <div className="text-center bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">
+        <div className="text-center bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 sm:p-12 text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">
             지금 바로 4주 챌린지를 시작하세요
           </h2>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="text-lg sm:text-xl mb-8 opacity-90">
             4주간 지속되는 강력한 브랜드 각인 효과를 경험하세요
           </p>
           <Button

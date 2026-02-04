@@ -683,7 +683,7 @@ export default function MyCampaigns() {
                     return (
                       <div
                         key={campaign.id}
-                        className="group border border-gray-100 rounded-xl lg:rounded-2xl p-3 lg:p-5 hover:border-indigo-200 hover:shadow-xl cursor-pointer transition-all duration-300 bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30"
+                        className="group border border-gray-100 rounded-xl lg:rounded-2xl p-3 lg:p-5 hover:border-indigo-200 hover:shadow-xl cursor-pointer transition-all duration-300 bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30 overflow-hidden"
                         onClick={() => navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)}
                       >
                         <div className="flex gap-3 lg:gap-5">
@@ -827,10 +827,10 @@ export default function MyCampaigns() {
 
                         {/* Deposit Alert */}
                         {campaign.payment_status === 'pending' && !campaign.is_cancelled && (
-                          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4">
-                            <p className="text-xs lg:text-sm text-amber-700 flex items-center gap-1.5 lg:gap-2">
+                          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
+                            <p className="text-xs lg:text-sm text-amber-700 flex items-center gap-1.5 lg:gap-2 min-w-0">
                               <AlertCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
-                              <span>입금 확인이 완료되지 않았습니다</span>
+                              <span className="truncate">입금 확인이 완료되지 않았습니다</span>
                             </p>
                             <Button
                               variant="outline"

@@ -608,7 +608,7 @@ JSON 형식으로만 응답해주세요.`
     return (
       <>
         <CompanyNavigation />
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
           <div className="text-center py-12 text-red-600">캠페인을 찾을 수 없습니다.</div>
         </div>
       </>
@@ -618,9 +618,9 @@ JSON 형식으로만 응답해주세요.`
   return (
     <>
       <CompanyNavigation />
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
         {/* 헤더 */}
-        <div className="mb-6">
+        <div className="mb-4 lg:mb-6">
           <Button
             variant="ghost"
             onClick={() => navigate('/company/campaigns')}
@@ -630,9 +630,9 @@ JSON 형식으로만 응답해주세요.`
             캠페인 목록으로
           </Button>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{campaign.title}</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{campaign.title}</h1>
               <p className="text-gray-600 mt-1">캠페인 가이드</p>
             </div>
             <Button

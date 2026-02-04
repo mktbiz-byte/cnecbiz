@@ -412,8 +412,8 @@ const CreatorMyPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">내 캠페인</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">내 캠페인</h1>
         <button
           onClick={() => {
             setShowPasswordModal(true)
@@ -421,7 +421,7 @@ const CreatorMyPage = () => {
             setPasswordSuccess(false)
             setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm"
         >
           <Shield className="w-4 h-4" />
           비밀번호 변경
@@ -438,10 +438,10 @@ const CreatorMyPage = () => {
         <div className="space-y-6">
           {campaigns.map((campaign) => (
             <div key={campaign.id} className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">{campaign.campaigns?.title}</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{campaign.campaigns?.title}</h2>
                     <p className="text-sm text-gray-500 mt-1">
                       캠페인 타입: {campaign.campaigns?.campaign_type === 'regular' ? '기획형' : 
                                    campaign.campaigns?.campaign_type === 'oliveyoung' ? '올영세일' : '4주 챌린지'}
@@ -587,7 +587,7 @@ const CreatorMyPage = () => {
                                 {/* Campaign Info */}
                                 {parsed.campaign_title && (
                                   <div className="bg-white rounded-lg p-4 border">
-                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                       <div>
                                         <p className="text-gray-600 mb-1">캐페인 제목</p>
                                         <p className="font-semibold">{parsed.campaign_title}</p>

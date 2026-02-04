@@ -89,7 +89,7 @@ export default function OliveYoungGuideViewer() {
     return (
       <>
         <CompanyNavigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-20 lg:pt-8 lg:pb-8">
           <div className="text-center">로딩 중...</div>
         </div>
       </>
@@ -100,7 +100,7 @@ export default function OliveYoungGuideViewer() {
     return (
       <>
         <CompanyNavigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-20 lg:pt-8 lg:pb-8">
           <div className="text-center">캠페인을 찾을 수 없습니다.</div>
         </div>
       </>
@@ -112,9 +112,9 @@ export default function OliveYoungGuideViewer() {
   return (
     <>
       <CompanyNavigation />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-20 lg:pt-8 lg:pb-8">
         {/* 헤더 */}
-        <div className="mb-8">
+        <div className="mb-6 lg:mb-8">
           <Button
             variant="ghost"
             onClick={() => navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)}
@@ -123,7 +123,7 @@ export default function OliveYoungGuideViewer() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             가이드 편집으로 돌아가기
           </Button>
-          <h1 className="text-3xl font-bold mb-2">
+          <h1 className="text-xl lg:text-3xl font-bold mb-2">
             🌸 올영세일 캠페인 가이드
           </h1>
           <p className="text-gray-600">
@@ -139,8 +139,8 @@ export default function OliveYoungGuideViewer() {
         </div>
 
         {/* 제품 정보 */}
-        <div className="bg-white rounded-lg border p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">📦 제품 정보</h2>
+        <div className="bg-white rounded-lg border p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">📦 제품 정보</h2>
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">브랜드</p>
@@ -162,9 +162,9 @@ export default function OliveYoungGuideViewer() {
         </div>
 
         {/* 콘텐츠 타입 */}
-        <div className="bg-white rounded-lg border p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">🎬 콘텐츠 타입</h2>
-          <div className="flex items-center gap-3">
+        <div className="bg-white rounded-lg border p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">🎬 콘텐츠 타입</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             {campaign.content_type === 'store_visit' ? (
               <>
                 <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-semibold">
@@ -188,12 +188,12 @@ export default function OliveYoungGuideViewer() {
         </div>
 
         {/* 캠페인 진행 단계 */}
-        <div className="bg-white rounded-lg border p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">📅 캠페인 진행 단계</h2>
+        <div className="bg-white rounded-lg border p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">📅 캠페인 진행 단계</h2>
           
           {/* STEP 1 */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2 lg:gap-3 mb-2">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">
                 STEP 1
               </span>
@@ -252,7 +252,7 @@ export default function OliveYoungGuideViewer() {
 
           {/* STEP 2 */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2 lg:gap-3 mb-2">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">
                 STEP 2
               </span>
@@ -312,7 +312,7 @@ export default function OliveYoungGuideViewer() {
           {/* STEP 3 */}
           {hasInstagram && (
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex flex-wrap items-center gap-2 lg:gap-3 mb-2">
                 <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">
                   STEP 3
                 </span>
@@ -393,8 +393,8 @@ export default function OliveYoungGuideViewer() {
 
         {/* 주의사항 */}
         {campaign.cautions && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-3 text-amber-900">⚠️ 주의사항</h2>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 lg:p-6 mb-6">
+            <h2 className="text-lg lg:text-xl font-bold mb-3 text-amber-900">⚠️ 주의사항</h2>
             <p className="whitespace-pre-wrap text-amber-800 text-sm">
               {campaign.cautions}
             </p>
@@ -402,7 +402,7 @@ export default function OliveYoungGuideViewer() {
         )}
 
         {/* 결제 버튼 */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
           <Button
             variant="outline"
             onClick={() => navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)}

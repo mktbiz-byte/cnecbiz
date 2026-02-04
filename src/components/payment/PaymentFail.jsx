@@ -10,7 +10,7 @@ const PaymentFail = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+      <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 max-w-md w-full mx-4 sm:mx-auto text-center">
         <div className="text-6xl mb-4">⚠️</div>
         <h2 className="text-2xl font-bold text-red-600 mb-4">결제 실패</h2>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">

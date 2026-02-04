@@ -320,18 +320,18 @@ ${JSON.stringify(textsToTranslate, null, 2)}
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
+      <div className="max-w-7xl mx-auto p-4 lg:p-6 pt-16 lg:pt-6">
+        <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             대시보드로 돌아가기
           </Button>
         </div>
 
-        <h1 className="text-3xl font-bold mb-2">새 캠페인 생성</h1>
-        <p className="text-gray-600 mb-8">일주에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
+        <h1 className="text-xl lg:text-3xl font-bold mb-2">새 캠페인 생성</h1>
+        <p className="text-sm lg:text-base text-gray-600 mb-6 lg:mb-8">일주에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Left: Campaign Form */}
           <Card>
             <CardHeader>
@@ -341,7 +341,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
                 {/* Title */}
                 <div>
                   <label className="block text-sm font-medium mb-2">캠페인 제목 *</label>
@@ -369,7 +369,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   <select
                     value={formData.product_category}
                     onChange={(e) => setFormData({ ...formData, product_category: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
+                    className="w-full px-4 py-2.5 lg:py-2 border rounded-lg text-sm"
                   >
                     <option value="beauty">Beauty</option>
                     <option value="fashion">Fashion</option>
@@ -403,8 +403,8 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* 일괄 번역 버튼 */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-3 lg:p-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2">
                       <Languages className="w-5 h-5 text-blue-600" />
                       <h4 className="font-semibold text-gray-900">일괄 번역</h4>
@@ -436,7 +436,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 {/* Reward Amount Selection */}
                 <div>
                   <label className="block text-sm font-medium mb-3">보상 금액 선택 *</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* 20만원 */}
                     <button
                       type="button"
@@ -538,7 +538,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">모집 마감일 *</label>
                     <Input
@@ -581,7 +581,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* Budget & Creators */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">예산 (원) *</label>
                     <Input
@@ -607,7 +607,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 {/* SNS Platforms */}
                 <div>
                   <label className="block text-sm font-medium mb-3">대상 SNS 플랫폼 *</label>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-3 lg:gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -706,8 +706,8 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* Additional Questions (Optional) */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4">추가 질문 (선택사항)</h3>
+                <div className="border-t pt-4 lg:pt-6">
+                  <h3 className="text-base lg:text-lg font-semibold mb-3 lg:mb-4">추가 질문 (선택사항)</h3>
                   <p className="text-sm text-gray-500 mb-4">크리에이터에게 물어볼 추가 질문을 설정할 수 있습니다.</p>
                   
                   {[1, 2, 3, 4].map(num => (
@@ -745,8 +745,8 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* Participation Requirements (Optional) */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4">참가 조건 (선택사항)</h3>
+                <div className="border-t pt-4 lg:pt-6">
+                  <h3 className="text-base lg:text-lg font-semibold mb-3 lg:mb-4">참가 조건 (선택사항)</h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">나이 제한</label>
@@ -800,7 +800,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
           </Card>
 
           {/* Right: Translator */}
-          <div className="space-y-6">
+          <div className="space-y-4 lg:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

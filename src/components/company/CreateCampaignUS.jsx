@@ -615,20 +615,20 @@ Output format:
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="bg-gray-50 py-8 lg:py-12">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-6">
+      <div className="bg-gray-50 pt-16 pb-6 lg:pt-8 lg:pb-8 lg:py-12">
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/campaigns')} className="text-gray-500 hover:text-gray-700">
             ← 캠페인 목록으로
           </Button>
         </div>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 lg:mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="text-2xl">🇺🇸</span>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">미국 캠페인 생성</h1>
+            <span className="text-xl lg:text-2xl">🇺🇸</span>
+            <h1 className="text-xl lg:text-3xl font-bold text-gray-900">미국 캠페인 생성</h1>
           </div>
           <p className="text-gray-500 text-sm lg:text-base">미국 시장 대상 인플루언서 마케팅 캠페인</p>
-          <p className="text-indigo-600 text-sm mt-2 font-medium">💡 한국어로 작성 후 마지막에 AI 번역 버튼으로 영어로 변환됩니다</p>
+          <p className="text-indigo-600 text-xs lg:text-sm mt-2 font-medium">한국어로 작성 후 마지막에 AI 번역 버튼으로 영어로 변환됩니다</p>
         </div>
 
         {/* 캠페인 타입 선택 */}
@@ -715,15 +715,15 @@ Output format:
       </div>
 
       {/* 메인 콘텐츠: 2컬럼 레이아웃 */}
-      <div className="bg-gray-50 py-8 lg:py-12">
+      <div className="bg-gray-50 py-6 lg:py-12 pb-24 lg:pb-12">
         <div className="max-w-6xl mx-auto px-4 lg:px-8">
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
               {/* 왼쪽: 폼 */}
-              <div className="lg:col-span-2 space-y-8">
+              <div className="lg:col-span-2 space-y-4 lg:space-y-8">
                 {/* 크리에이터 등급 선택 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">크리에이터 등급 선택</h2>
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                  <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-2">크리에이터 등급 선택</h2>
                   <p className="text-gray-500 mb-6 text-sm">예산에 따라 크리에이터의 퀄리티가 달라집니다.</p>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -819,8 +819,8 @@ Output format:
                 </div>
 
                 {/* 캠페인 일정 통합 섹션 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">📅 캠페인 일정</h2>
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                  <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 lg:mb-6">캠페인 일정</h2>
 
                   {/* 기본 일정 */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -855,11 +855,11 @@ Output format:
 
                 {/* 캠페인 타입별 마감일 설정 */}
                 {campaignForm.campaign_type === '4week_challenge' && (
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-purple-200">
-                    <h3 className="font-bold text-purple-800 mb-4 flex items-center gap-2">
-                      🗓️ 4주 챌린지 스케줄
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border-2 border-purple-200">
+                    <h3 className="font-bold text-purple-800 mb-4 flex items-center gap-2 text-base lg:text-lg">
+                      4주 챌린지 스케줄
                     </h3>
-                    <div className="space-y-6">
+                    <div className="space-y-4 lg:space-y-6">
                       {/* 영상 제출 마감일 */}
                       <div>
                         <Label className="text-sm font-semibold text-purple-700 mb-3 block">영상 제출 마감일</Label>
@@ -897,11 +897,11 @@ Output format:
                 )}
 
                 {campaignForm.campaign_type === 'regular' && (
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border-2 border-green-200">
-                    <h3 className="font-bold text-green-800 mb-4 flex items-center gap-2">
-                      📹 기획형 스케줄
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border-2 border-green-200">
+                    <h3 className="font-bold text-green-800 mb-4 flex items-center gap-2 text-base lg:text-lg">
+                      기획형 스케줄
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label className="text-sm">영상 제출 마감일</Label>
                         <Input
@@ -923,12 +923,12 @@ Output format:
                 )}
 
                 {/* 캠페인 기본 정보 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">캠페인 정보 (한국어로 작성)</h2>
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h2 className="text-lg lg:text-xl font-bold text-gray-900">캠페인 정보 (한국어로 작성)</h2>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-4 lg:space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="title">캠페인 제목 *</Label>
@@ -994,8 +994,8 @@ Output format:
                 </div>
 
                 {/* SNS 플랫폼 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">📱 SNS 플랫폼</h2>
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                  <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 lg:mb-6">SNS 플랫폼</h2>
                   <div className="flex flex-wrap gap-4">
                     {[
                       { key: 'instagram', label: '📷 Instagram' },
@@ -1019,8 +1019,8 @@ Output format:
                 </div>
 
                 {/* 추가 옵션 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">추가 옵션</h2>
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                  <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 lg:mb-6">추가 옵션</h2>
                   <div className="space-y-4">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
@@ -1050,7 +1050,7 @@ Output format:
                 </div>
 
                 {/* 지원자 질문 섹션 */}
-                <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -1148,8 +1148,8 @@ Output format:
                 </div>
 
                 {/* AI 번역 섹션 */}
-                <div className={`rounded-2xl p-6 lg:p-8 shadow-sm border-2 ${translationComplete ? 'bg-green-50 border-green-300' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'}`}>
-                  <div className="flex items-center justify-between mb-4">
+                <div className={`rounded-2xl p-4 lg:p-8 shadow-sm border-2 ${translationComplete ? 'bg-green-50 border-green-300' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'}`}>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${translationComplete ? 'bg-green-500' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
                         <Languages className="w-5 h-5 text-white" />
@@ -1220,7 +1220,7 @@ Output format:
 
               {/* 오른쪽: 견적 + 미리보기 */}
               <div className="lg:col-span-1">
-                <div className="sticky top-8 space-y-4">
+                <div className="lg:sticky lg:top-8 space-y-4">
                   {/* 견적서 - 컴팩트 */}
                   <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-xl">
                     <div className="flex items-center justify-between mb-4">
@@ -1278,8 +1278,8 @@ Output format:
                     </Button>
                   </div>
 
-                  {/* 캠페인 미리보기 - 컴팩트 */}
-                  <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                  {/* 캠페인 미리보기 - 컴팩트 (desktop only) */}
+                  <div className="hidden lg:block bg-white rounded-2xl shadow-lg overflow-hidden">
                     <div className="bg-gray-100 px-3 py-1.5 border-b">
                       <p className="text-xs text-gray-500 text-center font-medium">📱 크리에이터 노출 화면</p>
                     </div>

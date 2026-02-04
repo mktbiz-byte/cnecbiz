@@ -61,7 +61,7 @@ const PaymentSuccess = () => {
   if (processing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+        <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 max-w-md w-full mx-4 sm:mx-auto text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">결제 처리 중...</h2>
           <p className="text-gray-600">잠시만 기다려주세요.</p>
@@ -73,7 +73,7 @@ const PaymentSuccess = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+        <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 max-w-md w-full mx-4 sm:mx-auto text-center">
           <div className="text-6xl mb-4">❌</div>
           <h2 className="text-2xl font-bold text-red-600 mb-4">결제 실패</h2>
           <p className="text-gray-700 mb-6">{error}</p>
@@ -90,7 +90,7 @@ const PaymentSuccess = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+      <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 max-w-md w-full mx-4 sm:mx-auto text-center">
         <div className="text-6xl mb-4">✅</div>
         <h2 className="text-2xl font-bold text-green-600 mb-4">결제 완료!</h2>
         <p className="text-gray-700 mb-2">캠페인 결제가 성공적으로 완료되었습니다.</p>

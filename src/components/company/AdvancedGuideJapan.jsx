@@ -103,10 +103,10 @@ const AdvancedGuideJapan = () => {
     <div className="min-h-screen bg-gray-50">
       <CompanyNavigation />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 pt-14 pb-20 lg:pt-8 lg:pb-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">고도화 가이드 생성</h1>
-          <p className="text-gray-600 mt-2">캠페인: {campaignTitle}</p>
+          <h1 className="text-xl lg:text-3xl font-bold text-gray-900">고도화 가이드 생성</h1>
+          <p className="text-gray-600 mt-2 text-sm lg:text-base">캠페인: {campaignTitle}</p>
         </div>
 
         {error && (
@@ -229,11 +229,11 @@ const AdvancedGuideJapan = () => {
               <CardContent>
                 <div className="space-y-2">
                   <Label>가이드 페이지 URL</Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       value={guidePageUrl}
                       readOnly
-                      className="bg-white"
+                      className="bg-white flex-1"
                     />
                     <Button
                       variant="outline"

@@ -440,7 +440,7 @@ export default function SignContract() {
 
   if (signed) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center px-4 py-6 lg:p-6">
         <Card className="max-w-2xl w-full">
           <CardContent className="py-12 text-center">
             <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
@@ -453,7 +453,7 @@ export default function SignContract() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 px-4 py-6 lg:p-6">
       <div className="max-w-4xl mx-auto">
         <Card className="mb-6">
           <CardHeader>
@@ -464,7 +464,7 @@ export default function SignContract() {
           </CardHeader>
           <CardContent>
             <div
-              className="prose max-w-none border rounded-lg p-6 bg-white"
+              className="prose max-w-none border rounded-lg p-4 lg:p-6 bg-white overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: renderedContent }}
             />
           </CardContent>
@@ -547,36 +547,36 @@ export default function SignContract() {
           </CardHeader>
           <CardContent>
             <Tabs value={signatureType} onValueChange={setSignatureType}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="auto">
-                  <Type className="w-4 h-4 mr-2" />
-                  자동 서명
+                  <Type className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">자동 서명</span>
                 </TabsTrigger>
                 <TabsTrigger value="stamp">
-                  <Stamp className="w-4 h-4 mr-2" />
-                  도장
+                  <Stamp className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">도장</span>
                 </TabsTrigger>
                 <TabsTrigger value="draw">
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  직접 그리기
+                  <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">직접 그리기</span>
                 </TabsTrigger>
                 <TabsTrigger value="upload">
-                  <Upload className="w-4 h-4 mr-2" />
-                  업로드
+                  <Upload className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">업로드</span>
                 </TabsTrigger>
               </TabsList>
 
               {/* 자동 서명 탭 */}
               <TabsContent value="auto" className="space-y-4">
                 {!signerInfo.ceoName.trim() ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center bg-white">
                     <Type className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-600">대표자명을 입력하면 서명이 자동 생성됩니다.</p>
                   </div>
                 ) : (
                   <>
                     <p className="text-sm text-gray-600">원하는 서명 스타일을 선택해주세요.</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {generatedSignatures.map((sig) => (
                         <div
                           key={sig.id}
@@ -599,14 +599,14 @@ export default function SignContract() {
               {/* 도장 탭 */}
               <TabsContent value="stamp" className="space-y-4">
                 {!signerInfo.companyName.trim() || !signerInfo.ceoName.trim() ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center bg-white">
                     <Stamp className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-600">회사명과 대표자명을 입력하면 도장이 자동 생성됩니다.</p>
                   </div>
                 ) : (
                   <>
                     <p className="text-sm text-gray-600 mb-3">원하는 도장 스타일을 선택해주세요.</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {generatedStamps.map((stamp) => (
                         <div
                           key={stamp.id}
@@ -660,7 +660,7 @@ export default function SignContract() {
 
               {/* 업로드 탭 */}
               <TabsContent value="upload" className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center bg-white">
                   {signatureImage ? (
                     <img src={signatureImage} alt="서명" className="max-h-48 mx-auto" />
                   ) : (
@@ -682,7 +682,7 @@ export default function SignContract() {
               <Button
                 onClick={handleSubmit}
                 disabled={signing}
-                className="flex-1"
+                className="flex-1 h-12 text-base"
               >
                 {signing ? (
                   <>

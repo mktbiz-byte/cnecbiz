@@ -594,6 +594,13 @@ const Container = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
+  padding-top: 70px;
+  padding-bottom: 90px;
+
+  @media (min-width: 1024px) {
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
 `;
 
 const Header = styled.div`
@@ -602,10 +609,14 @@ const Header = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
   margin-bottom: 12px;
+
+  @media (min-width: 1024px) {
+    font-size: 36px;
+  }
 `;
 
 const Subtitle = styled.p`
@@ -616,13 +627,22 @@ const Subtitle = styled.p`
 const SelectionBar = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 16px 24px;
+  padding: 12px 16px;
   border-radius: 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
   margin-bottom: 32px;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    gap: 0;
+  }
 `;
 
 const SelectionInfo = styled.div`
@@ -636,13 +656,20 @@ const InquiryButton = styled.button`
   border: none;
   padding: 10px 20px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all 0.2s;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    width: auto;
+    font-size: 14px;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -652,14 +679,23 @@ const InquiryButton = styled.button`
 
 const CreatorsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: 16px;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+  }
 `;
 
 const CreatorCard = styled.div`
   background: white;
   border-radius: 16px;
-  padding: 24px;
+  padding: 16px;
+
+  @media (min-width: 1024px) {
+    padding: 24px;
+  }
   box-shadow: ${props => props.isSelected 
     ? '0 8px 24px rgba(99, 102, 241, 0.3)' 
     : '0 2px 8px rgba(0, 0, 0, 0.1)'};
@@ -713,19 +749,31 @@ const ChannelHandle = styled.p`
 
 const StatsSection = styled.div`
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 16px;
-  padding: 16px;
+  padding: 12px;
   background: #f8f9fa;
   border-radius: 12px;
+
+  @media (min-width: 768px) {
+    gap: 16px;
+    padding: 16px;
+    flex-wrap: nowrap;
+  }
 `;
 
 const StatItem = styled.div`
-  flex: 1;
+  flex: 1 1 40%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+
+  @media (min-width: 768px) {
+    flex: 1;
+  }
 `;
 
 const StatLabel = styled.span`
@@ -917,15 +965,26 @@ const ModalOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 12px;
+
+  @media (min-width: 768px) {
+    padding: 20px;
+  }
 `;
 
 const ModalContent = styled.div`
   background: white;
   border-radius: 16px;
-  width: 90%;
+  width: 95%;
   max-width: 500px;
-  max-height: 80vh;
+  max-height: 90vh;
   overflow-y: auto;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    max-height: 95vh;
+    border-radius: 12px;
+  }
 `;
 
 const ModalHeader = styled.div`

@@ -255,30 +255,30 @@ const PaymentMethodSelection = () => {
   const totalAmount = campaign.estimated_cost || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="max-w-4xl mx-auto p-4 lg:p-6">
+        <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
             ← 캠페인 목록으로
           </Button>
         </div>
 
         <Card className="mb-6 border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
-            <CardTitle className="text-3xl flex items-center gap-2">
-              <CreditCard className="h-7 w-7 text-blue-600" />
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 p-4 lg:p-6">
+            <CardTitle className="text-xl lg:text-3xl flex items-center gap-2">
+              <CreditCard className="h-6 w-6 lg:h-7 lg:w-7 text-blue-600" />
               결제 방법 선택
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4 lg:p-6 mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Info className="h-5 w-5 text-blue-600" />
-                <h3 className="font-bold text-xl text-gray-900">{campaign.title}</h3>
+                <h3 className="font-bold text-base lg:text-xl text-gray-900">{campaign.title}</h3>
               </div>
               <div className="flex justify-between items-center pt-3 border-t-2 border-blue-200">
-                <span className="text-base font-semibold text-gray-700">예상 결제 금액</span>
-                <span className="text-3xl font-bold text-blue-600">
+                <span className="text-sm lg:text-base font-semibold text-gray-700">예상 결제 금액</span>
+                <span className="text-2xl lg:text-3xl font-bold text-blue-600">
                   ₩{totalAmount.toLocaleString()}
                 </span>
               </div>
@@ -291,19 +291,19 @@ const PaymentMethodSelection = () => {
                 {/* 카드 결제 옵션 */}
                 <button
                   onClick={() => setPaymentMethod('card')}
-                  className="w-full p-6 border-2 border-blue-300 rounded-xl hover:border-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
+                  className="w-full p-4 lg:p-6 border-2 border-blue-300 rounded-xl hover:border-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-blue-100 p-3 rounded-full group-hover:bg-blue-200 transition-colors">
-                        <CreditCard className="h-8 w-8 text-blue-600" />
+                    <div className="flex items-center gap-3 lg:gap-4">
+                      <div className="bg-blue-100 p-2 lg:p-3 rounded-full group-hover:bg-blue-200 transition-colors">
+                        <CreditCard className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
                       </div>
                       <div>
-                        <h4 className="text-xl font-bold text-gray-800 group-hover:text-blue-600">카드 결제</h4>
-                        <p className="text-sm text-gray-600">신용카드, 체크카드로 즉시 결제</p>
+                        <h4 className="text-base lg:text-xl font-bold text-gray-800 group-hover:text-blue-600">카드 결제</h4>
+                        <p className="text-xs lg:text-sm text-gray-600">신용카드, 체크카드로 즉시 결제</p>
                       </div>
                     </div>
-                    <div className="text-blue-600 font-bold text-lg">선택 →</div>
+                    <div className="text-blue-600 font-bold text-lg hidden sm:block">선택 →</div>
                   </div>
                 </button>
 
@@ -319,18 +319,18 @@ const PaymentMethodSelection = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-full transition-colors ${
+                      <div className="flex items-center gap-3 lg:gap-4">
+                        <div className={`p-2 lg:p-3 rounded-full transition-colors ${
                           voucherBalance >= Math.round(totalAmount / 1.1)
                             ? 'bg-purple-100 group-hover:bg-purple-200'
                             : 'bg-gray-200'
                         }`}>
-                          <Wallet className={`h-8 w-8 ${
+                          <Wallet className={`h-6 w-6 lg:h-8 lg:w-8 ${
                             voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
                           }`} />
                         </div>
                         <div>
-                          <h4 className={`text-xl font-bold ${
+                          <h4 className={`text-base lg:text-xl font-bold ${
                             voucherBalance >= Math.round(totalAmount / 1.1)
                               ? 'text-gray-800 group-hover:text-purple-600'
                               : 'text-gray-500'
@@ -353,7 +353,7 @@ const PaymentMethodSelection = () => {
                           </p>
                         </div>
                       </div>
-                      <div className={`font-bold text-lg ${
+                      <div className={`font-bold text-lg hidden sm:block ${
                         voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
                       }`}>
                         선택 →
@@ -365,19 +365,19 @@ const PaymentMethodSelection = () => {
                 {/* 무통장 입금 옵션 */}
                 <button
                   onClick={handleBankTransfer}
-                  className="w-full p-6 border-2 border-green-300 rounded-xl hover:border-green-600 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
+                  className="w-full p-4 lg:p-6 border-2 border-green-300 rounded-xl hover:border-green-600 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-green-100 p-3 rounded-full group-hover:bg-green-200 transition-colors">
-                        <Building2 className="h-8 w-8 text-green-600" />
+                    <div className="flex items-center gap-3 lg:gap-4">
+                      <div className="bg-green-100 p-2 lg:p-3 rounded-full group-hover:bg-green-200 transition-colors">
+                        <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-green-600" />
                       </div>
                       <div>
-                        <h4 className="text-xl font-bold text-gray-800 group-hover:text-green-600">무통장 입금</h4>
-                        <p className="text-sm text-gray-600">계좌이체 후 입금 확인 (세금계산서 발행 가능)</p>
+                        <h4 className="text-base lg:text-xl font-bold text-gray-800 group-hover:text-green-600">무통장 입금</h4>
+                        <p className="text-xs lg:text-sm text-gray-600">계좌이체 후 입금 확인 (세금계산서 발행 가능)</p>
                       </div>
                     </div>
-                    <div className="text-green-600 font-bold text-lg">선택 →</div>
+                    <div className="text-green-600 font-bold text-lg hidden sm:block">선택 →</div>
                   </div>
                 </button>
 

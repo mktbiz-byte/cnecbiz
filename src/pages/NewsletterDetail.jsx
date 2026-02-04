@@ -391,13 +391,13 @@ export default function NewsletterDetail() {
             ) : (
               <form onSubmit={handleSubscribe} className="max-w-md mx-auto">
                 <div className="space-y-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       type="text"
                       placeholder="이름"
                       value={subscribeName}
                       onChange={(e) => setSubscribeName(e.target.value)}
-                      className="w-28 h-12 bg-white"
+                      className="w-full sm:w-28 h-12 bg-white"
                       disabled={subscribing}
                     />
                     <Input
@@ -412,7 +412,7 @@ export default function NewsletterDetail() {
                     <Button
                       type="submit"
                       disabled={subscribing || !subscribeEmail}
-                      className="h-12 px-6 bg-blue-600 hover:bg-blue-700"
+                      className="h-12 px-6 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     >
                       {subscribing ? (
                         <Loader2 className="w-5 h-5 animate-spin" />

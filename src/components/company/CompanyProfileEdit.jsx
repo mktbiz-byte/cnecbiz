@@ -261,7 +261,7 @@ export default function CompanyProfileEdit() {
     return (
       <>
         <CompanyNavigation />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 lg:ml-64">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 lg:ml-64 pt-14 pb-20 lg:pt-6 lg:pb-6">
         <Card className="w-full max-w-md shadow-2xl border-none">
           <CardContent className="p-12 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -283,16 +283,16 @@ export default function CompanyProfileEdit() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 px-4 lg:py-12 lg:ml-64 pt-14 pb-20 lg:pt-12 lg:pb-12">
       <div className="max-w-3xl mx-auto">
         <Card className="shadow-2xl border-none">
-          <CardHeader className="space-y-4 text-center pb-8">
+          <CardHeader className="space-y-4 text-center pb-6 lg:pb-8">
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-                <Building className="w-10 h-10 text-white" />
+              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+                <Building className="w-7 h-7 lg:w-10 lg:h-10 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">
+            <CardTitle className="text-2xl lg:text-3xl font-bold">
               프로필 수정
             </CardTitle>
             <CardDescription className="text-base">
@@ -302,7 +302,7 @@ export default function CompanyProfileEdit() {
             {/* 진행 단계 표시 제거 - 한 페이지로 통합 */}
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 p-4 lg:p-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -313,8 +313,8 @@ export default function CompanyProfileEdit() {
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* 기본 정보 */}
               <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="font-semibold text-blue-900 mb-4">회원가입 시 입력한 정보</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 lg:p-6">
+                    <h3 className="font-semibold text-blue-900 mb-4 text-sm lg:text-base">회원가입 시 입력한 정보</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">회사명 *</label>
@@ -354,13 +354,13 @@ export default function CompanyProfileEdit() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">이메일</label>
-                        <div className="text-sm font-medium text-gray-900 p-3 bg-white rounded-md border">{formData.email}</div>
+                        <div className="text-sm font-medium text-gray-900 p-3 bg-white rounded-md border truncate">{formData.email}</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">세금계산서 발행 정보</h3>
+                    <h3 className="font-semibold text-base lg:text-lg">세금계산서 발행 정보</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -411,7 +411,7 @@ export default function CompanyProfileEdit() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">사업장 주소</h3>
+                    <h3 className="font-semibold text-base lg:text-lg">사업장 주소</h3>
                     
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -471,9 +471,9 @@ export default function CompanyProfileEdit() {
                 </div>
 
               {/* 알림 설정 */}
-              <div className="space-y-6 border-t border-gray-200 pt-8">
+              <div className="space-y-6 border-t border-gray-200 pt-6 lg:pt-8">
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">알림 담당자 정보</h3>
+                    <h3 className="font-semibold text-base lg:text-lg">알림 담당자 정보</h3>
                     <p className="text-sm text-gray-600">
                       캠페인 진행 상황, 입금 확인, 세금계산서 발행 등의 알림을 받을 담당자 정보를 입력해주세요.
                     </p>
@@ -534,7 +534,7 @@ export default function CompanyProfileEdit() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">알림 수신 동의</h3>
+                    <h3 className="font-semibold text-base lg:text-lg">알림 수신 동의</h3>
                     
                     <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
                       <label className="flex items-start space-x-3 cursor-pointer">
@@ -595,11 +595,11 @@ export default function CompanyProfileEdit() {
                 </div>
 
               {/* 비밀번호 변경 */}
-              <div className="space-y-6 border-t border-gray-200 pt-8">
+              <div className="space-y-6 border-t border-gray-200 pt-6 lg:pt-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <Shield className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-lg">비밀번호 변경</h3>
+                    <h3 className="font-semibold text-base lg:text-lg">비밀번호 변경</h3>
                   </div>
                   <p className="text-sm text-gray-600">
                     계정 보안을 위해 비밀번호를 주기적으로 변경해주세요.
@@ -621,7 +621,7 @@ export default function CompanyProfileEdit() {
                     </div>
                   )}
 
-                  <div className="bg-slate-50 p-6 rounded-xl space-y-4">
+                  <div className="bg-slate-50 p-4 lg:p-6 rounded-xl space-y-4">
                     {/* 현재 비밀번호 */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">현재 비밀번호</label>
@@ -725,7 +725,7 @@ export default function CompanyProfileEdit() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="px-8"
+                  className="w-full sm:w-auto px-8"
                 >
                   {loading ? '저장 중...' : '프로필 저장'}
                 </Button>

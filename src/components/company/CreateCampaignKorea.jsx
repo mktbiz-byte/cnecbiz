@@ -1213,9 +1213,9 @@ const CampaignCreationKorea = () => {
       )}
 
       {/* 캠페인 타입 선택 */}
-      <div className="bg-gray-50 py-8 lg:py-12">
+      <div className="bg-gray-50 pt-16 pb-6 lg:pt-8 lg:pb-8 lg:py-12">
         {/* 뒤로가기 */}
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-6">
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-4 lg:mb-6">
           <Button
             variant="ghost"
             onClick={() => {
@@ -1233,8 +1233,8 @@ const CampaignCreationKorea = () => {
         </div>
 
         {/* 타이틀 */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
+        <div className="text-center mb-6 lg:mb-8">
+          <h1 className="text-xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
           <p className="text-gray-500 text-sm lg:text-base">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
         </div>
 
@@ -1461,12 +1461,12 @@ const CampaignCreationKorea = () => {
 
             {/* 기획형 캠페인 - 2컬럼 레이아웃 (폼 + 견적서) */}
             {campaignForm.campaign_type === 'planned' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
                 {/* 왼쪽: 모든 폼 필드 */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-4 lg:space-y-8">
                   {/* 패키지 선택 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                    <h2 className="text-lg lg:text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
                     <p className="text-gray-500 mb-6">예산에 따라 지원하는 크리에이터의 퀄리티와 지원율이 달라집니다.</p>
 
                     {/* 크리에이터 등급 (단가) */}
@@ -1591,7 +1591,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 브랜드/참여조건 섹션 */}
-                  <div ref={brandInfoRef} className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div ref={brandInfoRef} className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -1675,7 +1675,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 스케줄 설정 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -1792,7 +1792,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 캠페인 썸네일 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -1839,7 +1839,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 상품 상세 정보 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
@@ -2008,7 +2008,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 질문 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -2127,7 +2127,7 @@ const CampaignCreationKorea = () => {
 
                 {/* 오른쪽: 예상 견적서 (Sticky) */}
                 <div className="lg:col-span-1">
-                  <div className="sticky top-6">
+                  <div className="lg:sticky lg:top-6">
                     <div className="bg-slate-900 rounded-2xl p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
@@ -2253,12 +2253,12 @@ const CampaignCreationKorea = () => {
 
             {/* 올리브영 캠페인 - 2컬럼 레이아웃 (기획형과 동일한 스타일) */}
             {campaignForm.campaign_type === 'oliveyoung' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
                 {/* 왼쪽: 모든 폼 필드 */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-4 lg:space-y-8">
                   {/* 패키지 선택 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                    <h2 className="text-lg lg:text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
                     <p className="text-gray-500 mb-6">올리브영 캠페인 타입과 모집 인원을 선택하세요.</p>
 
                     {/* 올리브영 패키지 타입 선택 */}
@@ -2442,12 +2442,12 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 스케줄 설정 - 3단계 콘텐츠 업로드 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
                         <span className="text-white text-lg">📅</span>
                       </div>
-                      <h2 className="text-xl font-bold text-gray-900">스케줄 설정</h2>
+                      <h2 className="text-lg lg:text-xl font-bold text-gray-900">스케줄 설정</h2>
                     </div>
 
                     {/* 자동 추천 안내 */}
@@ -2653,7 +2653,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 브랜드 정보 - 기획형과 동일한 스타일 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -2737,7 +2737,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 캠페인 썸네일 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -2784,7 +2784,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 상품 정보 입력 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
@@ -2906,7 +2906,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 지원자 질문 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -2999,7 +2999,7 @@ const CampaignCreationKorea = () => {
 
                 {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
                 <div className="lg:col-span-1">
-                  <div className="sticky top-6">
+                  <div className="lg:sticky lg:top-6">
                     <div className="bg-slate-900 rounded-2xl p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
@@ -3134,12 +3134,12 @@ const CampaignCreationKorea = () => {
 
             {/* 4주 챌린지 - 2컬럼 레이아웃 (기획형/올영세일과 동일) */}
             {campaignForm.campaign_type === '4week_challenge' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
                 {/* 왼쪽: 모든 폼 필드 */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-4 lg:space-y-8">
                   {/* 캠페인 옵션 선택 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">4주 챌린지 캠페인 옵션</h2>
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
+                    <h2 className="text-lg lg:text-2xl font-bold text-gray-900 mb-2">4주 챌린지 캠페인 옵션</h2>
                     <p className="text-gray-500 mb-6">4주간 크리에이터가 매주 1회씩 콘텐츠를 업로드합니다.</p>
 
                     {/* 모집 인원 슬라이더 */}
@@ -3225,7 +3225,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 브랜드/참여조건 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
@@ -3275,7 +3275,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 스케줄 설정 - 브랜드 정보 다음 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -3459,7 +3459,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 캠페인 썸네일 - 기획형과 동일한 스타일 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -3506,7 +3506,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 상품 정보 입력 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
                       <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
@@ -3657,7 +3657,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 모집 채널 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
                       <span className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2m0 2a2 2 0 100 4m0-4a2 2 0 110 4m10-4V2m0 2a2 2 0 100 4m0-4a2 2 0 110 4M3 20h18" /></svg>
@@ -3689,7 +3689,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 지원자 질문 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -3808,7 +3808,7 @@ const CampaignCreationKorea = () => {
 
                 {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
                 <div className="lg:col-span-1">
-                  <div className="sticky top-6">
+                  <div className="lg:sticky lg:top-6">
                     <div className="bg-slate-900 rounded-2xl p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서

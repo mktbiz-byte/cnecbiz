@@ -264,7 +264,7 @@ export default function PaymentHistory() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -280,20 +280,20 @@ export default function PaymentHistory() {
               </Button>
             </div>
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                <Receipt className="w-7 h-7 text-white" />
+              <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 flex-shrink-0">
+                <Receipt className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">결제 내역</h1>
-                <p className="text-gray-500 mt-1">캠페인 결제 및 세금계산서를 관리하세요</p>
+              <div className="min-w-0">
+                <h1 className="text-lg lg:text-2xl md:text-3xl font-bold text-gray-900">결제 내역</h1>
+                <p className="text-sm lg:text-base text-gray-500 mt-1">캠페인 결제 및 세금계산서를 관리하세요</p>
               </div>
             </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-6 lg:mb-8">
             {/* 총 결제 금액 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
@@ -302,16 +302,16 @@ export default function PaymentHistory() {
                     <Wallet className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                <div className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   {(totalPayments / 10000).toFixed(0)}
-                  <span className="text-lg font-medium text-gray-400 ml-1">만원</span>
+                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">만원</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">VAT 포함</p>
               </div>
             </div>
 
             {/* 결제 건수 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
@@ -320,16 +320,16 @@ export default function PaymentHistory() {
                     <CreditCard className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900">
+                <div className="text-2xl lg:text-3xl font-bold text-gray-900">
                   {totalCount}
-                  <span className="text-lg font-medium text-gray-400 ml-1">건</span>
+                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">건</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">완료된 결제</p>
               </div>
             </div>
 
             {/* 수출바우처 잔액 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
@@ -338,9 +338,9 @@ export default function PaymentHistory() {
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <div className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   {currentVoucherBalance.toLocaleString()}
-                  <span className="text-lg font-medium text-gray-400 ml-1">원</span>
+                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">원</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">VAT 별도 기준 | 사용 {totalUsed.toLocaleString()}원</p>
               </div>
@@ -356,13 +356,13 @@ export default function PaymentHistory() {
                   <button
                     key={tab.key}
                     onClick={() => setSelectedTab(tab.key)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-4 font-medium text-sm transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-3 lg:py-4 font-medium text-xs lg:text-sm transition-all ${
                       selectedTab === tab.key
                         ? 'text-purple-600 bg-purple-50/50 border-b-2 border-purple-500'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 hidden sm:block" />
                     {tab.label}
                     <span className={`px-2 py-0.5 rounded-full text-xs ${
                       selectedTab === tab.key
@@ -393,13 +393,13 @@ export default function PaymentHistory() {
                       {chargeRequests.map((request) => (
                         <div
                           key={request.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30 overflow-hidden"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
                             <CreditCard className="w-6 h-6 text-emerald-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {getStatusBadge(request.status)}
                               {request.needs_tax_invoice && (
                                 <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-600 font-medium">
@@ -407,16 +407,16 @@ export default function PaymentHistory() {
                                 </span>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-900 truncate">
+                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
                               {request.campaign_name || '캠페인 결제'}
                             </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
+                            <p className="text-xs lg:text-sm text-gray-500 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                               {new Date(request.created_at).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-xl font-bold text-gray-900">
+                            <p className="text-base lg:text-xl font-bold text-gray-900">
                               {formatCurrency(request.amount)}
                             </p>
                             <p className="text-xs text-gray-400">VAT 포함</p>
@@ -444,13 +444,13 @@ export default function PaymentHistory() {
                       {pointUsages.map((transaction) => (
                         <div
                           key={transaction.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30 overflow-hidden"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-100 to-orange-100 flex items-center justify-center flex-shrink-0">
                             <TrendingUp className="w-6 h-6 text-red-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600">
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                                 바우처 사용
@@ -461,16 +461,16 @@ export default function PaymentHistory() {
                                 </span>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-900 truncate">
+                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
                               {transaction.campaign_name || '-'}
                             </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
+                            <p className="text-xs lg:text-sm text-gray-500 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                               {new Date(transaction.created_at).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-xl font-bold text-red-600">
+                            <p className="text-base lg:text-xl font-bold text-red-600">
                               -{Math.abs(transaction.amount).toLocaleString()}원
                             </p>
                           </div>
@@ -515,16 +515,16 @@ export default function PaymentHistory() {
                           .map((request) => (
                             <div
                               key={request.id}
-                              className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 bg-amber-50/50"
+                              className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden"
                             >
                               <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
                                 <Clock className="w-6 h-6 text-amber-600" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900">
+                                <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
                                   {request.campaign_name || '캠페인 결제'}
                                 </p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-xs lg:text-sm text-gray-500">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}
                                 </p>
                               </div>
@@ -559,16 +559,16 @@ export default function PaymentHistory() {
                           .map((request) => (
                             <div
                               key={request.id}
-                              className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50"
+                              className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 overflow-hidden"
                             >
                               <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                 <CheckCircle className="w-6 h-6 text-emerald-600" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900">
+                                <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
                                   {request.campaign_name || '캠페인 결제'}
                                 </p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-xs lg:text-sm text-gray-500">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}
                                 </p>
                                 {request.tax_invoice_nts_confirm_num && (
