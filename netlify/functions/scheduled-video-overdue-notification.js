@@ -342,6 +342,8 @@ ${receiverName}님, 참여하신 캠페인의 영상 제출 기한이 지연되�
   });
 };
 
+const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
+
 // 메인 핸들러
 exports.handler = async (event, context) => {
   const executionTime = new Date();
@@ -349,6 +351,10 @@ exports.handler = async (event, context) => {
   console.log('=== 🚨 영상 제출 지연 알림 스케줄러 시작 🚨 ===');
   console.log('==========================================');
   console.log('실행 시간 (KST):', executionTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+
+  // ★ 중복 실행 방지 (인메모리 + DB)
+  const { isDuplicate, reason } = await checkDuplicate('scheduled-video-overdue-notification', event);
+  if (isDuplicate) return skipResponse(reason);
 
   try {
     // 오늘 날짜 (한국 시간 기준)

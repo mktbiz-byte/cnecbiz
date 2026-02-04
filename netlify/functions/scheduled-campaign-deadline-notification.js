@@ -334,10 +334,16 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, variable
   });
 };
 
+const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
+
 // 메인 핸들러
 exports.handler = async (event, context) => {
   console.log('=== 캠페인 모집 마감 알림 스케줄러 시작 ===');
   console.log('실행 시간:', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+
+  // ★ 중복 실행 방지 (인메모리 + DB)
+  const { isDuplicate, reason } = await checkDuplicate('scheduled-campaign-deadline-notification', event);
+  if (isDuplicate) return skipResponse(reason);
 
   try {
     // 오늘 날짜 (한국 시간 기준)

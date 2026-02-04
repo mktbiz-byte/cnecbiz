@@ -178,16 +178,10 @@ function isVideoSubmitted(status) {
   return ['video_submitted', 'video_approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(status);
 }
 
-// 중복 실행 방지를 위한 설정
-const EXECUTION_KEY = 'report-daily';
-const DUPLICATE_WINDOW_MS = 5 * 60 * 1000; // 5분 내 중복 실행 방지
-
-// ★ 모듈 레벨 인메모리 락 (동일 컨테이너 내 빠른 재실행 방지)
-let _lastExecutionTime = 0;
+const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
 
 exports.handler = async (event) => {
   const executionTime = new Date();
-  // 수동 테스트: query parameter에 ?manual=true가 있을 때만 (httpMethod로는 구분 불가)
   const queryParams = event.queryStringParameters || {};
   const isManualTest = queryParams.manual === 'true' || queryParams.test === 'true';
   console.log(`[report-daily] 시작 - ${isManualTest ? '수동' : '자동'}`);
@@ -199,62 +193,9 @@ exports.handler = async (event) => {
     };
   }
 
-  // ★ 인메모리 중복 실행 방지 (동일 컨테이너에서 수초 내 재실행 차단)
-  if (!isManualTest) {
-    const now = Date.now();
-    if (now - _lastExecutionTime < DUPLICATE_WINDOW_MS) {
-      console.log(`[report-daily] 인메모리 중복 감지: ${Math.round((now - _lastExecutionTime) / 1000)}초 전 실행됨. 스킵.`);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, skipped: true, reason: 'In-memory duplicate prevented' })
-      };
-    }
-    _lastExecutionTime = now;
-  }
-
-  // ★ DB 기반 중복 실행 방지 (다른 컨테이너에서의 중복 실행 차단)
-  if (!isManualTest) {
-    try {
-      const { data: lastExec } = await supabaseBiz
-        .from('scheduler_executions')
-        .select('executed_at')
-        .eq('function_name', EXECUTION_KEY)
-        .order('executed_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (lastExec) {
-        const lastExecTime = new Date(lastExec.executed_at);
-        const timeDiff = executionTime.getTime() - lastExecTime.getTime();
-        if (timeDiff < DUPLICATE_WINDOW_MS) {
-          console.log(`[report-daily] DB 중복 감지: ${Math.round(timeDiff / 1000)}초 전에 실행됨. 스킵.`);
-          return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, skipped: true, reason: 'DB duplicate prevented' })
-          };
-        }
-      }
-
-      // 현재 실행 기록
-      await supabaseBiz
-        .from('scheduler_executions')
-        .upsert({
-          function_name: EXECUTION_KEY,
-          executed_at: executionTime.toISOString()
-        }, { onConflict: 'function_name' });
-    } catch (e) {
-      // scheduler_executions 테이블이 없으면 생성 시도
-      console.log('[report-daily] scheduler_executions 테이블 조회 실패:', e.message);
-      try {
-        // 테이블 생성 시도 (RPC가 없으면 실패 - 인메모리 락으로 대응)
-        await supabaseBiz.from('scheduler_executions').insert({
-          function_name: EXECUTION_KEY,
-          executed_at: executionTime.toISOString()
-        });
-      } catch (e2) {
-        console.log('[report-daily] DB 락 사용 불가 - 인메모리 락에만 의존:', e2.message);
-      }
-    }
+  // ★ 중복 실행 방지 (인메모리 + DB)
+  const { isDuplicate, reason } = await checkDuplicate('report-daily', event);
+  if (isDuplicate) return skipResponse(reason);
   }
 
   try {
