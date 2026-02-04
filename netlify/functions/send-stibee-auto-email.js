@@ -122,81 +122,62 @@ exports.handler = async (event) => {
     const supabase = getSupabase()
     const results = { sent: 0, failed: 0, errors: [] }
 
-    // 스티비 자동 이메일은 1초당 3회 제한 → 350ms 간격으로 발송
-    const DELAY_MS = 350
+    // 스티비 자동 이메일 API: 1초당 3회 제한
+    // 3개씩 병렬 발송, 배치 간 1.1초 대기 (안전 마진)
+    const BATCH_SIZE = 3
+    const BATCH_DELAY_MS = 1100
 
-    for (let i = 0; i < subscribers.length; i++) {
-      const subscriber = subscribers[i]
-
+    async function sendOne(subscriber) {
       if (!subscriber.email) {
-        results.failed++
-        results.errors.push({ index: i, error: '이메일 주소 없음' })
-        continue
+        return { ok: false, email: '', error: '이메일 주소 없음' }
+      }
+
+      const requestBody = {
+        subscriber: subscriber.email,
+        ...variables,
+        name: subscriber.name || variables.name || '',
+        email: subscriber.email,
+        ...(subscriber.variables || {})
       }
 
       try {
-        // 스티비 자동 이메일 API 요청
-        // Body: { "subscriber": "email", "key1": "value1", ... }
-        const requestBody = {
-          subscriber: subscriber.email,
-          // 공통 변수
-          ...variables,
-          // 개별 구독자 변수 (공통 변수보다 우선)
-          name: subscriber.name || variables.name || '',
-          email: subscriber.email,
-          ...(subscriber.variables || {})
-        }
-
         const response = await fetch(finalTriggerUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
         })
 
         if (response.ok) {
-          results.sent++
-          console.log(`[stibee-auto] ✓ Sent to ${subscriber.email}`)
-
-          await logSend(supabase, {
-            triggerUrl: finalTriggerUrl,
-            email: subscriber.email,
-            name: subscriber.name,
-            variables: requestBody,
-            status: 'sent'
-          })
+          console.log(`[stibee-auto] ✓ ${subscriber.email}`)
+          return { ok: true, email: subscriber.email, name: subscriber.name, variables: requestBody }
         } else {
           const errorText = await response.text()
-          results.failed++
-          results.errors.push({
-            email: subscriber.email,
-            status: response.status,
-            error: errorText
-          })
-          console.error(`[stibee-auto] ✕ Failed for ${subscriber.email}: ${response.status} - ${errorText}`)
-
-          await logSend(supabase, {
-            triggerUrl: finalTriggerUrl,
-            email: subscriber.email,
-            name: subscriber.name,
-            variables: requestBody,
-            status: 'failed',
-            error: errorText
-          })
+          console.error(`[stibee-auto] ✕ ${subscriber.email}: ${response.status}`)
+          return { ok: false, email: subscriber.email, name: subscriber.name, variables: requestBody, status: response.status, error: errorText }
         }
       } catch (err) {
-        results.failed++
-        results.errors.push({
-          email: subscriber.email,
-          error: err.message
-        })
-        console.error(`[stibee-auto] ✕ Error for ${subscriber.email}:`, err.message)
+        console.error(`[stibee-auto] ✕ ${subscriber.email}: ${err.message}`)
+        return { ok: false, email: subscriber.email, error: err.message }
+      }
+    }
+
+    // 배치 단위로 병렬 발송
+    for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+      const batch = subscribers.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.all(batch.map(s => sendOne(s)))
+
+      for (const r of batchResults) {
+        if (r.ok) {
+          results.sent++
+        } else {
+          results.failed++
+          results.errors.push({ email: r.email, status: r.status, error: r.error })
+        }
       }
 
-      // Rate limiting (3 req/sec → 350ms 간격)
-      if (i < subscribers.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_MS))
+      // 다음 배치 전 대기 (마지막 배치 제외)
+      if (i + BATCH_SIZE < subscribers.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
       }
     }
 

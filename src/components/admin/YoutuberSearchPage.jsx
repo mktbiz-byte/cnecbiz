@@ -139,6 +139,7 @@ export default function YoutuberSearchPage() {
   const [stibeeTriggerPresets, setStibeeTriggerPresets] = useState([])
   const [customTriggerUrl, setCustomTriggerUrl] = useState('')
   const [sendingStibee, setSendingStibee] = useState(false)
+  const [stibeeSendProgress, setStibeeSendProgress] = useState({ sent: 0, failed: 0, total: 0 })
 
   // 스티비 주소록 상태
   const [addressBooks, setAddressBooks] = useState([])
@@ -335,6 +336,7 @@ export default function YoutuberSearchPage() {
     }
 
     setSendingStibee(true)
+    setStibeeSendProgress({ sent: 0, failed: 0, total: 0 })
     try {
       const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
       const subscribers = selectedSheetCreators.map(email => {
@@ -345,19 +347,39 @@ export default function YoutuberSearchPage() {
         }
       })
 
-      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          triggerUrl: triggerUrl,
-          subscribers: subscribers
-        })
-      })
+      // 20명씩 배치로 나눠서 발송 (Netlify 10초 타임아웃 방지)
+      const BATCH_SIZE = 20
+      let totalSent = 0
+      let totalFailed = 0
+      setStibeeSendProgress({ sent: 0, failed: 0, total: subscribers.length })
 
-      const result = await response.json()
-      if (!result.success) throw new Error(result.error)
+      for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+        const batch = subscribers.slice(i, i + BATCH_SIZE)
+        try {
+          const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              triggerUrl: triggerUrl,
+              subscribers: batch
+            })
+          })
 
-      alert(`${result.results?.sent || selectedSheetCreators.length}명에게 이메일 발송 완료!${result.results?.failed ? ` (${result.results.failed}명 실패)` : ''}`)
+          const result = await response.json()
+          if (result.success) {
+            totalSent += result.results?.sent || 0
+            totalFailed += result.results?.failed || 0
+          } else {
+            totalFailed += batch.length
+          }
+        } catch (batchErr) {
+          console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchErr)
+          totalFailed += batch.length
+        }
+        setStibeeSendProgress({ sent: totalSent, failed: totalFailed, total: subscribers.length })
+      }
+
+      alert(`${totalSent}명에게 이메일 발송 완료!${totalFailed ? ` (${totalFailed}명 실패)` : ''}`)
       setShowStibeeModal(false)
       setSelectedSheetCreators([])
 
@@ -494,6 +516,7 @@ export default function YoutuberSearchPage() {
     if (!confirm(`"${selectedBook?.name || selectedAddressBook}" 주소록의 ${addressBookSubscriberCount}명에게 자동 이메일을 발송하시겠습니까?`)) return
 
     setSendingStibee(true)
+    setStibeeSendProgress({ sent: 0, failed: 0, total: 0 })
     try {
       // 1. 주소록에서 구독자 목록 가져오기
       const subsResponse = await fetch('/.netlify/functions/stibee-address-book', {
@@ -514,27 +537,44 @@ export default function YoutuberSearchPage() {
 
       if (subscribers.length === 0) throw new Error('주소록에 구독자가 없습니다.')
 
-      // 2. 트리거 URL로 자동 이메일 발송
-      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          triggerUrl: triggerUrl,
-          subscribers: subscribers
-        })
-      })
+      // 2. 트리거 URL로 자동 이메일 발송 (20명씩 배치, 진행률 표시)
+      const BATCH_SIZE = 20
+      let totalSent = 0
+      let totalFailed = 0
+      setStibeeSendProgress({ sent: 0, failed: 0, total: subscribers.length })
 
-      const result = await response.json()
-      if (result.success) {
-        alert(`발송 완료!\n${result.results?.sent || 0}명 발송, ${result.results?.failed || 0}명 실패`)
-        setShowStibeeModal(false)
-        setStibeeStep(1)
-        setStibeeTriggerUrl('')
-        setCustomTriggerUrl('')
-        setSelectedAddressBook('')
-      } else {
-        throw new Error(result.error)
+      for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+        const batch = subscribers.slice(i, i + BATCH_SIZE)
+        try {
+          const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              triggerUrl: triggerUrl,
+              subscribers: batch
+            })
+          })
+
+          const result = await response.json()
+          if (result.success) {
+            totalSent += result.results?.sent || 0
+            totalFailed += result.results?.failed || 0
+          } else {
+            totalFailed += batch.length
+          }
+        } catch (batchErr) {
+          console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchErr)
+          totalFailed += batch.length
+        }
+        setStibeeSendProgress({ sent: totalSent, failed: totalFailed, total: subscribers.length })
       }
+
+      alert(`발송 완료!\n${totalSent}명 발송, ${totalFailed}명 실패`)
+      setShowStibeeModal(false)
+      setStibeeStep(1)
+      setStibeeTriggerUrl('')
+      setCustomTriggerUrl('')
+      setSelectedAddressBook('')
     } catch (error) {
       console.error('Failed to send to address book:', error)
       alert('메일 발송 실패: ' + error.message)
@@ -2214,11 +2254,19 @@ export default function YoutuberSearchPage() {
                     className="bg-green-600 hover:bg-green-700"
                   >
                     {sendingStibee ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        {stibeeSendProgress.total > 0
+                          ? `${stibeeSendProgress.sent + stibeeSendProgress.failed} / ${stibeeSendProgress.total}`
+                          : '준비 중...'
+                        }
+                      </>
                     ) : (
-                      <Send className="h-4 w-4 mr-2" />
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        발송하기
+                      </>
                     )}
-                    발송하기
                   </Button>
                 )}
               </DialogFooter>
