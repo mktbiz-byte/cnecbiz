@@ -119,11 +119,13 @@ export default function YoutuberSearchPage() {
 
   // Google Sheets 상태
   const [sheetSettings, setSheetSettings] = useState({
-    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
+    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false }
   })
+  const [lastSyncResult, setLastSyncResult] = useState(null)
+  const [runningSyncManual, setRunningSyncManual] = useState(false)
   const [sheetData, setSheetData] = useState({
     korea: { data: [], loading: false, error: null },
     japan: { data: [], loading: false, error: null },
@@ -204,10 +206,10 @@ export default function YoutuberSearchPage() {
       if (result.success && result.settings) {
         // 기존 설정과 병합 (누락된 필드에 기본값 적용)
         const defaultSettings = {
-          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
+          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false },
+          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', autoSync: false }
         }
         const mergedSettings = {
           korea: { ...defaultSettings.korea, ...(result.settings.korea || {}) },
@@ -216,6 +218,19 @@ export default function YoutuberSearchPage() {
           us: { ...defaultSettings.us, ...(result.settings.us || {}) }
         }
         setSheetSettings(mergedSettings)
+
+        // 마지막 동기화 결과 로드
+        try {
+          const syncRes = await fetch('/.netlify/functions/fetch-google-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'load_settings', settingsKey: 'stibee_sync_last_result' })
+          })
+          const syncResult = await syncRes.json()
+          if (syncResult.success && syncResult.settings) {
+            setLastSyncResult(syncResult.settings)
+          }
+        } catch { /* ignore */ }
       }
     } catch (error) {
       console.error('Failed to load sheet settings:', error)
@@ -1525,225 +1540,98 @@ export default function YoutuberSearchPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* 한국 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-blue-50">
-                      <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
-                        🇰🇷 한국
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.korea.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              korea: { ...prev.korea, url: e.target.value }
-                            }))}
-                          />
+                    {/* 시트 설정 - 공통 렌더링 */}
+                    {[
+                      { key: 'korea', label: 'KR 한국', emoji: '🇰🇷', bg: 'blue', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan', label: 'JP 일본', emoji: '🇯🇵', bg: 'red', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan2', label: 'JP 일본 2', emoji: '🇯🇵', bg: 'pink', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'us', label: 'US 미국', emoji: '🇺🇸', bg: 'purple', schedule: '매일 오전 10시 (EST)' }
+                    ].map(({ key, label, emoji, bg, schedule }) => (
+                      <div key={key} className={`border rounded-lg p-4 bg-${bg}-50`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className={`font-medium text-${bg}-800 flex items-center gap-2`}>
+                            {emoji} {label}
+                          </h4>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sheetSettings[key]?.autoSync || false}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], autoSync: e.target.checked }
+                              }))}
+                              className="w-4 h-4 rounded border-gray-300 text-green-600"
+                            />
+                            <span className="text-xs text-gray-600">자동 발송</span>
+                          </label>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
                             <Input
-                              placeholder="A"
-                              value={sheetSettings.korea.nameColumn}
+                              placeholder="https://docs.google.com/spreadsheets/d/..."
+                              value={sheetSettings[key]?.url || ''}
                               onChange={(e) => setSheetSettings(prev => ({
                                 ...prev,
-                                korea: { ...prev.korea, nameColumn: e.target.value.toUpperCase() }
+                                [key]: { ...prev[key], url: e.target.value }
                               }))}
                             />
                           </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                              <Input
+                                placeholder="A"
+                                value={sheetSettings[key]?.nameColumn || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], nameColumn: e.target.value.toUpperCase() }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                              <Input
+                                placeholder="B"
+                                value={sheetSettings[key]?.emailColumn || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], emailColumn: e.target.value.toUpperCase() }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                              <Input
+                                placeholder="gid (선택)"
+                                value={sheetSettings[key]?.sheetTab || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], sheetTab: e.target.value }
+                                }))}
+                              />
+                            </div>
+                          </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">스티비 주소록 ID</label>
                             <Input
-                              placeholder="B"
-                              value={sheetSettings.korea.emailColumn}
+                              placeholder="주소록 ID (숫자)"
+                              value={sheetSettings[key]?.stibeeListId || ''}
                               onChange={(e) => setSheetSettings(prev => ({
                                 ...prev,
-                                korea: { ...prev.korea, emailColumn: e.target.value.toUpperCase() }
+                                [key]: { ...prev[key], stibeeListId: e.target.value }
                               }))}
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.korea.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                korea: { ...prev.korea, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
+                          {sheetSettings[key]?.autoSync && (
+                            <p className="text-xs text-green-700 bg-green-100 rounded px-2 py-1">
+                              {schedule} 자동 싱크
+                            </p>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    ))}
 
-                    {/* 일본 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-red-50">
-                      <h4 className="font-medium text-red-800 mb-3 flex items-center gap-2">
-                        🇯🇵 일본
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.japan.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              japan: { ...prev.japan, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.japan.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.japan.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.japan.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 일본2 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-pink-50">
-                      <h4 className="font-medium text-pink-800 mb-3 flex items-center gap-2">
-                        🇯🇵 일본 2
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.japan2.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              japan2: { ...prev.japan2, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.japan2.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.japan2.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.japan2.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 미국 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-purple-50">
-                      <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
-                        🇺🇸 미국
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.us.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              us: { ...prev.us, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.us.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.us.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.us.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   {/* 안내 */}
@@ -1756,6 +1644,56 @@ export default function YoutuberSearchPage() {
                       <strong>시트 탭(gid):</strong> 같은 스프레드시트 내 여러 탭이 있는 경우, URL의 <code className="bg-yellow-100 px-1">#gid=123456</code> 부분의 숫자를 입력하세요.
                       첫 번째 탭은 0입니다.
                     </p>
+                    <p className="text-xs text-yellow-700 ml-6">
+                      <strong>스티비 주소록 ID:</strong> 스티비 대시보드 → 주소록 → URL의 <code className="bg-yellow-100 px-1">lists/123456</code> 숫자가 ID입니다.
+                      자동 발송을 켜면 스케줄에 따라 새 이메일이 주소록에 자동 추가되고, 스티비 자동 이메일이 발송됩니다.
+                    </p>
+                  </div>
+
+                  {/* 수동 싱크 + 마지막 싱크 결과 */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {lastSyncResult?.timestamp && (
+                        <span>마지막 동기화: {new Date(lastSyncResult.timestamp).toLocaleString('ko-KR')}</span>
+                      )}
+                      {lastSyncResult?.results?.map((r, i) => (
+                        <span key={i} className="ml-3">
+                          {r.region}: {r.status === 'success' ? `+${r.newCount}명` : r.status === 'skip' ? '변경없음' : r.status}
+                        </span>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={runningSyncManual}
+                      onClick={async () => {
+                        setRunningSyncManual(true)
+                        try {
+                          const res = await fetch('/.netlify/functions/scheduled-stibee-sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                          })
+                          const result = await res.json()
+                          if (result.success) {
+                            const summary = (result.results || []).map(r =>
+                              `${r.region}: ${r.status === 'success' ? `+${r.newCount}명 추가` : r.message || r.status}`
+                            ).join('\n')
+                            alert(`동기화 완료!\n${summary}`)
+                            setLastSyncResult({ timestamp: new Date().toISOString(), results: result.results })
+                          } else {
+                            alert('동기화 실패: ' + (result.error || '알 수 없는 오류'))
+                          }
+                        } catch (e) {
+                          alert('동기화 오류: ' + e.message)
+                        } finally {
+                          setRunningSyncManual(false)
+                        }
+                      }}
+                    >
+                      {runningSyncManual ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      수동 동기화
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

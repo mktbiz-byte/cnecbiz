@@ -301,11 +301,12 @@ exports.handler = async (event) => {
     }
 
     if (action === 'load_settings') {
-      // 시트 설정 불러오기
+      // 시트 설정 불러오기 (커스텀 키 지원)
+      const settingsKey = body.settingsKey || 'google_sheets_creator_import'
       const { data, error } = await supabase
         .from('site_settings')
         .select('value')
-        .eq('key', 'google_sheets_creator_import')
+        .eq('key', settingsKey)
         .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {
