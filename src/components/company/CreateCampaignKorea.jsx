@@ -2128,7 +2128,7 @@ const CampaignCreationKorea = () => {
                 {/* 오른쪽: 예상 견적서 (Sticky) */}
                 <div className="lg:col-span-1">
                   <div className="lg:sticky lg:top-6">
-                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                    <div className="bg-slate-900 rounded-2xl p-4 lg:p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
                       </h3>
@@ -3000,7 +3000,7 @@ const CampaignCreationKorea = () => {
                 {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
                 <div className="lg:col-span-1">
                   <div className="lg:sticky lg:top-6">
-                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                    <div className="bg-slate-900 rounded-2xl p-4 lg:p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
                       </h3>
@@ -3809,7 +3809,7 @@ const CampaignCreationKorea = () => {
                 {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
                 <div className="lg:col-span-1">
                   <div className="lg:sticky lg:top-6">
-                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                    <div className="bg-slate-900 rounded-2xl p-4 lg:p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
                       </h3>
@@ -3962,11 +3962,11 @@ const CampaignCreationKorea = () => {
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 pb-safe">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* 왼쪽: 자동 저장 상태 */}
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
               {autoSaving ? (
                 <>
                   <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
