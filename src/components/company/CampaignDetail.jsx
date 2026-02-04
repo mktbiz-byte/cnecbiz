@@ -5036,11 +5036,13 @@ Questions? Contact us.
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'guide_confirm_request',
+              creatorId: updatedCreator.user_id,
               creatorEmail: creatorEmail,
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'キャンペーン',
-                brandName: campaign?.brand_name || campaign?.brand
+                brandName: campaign?.brand_name || campaign?.brand,
+                guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`
               }
             })
           })
@@ -5054,7 +5056,8 @@ Questions? Contact us.
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'Campaign',
-                brandName: campaign?.brand_name || campaign?.brand
+                brandName: campaign?.brand_name || campaign?.brand,
+                guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`
               }
             })
           })
@@ -5119,6 +5122,7 @@ Questions? Contact us.
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   type: 'campaign_selected',
+                  creatorId: participant.user_id,
                   creatorEmail: pEmail,
                   creatorPhone: pPhone,
                   data: {
@@ -13311,10 +13315,13 @@ Questions? Contact us.
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 type: 'guide_confirm_request',
+                                creatorId: selectedParticipantForGuide.user_id,
                                 creatorEmail: pEmail,
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'キャンペーン',
+                                  brandName: campaign?.brand_name || campaign?.brand,
+                                  guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`,
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('ja-JP')
                                     : '確認してください'
@@ -13332,6 +13339,8 @@ Questions? Contact us.
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'Campaign',
+                                  brandName: campaign?.brand_name || campaign?.brand,
+                                  guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`,
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('en-US')
                                     : 'Check your dashboard'

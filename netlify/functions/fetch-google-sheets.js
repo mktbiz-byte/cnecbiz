@@ -413,9 +413,12 @@ exports.handler = async (event) => {
               const stibeeData = await stibeeRes.json()
               console.log(`[sync_to_stibee] ${regionKey} Stibee response:`, JSON.stringify(stibeeData))
               const val = stibeeData.Value || stibeeData.value || {}
-              stibeeResults.success += (val.success || []).length
-              stibeeResults.update += (val.update || []).length
-              stibeeResults.fail += (val.failDuplicate || []).length + (val.failUnknown || []).length
+              // 배열 또는 숫자 모두 처리
+              const countOf = (v) => Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0)
+              stibeeResults.success += countOf(val.success)
+              stibeeResults.update += countOf(val.update)
+              stibeeResults.fail += countOf(val.failDuplicate) + countOf(val.failUnknown)
+              if (!stibeeResults.rawResponse) stibeeResults.rawResponse = JSON.stringify(val).substring(0, 300)
             } else {
               const errText = await stibeeRes.text()
               console.error(`[sync_to_stibee] Stibee API error ${stibeeRes.status}:`, errText)
