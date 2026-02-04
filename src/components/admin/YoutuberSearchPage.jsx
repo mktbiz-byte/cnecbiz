@@ -126,6 +126,7 @@ export default function YoutuberSearchPage() {
   })
   const [lastSyncResult, setLastSyncResult] = useState(null)
   const [runningSyncManual, setRunningSyncManual] = useState(false)
+  const [sheetStats, setSheetStats] = useState({ korea: 0, japan: 0, japan2: 0, us: 0, total: 0 })
   const [sheetData, setSheetData] = useState({
     korea: { data: [], loading: false, error: null },
     japan: { data: [], loading: false, error: null },
@@ -155,6 +156,7 @@ export default function YoutuberSearchPage() {
 
   useEffect(() => {
     checkAuth()
+    loadSheetCounts()
   }, [])
 
   useEffect(() => {
@@ -234,6 +236,29 @@ export default function YoutuberSearchPage() {
       }
     } catch (error) {
       console.error('Failed to load sheet settings:', error)
+    }
+  }
+
+  // Google Sheets 인원수 카운트
+  const loadSheetCounts = async () => {
+    try {
+      const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'count_sheets' })
+      })
+      const result = await res.json()
+      if (result.success) {
+        setSheetStats({
+          korea: result.counts?.korea || 0,
+          japan: result.counts?.japan || 0,
+          japan2: result.counts?.japan2 || 0,
+          us: result.counts?.us || 0,
+          total: result.total || 0
+        })
+      }
+    } catch (e) {
+      console.error('Failed to load sheet counts:', e)
     }
   }
 
@@ -928,35 +953,35 @@ export default function YoutuberSearchPage() {
           </p>
         </div>
 
-        {/* 통계 카드 */}
+        {/* 통계 카드 - 구글 시트 기반 */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-              <div className="text-sm text-gray-500">전체 수집</div>
+              <div className="text-2xl font-bold text-gray-900">{sheetStats.total.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">전체 (시트)</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-green-600">{stats.with_email}</div>
-              <div className="text-sm text-gray-500">이메일 있음</div>
+              <div className="text-2xl font-bold text-blue-600">{sheetStats.korea.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇰🇷 한국</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-blue-600">{stats.by_country?.US || 0}</div>
-              <div className="text-sm text-gray-500">미국</div>
+              <div className="text-2xl font-bold text-red-600">{(sheetStats.japan + sheetStats.japan2).toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇯🇵 일본 ({sheetStats.japan} + {sheetStats.japan2})</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-red-600">{stats.by_country?.JP || 0}</div>
-              <div className="text-sm text-gray-500">일본</div>
+              <div className="text-2xl font-bold text-purple-600">{sheetStats.us.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇺🇸 미국</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-purple-600">{stats.by_status?.contacted || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.by_status?.contacted || 0}</div>
               <div className="text-sm text-gray-500">연락함</div>
             </CardContent>
           </Card>

@@ -463,6 +463,55 @@ exports.handler = async (event) => {
       }
     }
 
+    if (action === 'count_sheets') {
+      // 각 리전별 구글 시트 인원수 카운트
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: true, counts: {} })
+        }
+      }
+
+      const sheetConfigs = JSON.parse(settingsData.value)
+      const counts = {}
+      let totalAll = 0
+
+      const regionKeys = Object.keys(sheetConfigs)
+      for (let i = 0; i < regionKeys.length; i++) {
+        const key = regionKeys[i]
+        const config = sheetConfigs[key]
+        if (!config || !config.url) {
+          counts[key] = 0
+          continue
+        }
+        try {
+          const result = await fetchSheetData(
+            config.url,
+            config.nameColumn || 'A',
+            config.emailColumn || 'B',
+            config.sheetTab || ''
+          )
+          const count = result.success ? (result.data || []).length : 0
+          counts[key] = count
+          totalAll += count
+        } catch (e) {
+          console.error(`[count_sheets] Error counting ${key}:`, e)
+          counts[key] = 0
+        }
+      }
+
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, counts, total: totalAll })
+      }
+    }
+
     if (action === 'load_settings') {
       // 시트 설정 불러오기 (커스텀 키 지원)
       const settingsKey = body.settingsKey || 'google_sheets_creator_import'
