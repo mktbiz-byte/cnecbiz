@@ -14,7 +14,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, CheckCircle, XCircle,
   Eye, Download, Filter, RefreshCw, Star, Clock, MessageSquare,
   AlertCircle, Info, PlayCircle, Video, Image, Film, Link2,
-  FileSpreadsheet, Settings, Upload, UserCheck, UserX
+  FileSpreadsheet, Settings, Upload, UserCheck, UserX, BookOpen, Plus
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -136,6 +136,16 @@ export default function YoutuberSearchPage() {
   const [showStibeeModal, setShowStibeeModal] = useState(false)
   const [stibeeTemplateId, setStibeeTemplateId] = useState('')
   const [sendingStibee, setSendingStibee] = useState(false)
+
+  // 스티비 주소록 상태
+  const [addressBooks, setAddressBooks] = useState([])
+  const [selectedAddressBook, setSelectedAddressBook] = useState('')
+  const [loadingAddressBooks, setLoadingAddressBooks] = useState(false)
+  const [showAddToListModal, setShowAddToListModal] = useState(false)
+  const [addingToList, setAddingToList] = useState(false)
+  const [stibeeStep, setStibeeStep] = useState(1) // 1: 주소록 선택, 2: 템플릿 입력, 3: 발송 확인
+  const [addressBookSubscriberCount, setAddressBookSubscriberCount] = useState(0)
+  const [loadingSubscriberCount, setLoadingSubscriberCount] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -354,6 +364,141 @@ export default function YoutuberSearchPage() {
     } catch (error) {
       console.error('Failed to send Stibee email:', error)
       alert('이메일 발송 실패: ' + error.message)
+    } finally {
+      setSendingStibee(false)
+    }
+  }
+
+  // 스티비 주소록 목록 조회
+  const fetchAddressBooks = async () => {
+    setLoadingAddressBooks(true)
+    try {
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'lists' })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setAddressBooks(result.lists || [])
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to fetch address books:', error)
+      alert('주소록 목록 조회 실패: ' + error.message)
+    } finally {
+      setLoadingAddressBooks(false)
+    }
+  }
+
+  // 선택한 크리에이터를 스티비 주소록에 추가
+  const addToAddressBook = async () => {
+    if (!selectedAddressBook) {
+      alert('주소록을 선택해주세요.')
+      return
+    }
+    if (selectedSheetCreators.length === 0) {
+      alert('추가할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedSheetCreators.length}명을 선택한 주소록에 추가하시겠습니까?`)) return
+
+    setAddingToList(true)
+    try {
+      const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
+      const subscribers = selectedSheetCreators.map(email => {
+        const creator = allData.find(c => c.email === email)
+        return { email, name: creator?.name || '' }
+      })
+
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_subscribers',
+          listId: selectedAddressBook,
+          subscribers
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`주소록 추가 완료!\n${result.message}`)
+        setShowAddToListModal(false)
+        setSelectedSheetCreators([])
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to add to address book:', error)
+      alert('주소록 추가 실패: ' + error.message)
+    } finally {
+      setAddingToList(false)
+    }
+  }
+
+  // 주소록 구독자 수 조회
+  const fetchSubscriberCount = async (listId) => {
+    if (!listId) return
+    setLoadingSubscriberCount(true)
+    try {
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_subscribers', listId })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setAddressBookSubscriberCount(result.total || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscriber count:', error)
+    } finally {
+      setLoadingSubscriberCount(false)
+    }
+  }
+
+  // 주소록 대상 메일 발송
+  const sendToAddressBook = async () => {
+    if (!selectedAddressBook) {
+      alert('주소록을 선택해주세요.')
+      return
+    }
+    if (!stibeeTemplateId) {
+      alert('템플릿 ID를 입력해주세요.')
+      return
+    }
+
+    const selectedBook = addressBooks.find(b => b.id?.toString() === selectedAddressBook?.toString())
+    if (!confirm(`"${selectedBook?.name || selectedAddressBook}" 주소록의 ${addressBookSubscriberCount}명에게 메일을 발송하시겠습니까?`)) return
+
+    setSendingStibee(true)
+    try {
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_to_list',
+          listId: selectedAddressBook,
+          templateId: stibeeTemplateId
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`발송 완료!\n${result.message}`)
+        setShowStibeeModal(false)
+        setStibeeStep(1)
+        setStibeeTemplateId('')
+        setSelectedAddressBook('')
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to send to address book:', error)
+      alert('메일 발송 실패: ' + error.message)
     } finally {
       setSendingStibee(false)
     }
@@ -1556,12 +1701,33 @@ export default function YoutuberSearchPage() {
                         </label>
                       </div>
                       <Button
-                        onClick={() => setShowStibeeModal(true)}
+                        variant="outline"
+                        onClick={() => {
+                          if (selectedSheetCreators.length === 0) {
+                            alert('추가할 크리에이터를 선택해주세요.')
+                            return
+                          }
+                          fetchAddressBooks()
+                          setShowAddToListModal(true)
+                        }}
                         disabled={selectedSheetCreators.length === 0}
+                        className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        주소록에 추가 ({selectedSheetCreators.length})
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          fetchAddressBooks()
+                          setStibeeStep(1)
+                          setSelectedAddressBook('')
+                          setStibeeTemplateId('')
+                          setShowStibeeModal(true)
+                        }}
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        <Mail className="h-4 w-4 mr-2" />
-                        스티비 발송 ({selectedSheetCreators.length})
+                        <Send className="h-4 w-4 mr-2" />
+                        스티비 메일 발송
                       </Button>
                     </div>
                   </div>
@@ -1699,54 +1865,277 @@ export default function YoutuberSearchPage() {
             </div>
           </TabsContent>
 
-          {/* 스티비 발송 모달 */}
-          <Dialog open={showStibeeModal} onOpenChange={setShowStibeeModal}>
+          {/* 주소록에 추가 모달 */}
+          <Dialog open={showAddToListModal} onOpenChange={setShowAddToListModal}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  스티비 이메일 발송
+                  <BookOpen className="h-5 w-5" />
+                  스티비 주소록에 추가
                 </DialogTitle>
                 <DialogDescription>
-                  선택한 {selectedSheetCreators.length}명에게 스티비 템플릿 이메일을 발송합니다.
+                  선택한 {selectedSheetCreators.length}명을 스티비 주소록에 추가합니다.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    스티비 템플릿 ID
+                    주소록 선택
                   </label>
-                  <Input
-                    placeholder="템플릿 ID 입력"
-                    value={stibeeTemplateId}
-                    onChange={(e) => setStibeeTemplateId(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    스티비 대시보드 → 이메일 → 템플릿에서 ID를 확인할 수 있습니다.
-                  </p>
+                  {loadingAddressBooks ? (
+                    <div className="flex items-center gap-2 text-gray-500 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      주소록 목록 불러오는 중...
+                    </div>
+                  ) : (
+                    <Select value={selectedAddressBook} onValueChange={setSelectedAddressBook}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="주소록을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {addressBooks.map(book => (
+                          <SelectItem key={book.id} value={book.id?.toString()}>
+                            {book.name} ({book.subscriberCount || 0}명)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>발송 대상:</strong> {selectedSheetCreators.length}명
-                  </p>
+                <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800 space-y-1">
+                  <p><strong>추가 대상:</strong> {selectedSheetCreators.length}명</p>
+                  <p className="text-xs text-blue-600">이미 주소록에 있는 이메일은 자동으로 업데이트됩니다.</p>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowStibeeModal(false)}>
+                <Button variant="outline" onClick={() => setShowAddToListModal(false)}>
                   취소
                 </Button>
                 <Button
-                  onClick={sendStibeeEmail}
-                  disabled={sendingStibee || !stibeeTemplateId}
-                  className="bg-green-600 hover:bg-green-700"
+                  onClick={addToAddressBook}
+                  disabled={addingToList || !selectedAddressBook}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {sendingStibee ? (
+                  {addingToList ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <Send className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                   )}
-                  발송하기
+                  주소록에 추가
                 </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 스티비 메일 발송 모달 (주소록 선택 → 템플릿 → 발송) */}
+          <Dialog open={showStibeeModal} onOpenChange={(open) => {
+            setShowStibeeModal(open)
+            if (!open) {
+              setStibeeStep(1)
+              setStibeeTemplateId('')
+              setSelectedAddressBook('')
+              setAddressBookSubscriberCount(0)
+            }
+          }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  스티비 메일 발송
+                </DialogTitle>
+                <DialogDescription>
+                  주소록의 구독자에게 스티비 템플릿 이메일을 발송합니다.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* 스텝 인디케이터 */}
+              <div className="flex items-center justify-center gap-2 py-2">
+                {[
+                  { step: 1, label: '주소록 선택' },
+                  { step: 2, label: '템플릿 입력' },
+                  { step: 3, label: '발송 확인' }
+                ].map(({ step, label }, idx) => (
+                  <div key={step} className="flex items-center gap-2">
+                    {idx > 0 && <ChevronRight className="h-4 w-4 text-gray-300" />}
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
+                      stibeeStep === step
+                        ? 'bg-green-100 text-green-800'
+                        : stibeeStep > step
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {stibeeStep > step ? (
+                        <CheckCircle className="h-3.5 w-3.5" />
+                      ) : (
+                        <span className="w-4 text-center">{step}</span>
+                      )}
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4 py-2">
+                {/* Step 1: 주소록 선택 */}
+                {stibeeStep === 1 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        발송 대상 주소록
+                      </label>
+                      {loadingAddressBooks ? (
+                        <div className="flex items-center gap-2 text-gray-500 py-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          주소록 목록 불러오는 중...
+                        </div>
+                      ) : addressBooks.length === 0 ? (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                          <AlertCircle className="h-4 w-4 inline mr-2" />
+                          주소록이 없습니다. 스티비 대시보드에서 주소록을 먼저 만들어주세요.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {addressBooks.map(book => (
+                            <div
+                              key={book.id}
+                              onClick={() => setSelectedAddressBook(book.id?.toString())}
+                              className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                                selectedAddressBook === book.id?.toString()
+                                  ? 'border-green-500 bg-green-50'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <BookOpen className={`h-5 w-5 ${
+                                  selectedAddressBook === book.id?.toString() ? 'text-green-600' : 'text-gray-400'
+                                }`} />
+                                <div>
+                                  <p className="font-medium text-gray-900">{book.name}</p>
+                                  <p className="text-xs text-gray-500">ID: {book.id}</p>
+                                </div>
+                              </div>
+                              <Badge className={
+                                selectedAddressBook === book.id?.toString()
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-600'
+                              }>
+                                {book.subscriberCount || 0}명
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: 템플릿 ID 입력 */}
+                {stibeeStep === 2 && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-green-50 rounded-lg text-sm text-green-800">
+                      <strong>선택된 주소록:</strong>{' '}
+                      {addressBooks.find(b => b.id?.toString() === selectedAddressBook)?.name || selectedAddressBook}
+                      <span className="ml-2">
+                        ({loadingSubscriberCount ? (
+                          <Loader2 className="h-3 w-3 animate-spin inline" />
+                        ) : (
+                          `${addressBookSubscriberCount}명`
+                        )})
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        스티비 템플릿 ID
+                      </label>
+                      <Input
+                        placeholder="템플릿 ID 입력 (숫자)"
+                        value={stibeeTemplateId}
+                        onChange={(e) => setStibeeTemplateId(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        스티비 대시보드 → 이메일 → 자동 이메일 → 해당 템플릿의 ID를 입력하세요.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: 발송 확인 */}
+                {stibeeStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">주소록</span>
+                        <span className="font-medium">
+                          {addressBooks.find(b => b.id?.toString() === selectedAddressBook)?.name || selectedAddressBook}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">발송 대상</span>
+                        <span className="font-medium">{addressBookSubscriberCount}명</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">템플릿 ID</span>
+                        <span className="font-medium">{stibeeTemplateId}</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                      <AlertCircle className="h-4 w-4 inline mr-2" />
+                      발송을 시작하면 주소록의 모든 구독자에게 이메일이 전송됩니다.
+                      취소할 수 없으니 신중하게 확인해주세요.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex gap-2">
+                {stibeeStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setStibeeStep(s => s - 1)}
+                    className="mr-auto"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    이전
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setShowStibeeModal(false)}>
+                  취소
+                </Button>
+                {stibeeStep < 3 ? (
+                  <Button
+                    onClick={() => {
+                      if (stibeeStep === 1) {
+                        if (!selectedAddressBook) {
+                          alert('주소록을 선택해주세요.')
+                          return
+                        }
+                        fetchSubscriberCount(selectedAddressBook)
+                      }
+                      if (stibeeStep === 2 && !stibeeTemplateId) {
+                        alert('템플릿 ID를 입력해주세요.')
+                        return
+                      }
+                      setStibeeStep(s => s + 1)
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    다음
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={sendToAddressBook}
+                    disabled={sendingStibee}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {sendingStibee ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    발송하기
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>
