@@ -239,14 +239,13 @@ exports.handler = async (event) => {
     if (appErr) {
       console.log('[INFO] Full insert failed, retrying with minimal columns:', appErr.message);
 
-      // 2차 시도: 최소 컬럼으로 재시도 (스키마 차이 대응)
+      // 2차 시도: email/profile 컬럼 제외 (US 등 스키마 차이 대응)
       const { data: appData2, error: appErr2 } = await campaignClient
         .from('applications')
         .insert({
           campaign_id: campaignId,
           user_id: creator.user_id || creator.id,
           applicant_name: creatorName,
-          email: creatorEmail,
           phone: creator.phone,
           status: 'selected',
           source: 'invitation'
@@ -255,10 +254,27 @@ exports.handler = async (event) => {
         .single();
 
       if (appErr2) {
-        console.error('[ERROR] Application insert failed:', appErr2);
-        throw new Error(`지원 등록 실패: ${appErr2.message}`);
+        console.log('[INFO] Minimal insert also failed, trying bare minimum:', appErr2.message);
+
+        // 3차 시도: 절대 최소 컬럼 (campaign_id, user_id, status만)
+        const { data: appData3, error: appErr3 } = await campaignClient
+          .from('applications')
+          .insert({
+            campaign_id: campaignId,
+            user_id: creator.user_id || creator.id,
+            status: 'selected'
+          })
+          .select()
+          .single();
+
+        if (appErr3) {
+          console.error('[ERROR] Application insert failed:', appErr3);
+          throw new Error(`지원 등록 실패: ${appErr3.message}`);
+        }
+        application = appData3;
+      } else {
+        application = appData2;
       }
-      application = appData2;
     } else {
       application = appData;
     }

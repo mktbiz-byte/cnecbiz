@@ -13237,7 +13237,7 @@ Questions? Contact us.
                         // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
                         try {
                           const pPhone = selectedParticipantForGuide.phone || selectedParticipantForGuide.phone_number || selectedParticipantForGuide.creator_phone
-                          const pEmail = selectedParticipantForGuide.email
+                          const pEmail = selectedParticipantForGuide.email || selectedParticipantForGuide.creator_email || selectedParticipantForGuide.applicant_email || selectedParticipantForGuide.user_email
                           const pLineUserId = selectedParticipantForGuide.line_user_id
 
                           if (region === 'korea' && pPhone) {
