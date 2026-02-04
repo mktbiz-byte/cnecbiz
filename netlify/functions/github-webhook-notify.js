@@ -144,6 +144,23 @@ exports.handler = async (event) => {
   }
 
   try {
+    // GitHub Webhook Secret 검증
+    const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const signature = event.headers['x-hub-signature-256'] || event.headers['X-Hub-Signature-256'];
+      if (!signature) {
+        console.log('[github-webhook] Missing signature header');
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Missing signature' }) };
+      }
+      const hmac = crypto.createHmac('sha256', webhookSecret);
+      hmac.update(event.body || '');
+      const expected = 'sha256=' + hmac.digest('hex');
+      if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+        console.log('[github-webhook] Invalid signature');
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Invalid signature' }) };
+      }
+    }
+
     const githubEvent = event.headers['x-github-event'] || event.headers['X-GitHub-Event'];
 
     // push 이벤트만 처리
