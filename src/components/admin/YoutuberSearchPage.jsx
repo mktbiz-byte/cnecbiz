@@ -1760,7 +1760,9 @@ export default function YoutuberSearchPage() {
                           fetchAddressBooks()
                           setStibeeStep(1)
                           setSelectedAddressBook('')
-                          setStibeeTemplateId('')
+                          setStibeeTriggerUrl('')
+                          setCustomTriggerUrl('')
+                          setStibeeTriggerLabel('')
                           setShowStibeeModal(true)
                         }}
                         className="bg-green-600 hover:bg-green-700"
