@@ -988,6 +988,63 @@ export default function CampaignDetail() {
         console.log('[fetchParticipants] clean_video_url 병합 실패:', e.message)
       }
 
+      // Japan DB에서 영상 데이터 병합 (video_file_url, clean_video_file_url 등)
+      if (supabaseJapan && region === 'japan') {
+        try {
+          console.log('[fetchParticipants] Japan DB 영상 데이터 병합 시도...')
+          const { data: japanApps } = await supabaseJapan
+            .from('applications')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url')
+            .eq('campaign_id', id)
+
+          if (japanApps && japanApps.length > 0) {
+            console.log('[fetchParticipants] Japan DB 참가자:', japanApps.length, '명')
+
+            const matchedJapanIds = new Set()
+            combinedData = combinedData.map(participant => {
+              const japanApp = japanApps.find(j => j.user_id && j.user_id === participant.user_id)
+              if (japanApp) {
+                matchedJapanIds.add(japanApp.id)
+                // 일본 DB에서 영상 데이터 병합
+                return {
+                  ...participant,
+                  video_file_url: japanApp.video_file_url || participant.video_file_url,
+                  video_file_name: japanApp.video_file_name || participant.video_file_name,
+                  video_file_size: japanApp.video_file_size || participant.video_file_size,
+                  video_uploaded_at: japanApp.video_uploaded_at || participant.video_uploaded_at,
+                  clean_video_file_url: japanApp.clean_video_file_url || participant.clean_video_file_url,
+                  clean_video_file_name: japanApp.clean_video_file_name || participant.clean_video_file_name,
+                  clean_video_uploaded_at: japanApp.clean_video_uploaded_at || participant.clean_video_uploaded_at,
+                  clean_video_url: japanApp.clean_video_url || japanApp.clean_video_file_url || participant.clean_video_url,
+                  ad_code: japanApp.ad_code || participant.ad_code,
+                  partnership_code: japanApp.partnership_code || participant.partnership_code,
+                  sns_upload_url: japanApp.sns_upload_url || participant.sns_upload_url,
+                  japan_app_status: japanApp.status
+                }
+              }
+              return participant
+            })
+
+            // Japan DB에만 있는 참가자 추가
+            const japanOnlyApps = japanApps.filter(j =>
+              !matchedJapanIds.has(j.id) &&
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(j.status)
+            )
+            if (japanOnlyApps.length > 0) {
+              console.log('[fetchParticipants] Japan DB에만 있는 참가자:', japanOnlyApps.length, '명 추가')
+              const japanAppsFormatted = japanOnlyApps.map(j => ({
+                ...j,
+                creator_name: j.applicant_name,
+                source_db: 'japan'
+              }))
+              combinedData = [...combinedData, ...japanAppsFormatted]
+            }
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] Japan DB 영상 병합 실패:', e.message)
+        }
+      }
+
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
       if (combinedData.length === 0 && supabaseKorea) {
         console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
@@ -9090,16 +9147,57 @@ Questions? Contact us.
                               
                               {(() => {
                                 const participant = participants.find(p => p.user_id === submission.user_id)
-                                const partnershipCode = participant?.partnership_code || submission.partnership_code
+                                const partnershipCode = participant?.partnership_code || participant?.ad_code || submission.partnership_code || submission.ad_code
                                 return partnershipCode ? (
                                   <div>
-                                    <p className="text-gray-500">파트너십 광고 코드</p>
+                                    <p className="text-gray-500">광고 코드</p>
                                     <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{partnershipCode}</p>
                                   </div>
                                 ) : null
                               })()}
+
+                              {/* 일본 applications 테이블에서 가져온 클린본 표시 */}
+                              {(() => {
+                                const participant = participants.find(p => p.user_id === submission.user_id)
+                                const cleanUrl = participant?.clean_video_file_url || participant?.clean_video_url || submission.clean_video_url
+                                if (!cleanUrl) return null
+                                return (
+                                  <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+                                    <p className="text-emerald-700 font-semibold text-xs mb-1">클린본</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-emerald-600 truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                        onClick={async () => {
+                                          try {
+                                            const res = await fetch(cleanUrl)
+                                            const blob = await res.blob()
+                                            const blobUrl = window.URL.createObjectURL(blob)
+                                            const link = document.createElement('a')
+                                            link.href = blobUrl
+                                            link.download = participant?.clean_video_file_name || 'clean_video.mp4'
+                                            document.body.appendChild(link)
+                                            link.click()
+                                            document.body.removeChild(link)
+                                            window.URL.revokeObjectURL(blobUrl)
+                                          } catch (err) {
+                                            window.open(cleanUrl, '_blank')
+                                          }
+                                        }}
+                                      >
+                                        다운로드
+                                      </Button>
+                                    </div>
+                                    {participant?.clean_video_uploaded_at && (
+                                      <p className="text-xs text-emerald-500 mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
+                                    )}
+                                  </div>
+                                )
+                              })()}
                             </div>
-                            
+
                             <div className="flex flex-col gap-2 pt-4">
                               <Button
                                 size="sm"

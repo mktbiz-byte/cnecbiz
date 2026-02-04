@@ -421,12 +421,18 @@ exports.handler = async (event) => {
             }
 
             const addResult = await addRes.json()
-            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} result:`, JSON.stringify(addResult).substring(0, 300))
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} result:`, JSON.stringify(addResult).substring(0, 500))
 
             const value = addResult.Value || addResult.value || {}
-            stibeeResults.success += (value.success || []).length
-            stibeeResults.update += (value.update || []).length
-            stibeeResults.fail += (value.failDuplicate || []).length + (value.failUnknown || []).length
+            // 배열인지 확인하고 안전하게 처리
+            const successArr = Array.isArray(value.success) ? value.success : []
+            const updateArr = Array.isArray(value.update) ? value.update : []
+            const failDupArr = Array.isArray(value.failDuplicate) ? value.failDuplicate : []
+            const failUnkArr = Array.isArray(value.failUnknown) ? value.failUnknown : []
+            stibeeResults.success += successArr.length
+            stibeeResults.update += updateArr.length
+            stibeeResults.fail += failDupArr.length + failUnkArr.length
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} parsed: sent=${batch.length}, success=${successArr.length}, update=${updateArr.length}, failDup=${failDupArr.length}, failUnk=${failUnkArr.length}`)
 
             // Rate limiting between batches
             if (bi + BATCH_SIZE < newSubscribers.length) {
