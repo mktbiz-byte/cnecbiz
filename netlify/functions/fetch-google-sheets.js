@@ -448,11 +448,13 @@ exports.handler = async (event) => {
       }
 
       // 5. 결과 저장
-      await supabase.from('site_settings').upsert({
-        key: 'stibee_sync_last_result',
-        value: JSON.stringify({ timestamp: new Date().toISOString(), results }),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'key' }).catch(() => {})
+      try {
+        await supabase.from('site_settings').upsert({
+          key: 'stibee_sync_last_result',
+          value: JSON.stringify({ timestamp: new Date().toISOString(), results }),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+      } catch (e) { /* ignore */ }
 
       console.log('[sync_to_stibee] Done:', JSON.stringify(results))
       return {
