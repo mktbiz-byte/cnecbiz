@@ -459,9 +459,9 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body);
-    const { type, creatorId, creatorEmail, creatorPhone, data = {} } = body;
+    const { type, creatorId, creatorEmail, creatorPhone, lineUserId, data = {} } = body;
 
-    console.log(`[send-japan-notification] 요청 수신: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}, creatorPhone=${creatorPhone || 'N/A'}`);
+    console.log(`[send-japan-notification] 요청 수신: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}, lineUserId=${lineUserId || 'N/A'}`);
 
     if (!type) {
       return {
@@ -532,6 +532,11 @@ exports.handler = async (event) => {
     // 요청에서 전달받은 phone이 있으면 DB 값 보완 (DB에 phone이 없는 경우)
     if (creatorPhone && !creator.phone) {
       creator.phone = creatorPhone;
+    }
+
+    // 요청에서 직접 전달받은 lineUserId가 있으면 우선 사용
+    if (lineUserId && !creator.line_user_id) {
+      creator.line_user_id = lineUserId;
     }
 
     console.log(`[send-japan-notification] 크리에이터 정보: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);

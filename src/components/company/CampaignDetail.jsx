@@ -5037,6 +5037,7 @@ Questions? Contact us.
             body: JSON.stringify({
               type: 'guide_confirm_request',
               creatorId: updatedCreator.user_id,
+              lineUserId: updatedCreator.line_user_id,
               creatorEmail: creatorEmail,
               data: {
                 creatorName,
@@ -5123,6 +5124,7 @@ Questions? Contact us.
                 body: JSON.stringify({
                   type: 'campaign_selected',
                   creatorId: participant.user_id,
+                  lineUserId: participant.line_user_id,
                   creatorEmail: pEmail,
                   creatorPhone: pPhone,
                   data: {
@@ -13316,6 +13318,7 @@ Questions? Contact us.
                               body: JSON.stringify({
                                 type: 'guide_confirm_request',
                                 creatorId: selectedParticipantForGuide.user_id,
+                                lineUserId: pLineUserId,
                                 creatorEmail: pEmail,
                                 data: {
                                   creatorName,
