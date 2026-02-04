@@ -248,25 +248,40 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: '' }
   }
 
-  // 중복 실행 방지
-  const supabase = getSupabase()
-  const LOCK_KEY = 'stibee_sync_lock'
-  const { data: lockData } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', LOCK_KEY)
-    .maybeSingle()
+  let supabase
+  try {
+    supabase = getSupabase()
+  } catch (err) {
+    console.error('[stibee-sync] Supabase init error:', err)
+    return {
+      statusCode: 500, headers,
+      body: JSON.stringify({ success: false, error: 'DB 연결 실패: ' + err.message })
+    }
+  }
 
-  if (lockData?.value) {
-    const lockTime = new Date(lockData.value)
-    const now = new Date()
-    if (now - lockTime < 5 * 60 * 1000) {
-      console.log('[stibee-sync] Already running, skipping')
-      return {
-        statusCode: 200, headers,
-        body: JSON.stringify({ success: true, message: 'Already running' })
+  // 중복 실행 방지
+  const LOCK_KEY = 'stibee_sync_lock'
+  try {
+    const { data: lockData } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', LOCK_KEY)
+      .maybeSingle()
+
+    if (lockData?.value) {
+      const lockTime = new Date(lockData.value)
+      const now = new Date()
+      if (now - lockTime < 5 * 60 * 1000) {
+        console.log('[stibee-sync] Already running, skipping')
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: true, message: 'Already running' })
+        }
       }
     }
+  } catch (err) {
+    console.error('[stibee-sync] Lock check error:', err)
+    // 락 체크 실패해도 계속 진행
   }
 
   // 락 설정
@@ -274,7 +289,7 @@ exports.handler = async (event) => {
     key: LOCK_KEY,
     value: new Date().toISOString(),
     updated_at: new Date().toISOString()
-  }, { onConflict: 'key' })
+  }, { onConflict: 'key' }).catch(() => {})
 
   try {
     // 설정 로드 (google_sheets_creator_import 키에서 읽기)
@@ -387,10 +402,12 @@ exports.handler = async (event) => {
     }
   } finally {
     // 락 해제
-    await supabase.from('site_settings').upsert({
-      key: LOCK_KEY,
-      value: '',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(() => {})
+    if (supabase) {
+      await supabase.from('site_settings').upsert({
+        key: LOCK_KEY,
+        value: '',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' }).catch(() => {})
+    }
   }
 }

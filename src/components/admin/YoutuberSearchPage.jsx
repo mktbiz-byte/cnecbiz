@@ -1542,14 +1542,14 @@ export default function YoutuberSearchPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* 시트 설정 - 공통 렌더링 */}
                     {[
-                      { key: 'korea', label: 'KR 한국', emoji: '🇰🇷', bg: 'blue', schedule: '매일 오후 5시 (KST)' },
-                      { key: 'japan', label: 'JP 일본', emoji: '🇯🇵', bg: 'red', schedule: '매일 오후 5시 (KST)' },
-                      { key: 'japan2', label: 'JP 일본 2', emoji: '🇯🇵', bg: 'pink', schedule: '매일 오후 5시 (KST)' },
-                      { key: 'us', label: 'US 미국', emoji: '🇺🇸', bg: 'purple', schedule: '매일 오전 10시 (EST)' }
-                    ].map(({ key, label, emoji, bg, schedule }) => (
-                      <div key={key} className={`border rounded-lg p-4 bg-${bg}-50`}>
+                      { key: 'korea', label: 'KR 한국', emoji: '🇰🇷', bgClass: 'bg-blue-50', textClass: 'text-blue-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan', label: 'JP 일본', emoji: '🇯🇵', bgClass: 'bg-red-50', textClass: 'text-red-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan2', label: 'JP 일본 2', emoji: '🇯🇵', bgClass: 'bg-pink-50', textClass: 'text-pink-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'us', label: 'US 미국', emoji: '🇺🇸', bgClass: 'bg-purple-50', textClass: 'text-purple-800', schedule: '매일 오전 10시 (EST)' }
+                    ].map(({ key, label, emoji, bgClass, textClass, schedule }) => (
+                      <div key={key} className={`border rounded-lg p-4 ${bgClass}`}>
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className={`font-medium text-${bg}-800 flex items-center gap-2`}>
+                          <h4 className={`font-medium ${textClass} flex items-center gap-2`}>
                             {emoji} {label}
                           </h4>
                           <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1674,7 +1674,13 @@ export default function YoutuberSearchPage() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({})
                           })
-                          const result = await res.json()
+                          const text = await res.text()
+                          let result
+                          try {
+                            result = JSON.parse(text)
+                          } catch {
+                            throw new Error(`서버 응답 오류 (${res.status}): ${text.substring(0, 200)}`)
+                          }
                           if (result.success) {
                             const summary = (result.results || []).map(r =>
                               `${r.region}: ${r.status === 'success' ? `+${r.newCount}명 추가` : r.message || r.status}`
