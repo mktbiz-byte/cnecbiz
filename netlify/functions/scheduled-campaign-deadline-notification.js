@@ -295,11 +295,18 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, variable
       content = content.replace(new RegExp(`#\\{${key}\\}`, 'g'), value);
     }
 
-    // 전화번호 형식 정리 (하이픈 제거)
-    const cleanPhoneNum = receiverNum.replace(/-/g, '');
+    // 전화번호 형식 정리 (숫자만 남기기: 하이픈, 공백, 괄호 등 모두 제거)
+    const cleanPhoneNum = receiverNum.replace(/[^0-9]/g, '');
 
-    console.log(`[sendKakaoNotification] 발송 시도: ${cleanPhoneNum}, 템플릿: ${templateCode}`);
+    console.log(`[sendKakaoNotification] 원본 번호: "${receiverNum}" → 정리 후: "${cleanPhoneNum}", 템플릿: ${templateCode}`);
     console.log(`[sendKakaoNotification] 메시지 내용:`, content);
+
+    // 전화번호 유효성 검사
+    if (!cleanPhoneNum || cleanPhoneNum.length < 10) {
+      console.error(`[sendKakaoNotification] 유효하지 않은 전화번호: "${cleanPhoneNum}" (원본: "${receiverNum}")`);
+      reject(new Error(`유효하지 않은 전화번호: ${cleanPhoneNum}`));
+      return;
+    }
 
     // sendATS_one 사용 (send-kakao-notification.js와 동일한 방식)
     kakaoService.sendATS_one(
@@ -327,10 +334,16 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, variable
   });
 };
 
+const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
+
 // 메인 핸들러
 exports.handler = async (event, context) => {
   console.log('=== 캠페인 모집 마감 알림 스케줄러 시작 ===');
   console.log('실행 시간:', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+
+  // ★ 중복 실행 방지 (인메모리 + DB)
+  const { isDuplicate, reason } = await checkDuplicate('scheduled-campaign-deadline-notification', event);
+  if (isDuplicate) return skipResponse(reason);
 
   try {
     // 오늘 날짜 (한국 시간 기준)
@@ -437,12 +450,12 @@ exports.handler = async (event, context) => {
         if (supabaseBiz && companyEmail) {
           const { data: bizCompany, error: bizError } = await supabaseBiz
             .from('companies')
-            .select('company_name, phone, representative_phone, email, notification_phone')
+            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
             .eq('email', companyEmail.toLowerCase())
             .maybeSingle();
 
           if (!bizError && bizCompany) {
-            companyPhone = bizCompany.notification_phone || bizCompany.phone || bizCompany.representative_phone;
+            companyPhone = bizCompany.contact_phone || bizCompany.manager_phone || bizCompany.phone || bizCompany.notification_phone || bizCompany.representative_phone;
             companyName = bizCompany.company_name || companyName;
             console.log(`[BIZ DB] 이메일로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
           }
@@ -453,12 +466,12 @@ exports.handler = async (event, context) => {
           // 2-1. user_id로 조회
           const { data: bizCompanyByUserId, error: bizError1 } = await supabaseBiz
             .from('companies')
-            .select('company_name, phone, representative_phone, email, notification_phone')
+            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
             .eq('user_id', campaign.company_id)
             .maybeSingle();
 
           if (!bizError1 && bizCompanyByUserId) {
-            companyPhone = bizCompanyByUserId.notification_phone || bizCompanyByUserId.phone || bizCompanyByUserId.representative_phone;
+            companyPhone = bizCompanyByUserId.contact_phone || bizCompanyByUserId.manager_phone || bizCompanyByUserId.phone || bizCompanyByUserId.notification_phone || bizCompanyByUserId.representative_phone;
             companyName = bizCompanyByUserId.company_name || companyName;
             companyEmail = companyEmail || bizCompanyByUserId.email;
             console.log(`[BIZ DB] user_id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
@@ -468,12 +481,12 @@ exports.handler = async (event, context) => {
           if (!companyPhone) {
             const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
               .from('companies')
-              .select('company_name, phone, representative_phone, email, notification_phone')
+              .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
               .eq('id', campaign.company_id)
               .maybeSingle();
 
             if (!bizError2 && bizCompanyById) {
-              companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone || bizCompanyById.representative_phone;
+              companyPhone = bizCompanyById.contact_phone || bizCompanyById.manager_phone || bizCompanyById.phone || bizCompanyById.notification_phone || bizCompanyById.representative_phone;
               companyName = bizCompanyById.company_name || companyName;
               companyEmail = companyEmail || bizCompanyById.email;
               console.log(`[BIZ DB] id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
@@ -486,27 +499,27 @@ exports.handler = async (event, context) => {
           // 3-1. user_id로 조회 (company_id는 auth user.id를 저장)
           const { data: companyByUserId, error: companyError1 } = await supabase
             .from('companies')
-            .select('company_name, phone, representative_phone, email')
+            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
             .eq('user_id', campaign.company_id)
             .maybeSingle();
 
           if (!companyError1 && companyByUserId) {
-            companyPhone = companyByUserId.phone || companyByUserId.representative_phone;
+            companyPhone = companyByUserId.contact_phone || companyByUserId.manager_phone || companyByUserId.phone || companyByUserId.notification_phone || companyByUserId.representative_phone;
             companyName = companyByUserId.company_name || campaign.brand || '기업';
             companyEmail = companyEmail || companyByUserId.email;
-            console.log(`[지역 DB] user_id로 기업 정보 찾음: ${companyName}`);
+            console.log(`[지역 DB] user_id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
           }
 
           // 3-2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
           if (!companyPhone && !companyEmail) {
             const { data: companyById, error: companyError2 } = await supabase
               .from('companies')
-              .select('company_name, phone, representative_phone, email')
+              .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
               .eq('id', campaign.company_id)
               .maybeSingle();
 
             if (!companyError2 && companyById) {
-              companyPhone = companyById.phone || companyById.representative_phone;
+              companyPhone = companyById.contact_phone || companyById.manager_phone || companyById.phone || companyById.notification_phone || companyById.representative_phone;
               companyName = companyById.company_name || campaign.brand || '기업';
               companyEmail = companyEmail || companyById.email;
             }
@@ -531,13 +544,37 @@ exports.handler = async (event, context) => {
         if ((!companyPhone || !companyName || companyName === '기업') && companyEmail) {
           const { data: company, error: companyError } = await supabase
             .from('companies')
-            .select('company_name, phone, representative_phone, email')
+            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
             .eq('email', companyEmail)
             .maybeSingle();
 
           if (!companyError && company) {
-            companyPhone = companyPhone || company.phone || company.representative_phone;
+            companyPhone = companyPhone || company.contact_phone || company.manager_phone || company.phone || company.notification_phone || company.representative_phone;
             companyName = company.company_name || companyName;
+          }
+        }
+
+        // 5. BIZ DB user_profiles에서도 조회 (최후 수단)
+        if (!companyPhone && supabaseBiz && campaign.company_id) {
+          const { data: bizProfile, error: bizProfileError } = await supabaseBiz
+            .from('user_profiles')
+            .select('phone, email')
+            .eq('id', campaign.company_id)
+            .maybeSingle();
+
+          if (!bizProfileError && bizProfile) {
+            companyPhone = companyPhone || bizProfile.phone;
+            companyEmail = companyEmail || bizProfile.email;
+            console.log(`[BIZ DB] user_profiles에서 찾음: 전화번호=${bizProfile.phone}, 이메일=${bizProfile.email}`);
+          }
+        }
+
+        // 전화번호가 있으면 숫자만 남기기 (미리 정리)
+        if (companyPhone) {
+          const originalPhone = companyPhone;
+          companyPhone = companyPhone.replace(/[^0-9]/g, '');
+          if (originalPhone !== companyPhone) {
+            console.log(`[전화번호 정리] "${originalPhone}" → "${companyPhone}"`);
           }
         }
 

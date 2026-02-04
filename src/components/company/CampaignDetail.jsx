@@ -106,6 +106,7 @@ import { GRADE_LEVELS } from '../../services/creatorGradeService'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
+import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -654,6 +655,8 @@ export default function CampaignDetail() {
   const [uploadingBulkPdf, setUploadingBulkPdf] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  // Stibee 자동 이메일 발송 상태
+  const [sendingStibeeInvitation, setSendingStibeeInvitation] = useState(false)
   // Admin SNS/Ad code edit state
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
   const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
@@ -983,6 +986,63 @@ export default function CampaignDetail() {
         }
       } catch (e) {
         console.log('[fetchParticipants] clean_video_url 병합 실패:', e.message)
+      }
+
+      // Japan DB에서 영상 데이터 병합 (video_file_url, clean_video_file_url 등)
+      if (supabaseJapan && region === 'japan') {
+        try {
+          console.log('[fetchParticipants] Japan DB 영상 데이터 병합 시도...')
+          const { data: japanApps } = await supabaseJapan
+            .from('applications')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url')
+            .eq('campaign_id', id)
+
+          if (japanApps && japanApps.length > 0) {
+            console.log('[fetchParticipants] Japan DB 참가자:', japanApps.length, '명')
+
+            const matchedJapanIds = new Set()
+            combinedData = combinedData.map(participant => {
+              const japanApp = japanApps.find(j => j.user_id && j.user_id === participant.user_id)
+              if (japanApp) {
+                matchedJapanIds.add(japanApp.id)
+                // 일본 DB에서 영상 데이터 병합
+                return {
+                  ...participant,
+                  video_file_url: japanApp.video_file_url || participant.video_file_url,
+                  video_file_name: japanApp.video_file_name || participant.video_file_name,
+                  video_file_size: japanApp.video_file_size || participant.video_file_size,
+                  video_uploaded_at: japanApp.video_uploaded_at || participant.video_uploaded_at,
+                  clean_video_file_url: japanApp.clean_video_file_url || participant.clean_video_file_url,
+                  clean_video_file_name: japanApp.clean_video_file_name || participant.clean_video_file_name,
+                  clean_video_uploaded_at: japanApp.clean_video_uploaded_at || participant.clean_video_uploaded_at,
+                  clean_video_url: japanApp.clean_video_url || japanApp.clean_video_file_url || participant.clean_video_url,
+                  ad_code: japanApp.ad_code || participant.ad_code,
+                  partnership_code: japanApp.partnership_code || participant.partnership_code,
+                  sns_upload_url: japanApp.sns_upload_url || participant.sns_upload_url,
+                  japan_app_status: japanApp.status
+                }
+              }
+              return participant
+            })
+
+            // Japan DB에만 있는 참가자 추가
+            const japanOnlyApps = japanApps.filter(j =>
+              !matchedJapanIds.has(j.id) &&
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(j.status)
+            )
+            if (japanOnlyApps.length > 0) {
+              console.log('[fetchParticipants] Japan DB에만 있는 참가자:', japanOnlyApps.length, '명 추가')
+              const japanAppsFormatted = japanOnlyApps.map(j => ({
+                ...j,
+                creator_name: j.applicant_name,
+                source_db: 'japan'
+              }))
+              combinedData = [...combinedData, ...japanAppsFormatted]
+            }
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] Japan DB 영상 병합 실패:', e.message)
+        }
       }
 
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
@@ -2085,8 +2145,9 @@ JSON만 출력.`
       return
     }
 
-    // 이메일이 없는 크리에이터 확인
-    const creatorsWithoutEmail = participantsWithGuide.filter(p => !p.email)
+    // 이메일 필드 해석 (US는 creator_email, applicant_email 등에 저장될 수 있음)
+    const resolveEmail = (p) => p.email || p.creator_email || p.applicant_email || p.user_email
+    const creatorsWithoutEmail = participantsWithGuide.filter(p => !resolveEmail(p))
     if (creatorsWithoutEmail.length > 0) {
       const skipCount = creatorsWithoutEmail.length
       if (!confirm(`${participantsWithGuide.length}명 중 ${skipCount}명은 이메일이 없어 발송되지 않습니다.\n${participantsWithGuide.length - skipCount}명에게 가이드 이메일을 발송하시겠습니까?`)) {
@@ -2107,7 +2168,8 @@ JSON만 출력.`
       const targetLanguageKey = isJapan ? 'labelJa' : 'labelEn'
 
       for (const participant of participantsWithGuide) {
-        if (!participant.email) {
+        const pEmail = resolveEmail(participant)
+        if (!pEmail) {
           failCount++
           continue
         }
@@ -2146,7 +2208,7 @@ JSON만 출력.`
               creators: [{
                 id: participant.id,
                 name: participant.applicant_name || participant.creator_name,
-                email: participant.email
+                email: pEmail
               }]
             })
           })
@@ -2155,11 +2217,11 @@ JSON만 출력.`
             successCount++
           } else {
             failCount++
-            console.error(`Email failed for ${participant.email}:`, await response.text())
+            console.error(`Email failed for ${pEmail}:`, await response.text())
           }
         } catch (err) {
           failCount++
-          console.error(`Error sending email to ${participant.email}:`, err)
+          console.error(`Error sending email to ${pEmail}:`, err)
         }
       }
 
@@ -2203,8 +2265,15 @@ JSON만 출력.`
       targetParticipants = participants.filter(p => selectedParticipants.includes(p.id))
     }
 
+    // 이메일 없는 크리에이터 체크
+    const getParticipantEmail = (p) => p.email || p.creator_email || p.applicant_email || p.user_email
+    const noEmailCount = targetParticipants.filter(p => !getParticipantEmail(p)).length
+
     const regionLabel = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE' : 'SMS'
-    if (!confirm(`${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})`)) {
+    const confirmMsg = noEmailCount > 0
+      ? `${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})\n\n⚠️ ${noEmailCount}명은 이메일이 없어 발송되지 않습니다.`
+      : `${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})`
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -2216,6 +2285,7 @@ JSON만 출력.`
     try {
       for (const participant of targetParticipants) {
         const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+        const creatorEmail = getParticipantEmail(participant)
 
         try {
           // 1. 외부 가이드인 경우 DB에 저장
@@ -2238,7 +2308,7 @@ JSON만 출력.`
           }
 
           // 2. 이메일 발송
-          if (participant.email) {
+          if (creatorEmail) {
             let emailResponse
             if (deliveryType === 'ai') {
               // AI 가이드 이메일
@@ -2270,7 +2340,7 @@ JSON만 출력.`
                   campaign_id: id,
                   region,
                   guide_content: guideContent,
-                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
                 })
               })
             } else {
@@ -2285,7 +2355,7 @@ JSON만 출력.`
                   brand_name: campaign?.brand_name || campaign?.brand,
                   guide_url: bulkExternalGuideData.url || bulkExternalGuideData.fileUrl,
                   guide_title: bulkExternalGuideData.title || '촬영 가이드',
-                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
                 })
               })
             }
@@ -5023,11 +5093,14 @@ Questions? Contact us.
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'guide_confirm_request',
+              creatorId: updatedCreator.user_id,
+              lineUserId: updatedCreator.line_user_id,
               creatorEmail: creatorEmail,
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'キャンペーン',
-                brandName: campaign?.brand_name || campaign?.brand
+                brandName: campaign?.brand_name || campaign?.brand,
+                guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`
               }
             })
           })
@@ -5041,7 +5114,8 @@ Questions? Contact us.
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'Campaign',
-                brandName: campaign?.brand_name || campaign?.brand
+                brandName: campaign?.brand_name || campaign?.brand,
+                guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`
               }
             })
           })
@@ -5106,7 +5180,10 @@ Questions? Contact us.
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   type: 'campaign_selected',
+                  creatorId: participant.user_id,
+                  lineUserId: participant.line_user_id,
                   creatorEmail: pEmail,
+                  creatorPhone: pPhone,
                   data: {
                     creatorName: pName,
                     campaignName: campaign.title,
@@ -5134,6 +5211,46 @@ Questions? Contact us.
             }
           }
         }
+        // 3. 스티비 자동 이메일 초대장 발송
+        try {
+          const stibeeSubscribers = []
+          for (const participantId of selectedParticipants) {
+            const participant = participants.find(p => p.id === participantId) ||
+                               applications.find(a => a.id === participantId)
+            if (participant) {
+              const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+              const pName = participant.applicant_name || participant.creator_name || 'クリエイター'
+              if (pEmail) {
+                stibeeSubscribers.push({
+                  email: pEmail,
+                  name: pName,
+                  variables: {
+                    name: pName,
+                    campaign_name: campaign.title,
+                    brand_name: campaign.brand_name || campaign.company_name || '',
+                    reward: campaign.reward_text || campaign.compensation || '',
+                    deadline: campaign.content_submission_deadline || ''
+                  }
+                })
+              }
+            }
+          }
+
+          if (stibeeSubscribers.length > 0) {
+            await fetch('/.netlify/functions/send-stibee-auto-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                preset: 'japan_invitation',
+                subscribers: stibeeSubscribers
+              })
+            })
+            console.log(`[Japan] Stibee invitation sent to ${stibeeSubscribers.length} creators`)
+          }
+        } catch (stibeeError) {
+          console.error('[Japan] Stibee invitation error:', stibeeError.message)
+        }
+
         alert('일본 크리에이터 알림 발송 완료!')
       }
 
@@ -5155,6 +5272,7 @@ Questions? Contact us.
                 body: JSON.stringify({
                   type: 'campaign_selected',
                   creatorEmail: pEmail,
+                  creatorPhone: pPhone,
                   data: {
                     creatorName: pName,
                     campaignName: campaign.title,
@@ -5209,6 +5327,71 @@ Questions? Contact us.
     } catch (error) {
       console.error('Error confirming selection:', error)
       alert('선택 확정에 실패했습니다.')
+    }
+  }
+
+  // 스티비 자동 이메일로 일본 크리에이터 초대장 발송
+  const handleSendStibeeInvitation = async () => {
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    if (targetParticipants.length === 0) {
+      alert('발송 대상이 없습니다.')
+      return
+    }
+
+    // 이메일이 있는 참여자만 필터
+    const withEmail = targetParticipants.filter(p =>
+      p.email || p.creator_email || p.applicant_email || p.user_email
+    )
+
+    if (withEmail.length === 0) {
+      alert('이메일 주소가 있는 크리에이터가 없습니다.')
+      return
+    }
+
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${withEmail.length}명에게 스티비 초대장을 발송하시겠습니까?`
+      : `전체 ${withEmail.length}명에게 스티비 초대장을 발송하시겠습니까?`
+
+    if (!confirm(confirmMsg)) return
+
+    setSendingStibeeInvitation(true)
+    try {
+      const subscribers = withEmail.map(p => ({
+        email: p.email || p.creator_email || p.applicant_email || p.user_email,
+        name: p.applicant_name || p.creator_name || '',
+        variables: {
+          name: p.applicant_name || p.creator_name || 'クリエイター',
+          campaign_name: campaign?.title || '',
+          brand_name: campaign?.brand_name || campaign?.company_name || '',
+          reward: campaign?.reward_text || campaign?.compensation || '',
+          deadline: campaign?.content_submission_deadline || ''
+        }
+      }))
+
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preset: 'japan_invitation',
+          subscribers
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`스티비 초대장 발송 완료!\n${result.results.sent}명 성공, ${result.results.failed}명 실패`)
+      } else {
+        alert(`발송 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('[Stibee Invitation] Error:', error)
+      alert('스티비 초대장 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingStibeeInvitation(false)
     }
   }
 
@@ -5490,6 +5673,25 @@ Questions? Contact us.
                   <>
                     <Sparkles className="w-4 h-4 mr-1" />
                     가이드 전체 생성
+                  </>
+                )}
+              </Button>
+              {/* 가이드 전체 발송 버튼 (생성된 가이드를 선택된 크리에이터에게 이메일 발송) */}
+              <Button
+                onClick={() => handleBulkGuideDelivery('ai')}
+                disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
+                className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                size="sm"
+              >
+                {sendingBulkGuideEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4 mr-1" />
+                    가이드 전체 발송
                   </>
                 )}
               </Button>
@@ -6683,9 +6885,18 @@ Questions? Contact us.
                                     return
                                   }
 
-                                  if (!confirm(`${creator.name || creator.channel_name}님에게 캠페인 초대장을 발송하시겠습니까?`)) {
-                                    return
-                                  }
+                                  // 채널 정보 구성
+                                  const channelInfo = creator.main_platform || creator.primary_interest || '채널 미등록'
+                                  const creatorDisplayName = creator.name || creator.channel_name || '크리에이터'
+                                  const followersText = creator.followers_count ? ` (팔로워 ${creator.followers_count.toLocaleString()})` : ''
+
+                                  const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
+                                    `크리에이터: ${creatorDisplayName}\n` +
+                                    `채널: ${channelInfo}${followersText}\n` +
+                                    `캠페인: ${campaign?.title || ''}\n\n` +
+                                    `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
+
+                                  if (!confirm(warningMsg)) return
 
                                   const response = await fetch('/.netlify/functions/send-creator-invitation', {
                                     method: 'POST',
@@ -8143,6 +8354,23 @@ Questions? Contact us.
                       </div>
                     )}
 
+                    {/* 일본 캠페인: 스티비 초대장 발송 */}
+                    {region === 'japan' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleSendStibeeInvitation}
+                        className="bg-white border-blue-200 hover:bg-blue-50 text-blue-700"
+                        disabled={participants.length === 0 || sendingStibeeInvitation}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {sendingStibeeInvitation ? '발송 중...' : (
+                          selectedParticipants.length > 0
+                            ? `선택 ${selectedParticipants.length}명 스티비 초대장`
+                            : '스티비 초대장 발송'
+                        )}
+                      </Button>
+                    )}
+
                     {/* US 캠페인: 배송정보 요청 이메일 발송 */}
                     {region === 'us' && (
                       <Button
@@ -8919,16 +9147,57 @@ Questions? Contact us.
                               
                               {(() => {
                                 const participant = participants.find(p => p.user_id === submission.user_id)
-                                const partnershipCode = participant?.partnership_code || submission.partnership_code
+                                const partnershipCode = participant?.partnership_code || participant?.ad_code || submission.partnership_code || submission.ad_code
                                 return partnershipCode ? (
                                   <div>
-                                    <p className="text-gray-500">파트너십 광고 코드</p>
+                                    <p className="text-gray-500">광고 코드</p>
                                     <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{partnershipCode}</p>
                                   </div>
                                 ) : null
                               })()}
+
+                              {/* 일본 applications 테이블에서 가져온 클린본 표시 */}
+                              {(() => {
+                                const participant = participants.find(p => p.user_id === submission.user_id)
+                                const cleanUrl = participant?.clean_video_file_url || participant?.clean_video_url || submission.clean_video_url
+                                if (!cleanUrl) return null
+                                return (
+                                  <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+                                    <p className="text-emerald-700 font-semibold text-xs mb-1">클린본</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-emerald-600 truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                        onClick={async () => {
+                                          try {
+                                            const res = await fetch(cleanUrl)
+                                            const blob = await res.blob()
+                                            const blobUrl = window.URL.createObjectURL(blob)
+                                            const link = document.createElement('a')
+                                            link.href = blobUrl
+                                            link.download = participant?.clean_video_file_name || 'clean_video.mp4'
+                                            document.body.appendChild(link)
+                                            link.click()
+                                            document.body.removeChild(link)
+                                            window.URL.revokeObjectURL(blobUrl)
+                                          } catch (err) {
+                                            window.open(cleanUrl, '_blank')
+                                          }
+                                        }}
+                                      >
+                                        다운로드
+                                      </Button>
+                                    </div>
+                                    {participant?.clean_video_uploaded_at && (
+                                      <p className="text-xs text-emerald-500 mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
+                                    )}
+                                  </div>
+                                )
+                              })()}
                             </div>
-                            
+
                             <div className="flex flex-col gap-2 pt-4">
                               <Button
                                 size="sm"
@@ -11144,45 +11413,103 @@ Questions? Contact us.
                     })()}
                   </div>
                 ) : (
-                  /* Use different viewer based on region */
+                  /* Use different viewer based on region and guide type */
                   (region === 'us' || region === 'japan') ? (
-                    <USJapanGuideViewer
-                      guide={selectedGuide.personalized_guide}
-                      creator={selectedGuide}
-                      region={region}
-                      onSave={async (updatedGuide) => {
-                        // US/Japan use API to bypass RLS
-                        try {
-                          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              region: region,
-                              applicationId: selectedGuide.id,
-                              guide: updatedGuide
-                            })
-                          })
-
-                          if (!saveResponse.ok) {
-                            const errorData = await saveResponse.json()
-                            throw new Error(errorData.error || 'Failed to save guide')
-                          }
-
-                          // Update local state
-                          setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                          const updatedParticipants = participants.map(p =>
-                            p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
-                          )
-                          setParticipants(updatedParticipants)
-
-                          // Refresh participants to ensure data consistency
-                          await fetchParticipants()
-                        } catch (error) {
-                          console.error('가이드 저장 실패:', error)
-                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                    /* PDF/Google Slides 가이드인 경우 ExternalGuideViewer 사용 */
+                    (campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url) ? (
+                      <ExternalGuideViewer
+                        type={
+                          campaign.guide_pdf_url.includes('docs.google.com/presentation') ? 'google_slides'
+                          : campaign.guide_pdf_url.includes('docs.google.com/spreadsheets') ? 'google_sheets'
+                          : campaign.guide_pdf_url.includes('docs.google.com/document') ? 'google_docs'
+                          : campaign.guide_pdf_url.includes('drive.google.com') ? 'google_drive'
+                          : 'pdf'
                         }
-                      }}
-                    />
+                        url={campaign.guide_pdf_url}
+                        fileUrl={campaign.guide_pdf_url}
+                        title={campaign.title ? `${campaign.title} 촬영 가이드` : '촬영 가이드'}
+                      />
+                    ) : (() => {
+                      // 가이드 타입 판별: non-scene 가이드는 PersonalizedGuideViewer 사용
+                      let guideType = null
+                      try {
+                        const pg = selectedGuide.personalized_guide
+                        const parsed = typeof pg === 'string' ? JSON.parse(pg) : pg
+                        guideType = parsed?.type
+                      } catch {}
+                      const nonSceneTypes = ['4week_guide', 'oliveyoung_guide', 'megawari_guide', '4week_ai', 'oliveyoung_ai', 'external_pdf', 'external_url']
+
+                      if (nonSceneTypes.includes(guideType)) {
+                        // 4주/올영/PDF/URL 가이드 → PersonalizedGuideViewer (모든 가이드 타입 지원)
+                        return (
+                          <PersonalizedGuideViewer
+                            guide={selectedGuide.personalized_guide}
+                            creator={selectedGuide}
+                            onSave={async (updatedGuide) => {
+                              try {
+                                const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    region: region,
+                                    applicationId: selectedGuide.id,
+                                    guide: updatedGuide
+                                  })
+                                })
+                                if (!saveResponse.ok) {
+                                  const errorData = await saveResponse.json()
+                                  throw new Error(errorData.error || 'Failed to save guide')
+                                }
+                                setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                                const updatedParticipants = participants.map(p =>
+                                  p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                                )
+                                setParticipants(updatedParticipants)
+                                await fetchParticipants()
+                              } catch (error) {
+                                console.error('가이드 저장 실패:', error)
+                                throw new Error('데이터베이스 저장 실패: ' + error.message)
+                              }
+                            }}
+                          />
+                        )
+                      }
+
+                      // 씬 기반 가이드 → USJapanGuideViewer (번역 지원)
+                      return (
+                        <USJapanGuideViewer
+                          guide={selectedGuide.personalized_guide}
+                          creator={selectedGuide}
+                          region={region}
+                          onSave={async (updatedGuide) => {
+                            try {
+                              const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  region: region,
+                                  applicationId: selectedGuide.id,
+                                  guide: updatedGuide
+                                })
+                              })
+                              if (!saveResponse.ok) {
+                                const errorData = await saveResponse.json()
+                                throw new Error(errorData.error || 'Failed to save guide')
+                              }
+                              setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                              const updatedParticipants = participants.map(p =>
+                                p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                              )
+                              setParticipants(updatedParticipants)
+                              await fetchParticipants()
+                            } catch (error) {
+                              console.error('가이드 저장 실패:', error)
+                              throw new Error('데이터베이스 저장 실패: ' + error.message)
+                            }
+                          }}
+                        />
+                      )
+                    })()
                   ) : (
                     <PersonalizedGuideViewer
                       guide={
@@ -11328,13 +11655,14 @@ Questions? Contact us.
                   </>
                 ) : (
                   <>
-                    {/* 올영/4주 가이드는 PersonalizedGuideViewer에서 직접 수정하므로 버튼 숨김 */}
+                    {/* 올영/4주/PDF 가이드는 수정 버튼 숨김 */}
                     {(() => {
                       const guide = selectedGuide.personalized_guide
                       const guideType = typeof guide === 'object' ? guide?.type : null
                       const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+                      const isPdfGuide = campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url
 
-                      if (isOliveYoungOr4Week) return null
+                      if (isOliveYoungOr4Week || isPdfGuide) return null
 
                       return (
                         <>
@@ -13066,7 +13394,7 @@ Questions? Contact us.
                         // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
                         try {
                           const pPhone = selectedParticipantForGuide.phone || selectedParticipantForGuide.phone_number || selectedParticipantForGuide.creator_phone
-                          const pEmail = selectedParticipantForGuide.email
+                          const pEmail = selectedParticipantForGuide.email || selectedParticipantForGuide.creator_email || selectedParticipantForGuide.applicant_email || selectedParticipantForGuide.user_email
                           const pLineUserId = selectedParticipantForGuide.line_user_id
 
                           if (region === 'korea' && pPhone) {
@@ -13087,10 +13415,14 @@ Questions? Contact us.
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 type: 'guide_confirm_request',
+                                creatorId: selectedParticipantForGuide.user_id,
+                                lineUserId: pLineUserId,
                                 creatorEmail: pEmail,
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'キャンペーン',
+                                  brandName: campaign?.brand_name || campaign?.brand,
+                                  guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`,
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('ja-JP')
                                     : '確認してください'
@@ -13108,6 +13440,8 @@ Questions? Contact us.
                                 data: {
                                   creatorName,
                                   campaignName: campaign?.title || 'Campaign',
+                                  brandName: campaign?.brand_name || campaign?.brand,
+                                  guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`,
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('en-US')
                                     : 'Check your dashboard'

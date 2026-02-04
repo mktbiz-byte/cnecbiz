@@ -589,33 +589,97 @@ export default function VideoReview() {
 
     setIsSending(true)
     try {
-      const response = await fetch('/.netlify/functions/send-video-review-notification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creatorName: submission?.applications?.applicant_name || '크리에이터',
-          creatorPhone: submission?.applications?.phone_number,
-          campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
-          feedbackCount: comments.length,
-          submissionId
+      // 1. video_submissions 상태를 revision_requested로 변경
+      const client = getRegionClient()
+      await client
+        .from('video_submissions')
+        .update({ status: 'revision_requested', updated_at: new Date().toISOString() })
+        .eq('id', submissionId)
+
+      // 2. 피드백 내용 텍스트 생성 (번역용)
+      const feedbackText = comments.map((c, i) =>
+        `${i + 1}. [${formatTime(c.timestamp)}] ${c.comment}`
+      ).join('\n')
+
+      // 3. 일본/미국 리전: send-japan-notification으로 발송
+      if (region === 'japan' || region === 'us') {
+        // 번역된 피드백 내용 생성
+        let translatedFeedback = feedbackText
+        try {
+          const targetLang = region === 'japan' ? '일본어' : '영어'
+          const transRes = await fetch('/.netlify/functions/translate-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: `영상 수정 요청사항:\n${feedbackText}`,
+              targetLanguage: targetLang,
+              sourceLanguage: '한국어'
+            })
+          })
+          const transResult = await transRes.json()
+          if (transResult.success && transResult.translatedText) {
+            translatedFeedback = transResult.translatedText
+          }
+        } catch (transErr) {
+          console.error('Translation failed, using original:', transErr)
+        }
+
+        const notifRes = await fetch('/.netlify/functions/send-japan-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'video_review_request',
+            creatorId: submission?.user_id,
+            creatorEmail: submission?.applications?.email,
+            creatorPhone: submission?.applications?.phone_number,
+            data: {
+              creatorName: submission?.applications?.applicant_name || 'Creator',
+              campaignName: submission?.applications?.campaigns?.title || 'Campaign',
+              feedbackCount: comments.length,
+              feedback: translatedFeedback,
+              submissionId,
+              reviewUrl: `https://cnec.jp/creator/video-review/${submissionId}`
+            }
+          })
         })
-      })
+        const notifResult = await notifRes.json()
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || '알림 전송 실패')
-      }
-
-      // 응답에 따른 메시지 표시
-      if (result.skipped) {
-        alert('수정 요청이 등록되었습니다.\n(알림 서비스 미설정으로 알림은 발송되지 않았습니다)')
-      } else if (result.notificationFailed) {
-        alert(`수정 요청이 등록되었습니다.\n${result.warning || '크리에이터에게 직접 연락해 주세요'}`)
-      } else if (result.method === 'sms') {
-        alert('수정 요청이 크리에이터에게 문자로 전달되었습니다.')
+        if (notifResult.success) {
+          alert(region === 'japan'
+            ? '修正リクエストがクリエイターに送信されました。'
+            : 'Revision request has been sent to the creator.')
+        } else {
+          alert(`수정 요청이 등록되었습니다.\n(알림 발송: ${notifResult.error || '실패'})`)
+        }
       } else {
-        alert('수정 요청이 크리에이터에게 전달되었습니다.')
+        // 4. 한국: 기존 카카오 알림톡 발송
+        const response = await fetch('/.netlify/functions/send-video-review-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creatorName: submission?.applications?.applicant_name || '크리에이터',
+            creatorPhone: submission?.applications?.phone_number,
+            campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
+            feedbackCount: comments.length,
+            submissionId
+          })
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || '알림 전송 실패')
+        }
+
+        if (result.skipped) {
+          alert('수정 요청이 등록되었습니다.\n(알림 서비스 미설정으로 알림은 발송되지 않았습니다)')
+        } else if (result.notificationFailed) {
+          alert(`수정 요청이 등록되었습니다.\n${result.warning || '크리에이터에게 직접 연락해 주세요'}`)
+        } else if (result.method === 'sms') {
+          alert('수정 요청이 크리에이터에게 문자로 전달되었습니다.')
+        } else {
+          alert('수정 요청이 크리에이터에게 전달되었습니다.')
+        }
       }
     } catch (error) {
       console.error('Error sending notification:', error)

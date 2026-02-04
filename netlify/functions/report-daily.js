@@ -178,13 +178,12 @@ function isVideoSubmitted(status) {
   return ['video_submitted', 'video_approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(status);
 }
 
-// 중복 실행 방지를 위한 설정
-const EXECUTION_KEY = 'report-daily';
-const DUPLICATE_WINDOW_MS = 5 * 60 * 1000; // 5분 내 중복 실행 방지
+const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
 
 exports.handler = async (event) => {
   const executionTime = new Date();
-  const isManualTest = event.httpMethod === 'GET' || event.httpMethod === 'POST';
+  const queryParams = event.queryStringParameters || {};
+  const isManualTest = queryParams.manual === 'true' || queryParams.test === 'true';
   console.log(`[report-daily] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   if (!supabaseBiz) {
@@ -194,39 +193,9 @@ exports.handler = async (event) => {
     };
   }
 
-  // 중복 실행 방지 체크 (수동 테스트는 제외)
-  if (!isManualTest) {
-    try {
-      const { data: lastExec } = await supabaseBiz
-        .from('scheduler_executions')
-        .select('executed_at')
-        .eq('function_name', EXECUTION_KEY)
-        .order('executed_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (lastExec) {
-        const lastExecTime = new Date(lastExec.executed_at);
-        const timeDiff = executionTime.getTime() - lastExecTime.getTime();
-        if (timeDiff < DUPLICATE_WINDOW_MS) {
-          console.log(`[report-daily] 중복 실행 감지: ${Math.round(timeDiff / 1000)}초 전에 실행됨. 스킵합니다.`);
-          return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, skipped: true, reason: 'Duplicate execution prevented' })
-          };
-        }
-      }
-
-      // 현재 실행 기록
-      await supabaseBiz
-        .from('scheduler_executions')
-        .upsert({
-          function_name: EXECUTION_KEY,
-          executed_at: executionTime.toISOString()
-        }, { onConflict: 'function_name' });
-    } catch (e) {
-      console.log('[report-daily] 중복 실행 체크 테이블 없음, 계속 진행:', e.message);
-    }
+  // ★ 중복 실행 방지 (인메모리 + DB)
+  const { isDuplicate, reason } = await checkDuplicate('report-daily', event);
+  if (isDuplicate) return skipResponse(reason);
   }
 
   try {

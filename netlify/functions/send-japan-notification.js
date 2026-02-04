@@ -459,9 +459,9 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body);
-    const { type, creatorId, creatorEmail, data = {} } = body;
+    const { type, creatorId, creatorEmail, creatorPhone, lineUserId, data = {} } = body;
 
-    console.log(`[send-japan-notification] 요청 수신: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}`);
+    console.log(`[send-japan-notification] 요청 수신: type=${type}, creatorId=${creatorId || 'N/A'}, creatorEmail=${creatorEmail || 'N/A'}, lineUserId=${lineUserId || 'N/A'}`);
 
     if (!type) {
       return {
@@ -510,15 +510,36 @@ exports.handler = async (event) => {
     }
 
     if (!creator) {
-      console.log(`[send-japan-notification] 크리에이터 조회 실패 - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ success: false, error: 'Creator not found' })
-      };
+      // DB에서 못 찾은 경우: 요청에서 전달받은 정보로 대체 (이메일/전화번호가 있으면 발송 가능)
+      if (creatorEmail || creatorPhone) {
+        console.log(`[send-japan-notification] DB 조회 실패, 요청 데이터로 대체: email=${creatorEmail}, phone=${creatorPhone}`);
+        creator = {
+          name: data.creatorName || '크리에이터',
+          email: creatorEmail,
+          phone: creatorPhone,
+          line_user_id: null
+        };
+      } else {
+        console.log(`[send-japan-notification] 크리에이터 조회 실패 - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Creator not found' })
+        };
+      }
     }
 
-    console.log(`[send-japan-notification] 크리에이터 조회 성공: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
+    // 요청에서 전달받은 phone이 있으면 DB 값 보완 (DB에 phone이 없는 경우)
+    if (creatorPhone && !creator.phone) {
+      creator.phone = creatorPhone;
+    }
+
+    // 요청에서 직접 전달받은 lineUserId가 있으면 우선 사용
+    if (lineUserId && !creator.line_user_id) {
+      creator.line_user_id = lineUserId;
+    }
+
+    console.log(`[send-japan-notification] 크리에이터 정보: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
 
     // 데이터에 크리에이터 이름 추가
     data.creatorName = data.creatorName || creator.name || '크리에이터';

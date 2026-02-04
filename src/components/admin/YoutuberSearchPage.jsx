@@ -14,7 +14,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, CheckCircle, XCircle,
   Eye, Download, Filter, RefreshCw, Star, Clock, MessageSquare,
   AlertCircle, Info, PlayCircle, Video, Image, Film, Link2,
-  FileSpreadsheet, Settings, Upload, UserCheck, UserX
+  FileSpreadsheet, Settings, Upload, UserCheck, UserX, BookOpen, Plus
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -119,11 +119,14 @@ export default function YoutuberSearchPage() {
 
   // Google Sheets 상태
   const [sheetSettings, setSheetSettings] = useState({
-    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
+    korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+    us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false }
   })
+  const [lastSyncResult, setLastSyncResult] = useState(null)
+  const [runningSyncManual, setRunningSyncManual] = useState(false)
+  const [sheetStats, setSheetStats] = useState({ korea: 0, japan: 0, japan2: 0, us: 0, total: 0 })
   const [sheetData, setSheetData] = useState({
     korea: { data: [], loading: false, error: null },
     japan: { data: [], loading: false, error: null },
@@ -134,11 +137,26 @@ export default function YoutuberSearchPage() {
   const [filterExistingUsers, setFilterExistingUsers] = useState(true)
   const [selectedSheetCreators, setSelectedSheetCreators] = useState([])
   const [showStibeeModal, setShowStibeeModal] = useState(false)
-  const [stibeeTemplateId, setStibeeTemplateId] = useState('')
+  const [stibeeTriggerUrl, setStibeeTriggerUrl] = useState('')
+  const [stibeeTriggerLabel, setStibeeTriggerLabel] = useState('')
+  const [stibeeTriggerPresets, setStibeeTriggerPresets] = useState([])
+  const [customTriggerUrl, setCustomTriggerUrl] = useState('')
   const [sendingStibee, setSendingStibee] = useState(false)
+  const [stibeeSendProgress, setStibeeSendProgress] = useState({ sent: 0, failed: 0, total: 0 })
+
+  // 스티비 주소록 상태
+  const [addressBooks, setAddressBooks] = useState([])
+  const [selectedAddressBook, setSelectedAddressBook] = useState('')
+  const [loadingAddressBooks, setLoadingAddressBooks] = useState(false)
+  const [showAddToListModal, setShowAddToListModal] = useState(false)
+  const [addingToList, setAddingToList] = useState(false)
+  const [stibeeStep, setStibeeStep] = useState(1) // 1: 주소록 선택, 2: 템플릿 입력, 3: 발송 확인
+  const [addressBookSubscriberCount, setAddressBookSubscriberCount] = useState(0)
+  const [loadingSubscriberCount, setLoadingSubscriberCount] = useState(false)
 
   useEffect(() => {
     checkAuth()
+    loadSheetCounts()
   }, [])
 
   useEffect(() => {
@@ -190,10 +208,10 @@ export default function YoutuberSearchPage() {
       if (result.success && result.settings) {
         // 기존 설정과 병합 (누락된 필드에 기본값 적용)
         const defaultSettings = {
-          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' },
-          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '' }
+          korea: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          japan: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          japan2: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false },
+          us: { url: '', nameColumn: 'A', emailColumn: 'B', sheetTab: '', stibeeListId: '', stibeeGroupId: '', autoSync: false }
         }
         const mergedSettings = {
           korea: { ...defaultSettings.korea, ...(result.settings.korea || {}) },
@@ -202,9 +220,45 @@ export default function YoutuberSearchPage() {
           us: { ...defaultSettings.us, ...(result.settings.us || {}) }
         }
         setSheetSettings(mergedSettings)
+
+        // 마지막 동기화 결과 로드
+        try {
+          const syncRes = await fetch('/.netlify/functions/fetch-google-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'load_settings', settingsKey: 'stibee_sync_last_result' })
+          })
+          const syncResult = await syncRes.json()
+          if (syncResult.success && syncResult.settings) {
+            setLastSyncResult(syncResult.settings)
+          }
+        } catch { /* ignore */ }
       }
     } catch (error) {
       console.error('Failed to load sheet settings:', error)
+    }
+  }
+
+  // Google Sheets 인원수 카운트
+  const loadSheetCounts = async () => {
+    try {
+      const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'count_sheets' })
+      })
+      const result = await res.json()
+      if (result.success) {
+        setSheetStats({
+          korea: result.counts?.korea || 0,
+          japan: result.counts?.japan || 0,
+          japan2: result.counts?.japan2 || 0,
+          us: result.counts?.us || 0,
+          total: result.total || 0
+        })
+      }
+    } catch (e) {
+      console.error('Failed to load sheet counts:', e)
     }
   }
 
@@ -304,27 +358,28 @@ export default function YoutuberSearchPage() {
     }
   }
 
-  // 스티비 이메일 발송
+  // 스티비 이메일 발송 (트리거 URL 방식)
   const sendStibeeEmail = async () => {
     if (selectedSheetCreators.length === 0) {
       alert('발송할 크리에이터를 선택해주세요.')
       return
     }
 
-    if (!stibeeTemplateId) {
-      alert('스티비 템플릿 ID를 입력해주세요.')
+    const triggerUrl = stibeeTriggerUrl || customTriggerUrl
+    if (!triggerUrl) {
+      alert('트리거 URL을 선택하거나 입력해주세요.')
       return
     }
 
-    if (!confirm(`${selectedSheetCreators.length}명에게 스티비 메일을 발송하시겠습니까?`)) {
+    if (!confirm(`${selectedSheetCreators.length}명에게 스티비 자동 이메일을 발송하시겠습니까?`)) {
       return
     }
 
     setSendingStibee(true)
+    setStibeeSendProgress({ sent: 0, failed: 0, total: 0 })
     try {
-      // 선택된 크리에이터 정보 수집
       const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
-      const recipients = selectedSheetCreators.map(email => {
+      const subscribers = selectedSheetCreators.map(email => {
         const creator = allData.find(c => c.email === email)
         return {
           email: email,
@@ -332,28 +387,237 @@ export default function YoutuberSearchPage() {
         }
       })
 
-      const response = await fetch('/.netlify/functions/send-stibee-campaign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: stibeeTemplateId,
-          recipients: recipients
-        })
-      })
+      // 20명씩 배치로 나눠서 발송 (Netlify 10초 타임아웃 방지)
+      const BATCH_SIZE = 20
+      let totalSent = 0
+      let totalFailed = 0
+      setStibeeSendProgress({ sent: 0, failed: 0, total: subscribers.length })
 
-      const result = await response.json()
+      for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+        const batch = subscribers.slice(i, i + BATCH_SIZE)
+        try {
+          const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              triggerUrl: triggerUrl,
+              subscribers: batch
+            })
+          })
 
-      if (!result.success) {
-        throw new Error(result.error)
+          const result = await response.json()
+          if (result.success) {
+            totalSent += result.results?.sent || 0
+            totalFailed += result.results?.failed || 0
+          } else {
+            totalFailed += batch.length
+          }
+        } catch (batchErr) {
+          console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchErr)
+          totalFailed += batch.length
+        }
+        setStibeeSendProgress({ sent: totalSent, failed: totalFailed, total: subscribers.length })
       }
 
-      alert(`${selectedSheetCreators.length}명에게 이메일 발송을 시작했습니다.`)
+      alert(`${totalSent}명에게 이메일 발송 완료!${totalFailed ? ` (${totalFailed}명 실패)` : ''}`)
       setShowStibeeModal(false)
       setSelectedSheetCreators([])
 
     } catch (error) {
       console.error('Failed to send Stibee email:', error)
       alert('이메일 발송 실패: ' + error.message)
+    } finally {
+      setSendingStibee(false)
+    }
+  }
+
+  // 스티비 트리거 프리셋 목록 조회
+  const fetchTriggerPresets = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_presets' })
+      })
+      const result = await response.json()
+      if (result.success && result.presets) {
+        setStibeeTriggerPresets(result.presets)
+      }
+    } catch (error) {
+      console.error('Failed to fetch trigger presets:', error)
+    }
+  }
+
+  // 스티비 주소록 목록 조회
+  const fetchAddressBooks = async () => {
+    setLoadingAddressBooks(true)
+    try {
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'lists' })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setAddressBooks(result.lists || [])
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to fetch address books:', error)
+      alert('주소록 목록 조회 실패: ' + error.message)
+    } finally {
+      setLoadingAddressBooks(false)
+    }
+  }
+
+  // 선택한 크리에이터를 스티비 주소록에 추가
+  const addToAddressBook = async () => {
+    if (!selectedAddressBook) {
+      alert('주소록을 선택해주세요.')
+      return
+    }
+    if (selectedSheetCreators.length === 0) {
+      alert('추가할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedSheetCreators.length}명을 선택한 주소록에 추가하시겠습니까?`)) return
+
+    setAddingToList(true)
+    try {
+      const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
+      const subscribers = selectedSheetCreators.map(email => {
+        const creator = allData.find(c => c.email === email)
+        return { email, name: creator?.name || '' }
+      })
+
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_subscribers',
+          listId: selectedAddressBook,
+          subscribers
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`주소록 추가 완료!\n${result.message}`)
+        setShowAddToListModal(false)
+        setSelectedSheetCreators([])
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Failed to add to address book:', error)
+      alert('주소록 추가 실패: ' + error.message)
+    } finally {
+      setAddingToList(false)
+    }
+  }
+
+  // 주소록 구독자 수 조회
+  const fetchSubscriberCount = async (listId) => {
+    if (!listId) return
+    setLoadingSubscriberCount(true)
+    try {
+      const response = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_subscribers', listId })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setAddressBookSubscriberCount(result.total || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscriber count:', error)
+    } finally {
+      setLoadingSubscriberCount(false)
+    }
+  }
+
+  // 주소록 대상 메일 발송 (트리거 URL 방식)
+  const sendToAddressBook = async () => {
+    if (!selectedAddressBook) {
+      alert('주소록을 선택해주세요.')
+      return
+    }
+
+    const triggerUrl = stibeeTriggerUrl || customTriggerUrl
+    if (!triggerUrl) {
+      alert('트리거 URL을 선택하거나 입력해주세요.')
+      return
+    }
+
+    const selectedBook = addressBooks.find(b => b.id?.toString() === selectedAddressBook?.toString())
+    if (!confirm(`"${selectedBook?.name || selectedAddressBook}" 주소록의 ${addressBookSubscriberCount}명에게 자동 이메일을 발송하시겠습니까?`)) return
+
+    setSendingStibee(true)
+    setStibeeSendProgress({ sent: 0, failed: 0, total: 0 })
+    try {
+      // 1. 주소록에서 구독자 목록 가져오기
+      const subsResponse = await fetch('/.netlify/functions/stibee-address-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_subscribers',
+          listId: selectedAddressBook
+        })
+      })
+      const subsResult = await subsResponse.json()
+      if (!subsResult.success) throw new Error(subsResult.error || '구독자 목록 조회 실패')
+
+      const subscribers = (subsResult.subscribers || []).map(s => ({
+        email: s.email,
+        name: s.name || ''
+      }))
+
+      if (subscribers.length === 0) throw new Error('주소록에 구독자가 없습니다.')
+
+      // 2. 트리거 URL로 자동 이메일 발송 (20명씩 배치, 진행률 표시)
+      const BATCH_SIZE = 20
+      let totalSent = 0
+      let totalFailed = 0
+      setStibeeSendProgress({ sent: 0, failed: 0, total: subscribers.length })
+
+      for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+        const batch = subscribers.slice(i, i + BATCH_SIZE)
+        try {
+          const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              triggerUrl: triggerUrl,
+              subscribers: batch
+            })
+          })
+
+          const result = await response.json()
+          if (result.success) {
+            totalSent += result.results?.sent || 0
+            totalFailed += result.results?.failed || 0
+          } else {
+            totalFailed += batch.length
+          }
+        } catch (batchErr) {
+          console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchErr)
+          totalFailed += batch.length
+        }
+        setStibeeSendProgress({ sent: totalSent, failed: totalFailed, total: subscribers.length })
+      }
+
+      alert(`발송 완료!\n${totalSent}명 발송, ${totalFailed}명 실패`)
+      setShowStibeeModal(false)
+      setStibeeStep(1)
+      setStibeeTriggerUrl('')
+      setCustomTriggerUrl('')
+      setSelectedAddressBook('')
+    } catch (error) {
+      console.error('Failed to send to address book:', error)
+      alert('메일 발송 실패: ' + error.message)
     } finally {
       setSendingStibee(false)
     }
@@ -689,35 +953,35 @@ export default function YoutuberSearchPage() {
           </p>
         </div>
 
-        {/* 통계 카드 */}
+        {/* 통계 카드 - 구글 시트 기반 */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-              <div className="text-sm text-gray-500">전체 수집</div>
+              <div className="text-2xl font-bold text-gray-900">{sheetStats.total.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">전체 (시트)</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-green-600">{stats.with_email}</div>
-              <div className="text-sm text-gray-500">이메일 있음</div>
+              <div className="text-2xl font-bold text-blue-600">{sheetStats.korea.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇰🇷 한국</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-blue-600">{stats.by_country?.US || 0}</div>
-              <div className="text-sm text-gray-500">미국</div>
+              <div className="text-2xl font-bold text-red-600">{(sheetStats.japan + sheetStats.japan2).toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇯🇵 일본 ({sheetStats.japan} + {sheetStats.japan2})</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-red-600">{stats.by_country?.JP || 0}</div>
-              <div className="text-sm text-gray-500">일본</div>
+              <div className="text-2xl font-bold text-purple-600">{sheetStats.us.toLocaleString()}</div>
+              <div className="text-sm text-gray-500">🇺🇸 미국</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-purple-600">{stats.by_status?.contacted || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.by_status?.contacted || 0}</div>
               <div className="text-sm text-gray-500">연락함</div>
             </CardContent>
           </Card>
@@ -1301,225 +1565,111 @@ export default function YoutuberSearchPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* 한국 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-blue-50">
-                      <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
-                        🇰🇷 한국
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.korea.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              korea: { ...prev.korea, url: e.target.value }
-                            }))}
-                          />
+                    {/* 시트 설정 - 공통 렌더링 */}
+                    {[
+                      { key: 'korea', label: 'KR 한국', emoji: '🇰🇷', bgClass: 'bg-blue-50', textClass: 'text-blue-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan', label: 'JP 일본', emoji: '🇯🇵', bgClass: 'bg-red-50', textClass: 'text-red-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'japan2', label: 'JP 일본 2', emoji: '🇯🇵', bgClass: 'bg-pink-50', textClass: 'text-pink-800', schedule: '매일 오후 5시 (KST)' },
+                      { key: 'us', label: 'US 미국', emoji: '🇺🇸', bgClass: 'bg-purple-50', textClass: 'text-purple-800', schedule: '매일 오전 10시 (EST)' }
+                    ].map(({ key, label, emoji, bgClass, textClass, schedule }) => (
+                      <div key={key} className={`border rounded-lg p-4 ${bgClass}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className={`font-medium ${textClass} flex items-center gap-2`}>
+                            {emoji} {label}
+                          </h4>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sheetSettings[key]?.autoSync || false}
+                              onChange={(e) => setSheetSettings(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], autoSync: e.target.checked }
+                              }))}
+                              className="w-4 h-4 rounded border-gray-300 text-green-600"
+                            />
+                            <span className="text-xs text-gray-600">자동 발송</span>
+                          </label>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
                             <Input
-                              placeholder="A"
-                              value={sheetSettings.korea.nameColumn}
+                              placeholder="https://docs.google.com/spreadsheets/d/..."
+                              value={sheetSettings[key]?.url || ''}
                               onChange={(e) => setSheetSettings(prev => ({
                                 ...prev,
-                                korea: { ...prev.korea, nameColumn: e.target.value.toUpperCase() }
+                                [key]: { ...prev[key], url: e.target.value }
                               }))}
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.korea.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                korea: { ...prev.korea, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
+                              <Input
+                                placeholder="A"
+                                value={sheetSettings[key]?.nameColumn || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], nameColumn: e.target.value.toUpperCase() }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
+                              <Input
+                                placeholder="B"
+                                value={sheetSettings[key]?.emailColumn || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], emailColumn: e.target.value.toUpperCase() }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
+                              <Input
+                                placeholder="gid (선택)"
+                                value={sheetSettings[key]?.sheetTab || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], sheetTab: e.target.value }
+                                }))}
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.korea.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                korea: { ...prev.korea, sheetTab: e.target.value }
-                              }))}
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">스티비 주소록 ID</label>
+                              <Input
+                                placeholder="예: 345842"
+                                value={sheetSettings[key]?.stibeeListId || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], stibeeListId: e.target.value }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">그룹 ID (선택)</label>
+                              <Input
+                                placeholder="예: 475584"
+                                value={sheetSettings[key]?.stibeeGroupId || ''}
+                                onChange={(e) => setSheetSettings(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], stibeeGroupId: e.target.value }
+                                }))}
+                              />
+                            </div>
                           </div>
+                          {sheetSettings[key]?.autoSync && (
+                            <p className="text-xs text-green-700 bg-green-100 rounded px-2 py-1">
+                              {schedule} 자동 싱크
+                            </p>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    ))}
 
-                    {/* 일본 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-red-50">
-                      <h4 className="font-medium text-red-800 mb-3 flex items-center gap-2">
-                        🇯🇵 일본
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.japan.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              japan: { ...prev.japan, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.japan.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.japan.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.japan.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan: { ...prev.japan, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 일본2 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-pink-50">
-                      <h4 className="font-medium text-pink-800 mb-3 flex items-center gap-2">
-                        🇯🇵 일본 2
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.japan2.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              japan2: { ...prev.japan2, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.japan2.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.japan2.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.japan2.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                japan2: { ...prev.japan2, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 미국 시트 설정 */}
-                    <div className="border rounded-lg p-4 bg-purple-50">
-                      <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
-                        🇺🇸 미국
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">시트 URL</label>
-                          <Input
-                            placeholder="https://docs.google.com/spreadsheets/d/..."
-                            value={sheetSettings.us.url}
-                            onChange={(e) => setSheetSettings(prev => ({
-                              ...prev,
-                              us: { ...prev.us, url: e.target.value }
-                            }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이름 열</label>
-                            <Input
-                              placeholder="A"
-                              value={sheetSettings.us.nameColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, nameColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일 열</label>
-                            <Input
-                              placeholder="B"
-                              value={sheetSettings.us.emailColumn}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, emailColumn: e.target.value.toUpperCase() }
-                              }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시트 탭</label>
-                            <Input
-                              placeholder="gid (선택)"
-                              value={sheetSettings.us.sheetTab}
-                              onChange={(e) => setSheetSettings(prev => ({
-                                ...prev,
-                                us: { ...prev.us, sheetTab: e.target.value }
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   {/* 안내 */}
@@ -1532,6 +1682,132 @@ export default function YoutuberSearchPage() {
                       <strong>시트 탭(gid):</strong> 같은 스프레드시트 내 여러 탭이 있는 경우, URL의 <code className="bg-yellow-100 px-1">#gid=123456</code> 부분의 숫자를 입력하세요.
                       첫 번째 탭은 0입니다.
                     </p>
+                    <p className="text-xs text-yellow-700 ml-6">
+                      <strong>스티비 주소록 ID:</strong> URL의 <code className="bg-yellow-100 px-1">lists/<strong>345842</strong>/subscribers</code> 숫자가 주소록 ID입니다.
+                    </p>
+                    <p className="text-xs text-yellow-700 ml-6">
+                      <strong>그룹 ID:</strong> URL의 <code className="bg-yellow-100 px-1">subscribers/S/<strong>475584</strong></code> 숫자가 그룹 ID입니다.
+                      그룹을 지정하면 하나의 주소록에서 리전별로 구분할 수 있습니다.
+                    </p>
+                  </div>
+
+                  {/* 수동 싱크 + 마지막 싱크 결과 */}
+                  <div className="mt-4 flex flex-col gap-2">
+                    <div className="text-xs text-gray-500">
+                      {lastSyncResult?.timestamp && (
+                        <span>마지막 동기화: {new Date(lastSyncResult.timestamp).toLocaleString('ko-KR')}</span>
+                      )}
+                      {lastSyncResult?.results?.map((r, i) => (
+                        <span key={i} className="ml-3">
+                          {r.region}: {r.status === 'success'
+                            ? `+${r.newCount}명 (시트:${r.total}, 스티비:${r.stibeeResults?.success || 0}신규/${r.stibeeResults?.update || 0}기존)`
+                            : r.status === 'skip'
+                              ? `변경없음 (시트:${r.total || '?'})`
+                              : r.error || r.status}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          if (!confirm('모든 구독자를 설정된 그룹에 재할당합니다.\n그룹 ID를 변경한 후 실행하세요.')) return
+                          setRunningSyncManual(true)
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'reassign_groups' })
+                            })
+                            const result = await res.json()
+                            if (result.success) {
+                              const summary = (result.results || []).map(r => {
+                                if (r.status === 'success') {
+                                  const s = r.stibeeResults || {}
+                                  return `${r.region}: ${r.total}명 → 그룹 할당 (신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                }
+                                return `${r.region}: ${r.message || r.error || r.status}`
+                              }).join('\n')
+                              alert(`그룹 재할당 완료!\n${summary}`)
+                            } else {
+                              alert('그룹 재할당 실패: ' + (result.error || '알 수 없는 오류'))
+                            }
+                          } catch (e) {
+                            alert('오류: ' + e.message)
+                          } finally {
+                            setRunningSyncManual(false)
+                          }
+                        }}
+                      >
+                        그룹 재할당
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs text-gray-400 hover:text-red-500"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          if (!confirm('동기화 이력을 초기화하시겠습니까?\n초기화 후 수동 동기화를 하면 전체 재등록됩니다.\n(이미 등록된 이메일은 스티비에서 중복 처리됩니다)')) return
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'reset_sync' })
+                            })
+                            const result = await res.json()
+                            alert(result.message || '초기화 완료')
+                          } catch (e) {
+                            alert('오류: ' + e.message)
+                          }
+                        }}
+                      >
+                        이력 초기화
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          setRunningSyncManual(true)
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'sync_to_stibee' })
+                            })
+                            const result = await res.json()
+                            if (result.success) {
+                              const summary = (result.results || []).map(r => {
+                                if (r.status === 'success') {
+                                  const s = r.stibeeResults || {}
+                                  let line = `${r.region}: +${r.newCount}명 추가 (스티비 신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                  if (s.apiError) line += `\n  ⚠️ ${s.apiError}`
+                                  if (s.success === 0 && s.update === 0 && s.fail === 0 && s.rawResponse) {
+                                    line += `\n  📋 API응답: ${s.rawResponse.substring(0, 150)}`
+                                  }
+                                  return line
+                                }
+                                return `${r.region}: ${r.message || r.error || r.status} (시트:${r.total || '?'}명)`
+                              }).join('\n')
+                              alert(`동기화 완료!\n${summary}`)
+                              setLastSyncResult({ timestamp: new Date().toISOString(), results: result.results })
+                            } else {
+                              alert('동기화 실패: ' + (result.error || '알 수 없는 오류'))
+                            }
+                          } catch (e) {
+                            alert('동기화 오류: ' + e.message)
+                          } finally {
+                            setRunningSyncManual(false)
+                          }
+                        }}
+                      >
+                        {runningSyncManual ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                        수동 동기화
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1556,12 +1832,35 @@ export default function YoutuberSearchPage() {
                         </label>
                       </div>
                       <Button
-                        onClick={() => setShowStibeeModal(true)}
+                        variant="outline"
+                        onClick={() => {
+                          if (selectedSheetCreators.length === 0) {
+                            alert('추가할 크리에이터를 선택해주세요.')
+                            return
+                          }
+                          fetchAddressBooks()
+                          setShowAddToListModal(true)
+                        }}
                         disabled={selectedSheetCreators.length === 0}
+                        className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        주소록에 추가 ({selectedSheetCreators.length})
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          fetchAddressBooks()
+                          setStibeeStep(1)
+                          setSelectedAddressBook('')
+                          setStibeeTriggerUrl('')
+                          setCustomTriggerUrl('')
+                          setStibeeTriggerLabel('')
+                          setShowStibeeModal(true)
+                        }}
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        <Mail className="h-4 w-4 mr-2" />
-                        스티비 발송 ({selectedSheetCreators.length})
+                        <Send className="h-4 w-4 mr-2" />
+                        스티비 메일 발송
                       </Button>
                     </div>
                   </div>
@@ -1699,54 +1998,329 @@ export default function YoutuberSearchPage() {
             </div>
           </TabsContent>
 
-          {/* 스티비 발송 모달 */}
-          <Dialog open={showStibeeModal} onOpenChange={setShowStibeeModal}>
+          {/* 주소록에 추가 모달 */}
+          <Dialog open={showAddToListModal} onOpenChange={setShowAddToListModal}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  스티비 이메일 발송
+                  <BookOpen className="h-5 w-5" />
+                  스티비 주소록에 추가
                 </DialogTitle>
                 <DialogDescription>
-                  선택한 {selectedSheetCreators.length}명에게 스티비 템플릿 이메일을 발송합니다.
+                  선택한 {selectedSheetCreators.length}명을 스티비 주소록에 추가합니다.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    스티비 템플릿 ID
+                    주소록 선택
                   </label>
-                  <Input
-                    placeholder="템플릿 ID 입력"
-                    value={stibeeTemplateId}
-                    onChange={(e) => setStibeeTemplateId(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    스티비 대시보드 → 이메일 → 템플릿에서 ID를 확인할 수 있습니다.
-                  </p>
+                  {loadingAddressBooks ? (
+                    <div className="flex items-center gap-2 text-gray-500 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      주소록 목록 불러오는 중...
+                    </div>
+                  ) : (
+                    <Select value={selectedAddressBook} onValueChange={setSelectedAddressBook}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="주소록을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {addressBooks.map(book => (
+                          <SelectItem key={book.id} value={book.id?.toString()}>
+                            {book.name} ({book.subscriberCount || 0}명)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>발송 대상:</strong> {selectedSheetCreators.length}명
-                  </p>
+                <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800 space-y-1">
+                  <p><strong>추가 대상:</strong> {selectedSheetCreators.length}명</p>
+                  <p className="text-xs text-blue-600">이미 주소록에 있는 이메일은 자동으로 업데이트됩니다.</p>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowStibeeModal(false)}>
+                <Button variant="outline" onClick={() => setShowAddToListModal(false)}>
                   취소
                 </Button>
                 <Button
-                  onClick={sendStibeeEmail}
-                  disabled={sendingStibee || !stibeeTemplateId}
-                  className="bg-green-600 hover:bg-green-700"
+                  onClick={addToAddressBook}
+                  disabled={addingToList || !selectedAddressBook}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {sendingStibee ? (
+                  {addingToList ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <Send className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                   )}
-                  발송하기
+                  주소록에 추가
                 </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 스티비 메일 발송 모달 (주소록 선택 → 자동 이메일 선택 → 발송) */}
+          <Dialog open={showStibeeModal} onOpenChange={(open) => {
+            setShowStibeeModal(open)
+            if (open) {
+              fetchTriggerPresets()
+            }
+            if (!open) {
+              setStibeeStep(1)
+              setStibeeTriggerUrl('')
+              setStibeeTriggerLabel('')
+              setCustomTriggerUrl('')
+              setSelectedAddressBook('')
+              setAddressBookSubscriberCount(0)
+            }
+          }}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  스티비 메일 발송
+                </DialogTitle>
+                <DialogDescription>
+                  주소록의 구독자에게 스티비 자동 이메일(트리거)을 발송합니다.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* 스텝 인디케이터 */}
+              <div className="flex items-center justify-center gap-2 py-2">
+                {[
+                  { step: 1, label: '주소록 선택' },
+                  { step: 2, label: '이메일 선택' },
+                  { step: 3, label: '발송 확인' }
+                ].map(({ step, label }, idx) => (
+                  <div key={step} className="flex items-center gap-2">
+                    {idx > 0 && <ChevronRight className="h-4 w-4 text-gray-300" />}
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
+                      stibeeStep === step
+                        ? 'bg-green-100 text-green-800'
+                        : stibeeStep > step
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {stibeeStep > step ? (
+                        <CheckCircle className="h-3.5 w-3.5" />
+                      ) : (
+                        <span className="w-4 text-center">{step}</span>
+                      )}
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4 py-2">
+                {/* Step 1: 주소록 선택 */}
+                {stibeeStep === 1 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        발송 대상 주소록
+                      </label>
+                      {loadingAddressBooks ? (
+                        <div className="flex items-center gap-2 text-gray-500 py-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          주소록 목록 불러오는 중...
+                        </div>
+                      ) : addressBooks.length === 0 ? (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                          <AlertCircle className="h-4 w-4 inline mr-2" />
+                          주소록이 없습니다. 스티비 대시보드에서 주소록을 먼저 만들어주세요.
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                          {addressBooks.map(book => (
+                            <div
+                              key={book.id}
+                              onClick={() => setSelectedAddressBook(book.id?.toString())}
+                              className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                                selectedAddressBook === book.id?.toString()
+                                  ? 'border-green-500 bg-green-50'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <BookOpen className={`h-5 w-5 ${
+                                  selectedAddressBook === book.id?.toString() ? 'text-green-600' : 'text-gray-400'
+                                }`} />
+                                <div>
+                                  <p className="font-medium text-gray-900">{book.name}</p>
+                                  <p className="text-xs text-gray-500">ID: {book.id}</p>
+                                </div>
+                              </div>
+                              <Badge className={
+                                selectedAddressBook === book.id?.toString()
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-600'
+                              }>
+                                {book.subscriberCount || 0}명
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: 트리거 URL 선택 */}
+                {stibeeStep === 2 && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-green-50 rounded-lg text-sm text-green-800">
+                      <strong>선택된 주소록:</strong>{' '}
+                      {addressBooks.find(b => b.id?.toString() === selectedAddressBook)?.name || selectedAddressBook}
+                      <span className="ml-2">
+                        ({loadingSubscriberCount ? (
+                          <Loader2 className="h-3 w-3 animate-spin inline" />
+                        ) : (
+                          `${addressBookSubscriberCount}명`
+                        )})
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        발송할 자동 이메일 선택
+                      </label>
+                      {/* 프리셋 목록 */}
+                      <div className="space-y-2 mb-3">
+                        {stibeeTriggerPresets.map(preset => (
+                          <div
+                            key={preset.key}
+                            onClick={() => {
+                              setStibeeTriggerUrl(preset.url)
+                              setStibeeTriggerLabel(preset.label)
+                              setCustomTriggerUrl('')
+                            }}
+                            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                              stibeeTriggerUrl === preset.url
+                                ? 'border-green-500 bg-green-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="font-medium text-sm">{preset.label}</span>
+                            {stibeeTriggerUrl === preset.url && (
+                              <span className="text-green-600 text-xs font-medium">선택됨</span>
+                            )}
+                          </div>
+                        ))}
+                        {stibeeTriggerPresets.length === 0 && (
+                          <p className="text-sm text-gray-500 py-2">저장된 프리셋이 없습니다.</p>
+                        )}
+                      </div>
+                      {/* 직접 입력 옵션 */}
+                      <div className="border-t pt-3">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          또는 트리거 URL 직접 입력
+                        </label>
+                        <Input
+                          placeholder="https://stibee.com/api/v1.0/auto/..."
+                          value={customTriggerUrl}
+                          onChange={(e) => {
+                            setCustomTriggerUrl(e.target.value)
+                            setStibeeTriggerUrl('')
+                            setStibeeTriggerLabel('')
+                          }}
+                          className="text-xs"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          스티비 대시보드 → 자동 이메일 → 트리거 설정에서 URL을 복사하세요.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: 발송 확인 */}
+                {stibeeStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">주소록</span>
+                        <span className="font-medium">
+                          {addressBooks.find(b => b.id?.toString() === selectedAddressBook)?.name || selectedAddressBook}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">발송 대상</span>
+                        <span className="font-medium">{addressBookSubscriberCount}명</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">자동 이메일</span>
+                        <span className="font-medium text-sm">
+                          {stibeeTriggerLabel || (customTriggerUrl ? '직접 입력 URL' : '-')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                      <AlertCircle className="h-4 w-4 inline mr-2" />
+                      발송을 시작하면 주소록의 모든 구독자에게 자동 이메일이 전송됩니다.
+                      취소할 수 없으니 신중하게 확인해주세요.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex gap-2">
+                {stibeeStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setStibeeStep(s => s - 1)}
+                    className="mr-auto"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    이전
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setShowStibeeModal(false)}>
+                  취소
+                </Button>
+                {stibeeStep < 3 ? (
+                  <Button
+                    onClick={() => {
+                      if (stibeeStep === 1) {
+                        if (!selectedAddressBook) {
+                          alert('주소록을 선택해주세요.')
+                          return
+                        }
+                        fetchSubscriberCount(selectedAddressBook)
+                      }
+                      if (stibeeStep === 2 && !stibeeTriggerUrl && !customTriggerUrl) {
+                        alert('발송할 자동 이메일을 선택하거나 트리거 URL을 입력해주세요.')
+                        return
+                      }
+                      setStibeeStep(s => s + 1)
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    다음
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={sendToAddressBook}
+                    disabled={sendingStibee}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {sendingStibee ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        {stibeeSendProgress.total > 0
+                          ? `${stibeeSendProgress.sent + stibeeSendProgress.failed} / ${stibeeSendProgress.total}`
+                          : '준비 중...'
+                        }
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        발송하기
+                      </>
+                    )}
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

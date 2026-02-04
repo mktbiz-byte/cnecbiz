@@ -30,8 +30,9 @@ const fetchSheetData = async (sheetUrl, nameColumn, emailColumn, sheetTab) => {
       }
     }
 
-    // 공개 시트의 경우 CSV export URL 사용 (gid 포함)
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`
+    // 공개 시트의 경우 CSV export URL 사용 (gid 포함, 캐시 방지)
+    const cacheBuster = Date.now()
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}&_t=${cacheBuster}`
 
     console.log(`Fetching sheet: ${csvUrl}`)
 
@@ -145,10 +146,20 @@ const columnLetterToIndex = (letter) => {
   return result - 1
 }
 
-// 이메일 유효성 검사
+// 이메일 유효성 검사 (Unicode 특수문자 이메일 필터링)
 const isValidEmail = (email) => {
+  // 기본 형식 체크
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return re.test(email)
+  if (!re.test(email)) return false
+
+  // Unicode 수학 기호/특수 스타일 문자 필터 (Stibee에서 failWrongEmail 발생)
+  // Mathematical Alphanumeric Symbols: U+1D400-U+1D7FF
+  // Enclosed Alphanumerics: U+2460-U+24FF
+  // 일반 ASCII 범위(0x20-0x7E)와 일부 확장 문자만 허용
+  const hasUnicodeSpecial = /[^\x20-\x7E\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/.test(email)
+  if (hasUnicodeSpecial) return false
+
+  return true
 }
 
 // 기존 가입자/크리에이터 필터링
@@ -300,12 +311,396 @@ exports.handler = async (event) => {
       }
     }
 
-    if (action === 'load_settings') {
-      // 시트 설정 불러오기
-      const { data, error } = await supabase
+    if (action === 'sync_to_stibee') {
+      // 구글 시트 → 스티비 주소록 자동 싱크
+      console.log('[sync_to_stibee] Starting sync...')
+
+      // 1. 설정 로드
+      const { data: settingsData } = await supabase
         .from('site_settings')
         .select('value')
         .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: false, error: '동기화 설정이 없습니다. 설정을 먼저 저장해주세요.' })
+        }
+      }
+
+      const syncSettings = JSON.parse(settingsData.value)
+
+      // 2. 스티비 API 키
+      let stibeeApiKey = process.env.STIBEE_API_KEY
+      if (!stibeeApiKey) {
+        const { data: keyData } = await supabase
+          .from('api_keys')
+          .select('api_key')
+          .eq('service_name', 'stibee')
+          .eq('is_active', true)
+          .maybeSingle()
+        stibeeApiKey = keyData?.api_key
+      }
+      if (!stibeeApiKey) {
+        throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
+      }
+
+      // 3. 리전 필터 (body.targetRegions로 필터 가능)
+      const targetRegions = body.targetRegions || null
+
+      // 4. 각 리전 동기화
+      const results = []
+      const regionKeys = Object.keys(syncSettings)
+
+      for (let r = 0; r < regionKeys.length; r++) {
+        const regionKey = regionKeys[r]
+        const config = syncSettings[regionKey]
+
+        // 필터 + 유효성 체크
+        if (!config || !config.url || !config.stibeeListId) continue
+        if (config.autoSync === false) continue
+        if (targetRegions && !targetRegions.includes(regionKey)) continue
+
+        console.log(`[sync_to_stibee] Syncing ${regionKey}...`)
+
+        try {
+          // 4a. 구글 시트 데이터 가져오기
+          const sheetResult = await fetchSheetData(
+            config.url,
+            config.nameColumn || 'A',
+            config.emailColumn || 'B',
+            config.sheetTab || ''
+          )
+          if (!sheetResult.success || !sheetResult.data || sheetResult.data.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '시트 데이터 없음' })
+            continue
+          }
+
+          // 4b. 이미 동기화된 이메일 체크
+          const syncedKey = `stibee_synced_emails_${regionKey}`
+          const { data: syncedData } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', syncedKey)
+            .maybeSingle()
+
+          let syncedEmails = new Set()
+          if (syncedData && syncedData.value) {
+            try { syncedEmails = new Set(JSON.parse(syncedData.value)) } catch (e) { /* ignore */ }
+          }
+
+          // 4c. 이메일 중복 제거 (같은 시트 내 중복)
+          const uniqueMap = new Map()
+          for (const s of sheetResult.data) {
+            if (!uniqueMap.has(s.email)) {
+              uniqueMap.set(s.email, s)
+            }
+          }
+          const uniqueData = [...uniqueMap.values()]
+          const dedupCount = sheetResult.data.length - uniqueData.length
+
+          // 새 이메일 필터
+          const newSubscribers = uniqueData.filter(s => !syncedEmails.has(s.email))
+          console.log(`[sync_to_stibee] ${regionKey}: sheet=${sheetResult.data.length}, dedup=${dedupCount}, unique=${uniqueData.length}, synced=${syncedEmails.size}, new=${newSubscribers.length}`)
+
+          if (newSubscribers.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '변경없음', total: sheetResult.data.length, syncedCount: syncedEmails.size })
+            continue
+          }
+
+          // 4d. 스티비 주소록에 추가 (직접 API 호출)
+          const stibeeResults = { success: 0, update: 0, fail: 0 }
+          // groupIds는 문자열 배열이어야 함 (숫자 아님! Go 파싱 에러 방지)
+          const groupIds = config.stibeeGroupId ? [String(config.stibeeGroupId)] : []
+          const BATCH_SIZE = 100
+
+          for (let bi = 0; bi < newSubscribers.length; bi += BATCH_SIZE) {
+            const batch = newSubscribers.slice(bi, bi + BATCH_SIZE)
+
+            // groupIds를 구독자 추가 요청에 직접 포함 (별도 API 아님)
+            const requestBody = {
+              eventOccuredBy: 'MANUAL',
+              confirmEmailYN: 'N',
+              subscribers: batch.map(s => ({
+                email: s.email,
+                name: s.name || ''
+              }))
+            }
+            if (groupIds.length > 0) {
+              requestBody.groupIds = groupIds
+            }
+
+            const addRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'AccessToken': stibeeApiKey
+              },
+              body: JSON.stringify(requestBody)
+            })
+
+            if (!addRes.ok) {
+              const errText = await addRes.text()
+              console.error(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} HTTP error:`, addRes.status, errText.substring(0, 200))
+              stibeeResults.fail += batch.length
+              continue
+            }
+
+            const addResult = await addRes.json()
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} result:`, JSON.stringify(addResult).substring(0, 500))
+
+            const value = addResult.Value || addResult.value || {}
+            // 스티비 API 실제 응답 필드명 사용
+            const successArr = Array.isArray(value.success) ? value.success : []
+            const updateArr = Array.isArray(value.update) ? value.update : []
+            // 실패 필드: failDuplicatedEmail, failWrongEmail, failValidation, failNoEmail, failExistEmail, failUnknown 등
+            const failDupEmailArr = Array.isArray(value.failDuplicatedEmail) ? value.failDuplicatedEmail : []
+            const failWrongEmailArr = Array.isArray(value.failWrongEmail) ? value.failWrongEmail : []
+            const failValidationArr = Array.isArray(value.failValidation) ? value.failValidation : []
+            const failNoEmailArr = Array.isArray(value.failNoEmail) ? value.failNoEmail : []
+            const failExistEmailArr = Array.isArray(value.failExistEmail) ? value.failExistEmail : []
+            const failUnknownArr = Array.isArray(value.failUnknown) ? value.failUnknown : []
+            const totalFail = failDupEmailArr.length + failWrongEmailArr.length + failValidationArr.length + failNoEmailArr.length + failExistEmailArr.length + failUnknownArr.length
+            stibeeResults.success += successArr.length
+            stibeeResults.update += updateArr.length
+            stibeeResults.fail += totalFail
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} parsed: sent=${batch.length}, success=${successArr.length}, update=${updateArr.length}, failDupEmail=${failDupEmailArr.length}, failWrongEmail=${failWrongEmailArr.length}, failOther=${failValidationArr.length + failNoEmailArr.length + failExistEmailArr.length + failUnknownArr.length}`)
+
+            // Rate limiting between batches
+            if (bi + BATCH_SIZE < newSubscribers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+          }
+
+          // 4e. 동기화 이메일 목록 업데이트
+          for (let ni = 0; ni < newSubscribers.length; ni++) {
+            syncedEmails.add(newSubscribers[ni].email)
+          }
+          await supabase.from('site_settings').upsert({
+            key: syncedKey,
+            value: JSON.stringify([...syncedEmails]),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+
+          results.push({
+            region: regionKey,
+            status: 'success',
+            total: sheetResult.data.length,
+            deduplicated: dedupCount,
+            unique: uniqueData.length,
+            syncedBefore: syncedEmails.size - newSubscribers.length,
+            newCount: newSubscribers.length,
+            stibeeResults
+          })
+        } catch (regionErr) {
+          console.error(`[sync_to_stibee] Error ${regionKey}:`, regionErr)
+          results.push({ region: regionKey, status: 'error', error: regionErr.message })
+        }
+      }
+
+      // 5. 결과 저장
+      try {
+        await supabase.from('site_settings').upsert({
+          key: 'stibee_sync_last_result',
+          value: JSON.stringify({ timestamp: new Date().toISOString(), results }),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+      } catch (e) { /* ignore */ }
+
+      console.log('[sync_to_stibee] Done:', JSON.stringify(results))
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, results })
+      }
+    }
+
+    if (action === 'reassign_groups') {
+      // 기존 구독자를 새 그룹에 재할당 (그룹 변경 시)
+      console.log('[reassign_groups] Starting group reassignment...')
+
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: '설정이 없습니다.' }) }
+      }
+
+      const syncSettings = JSON.parse(settingsData.value)
+
+      let stibeeApiKey = process.env.STIBEE_API_KEY
+      if (!stibeeApiKey) {
+        const { data: keyData } = await supabase
+          .from('api_keys').select('api_key')
+          .eq('service_name', 'stibee').eq('is_active', true).maybeSingle()
+        stibeeApiKey = keyData?.api_key
+      }
+      if (!stibeeApiKey) throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
+
+      const targetRegions = body.targetRegions || null
+      const results = []
+
+      for (const regionKey of Object.keys(syncSettings)) {
+        const config = syncSettings[regionKey]
+        if (!config || !config.stibeeListId || !config.stibeeGroupId) continue
+        if (targetRegions && !targetRegions.includes(regionKey)) continue
+
+        try {
+          // 시트에서 전체 이메일 로드
+          const sheetResult = await fetchSheetData(
+            config.url, config.nameColumn || 'A', config.emailColumn || 'B', config.sheetTab || ''
+          )
+          if (!sheetResult.success || !sheetResult.data || sheetResult.data.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '시트 데이터 없음' })
+            continue
+          }
+
+          // 중복 제거
+          const uniqueMap = new Map()
+          for (const s of sheetResult.data) {
+            if (!uniqueMap.has(s.email)) uniqueMap.set(s.email, s)
+          }
+          const allSubscribers = [...uniqueMap.values()]
+
+          console.log(`[reassign_groups] ${regionKey}: ${allSubscribers.length} subscribers → group ${config.stibeeGroupId}`)
+
+          // 모든 구독자를 그룹 포함하여 다시 전송 (update되면서 그룹 할당)
+          const stibeeResults = { success: 0, update: 0, fail: 0 }
+          const groupIds = [String(config.stibeeGroupId)]
+          const BATCH_SIZE = 100
+
+          for (let bi = 0; bi < allSubscribers.length; bi += BATCH_SIZE) {
+            const batch = allSubscribers.slice(bi, bi + BATCH_SIZE)
+
+            const addRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'AccessToken': stibeeApiKey },
+              body: JSON.stringify({
+                eventOccuredBy: 'MANUAL',
+                confirmEmailYN: 'N',
+                groupIds: groupIds,
+                subscribers: batch.map(s => ({ email: s.email, name: s.name || '' }))
+              })
+            })
+
+            if (!addRes.ok) {
+              stibeeResults.fail += batch.length
+              continue
+            }
+
+            const addResult = await addRes.json()
+            const value = addResult.Value || addResult.value || {}
+            stibeeResults.success += (Array.isArray(value.success) ? value.success : []).length
+            stibeeResults.update += (Array.isArray(value.update) ? value.update : []).length
+            const failCount = (value.failDuplicatedEmail || []).length + (value.failWrongEmail || []).length +
+              (value.failValidation || []).length + (value.failNoEmail || []).length +
+              (value.failExistEmail || []).length + (value.failUnknown || []).length
+            stibeeResults.fail += failCount
+
+            if (bi + BATCH_SIZE < allSubscribers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+          }
+
+          console.log(`[reassign_groups] ${regionKey} result:`, stibeeResults)
+          results.push({ region: regionKey, status: 'success', total: allSubscribers.length, stibeeResults })
+        } catch (err) {
+          console.error(`[reassign_groups] ${regionKey} error:`, err)
+          results.push({ region: regionKey, status: 'error', error: err.message })
+        }
+      }
+
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, results }) }
+    }
+
+    if (action === 'reset_sync') {
+      // 동기화 이력 초기화 (전체 재동기화용)
+      console.log('[reset_sync] Clearing synced email records...')
+
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (settingsData && settingsData.value) {
+        const syncSettings = JSON.parse(settingsData.value)
+        const regionKeys = Object.keys(syncSettings)
+
+        for (let r = 0; r < regionKeys.length; r++) {
+          const syncedKey = `stibee_synced_emails_${regionKeys[r]}`
+          try {
+            await supabase.from('site_settings').delete().eq('key', syncedKey)
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      console.log('[reset_sync] Done')
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, message: '동기화 이력이 초기화되었습니다. 수동 동기화를 실행하면 전체 재등록됩니다.' })
+      }
+    }
+
+    if (action === 'count_sheets') {
+      // 각 리전별 구글 시트 인원수 카운트
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: true, counts: {} })
+        }
+      }
+
+      const sheetConfigs = JSON.parse(settingsData.value)
+      const counts = {}
+      let totalAll = 0
+
+      const regionKeys = Object.keys(sheetConfigs)
+      for (let i = 0; i < regionKeys.length; i++) {
+        const key = regionKeys[i]
+        const config = sheetConfigs[key]
+        if (!config || !config.url) {
+          counts[key] = 0
+          continue
+        }
+        try {
+          const result = await fetchSheetData(
+            config.url,
+            config.nameColumn || 'A',
+            config.emailColumn || 'B',
+            config.sheetTab || ''
+          )
+          const count = result.success ? (result.data || []).length : 0
+          counts[key] = count
+          totalAll += count
+        } catch (e) {
+          console.error(`[count_sheets] Error counting ${key}:`, e)
+          counts[key] = 0
+        }
+      }
+
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, counts, total: totalAll })
+      }
+    }
+
+    if (action === 'load_settings') {
+      // 시트 설정 불러오기 (커스텀 키 지원)
+      const settingsKey = body.settingsKey || 'google_sheets_creator_import'
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', settingsKey)
         .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {

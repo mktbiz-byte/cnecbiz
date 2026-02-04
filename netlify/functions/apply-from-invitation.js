@@ -193,59 +193,120 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' }) };
     }
 
-    // 4. 기업 정보
-    const { data: company } = await supabase
+    // 4. 기업 정보 (user_profiles + companies 테이블 모두 조회)
+    const { data: companyProfile } = await supabase
       .from('user_profiles')
       .select('id, full_name, company_name, phone, email')
       .eq('id', invitation.invited_by)
       .single();
 
-    const companyName = company?.company_name || company?.full_name || '기업';
+    // companies 테이블에서 phone, notification_phone 조회 (user_id로 매핑)
+    const { data: companyRecord } = await supabase
+      .from('companies')
+      .select('id, company_name, email, phone, notification_phone, user_id')
+      .eq('user_id', invitation.invited_by)
+      .single();
+
+    // 기업 정보 병합: companies 테이블 우선, user_profiles 보조
+    const company = {
+      id: companyProfile?.id || companyRecord?.user_id,
+      full_name: companyProfile?.full_name,
+      company_name: companyRecord?.company_name || companyProfile?.company_name,
+      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
+      email: companyRecord?.email || companyProfile?.email
+    };
+
+    const companyName = company.company_name || company.full_name || '기업';
+    console.log(`[INFO] Company info: name=${companyName}, phone=${company.phone}, email=${company.email}`);
 
     // 5. 주요 채널
     let mainChannel = '인스타그램';
     if (creator.youtube_handle) mainChannel = '유튜브';
     else if (creator.tiktok_handle) mainChannel = '틱톡';
 
-    // 6. 초대장 상태 업데이트
-    await supabase
-      .from('campaign_invitations')
-      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-      .eq('id', invitationId);
+    // 6. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
+    // ★ 초대장 상태 업데이트보다 먼저 실행 (실패 시 초대장 상태가 변경되지 않도록)
+    // 지역 DB마다 스키마가 다를 수 있으므로 단계별 시도
+    const profileImage = creator.profile_image || creator.thumbnail_url || creator.profile_image_url;
 
-    // 7. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
-    const { data: application, error: applicationError } = await campaignClient
+    let application = null;
+
+    // 1차 시도: 전체 컬럼으로 insert
+    const { data: appData, error: appErr } = await campaignClient
       .from('applications')
       .insert({
         campaign_id: campaignId,
         user_id: creator.user_id || creator.id,
         applicant_name: creatorName,
-        creator_name: creatorName,
         email: creatorEmail,
         phone: creator.phone,
         instagram_url: creator.instagram_handle || creator.instagram_url,
         instagram_followers: creator.followers,
         youtube_url: creator.youtube_handle || creator.youtube_url,
         tiktok_url: creator.tiktok_handle || creator.tiktok_url,
-        profile_image_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
-        profile_photo_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
+        profile_image_url: profileImage,
+        profile_photo_url: profileImage,
         status: 'selected',
         source: 'invitation',
         invitation_id: invitationId
       })
       .select()
-      .single()
+      .single();
 
-    if (applicationError) {
-      console.error('[ERROR] Application insert failed:', applicationError)
-      throw new Error(`지원 등록 실패: ${applicationError.message}`)
+    if (appErr) {
+      console.log('[INFO] Full insert failed, retrying with minimal columns:', appErr.message);
+
+      // 2차 시도: email/profile 컬럼 제외 (US 등 스키마 차이 대응)
+      const { data: appData2, error: appErr2 } = await campaignClient
+        .from('applications')
+        .insert({
+          campaign_id: campaignId,
+          user_id: creator.user_id || creator.id,
+          applicant_name: creatorName,
+          phone: creator.phone,
+          status: 'selected',
+          source: 'invitation'
+        })
+        .select()
+        .single();
+
+      if (appErr2) {
+        console.log('[INFO] Minimal insert also failed, trying bare minimum:', appErr2.message);
+
+        // 3차 시도: 절대 최소 컬럼 (campaign_id, user_id, status만)
+        const { data: appData3, error: appErr3 } = await campaignClient
+          .from('applications')
+          .insert({
+            campaign_id: campaignId,
+            user_id: creator.user_id || creator.id,
+            status: 'selected'
+          })
+          .select()
+          .single();
+
+        if (appErr3) {
+          console.error('[ERROR] Application insert failed:', appErr3);
+          throw new Error(`지원 등록 실패: ${appErr3.message}`);
+        }
+        application = appData3;
+      } else {
+        application = appData2;
+      }
+    } else {
+      application = appData;
     }
 
+    // 7. 초대장 상태 업데이트 (application 성공 후에만 실행)
+    await supabase
+      .from('campaign_invitations')
+      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+      .eq('id', invitationId);
+
     // 8. 기업에게 알림톡
-    if (company?.phone) {
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
+    if (company.phone) {
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.com';
-        await fetch(`${process.env.URL}/.netlify/functions/send-kakao-notification`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -258,19 +319,20 @@ exports.handler = async (event) => {
               '주요채널': mainChannel,
               '팔로워수': (creator.followers || 0).toLocaleString(),
               '캠페인명': campaign.title,
-              '캠페인관리링크': `${baseUrl}/company/campaigns/${campaignId}`
+              '캠페인관리링크': `${baseUrl}/company/campaigns/${campaignId}?region=${campaignRegion}`
             }
           })
         });
       } catch (e) {
         console.error('[ERROR] Company notification failed:', e);
       }
+    } else {
+      console.log('[WARN] Company phone not found - AlimTalk skipped. invited_by:', invitation.invited_by);
     }
 
     // 9. 기업에게 이메일
-    if (company?.email) {
+    if (company.email) {
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.com';
         const emailHtml = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -295,7 +357,7 @@ exports.handler = async (event) => {
 </table>
 </td></tr></table>
 <table width="100%"><tr><td align="center">
-<a href="${baseUrl}/company/campaigns/${campaignId}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지원자 확인하기</a>
+<a href="${baseUrl}/company/campaigns/${campaignId}?region=${campaignRegion}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지원자 확인하기</a>
 </td></tr></table>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:20px 24px;border-top:1px solid #e5e7eb;text-align:center;">
@@ -305,7 +367,7 @@ exports.handler = async (event) => {
 </td></tr></table>
 </body></html>`;
 
-        await fetch(`${process.env.URL}/.netlify/functions/send-email`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -80,6 +80,15 @@
 [functions."scheduled-sns-upload"]
   schedule = "*/30 * * * *"  # 30분마다 - 예약 업로드 처리 및 성과 데이터 수집
 
+# 구글 시트 → 스티비 주소록 자동 싱크
+# 한국/일본: 매일 오후 5시 KST (UTC 08:00)
+[functions."scheduled-stibee-sync"]
+  schedule = "0 8 * * *"
+
+# 미국: 매일 오전 10시 EST (UTC 15:00) - 화~목 활동 활발
+[functions."scheduled-stibee-sync-us"]
+  schedule = "0 15 * * *"
+
 [functions."generate-sns-content"]
   timeout = 60
 
