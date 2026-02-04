@@ -185,7 +185,7 @@ async function getSyncedEmails(supabase, region) {
   if (data?.value) {
     try {
       return new Set(JSON.parse(data.value))
-    } catch { /* ignore */ }
+    } catch (e) { /* ignore */ }
   }
   return new Set()
 }
@@ -250,63 +250,54 @@ async function syncRegion(supabase, apiKey, sheetConfig) {
 }
 
 exports.handler = async (event) => {
-  // 수동 호출 지원
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' }
   }
 
-  let supabase
+  const LOCK_KEY = 'stibee_sync_lock'
+  let supabase = null
+
   try {
     supabase = getSupabase()
-  } catch (err) {
-    console.error('[stibee-sync] Supabase init error:', err)
-    return {
-      statusCode: 500, headers,
-      body: JSON.stringify({ success: false, error: 'DB 연결 실패: ' + err.message })
-    }
-  }
 
-  // 중복 실행 방지
-  const LOCK_KEY = 'stibee_sync_lock'
-  try {
-    const { data: lockData } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', LOCK_KEY)
-      .maybeSingle()
+    // 중복 실행 방지
+    try {
+      const { data: lockData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', LOCK_KEY)
+        .maybeSingle()
 
-    if (lockData?.value) {
-      const lockTime = new Date(lockData.value)
-      const now = new Date()
-      if (now - lockTime < 5 * 60 * 1000) {
-        console.log('[stibee-sync] Already running, skipping')
-        return {
-          statusCode: 200, headers,
-          body: JSON.stringify({ success: true, message: 'Already running' })
+      if (lockData && lockData.value) {
+        const lockTime = new Date(lockData.value)
+        const now = new Date()
+        if (now - lockTime < 5 * 60 * 1000) {
+          console.log('[stibee-sync] Already running, skipping')
+          return {
+            statusCode: 200, headers,
+            body: JSON.stringify({ success: true, message: 'Already running' })
+          }
         }
       }
+    } catch (lockErr) {
+      console.error('[stibee-sync] Lock check error:', lockErr)
     }
-  } catch (err) {
-    console.error('[stibee-sync] Lock check error:', err)
-    // 락 체크 실패해도 계속 진행
-  }
 
-  // 락 설정
-  await supabase.from('site_settings').upsert({
-    key: LOCK_KEY,
-    value: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'key' }).catch(() => {})
+    // 락 설정
+    await supabase.from('site_settings').upsert({
+      key: LOCK_KEY,
+      value: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' }).catch(function () {})
 
-  try {
-    // 설정 로드 (google_sheets_creator_import 키에서 읽기)
+    // 설정 로드
     const { data: settingsData } = await supabase
       .from('site_settings')
       .select('value')
       .eq('key', 'google_sheets_creator_import')
       .maybeSingle()
 
-    if (!settingsData?.value) {
+    if (!settingsData || !settingsData.value) {
       console.log('[stibee-sync] No sync settings found')
       return {
         statusCode: 200, headers,
@@ -314,26 +305,27 @@ exports.handler = async (event) => {
       }
     }
 
-    let settings
-    try {
-      settings = JSON.parse(settingsData.value)
-    } catch {
-      throw new Error('설정 파싱 오류')
-    }
+    var settings = JSON.parse(settingsData.value)
 
-    // 오브젝트 형식 → 배열 변환: { korea: {...}, japan: {...}, ... } → [{ region, ... }]
-    const sheets = Object.entries(settings)
-      .filter(([, config]) => config && typeof config === 'object' && config.url)
-      .map(([region, config]) => ({
-        region,
-        sheetUrl: config.url,
-        nameColumn: config.nameColumn || 'A',
-        emailColumn: config.emailColumn || 'B',
-        sheetTab: config.sheetTab || '',
-        stibeeListId: config.stibeeListId,
-        stibeeGroupId: config.stibeeGroupId || '',
-        enabled: config.autoSync !== false
-      }))
+    // 오브젝트 형식 → 배열 변환
+    var sheets = []
+    var keys = Object.keys(settings)
+    for (var k = 0; k < keys.length; k++) {
+      var region = keys[k]
+      var config = settings[region]
+      if (config && typeof config === 'object' && config.url) {
+        sheets.push({
+          region: region,
+          sheetUrl: config.url,
+          nameColumn: config.nameColumn || 'A',
+          emailColumn: config.emailColumn || 'B',
+          sheetTab: config.sheetTab || '',
+          stibeeListId: config.stibeeListId,
+          stibeeGroupId: config.stibeeGroupId || '',
+          enabled: config.autoSync !== false
+        })
+      }
+    }
 
     if (sheets.length === 0) {
       return {
@@ -342,46 +334,43 @@ exports.handler = async (event) => {
       }
     }
 
-    // 수동 호출 시 특정 region 또는 targetRegions 필터 가능
-    let targetRegion = null
-    let targetRegions = null
-
-    // 기본 타겟 리전 (이 함수는 한국/일본용)
-    const DEFAULT_REGIONS = ['korea', 'japan', 'japan2']
+    // 리전 필터링
+    var targetRegion = null
+    var targetRegions = null
+    var DEFAULT_REGIONS = ['korea', 'japan', 'japan2']
 
     if (event.body) {
       try {
-        const body = JSON.parse(event.body)
-        targetRegion = body.region  // 단일 리전
-        targetRegions = body.targetRegions  // 복수 리전 배열
-      } catch { /* ignore */ }
+        var parsedBody = JSON.parse(event.body)
+        targetRegion = parsedBody.region || null
+        targetRegions = parsedBody.targetRegions || null
+      } catch (parseErr) { /* ignore */ }
     }
 
-    // 스케줄 호출인 경우 기본 리전 적용 (수동 호출 시 body에 region/targetRegions 전달)
-    const isScheduled = !event.body && !event.httpMethod
-    const allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduled ? DEFAULT_REGIONS : null))
+    var isScheduled = !event.body && !event.httpMethod
+    var allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduled ? DEFAULT_REGIONS : null))
 
-    const apiKey = await getStibeeApiKey(supabase)
+    var apiKey = await getStibeeApiKey(supabase)
     if (!apiKey) {
       throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
     }
 
     // 활성화된 시트만 필터
-    const activeSheets = sheets.filter(s =>
-      s.enabled !== false &&
-      s.sheetUrl &&
-      s.stibeeListId &&
-      (!allowedRegions || allowedRegions.includes(s.region))
-    )
+    var activeSheets = sheets.filter(function (s) {
+      return s.enabled !== false &&
+        s.sheetUrl &&
+        s.stibeeListId &&
+        (!allowedRegions || allowedRegions.includes(s.region))
+    })
 
-    const results = []
-    for (const sheetConfig of activeSheets) {
+    var results = []
+    for (var i = 0; i < activeSheets.length; i++) {
       try {
-        const result = await syncRegion(supabase, apiKey, sheetConfig)
+        var result = await syncRegion(supabase, apiKey, activeSheets[i])
         results.push(result)
-      } catch (error) {
-        console.error(`[stibee-sync] Error syncing ${sheetConfig.region}:`, error)
-        results.push({ region: sheetConfig.region, status: 'error', error: error.message })
+      } catch (syncErr) {
+        console.error('[stibee-sync] Error syncing ' + activeSheets[i].region + ':', syncErr)
+        results.push({ region: activeSheets[i].region, status: 'error', error: syncErr.message })
       }
     }
 
@@ -390,32 +379,33 @@ exports.handler = async (event) => {
     // 동기화 로그 저장
     await supabase.from('site_settings').upsert({
       key: 'stibee_sync_last_result',
-      value: JSON.stringify({
-        timestamp: new Date().toISOString(),
-        results
-      }),
+      value: JSON.stringify({ timestamp: new Date().toISOString(), results: results }),
       updated_at: new Date().toISOString()
-    }, { onConflict: 'key' })
+    }, { onConflict: 'key' }).catch(function () {})
 
     return {
       statusCode: 200, headers,
-      body: JSON.stringify({ success: true, results })
+      body: JSON.stringify({ success: true, results: results })
     }
 
   } catch (error) {
     console.error('[stibee-sync] Fatal error:', error)
     return {
       statusCode: 500, headers,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({ success: false, error: error.message || String(error) })
     }
   } finally {
     // 락 해제
-    if (supabase) {
-      await supabase.from('site_settings').upsert({
-        key: LOCK_KEY,
-        value: '',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'key' }).catch(() => {})
+    try {
+      if (supabase) {
+        await supabase.from('site_settings').upsert({
+          key: LOCK_KEY,
+          value: '',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+      }
+    } catch (finallyErr) {
+      console.error('[stibee-sync] Lock release error:', finallyErr)
     }
   }
 }
