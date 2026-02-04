@@ -546,9 +546,9 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* 제품 기본 정보 */}
-          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-6">
+          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-4 lg:p-6">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Package className="h-6 w-6 text-purple-600" />
               제품 기본 정보
@@ -622,7 +622,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
           </div>
 
           {/* STEP 1: 상품 리뷰 가이드 */}
-          <div className="bg-white rounded-lg border border-pink-200 p-6">
+          <div className="bg-white rounded-lg border border-pink-200 p-4 lg:p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">STEP 1</span>
               <h3 className="text-xl font-semibold">상품 리뷰 콘텐츠 가이드</h3>
@@ -665,7 +665,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 1 가이드 전달 방식을 선택하세요
               </p>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -732,7 +732,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
           </div>
 
           {/* STEP 2: 세일 홍보 가이드 */}
-          <div className="bg-white rounded-lg border border-pink-200 p-6">
+          <div className="bg-white rounded-lg border border-pink-200 p-4 lg:p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">STEP 2</span>
               <h3 className="text-xl font-semibold">세일 홍보 콘텐츠 가이드</h3>
@@ -775,7 +775,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 2 가이드 전달 방식을 선택하세요
               </p>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -842,7 +842,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
           </div>
 
           {/* STEP 3: 세일 당일 스토리 가이드 */}
-          <div className="bg-white rounded-lg border border-pink-200 p-6">
+          <div className="bg-white rounded-lg border border-pink-200 p-4 lg:p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">STEP 3</span>
               <h3 className="text-xl font-semibold">세일 당일 스토리 가이드</h3>
@@ -885,7 +885,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 3 가이드 전달 방식을 선택하세요
               </p>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -957,7 +957,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
           </div>
 
           {/* 업로드 스케줄 체크리스트 */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-4 lg:p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">📅</span>
               <h3 className="text-xl font-semibold text-blue-900">업로드 스케줄 체크리스트</h3>
@@ -1039,7 +1039,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
         </div>
 
         {/* 버튼 */}
-        <div className="flex gap-4 mt-8 pt-6 border-t-2">
+        <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mt-6 lg:mt-8 pt-4 lg:pt-6 border-t-2">
           <Button
             type="button"
             onClick={handleSaveDraft}

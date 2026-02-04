@@ -705,10 +705,10 @@ JSON 형식으로 작성해주세요.`
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-6">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+      <div className="max-w-5xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
+        <div className="mb-4 lg:mb-6">
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-4 lg:p-6">
+            <h1 className="text-2xl lg:text-3xl font-bold mb-2 flex items-center gap-2">
               <Calendar className="h-8 w-8 text-purple-600" />
               4주 챌린지 캠페인 가이드 작성
             </h1>
@@ -719,7 +719,7 @@ JSON 형식으로 작성해주세요.`
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-5 mb-6 flex items-start gap-3">
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-4 lg:p-5 mb-4 lg:mb-6 flex items-start gap-3">
           <Info className="w-6 h-6 text-purple-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-purple-900">
             <p className="font-bold text-base mb-2">4주 챌린지 안내</p>
@@ -728,9 +728,9 @@ JSON 형식으로 작성해주세요.`
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* 제품 기본 정보 */}
-          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-6">
+          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-4 lg:p-6">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Package className="h-6 w-6 text-purple-600" />
               제품 기본 정보
@@ -812,7 +812,7 @@ JSON 형식으로 작성해주세요.`
             const isExpanded = expandedWeek === weekNum
             
             return (
-              <div key={weekKey} className="bg-white rounded-lg border border-purple-200 p-6">
+              <div key={weekKey} className="bg-white rounded-lg border border-purple-200 p-4 lg:p-6">
                 <div 
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => setExpandedWeek(isExpanded ? null : weekNum)}
@@ -829,7 +829,7 @@ JSON 형식으로 작성해주세요.`
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-6 space-y-6">
+                  <div className="mt-4 lg:mt-6 space-y-4 lg:space-y-6">
                     {/* 가이드 전달 완료 상태 표시 */}
                     {weekGuideDelivered[weekKey] && (
                       <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
@@ -864,7 +864,7 @@ JSON 형식으로 작성해주세요.`
                       <p className="text-sm font-medium text-purple-900 mb-3">
                         {weekNum}주차 가이드 전달 방식을 선택하세요
                       </p>
-                      <div className="flex gap-4">
+                      <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"
