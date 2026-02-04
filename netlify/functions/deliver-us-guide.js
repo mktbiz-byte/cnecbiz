@@ -83,7 +83,23 @@ async function sendEmail(to, subject, html) {
 
 // Email template generation
 function generateEmailTemplate(data) {
-  const { campaignName, brandName, creatorName, stepInfo, guideContent, guideUrl, deadline } = data;
+  const { campaignName, brandName, creatorName, stepInfo, guideContent, guideUrl, deadline, guideType } = data;
+
+  // PDF/Google Slides URL detection (same as Japan version)
+  const isPdfOrSlides = guideType === 'pdf' || (guideUrl && (
+    guideUrl.endsWith('.pdf') ||
+    guideUrl.includes('docs.google.com/presentation') ||
+    guideUrl.includes('docs.google.com/document') ||
+    guideUrl.includes('drive.google.com')
+  ));
+
+  const guideButtonLabel = guideUrl
+    ? (guideUrl.includes('docs.google.com/presentation') ? 'View on Google Slides'
+      : guideUrl.includes('docs.google.com/document') ? 'View on Google Docs'
+      : guideUrl.includes('drive.google.com') ? 'View on Google Drive'
+      : guideUrl.endsWith('.pdf') || guideType === 'pdf' ? 'Download PDF Guide'
+      : 'View Detailed Guide')
+    : 'View Detailed Guide';
 
   return `
 <!DOCTYPE html>
@@ -105,6 +121,7 @@ function generateEmailTemplate(data) {
     .guide-section { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 20px; margin: 20px 0; }
     .guide-title { color: #166534; font-weight: bold; margin: 0 0 15px; }
     .btn { display: inline-block; background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; padding: 15px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; }
+    .btn-pdf { display: inline-block; background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; padding: 15px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; }
     .footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee; }
     .footer p { font-size: 12px; color: #999; margin: 0; }
   </style>
@@ -145,7 +162,15 @@ function generateEmailTemplate(data) {
 
       ${guideUrl ? `
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${guideUrl}" class="btn">View Detailed Guide</a>
+        ${isPdfOrSlides ? `
+        <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 12px; padding: 24px; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px; font-size: 14px; color: #991b1b; font-weight: bold;">📄 Filming Guide (PDF/Document)</p>
+          <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Click the button below to view or download the guide</p>
+          <a href="${guideUrl}" class="btn-pdf" style="color: #fff;">${guideButtonLabel}</a>
+        </div>
+        ` : `
+        <a href="${guideUrl}" class="btn" style="color: #fff;">View Detailed Guide</a>
+        `}
       </div>
       ` : ''}
 
@@ -373,7 +398,8 @@ CNEC BIZ`;
           stepInfo,
           guideContent: guide_content,
           guideUrl: guide_url,
-          deadline
+          deadline,
+          guideType: campaign.guide_type
         });
 
         const emailResult = await sendEmail(

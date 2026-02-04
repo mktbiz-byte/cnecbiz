@@ -322,6 +322,7 @@ exports.handler = async (event) => {
               ${requiredDialoguesHtml}
               ${requiredScenesHtml}
 
+              ${guide_content.scenes.length > 0 ? `
               <!-- Scenes Title -->
               <div style="font-size: 16px; font-weight: bold; color: #1F2937; margin-bottom: 12px;">
                 📋 ${t('촬영 씬 구성', '撮影シーン一覧', 'Scene Breakdown')} (${guide_content.scenes.length} ${t('씬', 'シーン', 'Scenes')})
@@ -329,6 +330,7 @@ exports.handler = async (event) => {
 
               <!-- Scene Cards -->
               ${sceneCards}
+              ` : ''}
 
               <!-- Footer -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: white; border-radius: 12px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">

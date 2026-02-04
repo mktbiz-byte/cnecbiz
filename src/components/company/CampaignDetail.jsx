@@ -2316,33 +2316,54 @@ JSON만 출력.`
                 ? JSON.parse(participant.personalized_guide)
                 : participant.personalized_guide
 
-              const guideContent = {
-                campaign_title: campaign?.title || campaign?.product_name,
-                brand_name: campaign?.brand_name || campaign?.brand,
-                dialogue_style: guide.dialogue_style,
-                tempo: guide.tempo,
-                mood: guide.mood,
-                scenes: (guide.scenes || []).map(scene => ({
-                  order: scene.order,
-                  scene_type: scene.scene_type,
-                  scene_description: scene.scene_description_translated || scene.scene_description,
-                  dialogue: scene.dialogue_translated || scene.dialogue,
-                  shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
-                })),
-                required_dialogues: guide.required_dialogues || [],
-                required_scenes: guide.required_scenes || []
-              }
+              // 외부 가이드(PDF/URL)가 personalized_guide에 저장된 경우 → send-external-guide-email로 라우팅
+              const isExternalGuide = guide?.type === 'external_pdf' || guide?.type === 'external_url'
 
-              emailResponse = await fetch('/.netlify/functions/send-scene-guide-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  campaign_id: id,
-                  region,
-                  guide_content: guideContent,
-                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+              if (isExternalGuide) {
+                // 외부 가이드 이메일 (PDF/슬라이드/URL)
+                emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    campaign_id: id,
+                    region,
+                    campaign_title: campaign?.title || campaign?.product_name,
+                    brand_name: campaign?.brand_name || campaign?.brand,
+                    guide_url: guide.fileUrl || guide.url,
+                    guide_title: guide.title || guide.fileName || '촬영 가이드',
+                    creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+                  })
                 })
-              })
+              } else {
+                // AI 씬 가이드 이메일
+                const guideContent = {
+                  campaign_title: campaign?.title || campaign?.product_name,
+                  brand_name: campaign?.brand_name || campaign?.brand,
+                  dialogue_style: guide.dialogue_style,
+                  tempo: guide.tempo,
+                  mood: guide.mood,
+                  scenes: (guide.scenes || []).map(scene => ({
+                    order: scene.order,
+                    scene_type: scene.scene_type,
+                    scene_description: scene.scene_description_translated || scene.scene_description,
+                    dialogue: scene.dialogue_translated || scene.dialogue,
+                    shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+                  })),
+                  required_dialogues: guide.required_dialogues || [],
+                  required_scenes: guide.required_scenes || []
+                }
+
+                emailResponse = await fetch('/.netlify/functions/send-scene-guide-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    campaign_id: id,
+                    region,
+                    guide_content: guideContent,
+                    creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+                  })
+                })
+              }
             } else {
               // 외부 가이드 이메일
               emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
