@@ -389,34 +389,52 @@ exports.handler = async (event) => {
             continue
           }
 
-          // 4d. 스티비 주소록에 추가 (stibee-address-book 함수 내부 호출)
+          // 4d. 스티비 주소록에 추가 (직접 API 호출)
           const stibeeResults = { success: 0, update: 0, fail: 0 }
           const groupIds = config.stibeeGroupId ? [Number(config.stibeeGroupId)] : []
+          const BATCH_SIZE = 100
 
-          const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app'
-          const addRes = await fetch(`${baseUrl}/.netlify/functions/stibee-address-book`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'add_subscribers',
-              listId: config.stibeeListId,
-              subscribers: newSubscribers.map(s => ({ email: s.email, name: s.name || '' }))
+          for (let bi = 0; bi < newSubscribers.length; bi += BATCH_SIZE) {
+            const batch = newSubscribers.slice(bi, bi + BATCH_SIZE)
+
+            const addRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'AccessToken': stibeeApiKey
+              },
+              body: JSON.stringify({
+                eventOccuredBy: 'MANUAL',
+                confirmEmailYN: 'N',
+                subscribers: batch.map(s => ({
+                  email: s.email,
+                  name: s.name || ''
+                }))
+              })
             })
-          })
 
-          const addResult = await addRes.json()
-          console.log(`[sync_to_stibee] ${regionKey} stibee-address-book result:`, JSON.stringify(addResult))
+            if (!addRes.ok) {
+              const errText = await addRes.text()
+              console.error(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} HTTP error:`, addRes.status, errText.substring(0, 200))
+              stibeeResults.fail += batch.length
+              continue
+            }
 
-          if (addResult.success && addResult.results) {
-            stibeeResults.success = addResult.results.success || 0
-            stibeeResults.update = addResult.results.update || 0
-            stibeeResults.fail = (addResult.results.failDuplicate || 0) + (addResult.results.failUnknown || 0)
-          } else {
-            stibeeResults.fail = newSubscribers.length
-            stibeeResults.apiError = addResult.error || 'stibee-address-book 호출 실패'
+            const addResult = await addRes.json()
+            console.log(`[sync_to_stibee] ${regionKey} batch ${bi / BATCH_SIZE + 1} result:`, JSON.stringify(addResult).substring(0, 300))
+
+            const value = addResult.Value || addResult.value || {}
+            stibeeResults.success += (value.success || []).length
+            stibeeResults.update += (value.update || []).length
+            stibeeResults.fail += (value.failDuplicate || []).length + (value.failUnknown || []).length
+
+            // Rate limiting between batches
+            if (bi + BATCH_SIZE < newSubscribers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
           }
 
-          // 그룹 ID가 있으면 구독자를 그룹에 추가
+          // 그룹 ID가 있으면 구독자를 그룹에 추가 (별도 API)
           if (groupIds.length > 0 && stibeeResults.success + stibeeResults.update > 0) {
             try {
               const emailsToGroup = newSubscribers.map(s => s.email)
