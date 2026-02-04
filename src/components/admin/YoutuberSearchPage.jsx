@@ -1711,6 +1711,42 @@ export default function YoutuberSearchPage() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          if (!confirm('모든 구독자를 설정된 그룹에 재할당합니다.\n그룹 ID를 변경한 후 실행하세요.')) return
+                          setRunningSyncManual(true)
+                          try {
+                            const res = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'reassign_groups' })
+                            })
+                            const result = await res.json()
+                            if (result.success) {
+                              const summary = (result.results || []).map(r => {
+                                if (r.status === 'success') {
+                                  const s = r.stibeeResults || {}
+                                  return `${r.region}: ${r.total}명 → 그룹 할당 (신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                }
+                                return `${r.region}: ${r.message || r.error || r.status}`
+                              }).join('\n')
+                              alert(`그룹 재할당 완료!\n${summary}`)
+                            } else {
+                              alert('그룹 재할당 실패: ' + (result.error || '알 수 없는 오류'))
+                            }
+                          } catch (e) {
+                            alert('오류: ' + e.message)
+                          } finally {
+                            setRunningSyncManual(false)
+                          }
+                        }}
+                      >
+                        그룹 재할당
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-xs text-gray-400 hover:text-red-500"
                         disabled={runningSyncManual}
                         onClick={async () => {

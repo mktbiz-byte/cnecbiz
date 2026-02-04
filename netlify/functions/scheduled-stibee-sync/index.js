@@ -126,7 +126,7 @@ function columnLetterToIndex(letter) {
 // 스티비 주소록에 구독자 일괄 추가 (100명씩, 그룹 지정 가능)
 async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
   const BATCH_SIZE = 100
-  const results = { success: 0, update: 0, failDuplicate: 0, failUnknown: 0 }
+  const results = { success: 0, update: 0, fail: 0 }
 
   for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
     const batch = subscribers.slice(i, i + BATCH_SIZE)
@@ -139,7 +139,7 @@ async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
         name: s.name || ''
       }))
     }
-    // 그룹 ID가 있으면 추가
+    // 그룹 ID가 있으면 추가 (문자열 배열이어야 함!)
     if (groupIds && groupIds.length > 0) {
       requestBody.groupIds = groupIds
     }
@@ -155,7 +155,7 @@ async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
 
     if (!response.ok) {
       console.error(`[stibee-sync] Batch add failed: ${response.status}`)
-      results.failUnknown += batch.length
+      results.fail += batch.length
       continue
     }
 
@@ -163,8 +163,14 @@ async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
     const value = data.Value || data.value || {}
     results.success += (value.success || []).length
     results.update += (value.update || []).length
-    results.failDuplicate += (value.failDuplicate || []).length
-    results.failUnknown += (value.failUnknown || []).length
+    // 실제 Stibee API 필드명 사용
+    const failCount = (value.failDuplicatedEmail || []).length +
+      (value.failWrongEmail || []).length +
+      (value.failValidation || []).length +
+      (value.failNoEmail || []).length +
+      (value.failExistEmail || []).length +
+      (value.failUnknown || []).length
+    results.fail += failCount
 
     if (i + BATCH_SIZE < subscribers.length) {
       await new Promise(resolve => setTimeout(resolve, 200))
@@ -229,8 +235,8 @@ async function syncRegion(supabase, apiKey, sheetConfig) {
     return { region, status: 'skip', message: 'No new subscribers', total: sheetData.length }
   }
 
-  // 4. 스티비 주소록에 추가 (그룹 지정 가능)
-  const groupIds = stibeeGroupId ? [Number(stibeeGroupId)] : []
+  // 4. 스티비 주소록에 추가 (그룹 지정 가능, 문자열 배열 필수)
+  const groupIds = stibeeGroupId ? [String(stibeeGroupId)] : []
   const addResults = await addToStibeeList(apiKey, stibeeListId, newSubscribers, groupIds)
   console.log(`[stibee-sync] Stibee results:`, addResults)
 

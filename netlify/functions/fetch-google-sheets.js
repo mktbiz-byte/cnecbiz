@@ -515,6 +515,107 @@ exports.handler = async (event) => {
       }
     }
 
+    if (action === 'reassign_groups') {
+      // 기존 구독자를 새 그룹에 재할당 (그룹 변경 시)
+      console.log('[reassign_groups] Starting group reassignment...')
+
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'google_sheets_creator_import')
+        .maybeSingle()
+
+      if (!settingsData || !settingsData.value) {
+        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: '설정이 없습니다.' }) }
+      }
+
+      const syncSettings = JSON.parse(settingsData.value)
+
+      let stibeeApiKey = process.env.STIBEE_API_KEY
+      if (!stibeeApiKey) {
+        const { data: keyData } = await supabase
+          .from('api_keys').select('api_key')
+          .eq('service_name', 'stibee').eq('is_active', true).maybeSingle()
+        stibeeApiKey = keyData?.api_key
+      }
+      if (!stibeeApiKey) throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
+
+      const targetRegions = body.targetRegions || null
+      const results = []
+
+      for (const regionKey of Object.keys(syncSettings)) {
+        const config = syncSettings[regionKey]
+        if (!config || !config.stibeeListId || !config.stibeeGroupId) continue
+        if (targetRegions && !targetRegions.includes(regionKey)) continue
+
+        try {
+          // 시트에서 전체 이메일 로드
+          const sheetResult = await fetchSheetData(
+            config.url, config.nameColumn || 'A', config.emailColumn || 'B', config.sheetTab || ''
+          )
+          if (!sheetResult.success || !sheetResult.data || sheetResult.data.length === 0) {
+            results.push({ region: regionKey, status: 'skip', message: '시트 데이터 없음' })
+            continue
+          }
+
+          // 중복 제거
+          const uniqueMap = new Map()
+          for (const s of sheetResult.data) {
+            if (!uniqueMap.has(s.email)) uniqueMap.set(s.email, s)
+          }
+          const allSubscribers = [...uniqueMap.values()]
+
+          console.log(`[reassign_groups] ${regionKey}: ${allSubscribers.length} subscribers → group ${config.stibeeGroupId}`)
+
+          // 모든 구독자를 그룹 포함하여 다시 전송 (update되면서 그룹 할당)
+          const stibeeResults = { success: 0, update: 0, fail: 0 }
+          const groupIds = [String(config.stibeeGroupId)]
+          const BATCH_SIZE = 100
+
+          for (let bi = 0; bi < allSubscribers.length; bi += BATCH_SIZE) {
+            const batch = allSubscribers.slice(bi, bi + BATCH_SIZE)
+
+            const addRes = await fetch(`https://api.stibee.com/v1/lists/${config.stibeeListId}/subscribers`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'AccessToken': stibeeApiKey },
+              body: JSON.stringify({
+                eventOccuredBy: 'MANUAL',
+                confirmEmailYN: 'N',
+                groupIds: groupIds,
+                subscribers: batch.map(s => ({ email: s.email, name: s.name || '' }))
+              })
+            })
+
+            if (!addRes.ok) {
+              stibeeResults.fail += batch.length
+              continue
+            }
+
+            const addResult = await addRes.json()
+            const value = addResult.Value || addResult.value || {}
+            stibeeResults.success += (Array.isArray(value.success) ? value.success : []).length
+            stibeeResults.update += (Array.isArray(value.update) ? value.update : []).length
+            const failCount = (value.failDuplicatedEmail || []).length + (value.failWrongEmail || []).length +
+              (value.failValidation || []).length + (value.failNoEmail || []).length +
+              (value.failExistEmail || []).length + (value.failUnknown || []).length
+            stibeeResults.fail += failCount
+
+            if (bi + BATCH_SIZE < allSubscribers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+          }
+
+          console.log(`[reassign_groups] ${regionKey} result:`, stibeeResults)
+          results.push({ region: regionKey, status: 'success', total: allSubscribers.length, stibeeResults })
+        } catch (err) {
+          console.error(`[reassign_groups] ${regionKey} error:`, err)
+          results.push({ region: regionKey, status: 'error', error: err.message })
+        }
+      }
+
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, results }) }
+    }
+
     if (action === 'reset_sync') {
       // 동기화 이력 초기화 (전체 재동기화용)
       console.log('[reset_sync] Clearing synced email records...')
