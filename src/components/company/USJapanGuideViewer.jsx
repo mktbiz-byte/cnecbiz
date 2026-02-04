@@ -357,6 +357,94 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                   </div>
                 </div>
               )}
+
+              {/* 자율 공간 (Flexibility Note) - Side by Side */}
+              {(scene.flexibility_note || scene.flexibility_note_translated || isEditing) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-xs">🎨</span>
+                      <span className="text-xs font-semibold text-orange-600 uppercase">자율 공간</span>
+                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        value={scene.flexibility_note || ''}
+                        onChange={(e) => handleSceneChange(index, 'flexibility_note', e.target.value)}
+                        className="text-sm bg-orange-50 border-orange-200"
+                        rows={2}
+                        placeholder="크리에이터가 자유롭게 변형할 수 있는 부분"
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-600 bg-orange-50 border border-orange-100 rounded-lg p-2.5">
+                        {scene.flexibility_note || '-'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Globe className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-xs font-semibold text-orange-500 uppercase">{targetLanguage}</span>
+                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        value={scene.flexibility_note_translated || ''}
+                        onChange={(e) => handleSceneChange(index, 'flexibility_note_translated', e.target.value)}
+                        className="text-sm bg-orange-50/50 border-orange-200"
+                        rows={2}
+                        placeholder={`${targetLanguageLabel} 번역`}
+                      />
+                    ) : (
+                      <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2.5">
+                        {scene.flexibility_note_translated || <span className="text-orange-400">번역 없음</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 예시 (Example Scenario) - Side by Side */}
+              {(scene.example_scenario || scene.example_scenario_translated || isEditing) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-xs">💡</span>
+                      <span className="text-xs font-semibold text-amber-600 uppercase">예시</span>
+                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        value={scene.example_scenario || ''}
+                        onChange={(e) => handleSceneChange(index, 'example_scenario', e.target.value)}
+                        className="text-sm bg-amber-50 border-amber-200"
+                        rows={2}
+                        placeholder="구체적인 촬영 예시"
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg p-2.5">
+                        {scene.example_scenario || '-'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Globe className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-xs font-semibold text-amber-500 uppercase">{targetLanguage}</span>
+                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        value={scene.example_scenario_translated || ''}
+                        onChange={(e) => handleSceneChange(index, 'example_scenario_translated', e.target.value)}
+                        className="text-sm bg-amber-50/50 border-amber-200"
+                        rows={2}
+                        placeholder={`${targetLanguageLabel} 번역`}
+                      />
+                    ) : (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                        {scene.example_scenario_translated || <span className="text-amber-400">번역 없음</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

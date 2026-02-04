@@ -1823,6 +1823,16 @@ export default function CampaignDetail() {
 
   // US/Japan 캠페인: 선택된 크리에이터 전체 가이드 생성
   const handleBulkGuideGeneration = async () => {
+    // 4주 챌린지/메가와리/올영은 씬 가이드가 아닌 캠페인 레벨 가이드 전달 사용
+    const is4Week = campaign?.campaign_type === '4week_challenge'
+    const isMegawari = region === 'japan' && campaign?.campaign_type === 'megawari'
+    const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+    if (is4Week || isMegawari || isOliveyoung) {
+      // 캠페인 레벨 가이드 전달 함수로 위임
+      handleDeliverOliveYoung4WeekGuide()
+      return
+    }
+
     if (selectedParticipants.length === 0) {
       alert('가이드를 생성할 크리에이터를 선택해주세요.')
       return
@@ -3524,13 +3534,24 @@ Questions? Contact us.
 
   // 올영/4주 챌린지 가이드 일괄 발송 (체크박스 선택 또는 전체)
   const handleDeliverOliveYoung4WeekGuide = async () => {
-    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const isMegawariType = region === 'japan' && campaign.campaign_type === 'megawari'
+    const isOliveyoungType = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const hasGuide = (isOliveyoungType || isMegawariType)
       ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
       : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
          campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
     if (!hasGuide) {
-      alert('먼저 가이드를 생성해주세요.')
+      // 가이드가 없으면 설정 페이지로 이동 안내
+      const is4Week = campaign.campaign_type === '4week_challenge'
+      const guidePath = is4Week
+        ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+        : isMegawariType
+          ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+          : `/company/campaigns/guide/oliveyoung?id=${id}`
+      if (confirm('가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?')) {
+        navigate(guidePath)
+      }
       return
     }
 
@@ -5896,7 +5917,7 @@ Questions? Contact us.
                                 선택 후 발송
                               </Button>
                               {/* 가이드 발송됨 상태이면 재설정 버튼 표시 */}
-                              {(participant.status === 'filming' || participant.week1_guide_delivered || participant.week2_guide_delivered || participant.week3_guide_delivered || participant.week4_guide_delivered) && (
+                              {participant.status === 'filming' && (
                                 <>
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
@@ -5991,8 +6012,8 @@ Questions? Contact us.
                           </div>
                         )}
 
-                        {/* 올영 가이드 섹션 - 인라인 버튼 */}
-                        {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                        {/* 올영/메가와리 가이드 섹션 - 인라인 버튼 */}
+                        {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
                           <div className="flex items-center gap-1.5">
                             {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
                             {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) && (
@@ -6093,17 +6114,8 @@ Questions? Contact us.
         status: 'selected' // 선정됨 상태로 되돌림
       }
 
-      // 4주 챌린지 주차별 데이터 초기화
-      if (campaign.campaign_type === '4week_challenge') {
-        updateData.week1_guide_delivered = false
-        updateData.week1_guide_delivered_at = null
-        updateData.week2_guide_delivered = false
-        updateData.week2_guide_delivered_at = null
-        updateData.week3_guide_delivered = false
-        updateData.week3_guide_delivered_at = null
-        updateData.week4_guide_delivered = false
-        updateData.week4_guide_delivered_at = null
-      }
+      // 4주 챌린지/메가와리: personalized_guide와 status 초기화만 수행
+      // (week1_guide_delivered 등 컬럼은 applications 테이블에 존재하지 않음)
 
       const { error } = await supabase
         .from('applications')
@@ -8073,8 +8085,8 @@ Questions? Contact us.
                       </div>
                     )}
 
-                    {/* 올영 캠페인: 가이드 발송 버튼 */}
-                    {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                    {/* 올영/메가와리 캠페인: 가이드 발송 버튼 */}
+                    {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
                       <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
                         {(() => {
                           const hasGuide = campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide ||
@@ -10994,30 +11006,98 @@ Questions? Contact us.
                                       <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
                                         <div>
                                           <label className="block text-gray-600 font-medium mb-1">촬영 팁 (한국어)</label>
-                                          <input
-                                            type="text"
+                                          <textarea
                                             value={scene.shooting_tip || ''}
                                             onChange={(e) => {
                                               const updated = { ...guideData };
                                               updated[scenesKey][idx].shooting_tip = e.target.value;
                                               setEditedGuideContent(JSON.stringify(updated, null, 2));
                                             }}
-                                            className="w-full px-3 py-2 border rounded-lg"
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={2}
                                             placeholder="촬영 팁 (선택)"
                                           />
                                         </div>
                                         {isUSJapan && (
                                           <div>
                                             <label className="block text-amber-600 font-medium mb-1">촬영 팁 ({targetLang})</label>
-                                            <input
-                                              type="text"
+                                            <textarea
                                               value={scene.shooting_tip_translated || ''}
                                               onChange={(e) => {
                                                 const updated = { ...guideData };
                                                 updated[scenesKey][idx].shooting_tip_translated = e.target.value;
                                                 setEditedGuideContent(JSON.stringify(updated, null, 2));
                                               }}
-                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg bg-amber-50"
+                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg resize-none bg-amber-50"
+                                              rows={2}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* 자율 공간 (Flexibility Note) */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-orange-600 font-medium mb-1">🎨 자율 공간</label>
+                                          <textarea
+                                            value={scene.flexibility_note || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].flexibility_note = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border border-orange-200 rounded-lg resize-none bg-orange-50"
+                                            rows={2}
+                                            placeholder="크리에이터가 자유롭게 변형할 수 있는 부분"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-orange-500 font-medium mb-1">🎨 자율 공간 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.flexibility_note_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].flexibility_note_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-orange-200 rounded-lg resize-none bg-orange-50/50"
+                                              rows={2}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* 예시 (Example Scenario) */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-amber-600 font-medium mb-1">💡 예시</label>
+                                          <textarea
+                                            value={scene.example_scenario || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].example_scenario = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border border-amber-200 rounded-lg resize-none bg-amber-50"
+                                            rows={2}
+                                            placeholder="구체적인 촬영 예시"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-amber-500 font-medium mb-1">💡 예시 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.example_scenario_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].example_scenario_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg resize-none bg-amber-50/50"
+                                              rows={2}
                                               placeholder={`${targetLang} 번역`}
                                             />
                                           </div>
@@ -12661,8 +12741,8 @@ Questions? Contact us.
         />
       )}
 
-      {/* Oliveyoung Guide Modal */}
-      {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+      {/* Oliveyoung/Megawari Guide Modal */}
+      {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
         <OliveyoungGuideModal
           campaign={campaign}
           onClose={() => setShowOliveyoungGuideModal(false)}
@@ -12715,10 +12795,12 @@ Questions? Contact us.
               {(() => {
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                const isMegawari = region === 'japan' && campaign?.campaign_type === 'megawari'
                 const isUSJapan = region === 'us' || region === 'japan'
 
                 // US/Japan 캠페인: AI 가이드 생성 + 파일/URL 전달 옵션만 표시
-                if (isUSJapan && !is4Week && !isOliveyoung) {
+                // megawari는 oliveyoung과 동일한 형태이므로 제외
+                if (isUSJapan && !is4Week && !isOliveyoung && !isMegawari) {
                   return (
                     <>
                       {/* AI 가이드 생성 옵션 */}
@@ -12747,10 +12829,10 @@ Questions? Contact us.
                   )
                 }
 
-                // 올영/4주: 캠페인 레벨 가이드 사용 옵션
-                if (is4Week || isOliveyoung) {
+                // 올영/4주/메가와리: 캠페인 레벨 가이드 사용 옵션
+                if (is4Week || isOliveyoung || isMegawari) {
                   // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
-                  // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
+                  // 올영/메가와리: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
                   // 일본/미국: challenge_guide_data_ja / challenge_guide_data_en 도 체크
                   const hasGuide = is4Week
                     ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
@@ -12761,9 +12843,20 @@ Questions? Contact us.
                     <button
                       onClick={async () => {
                         if (!hasGuide) {
-                          alert(is4Week
-                            ? '4주 챌린지 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.'
-                            : '올영 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.')
+                          // 가이드가 없으면 가이드 설정 페이지로 이동
+                          const guidePath = is4Week
+                            ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                            : isMegawari
+                              ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                              : `/company/campaigns/guide/oliveyoung?id=${id}`
+                          if (confirm(is4Week
+                            ? '4주 챌린지 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?'
+                            : isMegawari
+                              ? 'メガ割ガイドがまだ設定されていません。ガイド設定ページに移動しますか？'
+                              : '올영 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?')) {
+                            setShowGuideSelectModal(false)
+                            navigate(guidePath)
+                          }
                           return
                         }
 
@@ -12813,16 +12906,16 @@ Questions? Contact us.
                             }
                           }
                         } else {
-                          // 올영: AI 가이드 우선 사용, 없으면 일반 가이드
+                          // 올영/메가와리: AI 가이드 우선 사용, 없으면 일반 가이드
                           guidePayload = {
-                            type: 'oliveyoung_guide',
+                            type: isMegawari ? 'megawari_guide' : 'oliveyoung_guide',
                             campaignId: campaign.id,
                             brand: campaign?.brand || '',
                             product_name: campaign?.product_name || '',
                             product_features: campaign?.product_features || '',
                             step1: campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide || '',
                             step2: campaign?.oliveyoung_step2_guide_ai || campaign?.oliveyoung_step2_guide || '',
-                            step3: campaign?.oliveyoung_step3_guide || ''
+                            step3: isMegawari ? '' : (campaign?.oliveyoung_step3_guide || '')
                           }
                         }
 
@@ -12852,32 +12945,26 @@ Questions? Contact us.
                           setShowGuideSelectModal(false)
                           setSelectedParticipantForGuide(null)
 
-                          alert(`${creatorName}님에게 ${is4Week ? '4주 챌린지' : '올영'} 가이드가 설정되었습니다. 내용 확인 후 발송해주세요.`)
+                          alert(`${creatorName}님에게 ${is4Week ? '4주 챌린지' : isMegawari ? '메가와리' : '올영'} 가이드가 설정되었습니다. 내용 확인 후 발송해주세요.`)
                         } catch (error) {
                           console.error('Error saving guide reference:', error)
                           alert('가이드 설정에 실패했습니다: ' + error.message)
                         }
                       }}
-                      disabled={!hasGuide}
-                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
-                        hasGuide
-                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
-                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                      }`}
+                      className="w-full p-4 border-2 rounded-xl transition-all text-left group border-purple-200 hover:border-purple-500 hover:bg-purple-50"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          hasGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
-                        }`}>
-                          <Sparkles className={`w-6 h-6 ${hasGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-purple-100 group-hover:bg-purple-200">
+                          <Sparkles className="w-6 h-6 text-purple-600" />
                         </div>
                         <div>
-                          <h3 className={`font-bold ${hasGuide ? 'text-gray-900' : 'text-gray-500'}`}>
-                            {is4Week ? '4주 챌린지 가이드 전달' : '올영 세일 가이드 전달'}
+                          <h3 className="font-bold text-gray-900">
+                            {is4Week ? '4주 챌린지 가이드 전달' : isMegawari ? 'メガ割 가이드 전달' : '올영 세일 가이드 전달'}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            {is4Week ? '1~4주차 미션 및 주의사항' : 'STEP 1~3 가이드'}
-                            {!hasGuide && ' (캠페인 설정에서 먼저 설정 필요)'}
+                            {hasGuide
+                              ? (is4Week ? '1~4주차 미션 및 주의사항' : isMegawari ? 'STEP 1~2 가이드' : 'STEP 1~3 가이드')
+                              : '클릭하면 가이드 설정 페이지로 이동합니다'}
                           </p>
                         </div>
                       </div>

@@ -44,6 +44,7 @@ export default function WithdrawalManagement() {
   const [priority, setPriority] = useState(0)
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
+  const [actionProcessing, setActionProcessing] = useState(false)
 
   // 체크박스 일괄 선택
   const [checkedWithdrawals, setCheckedWithdrawals] = useState(new Set())
@@ -866,7 +867,8 @@ export default function WithdrawalManagement() {
   }
 
   const handleSubmitAction = async () => {
-    if (!selectedWithdrawal) return
+    if (!selectedWithdrawal || actionProcessing) return
+    setActionProcessing(true)
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -874,6 +876,33 @@ export default function WithdrawalManagement() {
       const isFromPointTransactions = selectedWithdrawal.source_db === 'korea_pt'
 
       if (actionType === 'approve') {
+        // BIZ DB 출금: 실제 잔액 검증
+        if (!isKoreaDB && selectedWithdrawal.creator_id) {
+          const { data: pointsData } = await supabaseBiz
+            .from('creator_points')
+            .select('amount')
+            .eq('creator_id', selectedWithdrawal.creator_id)
+
+          const totalBalance = (pointsData || []).reduce((sum, p) => sum + (p.amount || 0), 0)
+
+          // 이 건을 제외한 다른 처리 중인 출금 합계
+          const { data: otherPending } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .select('requested_points')
+            .eq('creator_id', selectedWithdrawal.creator_id)
+            .in('status', ['pending', 'approved', 'processing'])
+            .neq('id', selectedWithdrawal.id)
+
+          const otherPendingTotal = (otherPending || []).reduce((sum, w) => sum + (w.requested_points || 0), 0)
+          const availableBalance = totalBalance - otherPendingTotal
+
+          if (selectedWithdrawal.requested_points > availableBalance) {
+            alert(`잔액 부족: 출금 요청 ${selectedWithdrawal.requested_points?.toLocaleString()}P > 출금 가능 잔액 ${availableBalance.toLocaleString()}P (총 잔액: ${totalBalance.toLocaleString()}P, 다른 처리중: ${otherPendingTotal.toLocaleString()}P)`)
+            setShowActionModal(false)
+            return
+          }
+        }
+
         if (isKoreaDB && supabaseKorea) {
           if (isFromPointTransactions) {
             // point_transactions에서 온 데이터는 withdrawals 테이블에 새로 생성
@@ -1054,25 +1083,39 @@ export default function WithdrawalManagement() {
             }
           }
 
-          // 2. 포인트 환불 (양수로 point_transactions에 추가)
+          // 2. 포인트 환불 (양수로 point_transactions에 추가) - 중복 방지
           const refundAmount = selectedWithdrawal.requested_amount || selectedWithdrawal.amount
           if (refundAmount && selectedWithdrawal.user_id) {
-            const { error: refundError } = await supabaseKorea
+            // 이미 동일 금액의 환불이 있는지 확인 (더블클릭 방지)
+            const today = new Date().toISOString().split('T')[0]
+            const { data: existingRefunds } = await supabaseKorea
               .from('point_transactions')
-              .insert([{
-                user_id: selectedWithdrawal.user_id,
-                amount: Math.abs(refundAmount), // 양수로 환불
-                transaction_type: 'refund',
-                description: `[출금거절] ${Math.abs(refundAmount).toLocaleString()}원 환불 - ${rejectionReason}`,
-                related_withdrawal_id: isFromPointTransactions ? null : selectedWithdrawal.id,
-                platform_region: 'kr',
-                country_code: 'KR',
-                created_at: new Date().toISOString()
-              }])
+              .select('id')
+              .eq('user_id', selectedWithdrawal.user_id)
+              .eq('transaction_type', 'refund')
+              .eq('amount', Math.abs(refundAmount))
+              .gte('created_at', today)
 
-            if (refundError) {
-              console.error('포인트 환불 오류:', refundError)
-              alert('출금은 거절되었지만 포인트 환불에 실패했습니다. 수동으로 포인트를 지급해주세요.')
+            if (existingRefunds && existingRefunds.length > 0) {
+              console.log('이미 오늘 동일 금액 환불 존재, 중복 환불 방지:', existingRefunds.length, '건')
+            } else {
+              const { error: refundError } = await supabaseKorea
+                .from('point_transactions')
+                .insert([{
+                  user_id: selectedWithdrawal.user_id,
+                  amount: Math.abs(refundAmount),
+                  transaction_type: 'refund',
+                  description: `[출금거절] ${Math.abs(refundAmount).toLocaleString()}원 환불 - ${rejectionReason}`,
+                  related_withdrawal_id: isFromPointTransactions ? null : selectedWithdrawal.id,
+                  platform_region: 'kr',
+                  country_code: 'KR',
+                  created_at: new Date().toISOString()
+                }])
+
+              if (refundError) {
+                console.error('포인트 환불 오류:', refundError)
+                alert('출금은 거절되었지만 포인트 환불에 실패했습니다. 수동으로 포인트를 지급해주세요.')
+              }
             }
           }
         } else {
@@ -1138,6 +1181,8 @@ export default function WithdrawalManagement() {
     } catch (error) {
       console.error('처리 오류:', error)
       alert('처리 중 오류가 발생했습니다.')
+    } finally {
+      setActionProcessing(false)
     }
   }
 
@@ -1839,9 +1884,10 @@ export default function WithdrawalManagement() {
               </Button>
               <Button
                 onClick={handleSubmitAction}
+                disabled={actionProcessing}
                 className={actionType === 'approve' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}
               >
-                {actionType === 'approve' ? '승인하기' : '거절하기'}
+                {actionProcessing ? '처리 중...' : actionType === 'approve' ? '승인하기' : '거절하기'}
               </Button>
             </div>
           </div>

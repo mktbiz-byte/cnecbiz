@@ -200,28 +200,7 @@ export default function CampaignGuide4WeekChallengeJapan() {
       const weekKey = `week${weekNum}`
       const weekData = guideData[weekKey]
 
-      // 번역할 내용 준비
-      const textToTranslate = `[브랜드명]
-${guideData.brand}
-
-[제품명]
-${guideData.product_name}
-
-[제품특징]
-${guideData.product_features}
-
-[주의사항]
-${guideData.precautions}
-
-[${weekNum}주차 미션]
-${weekData.mission}
-
-[${weekNum}주차 필수대사]
-${weekData.required_dialogue}
-
-[${weekNum}주차 필수장면]
-${weekData.required_scenes}`
-
+      // JSON 형식으로 번역 요청
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
@@ -230,14 +209,22 @@ ${weekData.required_scenes}`
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `다음 한국어 캠페인 가이드 정보를 일본어로 자연스럽게 번역해주세요.
-중요: 각 필드의 한국어 라벨([브랜드명], [제품명], [제품특징], [주의사항], [${weekNum}주차 미션], [${weekNum}주차 필수대사], [${weekNum}주차 필수장면])은 반드시 그대로 유지하고, 라벨 다음의 내용만 일본어로 번역하세요.
-번역 결과만 출력하세요:
+                text: `다음 한국어 텍스트를 일본어로 자연스럽게 번역하고 반드시 JSON 형식으로만 출력하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
 
-${textToTranslate}`
+번역할 내용:
+- brand: ${guideData.brand}
+- product_name: ${guideData.product_name}
+- product_features: ${guideData.product_features}
+- precautions: ${guideData.precautions}
+- mission: ${weekData.mission}
+- required_dialogue: ${weekData.required_dialogue}
+- required_scenes: ${weekData.required_scenes}
+
+출력 형식 (JSON만, 다른 텍스트 없이):
+{"brand":"번역","product_name":"번역","product_features":"번역","precautions":"번역","mission":"번역","required_dialogue":"번역","required_scenes":"번역"}`
               }]
             }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
+            generationConfig: { temperature: 0.3, maxOutputTokens: 4096, responseMimeType: 'application/json' }
           })
         }
       )
@@ -247,28 +234,27 @@ ${textToTranslate}`
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
 
-      // 번역 결과 파싱
-      const cleanText = translatedText.replace(/\*\*/g, '')
-
-      const brandMatch = cleanText.match(/\[브랜드명\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const productMatch = cleanText.match(/\[제품명\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const featuresMatch = cleanText.match(/\[제품특징\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const precautionsMatch = cleanText.match(/\[주의사항\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const missionMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 미션\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-      const dialogueMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 필수대사\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-      const scenesMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 필수장면\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+      // JSON 파싱
+      let parsed
+      try {
+        const cleanJson = translatedText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        parsed = JSON.parse(cleanJson)
+      } catch (e) {
+        console.error('JSON 파싱 실패, 원본:', translatedText)
+        throw new Error('번역 결과 파싱에 실패했습니다. 다시 시도해주세요.')
+      }
 
       setGuideDataJa(prev => ({
         ...prev,
-        brand: brandMatch ? brandMatch[1].trim() : prev.brand,
-        product_name: productMatch ? productMatch[1].trim() : prev.product_name,
-        product_features: featuresMatch ? featuresMatch[1].trim() : prev.product_features,
-        precautions: precautionsMatch ? precautionsMatch[1].trim() : prev.precautions,
+        brand: parsed.brand || prev.brand,
+        product_name: parsed.product_name || prev.product_name,
+        product_features: parsed.product_features || prev.product_features,
+        precautions: parsed.precautions || prev.precautions,
         [weekKey]: {
           ...prev[weekKey],
-          mission: missionMatch ? missionMatch[1].trim() : '',
-          required_dialogue: dialogueMatch ? dialogueMatch[1].trim() : '',
-          required_scenes: scenesMatch ? scenesMatch[1].trim() : ''
+          mission: parsed.mission || '',
+          required_dialogue: parsed.required_dialogue || '',
+          required_scenes: parsed.required_scenes || ''
         }
       }))
 
@@ -293,35 +279,24 @@ ${textToTranslate}`
         throw new Error('API 키가 설정되지 않았습니다.')
       }
 
-      // 전체 번역할 내용 준비
-      let textToTranslate = `[브랜드명]
-${guideData.brand}
-
-[제품명]
-${guideData.product_name}
-
-[제품특징]
-${guideData.product_features}
-
-[주의사항]
-${guideData.precautions}
-`
-
+      // 번역할 주차 데이터 수집
+      const weeksToTranslate = {}
       for (let weekNum = 1; weekNum <= 4; weekNum++) {
         const weekKey = `week${weekNum}`
         const weekData = guideData[weekKey]
         if (weekData.mission || weekData.required_dialogue || weekData.required_scenes) {
-          textToTranslate += `
-[${weekNum}주차 미션]
-${weekData.mission}
-
-[${weekNum}주차 필수대사]
-${weekData.required_dialogue}
-
-[${weekNum}주차 필수장면]
-${weekData.required_scenes}
-`
+          weeksToTranslate[`week${weekNum}_mission`] = weekData.mission
+          weeksToTranslate[`week${weekNum}_required_dialogue`] = weekData.required_dialogue
+          weeksToTranslate[`week${weekNum}_required_scenes`] = weekData.required_scenes
         }
+      }
+
+      const fieldsToTranslate = {
+        brand: guideData.brand,
+        product_name: guideData.product_name,
+        product_features: guideData.product_features,
+        precautions: guideData.precautions,
+        ...weeksToTranslate
       }
 
       const response = await fetch(
@@ -332,14 +307,12 @@ ${weekData.required_scenes}
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `다음 한국어 캠페인 가이드 정보를 일본어로 자연스럽게 번역해주세요.
-중요: 모든 한국어 라벨([브랜드명], [제품명] 등)은 반드시 그대로 유지하고, 라벨 다음의 내용만 일본어로 번역하세요.
-번역 결과만 출력하세요:
+                text: `다음 JSON의 각 value를 한국어에서 일본어로 자연스럽게 번역해주세요. key는 절대 변경하지 말고 value만 번역하세요. 반드시 JSON 형식으로만 출력하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
 
-${textToTranslate}`
+${JSON.stringify(fieldsToTranslate, null, 2)}`
               }]
             }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+            generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json' }
           })
         }
       )
@@ -348,19 +321,22 @@ ${textToTranslate}`
 
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
-      const cleanText = translatedText.replace(/\*\*/g, '')
 
-      // 파싱
-      const brandMatch = cleanText.match(/\[브랜드명\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const productMatch = cleanText.match(/\[제품명\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const featuresMatch = cleanText.match(/\[제품특징\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const precautionsMatch = cleanText.match(/\[주의사항\]\s*([\s\S]*?)(?=\n\[|$)/)
+      // JSON 파싱
+      let parsed
+      try {
+        const cleanJson = translatedText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        parsed = JSON.parse(cleanJson)
+      } catch (e) {
+        console.error('JSON 파싱 실패, 원본:', translatedText)
+        throw new Error('번역 결과 파싱에 실패했습니다. 다시 시도해주세요.')
+      }
 
       const newGuideDataJa = {
-        brand: brandMatch ? brandMatch[1].trim() : '',
-        product_name: productMatch ? productMatch[1].trim() : '',
-        product_features: featuresMatch ? featuresMatch[1].trim() : '',
-        precautions: precautionsMatch ? precautionsMatch[1].trim() : '',
+        brand: parsed.brand || '',
+        product_name: parsed.product_name || '',
+        product_features: parsed.product_features || '',
+        precautions: parsed.precautions || '',
         week1: { mission: '', required_dialogue: '', required_scenes: '' },
         week2: { mission: '', required_dialogue: '', required_scenes: '' },
         week3: { mission: '', required_dialogue: '', required_scenes: '' },
@@ -369,14 +345,10 @@ ${textToTranslate}`
 
       for (let weekNum = 1; weekNum <= 4; weekNum++) {
         const weekKey = `week${weekNum}`
-        const missionMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 미션\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        const dialogueMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 필수대사\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        const scenesMatch = cleanText.match(new RegExp(`\\[${weekNum}주차 필수장면\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-
         newGuideDataJa[weekKey] = {
-          mission: missionMatch ? missionMatch[1].trim() : '',
-          required_dialogue: dialogueMatch ? dialogueMatch[1].trim() : '',
-          required_scenes: scenesMatch ? scenesMatch[1].trim() : ''
+          mission: parsed[`week${weekNum}_mission`] || '',
+          required_dialogue: parsed[`week${weekNum}_required_dialogue`] || '',
+          required_scenes: parsed[`week${weekNum}_required_scenes`] || ''
         }
       }
 

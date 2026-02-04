@@ -49,7 +49,18 @@ const GuideReview = () => {
 
   const handleEdit = () => {
     if (region === 'japan') {
-      navigate(`/company/campaigns/guide/japan?id=${id}`)
+      // 일본 캠페인: campaign_type에 따라 적절한 가이드 에디터로 이동
+      if (campaign?.campaign_type === '4week_challenge') {
+        navigate(`/company/campaigns/guide/4week/japan?id=${id}`)
+      } else if (campaign?.campaign_type === 'megawari') {
+        navigate(`/company/campaigns/guide/oliveyoung/japan?id=${id}`)
+      } else {
+        navigate(`/company/campaigns/guide/japan?id=${id}`)
+      }
+    } else if (campaign?.campaign_type === '4week_challenge') {
+      navigate(`/company/campaigns/guide/4week?id=${id}`)
+    } else if (campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') {
+      navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)
     } else {
       navigate(`/company/campaigns/guide?id=${id}`)
     }

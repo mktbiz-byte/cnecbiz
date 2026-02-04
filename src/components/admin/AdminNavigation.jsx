@@ -4,7 +4,7 @@ import {
   Shield, Building2, TrendingUp, Users, Video,
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
-  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone
+  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -100,6 +100,7 @@ export default function AdminNavigation() {
         { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리' },
         { path: '/admin/points-charge', icon: CreditCard, label: '입금확인 & 세금계산서' },
         { path: '/admin/withdrawals', icon: Wallet, label: '크리에이터 출금' },
+        { path: '/admin/withdrawal-audit', icon: AlertTriangle, label: '출금 감사' },
         { path: '/admin/point-history', icon: Coins, label: '포인트 지급 내역' },
         { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
       ]

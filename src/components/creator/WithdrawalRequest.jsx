@@ -18,6 +18,8 @@ export default function WithdrawalRequest() {
   const [creator, setCreator] = useState(null)
   const [region, setRegion] = useState('korea')
   const [pointsBalance, setPointsBalance] = useState(0)
+  const [pendingWithdrawals, setPendingWithdrawals] = useState(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [withdrawalHistory, setWithdrawalHistory] = useState([])
   const [bonusHistory, setBonusHistory] = useState([])
   const [loading, setLoading] = useState(false)
@@ -68,10 +70,48 @@ export default function WithdrawalRequest() {
 
     setCreator(creatorData)
     setRegion(creatorData.region || 'korea')
-    setPointsBalance(creatorData.points_balance || 0)
+
+    // creator_points 테이블에서 실제 잔액 계산
+    await fetchActualBalance(creatorData.id)
 
     fetchWithdrawalHistory(creatorData.id)
     fetchBonusHistory(creatorData.id)
+  }
+
+  const fetchActualBalance = async (creatorId) => {
+    try {
+      // 1. creator_points에서 모든 트랜잭션 합계 계산
+      const { data: pointsData, error: pointsError } = await supabaseBiz
+        .from('creator_points')
+        .select('amount')
+        .eq('creator_id', creatorId)
+
+      if (pointsError) throw pointsError
+
+      const totalBalance = (pointsData || []).reduce((sum, p) => sum + (p.amount || 0), 0)
+      setPointsBalance(totalBalance)
+
+      // 2. 처리 중인 출금 요청 합계 (pending, approved, processing)
+      const { data: pendingData, error: pendingError } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .select('requested_points')
+        .eq('creator_id', creatorId)
+        .in('status', ['pending', 'approved', 'processing'])
+
+      if (pendingError) throw pendingError
+
+      const totalPending = (pendingData || []).reduce((sum, w) => sum + (w.requested_points || 0), 0)
+      setPendingWithdrawals(totalPending)
+
+      // 3. 실제 출금 가능 잔액 = 총 잔액 - 처리 중인 출금
+      const available = totalBalance - totalPending
+      setAvailableBalance(available)
+    } catch (error) {
+      console.error('잔액 계산 오류:', error)
+      // fallback: featured_creators의 points_balance 사용
+      setPointsBalance(0)
+      setAvailableBalance(0)
+    }
   }
 
   const fetchWithdrawalHistory = async (creatorId) => {
@@ -112,8 +152,8 @@ export default function WithdrawalRequest() {
       newErrors.requested_points = '출금할 포인트를 입력해주세요.'
     }
 
-    if (formData.requested_points > pointsBalance) {
-      newErrors.requested_points = '보유 포인트보다 많이 출금할 수 없습니다.'
+    if (formData.requested_points > availableBalance) {
+      newErrors.requested_points = `출금 가능 포인트(${availableBalance.toLocaleString()}P)보다 많이 출금할 수 없습니다.`
     }
 
     if (region === 'korea') {
@@ -142,6 +182,29 @@ export default function WithdrawalRequest() {
     setSuccessMessage('')
 
     try {
+      // 실시간 잔액 재확인 (race condition 방지)
+      const { data: latestPoints } = await supabaseBiz
+        .from('creator_points')
+        .select('amount')
+        .eq('creator_id', creator.id)
+
+      const { data: latestPending } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .select('requested_points')
+        .eq('creator_id', creator.id)
+        .in('status', ['pending', 'approved', 'processing'])
+
+      const latestBalance = (latestPoints || []).reduce((sum, p) => sum + (p.amount || 0), 0)
+      const latestPendingTotal = (latestPending || []).reduce((sum, w) => sum + (w.requested_points || 0), 0)
+      const latestAvailable = latestBalance - latestPendingTotal
+
+      if (parseInt(formData.requested_points) > latestAvailable) {
+        alert(`출금 가능 포인트(${latestAvailable.toLocaleString()}P)를 초과합니다.`)
+        await fetchActualBalance(creator.id)
+        setLoading(false)
+        return
+      }
+
       // 환율 계산 (간단한 예시, 실제로는 API에서 가져와야 함)
       const exchangeRates = {
         korea: { rate: 1, currency: 'KRW' },
@@ -209,6 +272,8 @@ export default function WithdrawalRequest() {
         paypal_email: ''
       })
 
+      // 잔액 및 내역 갱신
+      await fetchActualBalance(creator.id)
       fetchWithdrawalHistory(creator.id)
     } catch (error) {
       console.error('출금 신청 오류:', error)
@@ -253,17 +318,46 @@ export default function WithdrawalRequest() {
         {/* 포인트 잔액 */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">보유 포인트</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {pointsBalance.toLocaleString()}P
-                </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">포인트 총 잔액</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {pointsBalance.toLocaleString()}P
+                  </p>
+                </div>
+                <DollarSign className="w-12 h-12 text-gray-300" />
               </div>
-              <DollarSign className="w-12 h-12 text-gray-300" />
+              {pendingWithdrawals > 0 && (
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">처리 중인 출금 요청</p>
+                    <p className="text-lg font-semibold text-orange-600">
+                      -{pendingWithdrawals.toLocaleString()}P
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">출금 가능 포인트</p>
+                  <p className={`text-2xl font-bold ${availableBalance > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {availableBalance.toLocaleString()}P
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {availableBalance <= 0 && (
+          <Alert className="mb-6 bg-red-50 border-red-200">
+            <AlertCircle className="w-4 h-4 text-red-600" />
+            <AlertDescription className="text-red-700">
+              출금 가능한 포인트가 없습니다. 포인트 잔액이 0 이하이거나 처리 중인 출금 요청이 있습니다.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {successMessage && (
           <Alert className="mb-6 bg-green-50 border-green-200">
