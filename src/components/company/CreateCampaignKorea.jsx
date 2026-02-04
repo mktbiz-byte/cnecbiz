@@ -1614,7 +1614,7 @@ const CampaignCreationKorea = () => {
                       </Button>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       <div>
                         <Label htmlFor="brand" className="text-sm font-medium text-gray-700 mb-2 block">브랜드명 <span className="text-red-500">*</span></Label>
                         <Input
@@ -1693,7 +1693,7 @@ const CampaignCreationKorea = () => {
                       </p>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       {/* 모집 마감일 */}
                       <div>
                         <Label htmlFor="application_deadline" className="text-sm font-medium text-gray-700 mb-2 block">모집 마감일 <span className="text-red-500">*</span></Label>
@@ -1848,7 +1848,7 @@ const CampaignCreationKorea = () => {
                     </h3>
                     <p className="text-sm text-gray-500 mb-6 ml-10">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
 
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       {/* URL 입력 및 크롤링 */}
                       <div>
                         <Label htmlFor="product_link" className="text-sm font-medium text-gray-700 mb-2 block">상품 URL</Label>
@@ -1962,7 +1962,7 @@ const CampaignCreationKorea = () => {
                         />
                         <div
                           onClick={() => detailImageInputRef.current?.click()}
-                          className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
+                          className={`relative border-2 border-dashed rounded-xl p-4 lg:p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
                             campaignForm.product_detail_file_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
                           }`}
                         >
@@ -2676,7 +2676,7 @@ const CampaignCreationKorea = () => {
                       </Button>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       <div>
                         <Label htmlFor="brand_oly" className="text-sm font-medium text-gray-700 mb-2 block">브랜드명 <span className="text-red-500">*</span></Label>
                         <Input
@@ -2793,7 +2793,7 @@ const CampaignCreationKorea = () => {
                     </h3>
                     <p className="text-sm text-gray-500 mb-6 ml-10">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
 
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       {/* URL 입력 및 크롤링 */}
                       <div>
                         <Label htmlFor="product_link_oly" className="text-sm font-medium text-gray-700 mb-2 block">상품 URL</Label>
@@ -2875,7 +2875,7 @@ const CampaignCreationKorea = () => {
                         />
                         <div
                           onClick={() => document.getElementById('oliveyoung-detail-input')?.click()}
-                          className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
+                          className={`relative border-2 border-dashed rounded-xl p-4 lg:p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
                             campaignForm.product_detail_file_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
                           }`}
                         >
@@ -3622,7 +3622,7 @@ const CampaignCreationKorea = () => {
                         />
                         <div
                           onClick={() => detailImageInputRef.current?.click()}
-                          className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
+                          className={`relative border-2 border-dashed rounded-xl p-4 lg:p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
                             campaignForm.product_detail_file_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
                           }`}
                         >

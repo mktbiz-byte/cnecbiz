@@ -523,10 +523,10 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-6">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+      <div className="max-w-4xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
+        <div className="mb-4 lg:mb-6">
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-4 lg:p-6">
+            <h1 className="text-2xl lg:text-3xl font-bold mb-2 flex items-center gap-2">
               <FileText className="h-8 w-8 text-pink-600" />
               올영세일 캠페인 가이드 작성
             </h1>
@@ -537,7 +537,7 @@ ${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-5 mb-6 flex items-start gap-3">
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-4 lg:p-5 mb-4 lg:mb-6 flex items-start gap-3">
           <Info className="w-6 h-6 text-pink-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-pink-900">
             <p className="font-bold text-base mb-2">올영세일 캠페인 안내</p>
