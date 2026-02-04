@@ -77,15 +77,25 @@ async function fetchSheetData(sheetUrl, nameColumn, emailColumn, sheetTab) {
   const emailIdx = columnLetterToIndex(emailColumn)
 
   const results = []
+  const seen = new Set() // 시트 내 중복 제거
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i]
     const name = row[nameIdx]?.trim()
-    const email = row[emailIdx]?.trim()
-    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      results.push({ name: name || '', email: email.toLowerCase() })
+    const email = row[emailIdx]?.trim()?.toLowerCase()
+    if (email && isValidEmail(email) && !seen.has(email)) {
+      seen.add(email)
+      results.push({ name: name || '', email })
     }
   }
   return results
+}
+
+// 이메일 유효성 검사 (Unicode 특수문자 필터링)
+function isValidEmail(email) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false
+  // Unicode 수학 기호/특수 스타일 문자 필터 (Stibee failWrongEmail 방지)
+  if (/[^\x20-\x7E\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/.test(email)) return false
+  return true
 }
 
 function parseCSV(text) {
@@ -260,13 +270,23 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: '' }
   }
 
-  const LOCK_KEY = 'stibee_sync_lock'
   let supabase = null
+
+  // 실행 리전 결정 (락 키 구분용)
+  var targetRegions = null
+  if (event.body) {
+    try {
+      var parsedBodyEarly = JSON.parse(event.body)
+      targetRegions = parsedBodyEarly.targetRegions || null
+    } catch (e) { /* ignore */ }
+  }
+  var lockSuffix = targetRegions ? targetRegions.sort().join('_') : 'default'
+  var LOCK_KEY = 'stibee_sync_lock_' + lockSuffix
 
   try {
     supabase = getSupabase()
 
-    // 중복 실행 방지
+    // 중복 실행 방지 (10분 타임아웃)
     try {
       const { data: lockData } = await supabase
         .from('site_settings')
@@ -275,13 +295,27 @@ exports.handler = async (event) => {
         .maybeSingle()
 
       if (lockData && lockData.value) {
-        const lockTime = new Date(lockData.value)
-        const now = new Date()
-        if (now - lockTime < 5 * 60 * 1000) {
-          console.log('[stibee-sync] Already running, skipping')
-          return {
-            statusCode: 200, headers,
-            body: JSON.stringify({ success: true, message: 'Already running' })
+        try {
+          var lockInfo = JSON.parse(lockData.value)
+          var lockTime = new Date(lockInfo.time)
+          var now = new Date()
+          if (now - lockTime < 10 * 60 * 1000) {
+            console.log('[stibee-sync] Already running (lock: ' + LOCK_KEY + '), skipping. Lock set at:', lockInfo.time)
+            return {
+              statusCode: 200, headers,
+              body: JSON.stringify({ success: true, message: 'Already running', lockKey: LOCK_KEY })
+            }
+          }
+        } catch (parseErr) {
+          // 이전 형식 호환 (단순 ISO string)
+          var lockTime2 = new Date(lockData.value)
+          var now2 = new Date()
+          if (now2 - lockTime2 < 10 * 60 * 1000) {
+            console.log('[stibee-sync] Already running (legacy lock), skipping')
+            return {
+              statusCode: 200, headers,
+              body: JSON.stringify({ success: true, message: 'Already running' })
+            }
           }
         }
       }
@@ -289,10 +323,10 @@ exports.handler = async (event) => {
       console.error('[stibee-sync] Lock check error:', lockErr)
     }
 
-    // 락 설정
+    // 락 설정 (리전 정보 포함)
     await supabase.from('site_settings').upsert({
       key: LOCK_KEY,
-      value: new Date().toISOString(),
+      value: JSON.stringify({ time: new Date().toISOString(), regions: targetRegions || 'all' }),
       updated_at: new Date().toISOString()
     }, { onConflict: 'key' }).catch(function () {})
 
@@ -340,16 +374,15 @@ exports.handler = async (event) => {
       }
     }
 
-    // 리전 필터링
+    // 리전 필터링 (이미 event.body에서 파싱한 targetRegions 재활용)
     var targetRegion = null
-    var targetRegions = null
     var DEFAULT_REGIONS = ['korea', 'japan', 'japan2']
 
-    if (event.body) {
+    if (event.body && !targetRegions) {
       try {
         var parsedBody = JSON.parse(event.body)
         targetRegion = parsedBody.region || null
-        targetRegions = parsedBody.targetRegions || null
+        if (!targetRegions) targetRegions = parsedBody.targetRegions || null
       } catch (parseErr) { /* ignore */ }
     }
 
@@ -404,11 +437,9 @@ exports.handler = async (event) => {
     // 락 해제
     try {
       if (supabase) {
-        await supabase.from('site_settings').upsert({
-          key: LOCK_KEY,
-          value: '',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'key' })
+        await supabase.from('site_settings').delete().eq('key', LOCK_KEY)
+        // 이전 형식 락도 정리
+        await supabase.from('site_settings').delete().eq('key', 'stibee_sync_lock').catch(function () {})
       }
     } catch (finallyErr) {
       console.error('[stibee-sync] Lock release error:', finallyErr)
