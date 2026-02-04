@@ -3665,7 +3665,7 @@ const CampaignCreationKorea = () => {
                       모집 채널
                     </h3>
                     <p className="text-sm text-gray-500 mb-4">여러 개 선택 가능합니다</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {categoryOptions.map(opt => (
                         <div
                           key={opt.value}
