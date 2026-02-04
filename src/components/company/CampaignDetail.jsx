@@ -2086,8 +2086,9 @@ JSON만 출력.`
       return
     }
 
-    // 이메일이 없는 크리에이터 확인
-    const creatorsWithoutEmail = participantsWithGuide.filter(p => !p.email)
+    // 이메일 필드 해석 (US는 creator_email, applicant_email 등에 저장될 수 있음)
+    const resolveEmail = (p) => p.email || p.creator_email || p.applicant_email || p.user_email
+    const creatorsWithoutEmail = participantsWithGuide.filter(p => !resolveEmail(p))
     if (creatorsWithoutEmail.length > 0) {
       const skipCount = creatorsWithoutEmail.length
       if (!confirm(`${participantsWithGuide.length}명 중 ${skipCount}명은 이메일이 없어 발송되지 않습니다.\n${participantsWithGuide.length - skipCount}명에게 가이드 이메일을 발송하시겠습니까?`)) {
@@ -2108,7 +2109,8 @@ JSON만 출력.`
       const targetLanguageKey = isJapan ? 'labelJa' : 'labelEn'
 
       for (const participant of participantsWithGuide) {
-        if (!participant.email) {
+        const pEmail = resolveEmail(participant)
+        if (!pEmail) {
           failCount++
           continue
         }
@@ -2147,7 +2149,7 @@ JSON만 출력.`
               creators: [{
                 id: participant.id,
                 name: participant.applicant_name || participant.creator_name,
-                email: participant.email
+                email: pEmail
               }]
             })
           })
@@ -2156,11 +2158,11 @@ JSON만 출력.`
             successCount++
           } else {
             failCount++
-            console.error(`Email failed for ${participant.email}:`, await response.text())
+            console.error(`Email failed for ${pEmail}:`, await response.text())
           }
         } catch (err) {
           failCount++
-          console.error(`Error sending email to ${participant.email}:`, err)
+          console.error(`Error sending email to ${pEmail}:`, err)
         }
       }
 
@@ -2204,8 +2206,15 @@ JSON만 출력.`
       targetParticipants = participants.filter(p => selectedParticipants.includes(p.id))
     }
 
+    // 이메일 없는 크리에이터 체크
+    const getParticipantEmail = (p) => p.email || p.creator_email || p.applicant_email || p.user_email
+    const noEmailCount = targetParticipants.filter(p => !getParticipantEmail(p)).length
+
     const regionLabel = region === 'korea' ? '알림톡' : region === 'japan' ? 'LINE' : 'SMS'
-    if (!confirm(`${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})`)) {
+    const confirmMsg = noEmailCount > 0
+      ? `${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})\n\n⚠️ ${noEmailCount}명은 이메일이 없어 발송되지 않습니다.`
+      : `${targetParticipants.length}명에게 가이드를 발송하시겠습니까?\n(이메일 + ${regionLabel})`
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -2217,6 +2226,7 @@ JSON만 출력.`
     try {
       for (const participant of targetParticipants) {
         const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+        const creatorEmail = getParticipantEmail(participant)
 
         try {
           // 1. 외부 가이드인 경우 DB에 저장
@@ -2239,7 +2249,7 @@ JSON만 출력.`
           }
 
           // 2. 이메일 발송
-          if (participant.email) {
+          if (creatorEmail) {
             let emailResponse
             if (deliveryType === 'ai') {
               // AI 가이드 이메일
@@ -2271,7 +2281,7 @@ JSON만 출력.`
                   campaign_id: id,
                   region,
                   guide_content: guideContent,
-                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
                 })
               })
             } else {
@@ -2286,7 +2296,7 @@ JSON만 출력.`
                   brand_name: campaign?.brand_name || campaign?.brand,
                   guide_url: bulkExternalGuideData.url || bulkExternalGuideData.fileUrl,
                   guide_title: bulkExternalGuideData.title || '촬영 가이드',
-                  creators: [{ id: participant.id, name: creatorName, email: participant.email }]
+                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
                 })
               })
             }
@@ -5491,6 +5501,25 @@ Questions? Contact us.
                   <>
                     <Sparkles className="w-4 h-4 mr-1" />
                     가이드 전체 생성
+                  </>
+                )}
+              </Button>
+              {/* 가이드 전체 발송 버튼 (생성된 가이드를 선택된 크리에이터에게 이메일 발송) */}
+              <Button
+                onClick={() => handleBulkGuideDelivery('ai')}
+                disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
+                className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                size="sm"
+              >
+                {sendingBulkGuideEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4 mr-1" />
+                    가이드 전체 발송
                   </>
                 )}
               </Button>
