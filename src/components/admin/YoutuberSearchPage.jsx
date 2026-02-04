@@ -1937,7 +1937,7 @@ export default function YoutuberSearchPage() {
               setAddressBookSubscriberCount(0)
             }
           }}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
@@ -1994,7 +1994,7 @@ export default function YoutuberSearchPage() {
                           주소록이 없습니다. 스티비 대시보드에서 주소록을 먼저 만들어주세요.
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                           {addressBooks.map(book => (
                             <div
                               key={book.id}

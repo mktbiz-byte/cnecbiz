@@ -207,39 +207,67 @@ exports.handler = async (event) => {
     if (creator.youtube_handle) mainChannel = '유튜브';
     else if (creator.tiktok_handle) mainChannel = '틱톡';
 
-    // 6. 초대장 상태 업데이트
-    await supabase
-      .from('campaign_invitations')
-      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-      .eq('id', invitationId);
+    // 6. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
+    // ★ 초대장 상태 업데이트보다 먼저 실행 (실패 시 초대장 상태가 변경되지 않도록)
+    // 지역 DB마다 스키마가 다를 수 있으므로 단계별 시도
+    const profileImage = creator.profile_image || creator.thumbnail_url || creator.profile_image_url;
 
-    // 7. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
-    const { data: application, error: applicationError } = await campaignClient
+    let application = null;
+
+    // 1차 시도: 전체 컬럼으로 insert
+    const { data: appData, error: appErr } = await campaignClient
       .from('applications')
       .insert({
         campaign_id: campaignId,
         user_id: creator.user_id || creator.id,
         applicant_name: creatorName,
-        creator_name: creatorName,
         email: creatorEmail,
         phone: creator.phone,
         instagram_url: creator.instagram_handle || creator.instagram_url,
         instagram_followers: creator.followers,
         youtube_url: creator.youtube_handle || creator.youtube_url,
         tiktok_url: creator.tiktok_handle || creator.tiktok_url,
-        profile_image_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
-        profile_photo_url: creator.profile_image || creator.thumbnail_url || creator.profile_image_url,
+        profile_image_url: profileImage,
+        profile_photo_url: profileImage,
         status: 'selected',
         source: 'invitation',
         invitation_id: invitationId
       })
       .select()
-      .single()
+      .single();
 
-    if (applicationError) {
-      console.error('[ERROR] Application insert failed:', applicationError)
-      throw new Error(`지원 등록 실패: ${applicationError.message}`)
+    if (appErr) {
+      console.log('[INFO] Full insert failed, retrying with minimal columns:', appErr.message);
+
+      // 2차 시도: 최소 컬럼으로 재시도 (스키마 차이 대응)
+      const { data: appData2, error: appErr2 } = await campaignClient
+        .from('applications')
+        .insert({
+          campaign_id: campaignId,
+          user_id: creator.user_id || creator.id,
+          applicant_name: creatorName,
+          email: creatorEmail,
+          phone: creator.phone,
+          status: 'selected',
+          source: 'invitation'
+        })
+        .select()
+        .single();
+
+      if (appErr2) {
+        console.error('[ERROR] Application insert failed:', appErr2);
+        throw new Error(`지원 등록 실패: ${appErr2.message}`);
+      }
+      application = appData2;
+    } else {
+      application = appData;
     }
+
+    // 7. 초대장 상태 업데이트 (application 성공 후에만 실행)
+    await supabase
+      .from('campaign_invitations')
+      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+      .eq('id', invitationId);
 
     // 8. 기업에게 알림톡
     if (company?.phone) {
@@ -258,7 +286,7 @@ exports.handler = async (event) => {
               '주요채널': mainChannel,
               '팔로워수': (creator.followers || 0).toLocaleString(),
               '캠페인명': campaign.title,
-              '캠페인관리링크': `${baseUrl}/company/campaigns/${campaignId}`
+              '캠페인관리링크': `${baseUrl}/company/campaigns/${campaignId}?region=${campaignRegion}`
             }
           })
         });
@@ -295,7 +323,7 @@ exports.handler = async (event) => {
 </table>
 </td></tr></table>
 <table width="100%"><tr><td align="center">
-<a href="${baseUrl}/company/campaigns/${campaignId}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지원자 확인하기</a>
+<a href="${baseUrl}/company/campaigns/${campaignId}?region=${campaignRegion}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:16px;font-weight:600;text-decoration:none;padding:16px 48px;border-radius:12px;">지원자 확인하기</a>
 </td></tr></table>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:20px 24px;border-top:1px solid #e5e7eb;text-align:center;">
