@@ -1031,13 +1031,13 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
             {/* Right: Scene Editor (2 columns) */}
             <div className="lg:col-span-2 space-y-4">
               {/* AI Auto-Generate Button */}
-              <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200 gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Sparkles className="w-5 h-5 text-purple-600" />
                   <span className="font-semibold text-purple-900">AI 가이드 자동 작성</span>
                   <span className="text-sm text-purple-700">- 캠페인 정보 기반 10개 씬 생성</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <Button
                     onClick={handleTranslateAll}
                     disabled={translating || generating}
@@ -1088,12 +1088,12 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                           </span>
                           씬 {scene.order}
                         </CardTitle>
-                        <div className="flex gap-2 items-center">
+                        <div className="flex gap-2 items-center flex-wrap">
                           <Input
                             value={scene.scene_type}
                             onChange={(e) => handleSceneChange(index, 'scene_type', e.target.value)}
                             placeholder="씬 타입 (예: 인트로, 제품 소개)"
-                            className="w-40"
+                            className="w-32 lg:w-40"
                           />
                           <Button
                             variant="outline"
@@ -1124,7 +1124,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* Scene Description - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">촬영장면 (한국어)</Label>
                           <Textarea
@@ -1148,7 +1148,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                       </div>
 
                       {/* Dialogue - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">대사 (한국어)</Label>
                           <Textarea
@@ -1172,7 +1172,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                       </div>
 
                       {/* Shooting Tip - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">촬영 팁 (한국어)</Label>
                           <Input
