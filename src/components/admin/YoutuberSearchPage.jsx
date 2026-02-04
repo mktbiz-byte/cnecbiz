@@ -134,7 +134,10 @@ export default function YoutuberSearchPage() {
   const [filterExistingUsers, setFilterExistingUsers] = useState(true)
   const [selectedSheetCreators, setSelectedSheetCreators] = useState([])
   const [showStibeeModal, setShowStibeeModal] = useState(false)
-  const [stibeeTemplateId, setStibeeTemplateId] = useState('')
+  const [stibeeTriggerUrl, setStibeeTriggerUrl] = useState('')
+  const [stibeeTriggerLabel, setStibeeTriggerLabel] = useState('')
+  const [stibeeTriggerPresets, setStibeeTriggerPresets] = useState([])
+  const [customTriggerUrl, setCustomTriggerUrl] = useState('')
   const [sendingStibee, setSendingStibee] = useState(false)
 
   // 스티비 주소록 상태
@@ -314,27 +317,27 @@ export default function YoutuberSearchPage() {
     }
   }
 
-  // 스티비 이메일 발송
+  // 스티비 이메일 발송 (트리거 URL 방식)
   const sendStibeeEmail = async () => {
     if (selectedSheetCreators.length === 0) {
       alert('발송할 크리에이터를 선택해주세요.')
       return
     }
 
-    if (!stibeeTemplateId) {
-      alert('스티비 템플릿 ID를 입력해주세요.')
+    const triggerUrl = stibeeTriggerUrl || customTriggerUrl
+    if (!triggerUrl) {
+      alert('트리거 URL을 선택하거나 입력해주세요.')
       return
     }
 
-    if (!confirm(`${selectedSheetCreators.length}명에게 스티비 메일을 발송하시겠습니까?`)) {
+    if (!confirm(`${selectedSheetCreators.length}명에게 스티비 자동 이메일을 발송하시겠습니까?`)) {
       return
     }
 
     setSendingStibee(true)
     try {
-      // 선택된 크리에이터 정보 수집
       const allData = [...sheetData.korea.data, ...sheetData.japan.data, ...sheetData.japan2.data, ...sheetData.us.data]
-      const recipients = selectedSheetCreators.map(email => {
+      const subscribers = selectedSheetCreators.map(email => {
         const creator = allData.find(c => c.email === email)
         return {
           email: email,
@@ -342,22 +345,19 @@ export default function YoutuberSearchPage() {
         }
       })
 
-      const response = await fetch('/.netlify/functions/send-stibee-campaign', {
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          templateId: stibeeTemplateId,
-          recipients: recipients
+          triggerUrl: triggerUrl,
+          subscribers: subscribers
         })
       })
 
       const result = await response.json()
+      if (!result.success) throw new Error(result.error)
 
-      if (!result.success) {
-        throw new Error(result.error)
-      }
-
-      alert(`${selectedSheetCreators.length}명에게 이메일 발송을 시작했습니다.`)
+      alert(`${result.results?.sent || selectedSheetCreators.length}명에게 이메일 발송 완료!${result.results?.failed ? ` (${result.results.failed}명 실패)` : ''}`)
       setShowStibeeModal(false)
       setSelectedSheetCreators([])
 
@@ -366,6 +366,23 @@ export default function YoutuberSearchPage() {
       alert('이메일 발송 실패: ' + error.message)
     } finally {
       setSendingStibee(false)
+    }
+  }
+
+  // 스티비 트리거 프리셋 목록 조회
+  const fetchTriggerPresets = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_presets' })
+      })
+      const result = await response.json()
+      if (result.success && result.presets) {
+        setStibeeTriggerPresets(result.presets)
+      }
+    } catch (error) {
+      console.error('Failed to fetch trigger presets:', error)
     }
   }
 
@@ -460,38 +477,60 @@ export default function YoutuberSearchPage() {
     }
   }
 
-  // 주소록 대상 메일 발송
+  // 주소록 대상 메일 발송 (트리거 URL 방식)
   const sendToAddressBook = async () => {
     if (!selectedAddressBook) {
       alert('주소록을 선택해주세요.')
       return
     }
-    if (!stibeeTemplateId) {
-      alert('템플릿 ID를 입력해주세요.')
+
+    const triggerUrl = stibeeTriggerUrl || customTriggerUrl
+    if (!triggerUrl) {
+      alert('트리거 URL을 선택하거나 입력해주세요.')
       return
     }
 
     const selectedBook = addressBooks.find(b => b.id?.toString() === selectedAddressBook?.toString())
-    if (!confirm(`"${selectedBook?.name || selectedAddressBook}" 주소록의 ${addressBookSubscriberCount}명에게 메일을 발송하시겠습니까?`)) return
+    if (!confirm(`"${selectedBook?.name || selectedAddressBook}" 주소록의 ${addressBookSubscriberCount}명에게 자동 이메일을 발송하시겠습니까?`)) return
 
     setSendingStibee(true)
     try {
-      const response = await fetch('/.netlify/functions/stibee-address-book', {
+      // 1. 주소록에서 구독자 목록 가져오기
+      const subsResponse = await fetch('/.netlify/functions/stibee-address-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'send_to_list',
-          listId: selectedAddressBook,
-          templateId: stibeeTemplateId
+          action: 'get_subscribers',
+          listId: selectedAddressBook
+        })
+      })
+      const subsResult = await subsResponse.json()
+      if (!subsResult.success) throw new Error(subsResult.error || '구독자 목록 조회 실패')
+
+      const subscribers = (subsResult.subscribers || []).map(s => ({
+        email: s.email,
+        name: s.name || ''
+      }))
+
+      if (subscribers.length === 0) throw new Error('주소록에 구독자가 없습니다.')
+
+      // 2. 트리거 URL로 자동 이메일 발송
+      const response = await fetch('/.netlify/functions/send-stibee-auto-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          triggerUrl: triggerUrl,
+          subscribers: subscribers
         })
       })
 
       const result = await response.json()
       if (result.success) {
-        alert(`발송 완료!\n${result.message}`)
+        alert(`발송 완료!\n${result.results?.sent || 0}명 발송, ${result.results?.failed || 0}명 실패`)
         setShowStibeeModal(false)
         setStibeeStep(1)
-        setStibeeTemplateId('')
+        setStibeeTriggerUrl('')
+        setCustomTriggerUrl('')
         setSelectedAddressBook('')
       } else {
         throw new Error(result.error)
@@ -1927,12 +1966,17 @@ export default function YoutuberSearchPage() {
             </DialogContent>
           </Dialog>
 
-          {/* 스티비 메일 발송 모달 (주소록 선택 → 템플릿 → 발송) */}
+          {/* 스티비 메일 발송 모달 (주소록 선택 → 자동 이메일 선택 → 발송) */}
           <Dialog open={showStibeeModal} onOpenChange={(open) => {
             setShowStibeeModal(open)
+            if (open) {
+              fetchTriggerPresets()
+            }
             if (!open) {
               setStibeeStep(1)
-              setStibeeTemplateId('')
+              setStibeeTriggerUrl('')
+              setStibeeTriggerLabel('')
+              setCustomTriggerUrl('')
               setSelectedAddressBook('')
               setAddressBookSubscriberCount(0)
             }
@@ -1944,7 +1988,7 @@ export default function YoutuberSearchPage() {
                   스티비 메일 발송
                 </DialogTitle>
                 <DialogDescription>
-                  주소록의 구독자에게 스티비 템플릿 이메일을 발송합니다.
+                  주소록의 구독자에게 스티비 자동 이메일(트리거)을 발송합니다.
                 </DialogDescription>
               </DialogHeader>
 
@@ -1952,7 +1996,7 @@ export default function YoutuberSearchPage() {
               <div className="flex items-center justify-center gap-2 py-2">
                 {[
                   { step: 1, label: '주소록 선택' },
-                  { step: 2, label: '템플릿 입력' },
+                  { step: 2, label: '이메일 선택' },
                   { step: 3, label: '발송 확인' }
                 ].map(({ step, label }, idx) => (
                   <div key={step} className="flex items-center gap-2">
@@ -2029,7 +2073,7 @@ export default function YoutuberSearchPage() {
                   </div>
                 )}
 
-                {/* Step 2: 템플릿 ID 입력 */}
+                {/* Step 2: 트리거 URL 선택 */}
                 {stibeeStep === 2 && (
                   <div className="space-y-4">
                     <div className="p-3 bg-green-50 rounded-lg text-sm text-green-800">
@@ -2044,17 +2088,54 @@ export default function YoutuberSearchPage() {
                       </span>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        스티비 템플릿 ID
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        발송할 자동 이메일 선택
                       </label>
-                      <Input
-                        placeholder="템플릿 ID 입력 (숫자)"
-                        value={stibeeTemplateId}
-                        onChange={(e) => setStibeeTemplateId(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        스티비 대시보드 → 이메일 → 자동 이메일 → 해당 템플릿의 ID를 입력하세요.
-                      </p>
+                      {/* 프리셋 목록 */}
+                      <div className="space-y-2 mb-3">
+                        {stibeeTriggerPresets.map(preset => (
+                          <div
+                            key={preset.key}
+                            onClick={() => {
+                              setStibeeTriggerUrl(preset.url)
+                              setStibeeTriggerLabel(preset.label)
+                              setCustomTriggerUrl('')
+                            }}
+                            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                              stibeeTriggerUrl === preset.url
+                                ? 'border-green-500 bg-green-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="font-medium text-sm">{preset.label}</span>
+                            {stibeeTriggerUrl === preset.url && (
+                              <span className="text-green-600 text-xs font-medium">선택됨</span>
+                            )}
+                          </div>
+                        ))}
+                        {stibeeTriggerPresets.length === 0 && (
+                          <p className="text-sm text-gray-500 py-2">저장된 프리셋이 없습니다.</p>
+                        )}
+                      </div>
+                      {/* 직접 입력 옵션 */}
+                      <div className="border-t pt-3">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          또는 트리거 URL 직접 입력
+                        </label>
+                        <Input
+                          placeholder="https://stibee.com/api/v1.0/auto/..."
+                          value={customTriggerUrl}
+                          onChange={(e) => {
+                            setCustomTriggerUrl(e.target.value)
+                            setStibeeTriggerUrl('')
+                            setStibeeTriggerLabel('')
+                          }}
+                          className="text-xs"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          스티비 대시보드 → 자동 이메일 → 트리거 설정에서 URL을 복사하세요.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2074,13 +2155,15 @@ export default function YoutuberSearchPage() {
                         <span className="font-medium">{addressBookSubscriberCount}명</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">템플릿 ID</span>
-                        <span className="font-medium">{stibeeTemplateId}</span>
+                        <span className="text-sm text-gray-600">자동 이메일</span>
+                        <span className="font-medium text-sm">
+                          {stibeeTriggerLabel || (customTriggerUrl ? '직접 입력 URL' : '-')}
+                        </span>
                       </div>
                     </div>
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                       <AlertCircle className="h-4 w-4 inline mr-2" />
-                      발송을 시작하면 주소록의 모든 구독자에게 이메일이 전송됩니다.
+                      발송을 시작하면 주소록의 모든 구독자에게 자동 이메일이 전송됩니다.
                       취소할 수 없으니 신중하게 확인해주세요.
                     </div>
                   </div>
@@ -2111,8 +2194,8 @@ export default function YoutuberSearchPage() {
                         }
                         fetchSubscriberCount(selectedAddressBook)
                       }
-                      if (stibeeStep === 2 && !stibeeTemplateId) {
-                        alert('템플릿 ID를 입력해주세요.')
+                      if (stibeeStep === 2 && !stibeeTriggerUrl && !customTriggerUrl) {
+                        alert('발송할 자동 이메일을 선택하거나 트리거 URL을 입력해주세요.')
                         return
                       }
                       setStibeeStep(s => s + 1)

@@ -26,9 +26,22 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
-// 기본 트리거 URL (일본 크리에이터 초대장)
-const DEFAULT_JAPAN_INVITATION_TRIGGER =
-  'https://stibee.com/api/v1.0/auto/NGM1OTFjMWMtZDhlZC00NWQ3LTljOTktMjhkOTQxODkzZjgz'
+// 트리거 URL 프리셋 (국가별 초대장)
+const TRIGGER_PRESETS = {
+  japan_invitation: {
+    url: 'https://stibee.com/api/v1.0/auto/NGM1OTFjMWMtZDhlZC00NWQ3LTljOTktMjhkOTQxODkzZjgz',
+    label: '🇯🇵 일본 크리에이터 초대장'
+  }
+  // 한국, 미국 프리셋은 트리거 URL 생성 후 여기에 추가
+  // korea_invitation: {
+  //   url: 'https://stibee.com/api/v1.0/auto/...',
+  //   label: '🇰🇷 한국 크리에이터 초대장'
+  // },
+  // us_invitation: {
+  //   url: 'https://stibee.com/api/v1.0/auto/...',
+  //   label: '🇺🇸 미국 크리에이터 초대장'
+  // }
+}
 
 function getSupabase() {
   const url = process.env.VITE_SUPABASE_BIZ_URL
@@ -71,17 +84,29 @@ exports.handler = async (event) => {
   }
 
   try {
-    const {
-      triggerUrl,
-      subscribers,
-      variables = {},
-      preset
-    } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+    const { action, triggerUrl, subscribers, variables = {}, preset } = body
+
+    // action: 'get_presets' → 프리셋 목록 반환
+    if (action === 'get_presets') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          presets: Object.entries(TRIGGER_PRESETS).map(([key, val]) => ({
+            key,
+            label: val.label,
+            url: val.url
+          }))
+        })
+      }
+    }
 
     // 프리셋으로 트리거 URL 결정
     let finalTriggerUrl = triggerUrl
-    if (!finalTriggerUrl && preset === 'japan_invitation') {
-      finalTriggerUrl = DEFAULT_JAPAN_INVITATION_TRIGGER
+    if (!finalTriggerUrl && preset && TRIGGER_PRESETS[preset]) {
+      finalTriggerUrl = TRIGGER_PRESETS[preset].url
     }
 
     if (!finalTriggerUrl) {
