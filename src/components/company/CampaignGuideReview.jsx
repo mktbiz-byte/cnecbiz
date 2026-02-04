@@ -646,7 +646,7 @@ JSON 형식으로만 응답해주세요.`
         </div>
 
         {/* 제품 정보 */}
-        <Card className="mb-6">
+        <Card className="mb-4 lg:mb-6">
           <CardHeader>
             <CardTitle className="text-xl">제품 정보</CardTitle>
           </CardHeader>
@@ -706,11 +706,11 @@ JSON 형식으로만 응답해주세요.`
 
         {/* AI 캠페인 지원 가이드 */}
         {aiGuide && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-600" />
-                <h2 className="text-2xl font-bold">AI 캠페인 지원 가이드</h2>
+                <h2 className="text-xl lg:text-2xl font-bold">AI 캠페인 지원 가이드</h2>
               </div>
               <Button
                 onClick={generateAIGuide}
@@ -730,7 +730,7 @@ JSON 형식으로만 응답해주세요.`
             </div>
 
             {/* 탭 네비게이션 */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-4 lg:mb-6">
               <div className="flex overflow-x-auto">
                 <button 
                   onClick={() => setActiveTab('product_intro')}
@@ -1069,7 +1069,7 @@ JSON 형식으로만 응답해주세요.`
             )}
 
             {/* 최종 가이드 저장 및 확인 버튼 */}
-            <div className="flex justify-between items-center pt-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center pt-4 gap-3">
               <div className="text-sm text-gray-600">
                 선택된 컨셉: <strong>{selectedConcepts.length}개</strong>
                 {additionalConcepts.trim() && (
@@ -1078,7 +1078,7 @@ JSON 형식으로만 응답해주세요.`
                   </span>
                 )}
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={saveFinalGuide}
                   disabled={saving || selectedConcepts.length === 0}
