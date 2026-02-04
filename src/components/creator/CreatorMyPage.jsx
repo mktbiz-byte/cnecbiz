@@ -604,6 +604,24 @@ const CreatorMyPage = () => {
                         )
                       }
 
+                      // PDF/Google Slides 가이드 체크 (guide_type=pdf인 경우)
+                      if (campaignData.guide_type === 'pdf' && campaignData.guide_pdf_url) {
+                        const pdfUrl = campaignData.guide_pdf_url
+                        const guideUrlType = pdfUrl.includes('docs.google.com/presentation') ? 'google_slides'
+                          : pdfUrl.includes('docs.google.com/spreadsheets') ? 'google_sheets'
+                          : pdfUrl.includes('docs.google.com/document') ? 'google_docs'
+                          : pdfUrl.includes('drive.google.com') ? 'google_drive'
+                          : 'pdf'
+                        return (
+                          <ExternalGuideViewer
+                            type={guideUrlType}
+                            url={pdfUrl}
+                            fileUrl={pdfUrl}
+                            title={campaignData.title ? `${campaignData.title} 촬영 가이드` : '촬영 가이드'}
+                          />
+                        )
+                      }
+
                       // 기존 AI 가이드 로직
                       const guide = getCampaignGuide(campaign)
                       
