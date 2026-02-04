@@ -397,7 +397,7 @@ exports.handler = async (event) => {
           for (let bi = 0; bi < newSubscribers.length; bi += BATCH_SIZE) {
             const batch = newSubscribers.slice(bi, bi + BATCH_SIZE)
             const reqBody = {
-              eventOccurredBy: 'MANUAL',
+              eventOccuredBy: 'MANUAL',
               confirmEmailYN: 'N',
               subscribers: batch.map(s => ({ email: s.email, name: s.name || '' }))
             }

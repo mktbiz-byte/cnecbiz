@@ -136,7 +136,7 @@ exports.handler = async (event) => {
           method: 'POST',
           headers: stibeeHeaders(apiKey),
           body: JSON.stringify({
-            eventOccurredBy: 'MANUAL',
+            eventOccuredBy: 'MANUAL',
             confirmEmailYN: 'N',
             subscribers: batch.map(s => ({
               email: s.email,

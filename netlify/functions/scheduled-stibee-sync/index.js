@@ -132,7 +132,7 @@ async function addToStibeeList(apiKey, listId, subscribers, groupIds) {
     const batch = subscribers.slice(i, i + BATCH_SIZE)
 
     const requestBody = {
-      eventOccurredBy: 'MANUAL',
+      eventOccuredBy: 'MANUAL',
       confirmEmailYN: 'N',
       subscribers: batch.map(s => ({
         email: s.email,
