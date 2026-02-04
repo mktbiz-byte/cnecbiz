@@ -1747,7 +1747,12 @@ export default function YoutuberSearchPage() {
                               const summary = (result.results || []).map(r => {
                                 if (r.status === 'success') {
                                   const s = r.stibeeResults || {}
-                                  return `${r.region}: +${r.newCount}명 추가 (스티비 신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                  let line = `${r.region}: +${r.newCount}명 추가 (스티비 신규:${s.success || 0}, 기존:${s.update || 0}, 실패:${s.fail || 0})`
+                                  if (s.apiError) line += `\n  ⚠️ ${s.apiError}`
+                                  if (s.success === 0 && s.update === 0 && s.fail === 0 && s.rawResponse) {
+                                    line += `\n  📋 API응답: ${s.rawResponse.substring(0, 150)}`
+                                  }
+                                  return line
                                 }
                                 return `${r.region}: ${r.message || r.error || r.status} (시트:${r.total || '?'}명)`
                               }).join('\n')

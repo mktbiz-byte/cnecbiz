@@ -409,21 +409,32 @@ exports.handler = async (event) => {
               body: JSON.stringify(reqBody)
             })
 
+            const stibeeResText = await stibeeRes.text()
+            console.log(`[sync_to_stibee] ${regionKey} Stibee HTTP ${stibeeRes.status}:`, stibeeResText.substring(0, 500))
+
             if (stibeeRes.ok) {
-              const stibeeData = await stibeeRes.json()
-              console.log(`[sync_to_stibee] ${regionKey} Stibee response:`, JSON.stringify(stibeeData))
-              const val = stibeeData.Value || stibeeData.value || {}
-              // 배열 또는 숫자 모두 처리
+              let stibeeData = {}
+              try { stibeeData = JSON.parse(stibeeResText) } catch (e) { /* not JSON */ }
+
+              // 전체 응답 구조 저장 (디버그용)
+              if (!stibeeResults.rawResponse) stibeeResults.rawResponse = stibeeResText.substring(0, 500)
+
+              // 여러 가능한 응답 구조 처리
+              const val = stibeeData.Value || stibeeData.value || stibeeData || {}
               const countOf = (v) => Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0)
               stibeeResults.success += countOf(val.success)
               stibeeResults.update += countOf(val.update)
               stibeeResults.fail += countOf(val.failDuplicate) + countOf(val.failUnknown)
-              if (!stibeeResults.rawResponse) stibeeResults.rawResponse = JSON.stringify(val).substring(0, 300)
+
+              // 전체가 0이면 키 목록도 기록
+              if (stibeeResults.success === 0 && stibeeResults.update === 0 && stibeeResults.fail === 0) {
+                stibeeResults.responseKeys = Object.keys(stibeeData).join(',')
+                if (val && typeof val === 'object') stibeeResults.valueKeys = Object.keys(val).join(',')
+              }
             } else {
-              const errText = await stibeeRes.text()
-              console.error(`[sync_to_stibee] Stibee API error ${stibeeRes.status}:`, errText)
+              console.error(`[sync_to_stibee] Stibee API error ${stibeeRes.status}:`, stibeeResText)
               stibeeResults.fail += batch.length
-              stibeeResults.apiError = `${stibeeRes.status}: ${errText.substring(0, 200)}`
+              stibeeResults.apiError = `HTTP ${stibeeRes.status}: ${stibeeResText.substring(0, 200)}`
             }
 
             if (bi + BATCH_SIZE < newSubscribers.length) {
