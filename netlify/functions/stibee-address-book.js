@@ -8,6 +8,8 @@
  * Stibee API v1: https://api.stibee.com/v1
  */
 
+const { createClient } = require('@supabase/supabase-js')
+
 const STIBEE_API_URL = 'https://api.stibee.com/v1'
 
 const headers = {
@@ -16,8 +18,32 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
-function getApiKey() {
-  return process.env.STIBEE_API_KEY
+function getSupabase() {
+  const url = process.env.VITE_SUPABASE_BIZ_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
+
+async function getApiKey() {
+  // 1. 환경변수에서 먼저 확인
+  let apiKey = process.env.STIBEE_API_KEY
+  if (apiKey) return apiKey
+
+  // 2. 환경변수에 없으면 DB에서 가져오기 (api_keys 테이블)
+  const supabase = getSupabase()
+  if (supabase) {
+    const { data: apiKeyData } = await supabase
+      .from('api_keys')
+      .select('api_key')
+      .eq('service_name', 'stibee')
+      .eq('is_active', true)
+      .maybeSingle()
+
+    apiKey = apiKeyData?.api_key
+  }
+
+  return apiKey
 }
 
 function stibeeHeaders(apiKey) {
@@ -41,9 +67,9 @@ exports.handler = async (event) => {
   }
 
   try {
-    const apiKey = getApiKey()
+    const apiKey = await getApiKey()
     if (!apiKey) {
-      throw new Error('STIBEE_API_KEY가 설정되지 않았습니다.')
+      throw new Error('STIBEE_API_KEY가 설정되지 않았습니다. 관리자 페이지 → 뉴스레터 쇼케이스에서 API 키를 등록해주세요.')
     }
 
     const { action, listId, subscribers, templateId } = JSON.parse(event.body)

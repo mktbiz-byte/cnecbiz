@@ -106,6 +106,7 @@ import { GRADE_LEVELS } from '../../services/creatorGradeService'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
+import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -11144,8 +11145,23 @@ Questions? Contact us.
                     })()}
                   </div>
                 ) : (
-                  /* Use different viewer based on region */
+                  /* Use different viewer based on region and guide type */
                   (region === 'us' || region === 'japan') ? (
+                    /* PDF/Google Slides 가이드인 경우 ExternalGuideViewer 사용 */
+                    (campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url) ? (
+                      <ExternalGuideViewer
+                        type={
+                          campaign.guide_pdf_url.includes('docs.google.com/presentation') ? 'google_slides'
+                          : campaign.guide_pdf_url.includes('docs.google.com/spreadsheets') ? 'google_sheets'
+                          : campaign.guide_pdf_url.includes('docs.google.com/document') ? 'google_docs'
+                          : campaign.guide_pdf_url.includes('drive.google.com') ? 'google_drive'
+                          : 'pdf'
+                        }
+                        url={campaign.guide_pdf_url}
+                        fileUrl={campaign.guide_pdf_url}
+                        title={campaign.title ? `${campaign.title} 촬영 가이드` : '촬영 가이드'}
+                      />
+                    ) : (
                     <USJapanGuideViewer
                       guide={selectedGuide.personalized_guide}
                       creator={selectedGuide}
@@ -11183,6 +11199,7 @@ Questions? Contact us.
                         }
                       }}
                     />
+                    )
                   ) : (
                     <PersonalizedGuideViewer
                       guide={
@@ -11328,13 +11345,14 @@ Questions? Contact us.
                   </>
                 ) : (
                   <>
-                    {/* 올영/4주 가이드는 PersonalizedGuideViewer에서 직접 수정하므로 버튼 숨김 */}
+                    {/* 올영/4주/PDF 가이드는 수정 버튼 숨김 */}
                     {(() => {
                       const guide = selectedGuide.personalized_guide
                       const guideType = typeof guide === 'object' ? guide?.type : null
                       const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+                      const isPdfGuide = campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url
 
-                      if (isOliveYoungOr4Week) return null
+                      if (isOliveYoungOr4Week || isPdfGuide) return null
 
                       return (
                         <>

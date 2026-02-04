@@ -83,7 +83,23 @@ async function sendEmail(to, subject, html) {
 
 // 이메일 템플릿 생성
 function generateEmailTemplate(data) {
-  const { campaignName, brandName, creatorName, stepInfo, guideContent, guideUrl, deadline } = data;
+  const { campaignName, brandName, creatorName, stepInfo, guideContent, guideUrl, deadline, guideType } = data;
+
+  // PDF/Google Slides URL인지 판단
+  const isPdfOrSlides = guideType === 'pdf' || (guideUrl && (
+    guideUrl.endsWith('.pdf') ||
+    guideUrl.includes('docs.google.com/presentation') ||
+    guideUrl.includes('docs.google.com/document') ||
+    guideUrl.includes('drive.google.com')
+  ));
+
+  const guideButtonLabel = guideUrl
+    ? (guideUrl.includes('docs.google.com/presentation') ? 'Google スライドで確認'
+      : guideUrl.includes('docs.google.com/document') ? 'Google ドキュメントで確認'
+      : guideUrl.includes('drive.google.com') ? 'Google ドライブで確認'
+      : guideUrl.endsWith('.pdf') || guideType === 'pdf' ? 'PDF ガイドをダウンロード'
+      : '詳細ガイドを確認')
+    : '詳細ガイドを確認';
 
   return `
 <!DOCTYPE html>
@@ -105,6 +121,7 @@ function generateEmailTemplate(data) {
     .guide-section { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 20px; margin: 20px 0; }
     .guide-title { color: #166534; font-weight: bold; margin: 0 0 15px; }
     .btn { display: inline-block; background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; padding: 15px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; }
+    .btn-pdf { display: inline-block; background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; padding: 15px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; }
     .footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee; }
     .footer p { font-size: 12px; color: #999; margin: 0; }
   </style>
@@ -145,7 +162,15 @@ function generateEmailTemplate(data) {
 
       ${guideUrl ? `
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${guideUrl}" class="btn">詳細ガイドを確認</a>
+        ${isPdfOrSlides ? `
+        <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 12px; padding: 24px; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px; font-size: 14px; color: #991b1b; font-weight: bold;">📄 撮影ガイド (PDF/ドキュメント)</p>
+          <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">以下のボタンからガイドを確認・ダウンロードしてください</p>
+          <a href="${guideUrl}" class="btn-pdf" style="color: #fff;">${guideButtonLabel}</a>
+        </div>
+        ` : `
+        <a href="${guideUrl}" class="btn" style="color: #fff;">詳細ガイドを確認</a>
+        `}
       </div>
       ` : ''}
 
@@ -398,7 +423,8 @@ CNEC BIZ`;
           stepInfo,
           guideContent: guide_content,
           guideUrl: guide_url,
-          deadline
+          deadline,
+          guideType: campaign.guide_type
         });
 
         const emailResult = await sendEmail(
