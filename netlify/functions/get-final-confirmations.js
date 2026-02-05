@@ -365,15 +365,21 @@ exports.handler = async (event) => {
           let pointRecord = pointHistoryMap[pointKey]
 
           // 2순위: description에서 캠페인 제목/브랜드로 매칭 (related_campaign_id가 null인 경우)
-          if (!pointRecord && campaign.title) {
+          // ★ 공백/대소문자 무시하여 유연하게 매칭
+          if (!pointRecord && (campaign.title || campaign.brand)) {
             const userTxList = userPointTxMap[sub.user_id] || []
+            const normalize = (str) => (str || '').toLowerCase().replace(/\s+/g, '')
             const matchedTx = userTxList.find(tx => {
               if (!tx.description) return false
-              const desc = tx.description.toLowerCase()
-              const title = (campaign.title || '').toLowerCase()
-              const brand = (campaign.brand || '').toLowerCase()
+              const desc = normalize(tx.description)
+              const title = normalize(campaign.title)
+              const brand = normalize(campaign.brand)
               // 제목 또는 브랜드가 description에 포함되어 있으면 매칭
-              return (title && desc.includes(title)) || (brand && desc.includes(brand))
+              // 또는 브랜드 첫 단어(주요 키워드)로도 매칭 시도
+              const brandFirstWord = brand.split(/[^a-z가-힣0-9]/)[0]
+              return (title && desc.includes(title)) ||
+                     (brand && desc.includes(brand)) ||
+                     (brandFirstWord && brandFirstWord.length >= 2 && desc.includes(brandFirstWord))
             })
             if (matchedTx) {
               pointRecord = matchedTx
