@@ -6,186 +6,109 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import {
-  Loader2, DollarSign, Users, ChevronDown, ChevronUp,
+  Loader2, Users, ChevronDown, ChevronUp,
   Phone, Mail, ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock,
-  Search, Check, X, CreditCard
+  Search, Check, X, CreditCard, History, Eye, User
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 // 지역 설정
-const REGIONS = [
-  { id: 'korea', label: '한국', flag: '🇰🇷', color: 'bg-blue-50 text-blue-700' },
-  { id: 'japan', label: '일본', flag: '🇯🇵', color: 'bg-red-50 text-red-600' },
-  { id: 'us', label: '미국', flag: '🇺🇸', color: 'bg-indigo-50 text-indigo-700' }
-]
+const REGIONS = {
+  korea: { label: '한국', flag: '🇰🇷', color: 'bg-blue-50 text-blue-700', shortCode: 'KR' },
+  japan: { label: '일본', flag: '🇯🇵', color: 'bg-red-50 text-red-600', shortCode: 'JP' },
+  us: { label: '미국', flag: '🇺🇸', color: 'bg-indigo-50 text-indigo-700', shortCode: 'US' }
+}
 
 export default function UnpaidCampaignsManagement() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('confirmed') // confirmed = 최종확정 완료, pending = 미완료
+  const [activeTab, setActiveTab] = useState('confirmed')
   const [searchQuery, setSearchQuery] = useState('')
 
   // 데이터
-  const [confirmedList, setConfirmedList] = useState([]) // 최종 확정 완료
-  const [pendingList, setPendingList] = useState([]) // 최종 확정 대기
+  const [confirmedList, setConfirmedList] = useState([])
+  const [pendingList, setPendingList] = useState([])
 
   // 수동 지급 모달
   const [paymentModal, setPaymentModal] = useState(null)
   const [processing, setProcessing] = useState(false)
+
+  // 포인트 지급 이력 모달
+  const [historyModal, setHistoryModal] = useState(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState([])
 
   // 데이터 로드
   const fetchData = async () => {
     setRefreshing(true)
 
     try {
-      const confirmed = []
-      const pending = []
+      const response = await fetch('/.netlify/functions/get-final-confirmations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list' })
+      })
 
-      for (const region of REGIONS) {
-        try {
-          const supabase = getSupabaseClient(region.id)
-          if (!supabase) continue
+      const result = await response.json()
 
-          // video_submissions 조회 (조인 없이 개별 조회)
-          const { data: submissions, error } = await supabase
-            .from('video_submissions')
-            .select('id, user_id, campaign_id, status, final_confirmed_at, created_at, updated_at')
-            .order('created_at', { ascending: false })
-            .limit(500)
-
-          if (error) {
-            console.error(`[${region.id}] video_submissions 조회 오류:`, error)
-            continue
-          }
-
-          console.log(`[${region.id}] video_submissions 조회: ${submissions?.length || 0}건`)
-
-          // 캠페인 ID 목록 추출
-          const campaignIds = [...new Set((submissions || []).map(s => s.campaign_id).filter(Boolean))]
-
-          // campaigns 별도 조회
-          let campaignMap = {}
-          if (campaignIds.length > 0) {
-            const { data: campaigns, error: campError } = await supabase
-              .from('campaigns')
-              .select('id, title, brand, campaign_type, point_amount')
-              .in('id', campaignIds)
-
-            if (!campError && campaigns) {
-              campaigns.forEach(c => {
-                campaignMap[c.id] = c
-              })
-            }
-          }
-
-          // user_profiles 조회
-          const userIds = [...new Set((submissions || []).map(s => s.user_id).filter(Boolean))]
-          let profileMap = {}
-          if (userIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from('user_profiles')
-              .select('id, user_id, name, channel_name, phone, phone_number, email')
-              .in('id', userIds)
-
-            ;(profiles || []).forEach(p => {
-              profileMap[p.id] = p
-              if (p.user_id) profileMap[p.user_id] = p
-            })
-          }
-
-          // point_history 조회 (캠페인 완료 포인트 지급 기록)
-          let pointHistoryMap = {}
-          if (userIds.length > 0) {
-            try {
-              const { data: pointHistory } = await supabase
-                .from('point_history')
-                .select('user_id, campaign_id, amount, created_at')
-                .eq('type', 'campaign_complete')
-                .in('user_id', userIds)
-
-              ;(pointHistory || []).forEach(ph => {
-                const key = `${ph.user_id}_${ph.campaign_id}`
-                pointHistoryMap[key] = ph
-              })
-            } catch (e) {
-              console.log(`[${region.id}] point_history 조회 실패, point_transactions 시도`)
-              // fallback to point_transactions
-              try {
-                const { data: pointTx } = await supabase
-                  .from('point_transactions')
-                  .select('user_id, related_campaign_id, amount, created_at')
-                  .eq('type', 'campaign_reward')
-                  .in('user_id', userIds)
-
-                ;(pointTx || []).forEach(pt => {
-                  const key = `${pt.user_id}_${pt.related_campaign_id}`
-                  pointHistoryMap[key] = pt
-                })
-              } catch (e2) {
-                console.log(`[${region.id}] point_transactions도 실패`)
-              }
-            }
-          }
-
-          // 데이터 분류
-          for (const sub of (submissions || [])) {
-            const profile = profileMap[sub.user_id]
-            const campaign = campaignMap[sub.campaign_id]
-            const pointKey = `${sub.user_id}_${sub.campaign_id}`
-            const pointRecord = pointHistoryMap[pointKey]
-
-            const item = {
-              id: sub.id,
-              region: region.id,
-              regionInfo: region,
-              userId: sub.user_id,
-              campaignId: sub.campaign_id,
-              status: sub.status,
-              finalConfirmedAt: sub.final_confirmed_at,
-              createdAt: sub.created_at,
-              updatedAt: sub.updated_at,
-              creatorName: profile?.channel_name || profile?.name || '이름 없음',
-              phone: profile?.phone || profile?.phone_number,
-              email: profile?.email,
-              campaignTitle: campaign?.title || '캠페인 정보 없음',
-              campaignBrand: campaign?.brand,
-              campaignType: campaign?.campaign_type,
-              pointAmount: campaign?.point_amount || 0,
-              // 포인트 지급 여부
-              isPaid: !!pointRecord,
-              paidAmount: pointRecord?.amount || 0,
-              paidAt: pointRecord?.created_at
-            }
-
-            if (sub.final_confirmed_at) {
-              confirmed.push(item)
-            } else {
-              pending.push(item)
-            }
-          }
-
-        } catch (err) {
-          console.error(`${region.id} 데이터 조회 오류:`, err)
-        }
+      if (result.success) {
+        setConfirmedList(result.confirmed || [])
+        setPendingList(result.pending || [])
+        console.log(`데이터 로드 완료 - 확정: ${result.confirmed?.length || 0}건, 대기: ${result.pending?.length || 0}건`)
+      } else {
+        console.error('데이터 로드 실패:', result.error)
       }
-
-      // 정렬: 최신순
-      confirmed.sort((a, b) => new Date(b.finalConfirmedAt) - new Date(a.finalConfirmedAt))
-      pending.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-
-      console.log(`최종 확정 완료: ${confirmed.length}건, 대기: ${pending.length}건`)
-
-      setConfirmedList(confirmed)
-      setPendingList(pending)
-
     } catch (error) {
       console.error('데이터 로드 오류:', error)
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+  }
+
+  // 포인트 지급 이력 조회
+  const fetchPaymentHistory = async (item) => {
+    setHistoryModal(item)
+    setHistoryLoading(true)
+
+    try {
+      const response = await fetch('/.netlify/functions/get-final-confirmations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_payment_history',
+          region: item.region,
+          userId: item.userId,
+          campaignId: item.campaignId
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // history와 transactions 합치기
+        const allHistory = [
+          ...(result.history || []).map(h => ({ ...h, source: 'point_history' })),
+          ...(result.transactions || []).map(t => ({ ...t, source: 'point_transactions' }))
+        ]
+        // 중복 제거 및 정렬
+        const uniqueHistory = allHistory.reduce((acc, curr) => {
+          const key = `${curr.created_at}_${curr.amount}_${curr.type}`
+          if (!acc.find(h => `${h.created_at}_${h.amount}_${h.type}` === key)) {
+            acc.push(curr)
+          }
+          return acc
+        }, [])
+        uniqueHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        setPaymentHistory(uniqueHistory)
+      }
+    } catch (error) {
+      console.error('이력 조회 오류:', error)
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -198,9 +121,9 @@ export default function UnpaidCampaignsManagement() {
     if (!searchQuery.trim()) return list
     const query = searchQuery.toLowerCase()
     return list.filter(item =>
-      item.creatorName.toLowerCase().includes(query) ||
-      item.campaignTitle.toLowerCase().includes(query) ||
-      item.campaignBrand?.toLowerCase().includes(query)
+      (item.creatorName || '').toLowerCase().includes(query) ||
+      (item.campaignTitle || '').toLowerCase().includes(query) ||
+      (item.campaignBrand || '').toLowerCase().includes(query)
     )
   }
 
@@ -249,13 +172,183 @@ export default function UnpaidCampaignsManagement() {
     }
   }
 
+  // 아이템 렌더링
+  const renderItem = (item, idx, isConfirmed = true) => {
+    const regionInfo = REGIONS[item.region] || { label: item.region, flag: '🌐', color: 'bg-gray-100 text-gray-700', shortCode: '??' }
+    const hasName = item.creatorName && item.creatorName !== '이름 없음'
+    const hasCampaign = item.campaignTitle && item.campaignTitle !== '캠페인 정보 없음'
+
+    return (
+      <div
+        key={`${item.id}-${idx}`}
+        className={`p-4 rounded-lg border ${
+          isConfirmed
+            ? item.isPaid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+            : 'bg-yellow-50 border-yellow-200'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-4">
+          {/* 왼쪽: 크리에이터 & 캠페인 정보 */}
+          <div className="flex items-start gap-3 flex-1">
+            <Badge className={`${regionInfo.color} shrink-0`}>
+              {regionInfo.shortCode}
+            </Badge>
+            <div className="min-w-0 flex-1">
+              {/* 크리에이터 정보 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className={`font-medium ${hasName ? 'text-gray-900' : 'text-red-500'}`}>
+                    {hasName ? item.creatorName : '크리에이터 정보 없음'}
+                  </span>
+                </div>
+                {isConfirmed && (
+                  item.isPaid ? (
+                    <Badge className="bg-green-100 text-green-700">
+                      <Check className="w-3 h-3 mr-1" />
+                      지급완료
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">
+                      <X className="w-3 h-3 mr-1" />
+                      미지급
+                    </Badge>
+                  )
+                )}
+                {!isConfirmed && (
+                  <Badge className="bg-yellow-100 text-yellow-700">
+                    <Clock className="w-3 h-3 mr-1" />
+                    확정 대기
+                  </Badge>
+                )}
+              </div>
+
+              {/* 캠페인 정보 */}
+              <div className="mt-1 text-sm">
+                <span className={hasCampaign ? 'text-gray-600' : 'text-red-400'}>
+                  {hasCampaign ? item.campaignTitle : '캠페인 정보 없음'}
+                </span>
+                {item.campaignBrand && (
+                  <span className="text-gray-400 ml-2">({item.campaignBrand})</span>
+                )}
+              </div>
+
+              {/* 연락처 */}
+              {(item.email || item.phone) && (
+                <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                  {item.email && (
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      {item.email}
+                    </span>
+                  )}
+                  {item.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {item.phone}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* ID 정보 */}
+              <div className="mt-1 text-xs text-gray-300">
+                User: {item.userId?.slice(0, 8)}... | Campaign: {item.campaignId?.slice(0, 8)}...
+              </div>
+            </div>
+          </div>
+
+          {/* 오른쪽: 포인트 & 액션 */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="text-right">
+              {isConfirmed ? (
+                item.isPaid ? (
+                  <>
+                    <p className="text-sm font-bold text-green-600">
+                      {item.paidAmount?.toLocaleString()}P 지급
+                    </p>
+                    {item.paidAt && (
+                      <p className="text-xs text-gray-400">
+                        {new Date(item.paidAt).toLocaleDateString('ko-KR')}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-red-600">
+                      {item.pointAmount?.toLocaleString() || 0}P 미지급
+                    </p>
+                    {item.finalConfirmedAt && (
+                      <p className="text-xs text-gray-400">
+                        확정: {new Date(item.finalConfirmedAt).toLocaleDateString('ko-KR')}
+                      </p>
+                    )}
+                  </>
+                )
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-600">
+                    {item.pointAmount?.toLocaleString() || 0}P (예정)
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    상태: {item.status || '없음'}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* 액션 버튼들 */}
+            <div className="flex items-center gap-1">
+              {/* 포인트 이력 보기 */}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => fetchPaymentHistory(item)}
+                title="포인트 지급 이력"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+
+              {/* 수동 지급 (미지급인 경우만) */}
+              {isConfirmed && !item.isPaid && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPaymentModal(item)}
+                >
+                  <CreditCard className="w-4 h-4 mr-1" />
+                  지급
+                </Button>
+              )}
+
+              {/* 캠페인 상세 */}
+              {item.campaignId && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => navigate(`/admin/campaigns/${item.campaignId}?region=${item.region}`)}
+                  title="캠페인 상세"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <AdminNavigation />
         <main className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">데이터를 불러오는 중...</p>
+            </div>
           </div>
         </main>
       </div>
@@ -372,7 +465,12 @@ export default function UnpaidCampaignsManagement() {
           <TabsContent value="confirmed">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">최종 확정 완료 목록</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>최종 확정 완료 목록</span>
+                  <span className="text-sm font-normal text-gray-500">
+                    지급완료 {stats.paidCount}건 / 미지급 {stats.unpaidCount}건
+                  </span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {filterBySearch(confirmedList).length === 0 ? (
@@ -381,72 +479,8 @@ export default function UnpaidCampaignsManagement() {
                     <p>데이터가 없습니다</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {filterBySearch(confirmedList).map((item, idx) => (
-                      <div
-                        key={`${item.id}-${idx}`}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          item.isPaid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge className={item.regionInfo.color}>
-                            {item.regionInfo.flag}
-                          </Badge>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{item.creatorName}</p>
-                              {item.isPaid ? (
-                                <Badge className="bg-green-100 text-green-700">
-                                  <Check className="w-3 h-3 mr-1" />
-                                  지급완료
-                                </Badge>
-                              ) : (
-                                <Badge variant="destructive">
-                                  <X className="w-3 h-3 mr-1" />
-                                  미지급
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500">{item.campaignTitle}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              {item.isPaid ? (
-                                <span className="text-green-600">{item.paidAmount?.toLocaleString()}P 지급</span>
-                              ) : (
-                                <span className="text-red-600">{item.pointAmount?.toLocaleString()}P 미지급</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              확정: {new Date(item.finalConfirmedAt).toLocaleDateString('ko-KR')}
-                            </p>
-                          </div>
-
-                          {!item.isPaid && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setPaymentModal(item)}
-                            >
-                              <CreditCard className="w-4 h-4 mr-1" />
-                              지급
-                            </Button>
-                          )}
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => navigate(`/admin/campaigns/${item.campaignId}`)}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {filterBySearch(confirmedList).map((item, idx) => renderItem(item, idx, true))}
                   </div>
                 )}
               </CardContent>
@@ -466,48 +500,8 @@ export default function UnpaidCampaignsManagement() {
                     <p>대기 중인 건이 없습니다</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {filterBySearch(pendingList).map((item, idx) => (
-                      <div
-                        key={`${item.id}-${idx}`}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-yellow-50 border-yellow-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge className={item.regionInfo.color}>
-                            {item.regionInfo.flag}
-                          </Badge>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{item.creatorName}</p>
-                              <Badge className="bg-yellow-100 text-yellow-700">
-                                <Clock className="w-3 h-3 mr-1" />
-                                확정 대기
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-gray-500">{item.campaignTitle}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-600">
-                              {item.pointAmount?.toLocaleString()}P (예정)
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              상태: {item.status}
-                            </p>
-                          </div>
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => navigate(`/admin/campaigns/${item.campaignId}`)}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {filterBySearch(pendingList).map((item, idx) => renderItem(item, idx, false))}
                   </div>
                 )}
               </CardContent>
@@ -525,10 +519,10 @@ export default function UnpaidCampaignsManagement() {
           {paymentModal && (
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="font-medium">{paymentModal.creatorName}</p>
-                <p className="text-sm text-gray-500">{paymentModal.campaignTitle}</p>
+                <p className="font-medium">{paymentModal.creatorName || '크리에이터'}</p>
+                <p className="text-sm text-gray-500">{paymentModal.campaignTitle || '캠페인'}</p>
                 <p className="text-lg font-bold text-blue-600 mt-2">
-                  {paymentModal.pointAmount?.toLocaleString()}P
+                  {paymentModal.pointAmount?.toLocaleString() || 0}P
                 </p>
               </div>
               <p className="text-sm text-gray-600">
@@ -546,6 +540,91 @@ export default function UnpaidCampaignsManagement() {
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               지급하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 포인트 지급 이력 모달 */}
+      <Dialog open={!!historyModal} onOpenChange={() => setHistoryModal(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              포인트 지급 이력
+            </DialogTitle>
+          </DialogHeader>
+          {historyModal && (
+            <div className="space-y-4">
+              {/* 사용자 정보 */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">{historyModal.creatorName || '크리에이터'}</span>
+                  <Badge className={REGIONS[historyModal.region]?.color || 'bg-gray-100'}>
+                    {REGIONS[historyModal.region]?.shortCode || historyModal.region}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-500">{historyModal.campaignTitle || '캠페인'}</p>
+                <p className="text-xs text-gray-400 mt-1">User ID: {historyModal.userId}</p>
+              </div>
+
+              {/* 이력 목록 */}
+              {historyLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-400" />
+                  <p className="text-gray-500">이력을 불러오는 중...</p>
+                </div>
+              ) : paymentHistory.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <History className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>포인트 지급 이력이 없습니다</p>
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {paymentHistory.map((record, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-lg border ${
+                        record.amount > 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`font-bold ${record.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {record.amount > 0 ? '+' : ''}{record.amount?.toLocaleString()}P
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {record.type || '알 수 없음'}
+                            {record.description && ` - ${record.description}`}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-600">
+                            {new Date(record.created_at).toLocaleDateString('ko-KR')}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(record.created_at).toLocaleTimeString('ko-KR')}
+                          </p>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {record.source === 'point_history' ? 'history' : 'tx'}
+                          </Badge>
+                        </div>
+                      </div>
+                      {record.campaign_id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Campaign: {record.campaign_id?.slice(0, 8)}...
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryModal(null)}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>
