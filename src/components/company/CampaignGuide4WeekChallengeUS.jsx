@@ -705,31 +705,31 @@ ${textToTranslate}`
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-              <Calendar className="h-8 w-8 text-blue-600" />
+      <div className="max-w-7xl mx-auto p-4 lg:p-6 pt-14 pb-20 lg:pt-6 lg:pb-6">
+        <div className="mb-4 lg:mb-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4 lg:p-6">
+            <h1 className="text-xl lg:text-3xl font-bold mb-2 flex items-center gap-2">
+              <Calendar className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
               4-Week Challenge Campaign Guide (US)
             </h1>
-            <p className="text-gray-700 text-base">
+            <p className="text-gray-700 text-sm lg:text-base">
               Campaign: <span className="font-semibold text-blue-700">{campaign.title}</span>
             </p>
           </div>
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-5 mb-6 flex items-start gap-3">
-          <Info className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 lg:p-5 mb-4 lg:mb-6 flex items-start gap-3">
+          <Info className="w-5 h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-green-900">
-            <p className="font-bold text-base mb-2">US 4-Week Challenge Guide Instructions</p>
+            <p className="font-bold text-sm lg:text-base mb-2">US 4-Week Challenge Guide Instructions</p>
             <p className="leading-relaxed">Enter content in Korean on the left, then click "Translate to English" to see the English translation on the right.</p>
             <p className="mt-2 font-semibold text-green-700">Admins can see both Korean and English. Only English will be sent to creators.</p>
           </div>
         </div>
 
         {/* 전체 번역 버튼 */}
-        <div className="mb-6 flex justify-end">
+        <div className="mb-4 lg:mb-6 flex justify-end">
           <Button
             onClick={handleTranslateAll}
             disabled={isTranslating}
@@ -743,18 +743,18 @@ ${textToTranslate}`
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* 왼쪽: 한국어 입력 */}
-          <div className="space-y-6">
-            <div className="bg-white border-2 border-blue-200 rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-800">
-                <Globe className="w-6 h-6" />
+          <div className="space-y-4 lg:space-y-6">
+            <div className="bg-white border-2 border-blue-200 rounded-lg p-3 lg:p-4">
+              <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 flex items-center gap-2 text-blue-800">
+                <Globe className="w-5 h-5 lg:w-6 lg:h-6" />
                 한국어 입력 (Korean Input)
               </h2>
 
               {/* 제품 기본 정보 */}
-              <div className="bg-gradient-to-br from-blue-50/50 to-white rounded-lg border border-blue-100 p-4 mb-4">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+              <div className="bg-gradient-to-br from-blue-50/50 to-white rounded-lg border border-blue-100 p-3 lg:p-4 mb-4">
+                <h3 className="text-base lg:text-lg font-bold mb-3 flex items-center gap-2">
                   <Package className="h-5 w-5 text-blue-600" />
                   제품 기본 정보
                 </h3>
@@ -764,14 +764,14 @@ ${textToTranslate}`
                     <label className="block mb-1 text-sm font-semibold">
                       브랜드명 <span className="text-red-500">*</span>
                     </label>
-                    <Input value={guideData.brand} onChange={(e) => updateGuideData('brand', e.target.value)} placeholder="예: SNP" />
+                    <Input value={guideData.brand} onChange={(e) => updateGuideData('brand', e.target.value)} placeholder="예: SNP" className="h-11" />
                   </div>
 
                   <div>
                     <label className="block mb-1 text-sm font-semibold">
                       제품명 <span className="text-red-500">*</span>
                     </label>
-                    <Input value={guideData.product_name} onChange={(e) => updateGuideData('product_name', e.target.value)} placeholder="예: 콜라겐 마스크팩" />
+                    <Input value={guideData.product_name} onChange={(e) => updateGuideData('product_name', e.target.value)} placeholder="예: 콜라겐 마스크팩" className="h-11" />
                   </div>
 
                   <div>
@@ -807,7 +807,7 @@ ${textToTranslate}`
                 const isExpanded = expandedWeek === weekNum
 
                 return (
-                  <div key={weekKey} className="bg-white rounded-lg border border-blue-200 p-4 mb-4">
+                  <div key={weekKey} className="bg-white rounded-lg border border-blue-200 p-3 lg:p-4 mb-3 lg:mb-4">
                     <div
                       className="flex items-center justify-between cursor-pointer"
                       onClick={() => setExpandedWeek(isExpanded ? null : weekNum)}
@@ -955,16 +955,16 @@ ${textToTranslate}`
           </div>
 
           {/* 오른쪽: 영어 미리보기 */}
-          <div className="space-y-6">
-            <div className="bg-white border-2 border-green-200 rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-800">
-                <Globe className="w-6 h-6" />
+          <div className="space-y-4 lg:space-y-6">
+            <div className="bg-white border-2 border-green-200 rounded-lg p-3 lg:p-4">
+              <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 flex items-center gap-2 text-green-800">
+                <Globe className="w-5 h-5 lg:w-6 lg:h-6" />
                 English Preview
               </h2>
 
               {/* 제품 기본 정보 영어 */}
-              <div className="bg-gradient-to-br from-green-50/50 to-white rounded-lg border border-green-100 p-4 mb-4">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+              <div className="bg-gradient-to-br from-green-50/50 to-white rounded-lg border border-green-100 p-3 lg:p-4 mb-4">
+                <h3 className="text-base lg:text-lg font-bold mb-3 flex items-center gap-2">
                   <Package className="h-5 w-5 text-green-600" />
                   Product Information
                 </h3>
@@ -976,7 +976,7 @@ ${textToTranslate}`
                       value={guideDataEn.brand}
                       onChange={(e) => updateGuideDataEn('brand', e.target.value)}
                       placeholder="Brand name translation"
-                      className="border-green-200 focus:border-green-400"
+                      className="h-11 border-green-200 focus:border-green-400"
                     />
                   </div>
 
@@ -986,7 +986,7 @@ ${textToTranslate}`
                       value={guideDataEn.product_name}
                       onChange={(e) => updateGuideDataEn('product_name', e.target.value)}
                       placeholder="Product name translation"
-                      className="border-green-200 focus:border-green-400"
+                      className="h-11 border-green-200 focus:border-green-400"
                     />
                   </div>
 
@@ -1019,7 +1019,7 @@ ${textToTranslate}`
                 const isExpanded = expandedWeek === weekNum
 
                 return (
-                  <div key={weekKey} className="bg-white rounded-lg border border-green-200 p-4 mb-4">
+                  <div key={weekKey} className="bg-white rounded-lg border border-green-200 p-3 lg:p-4 mb-3 lg:mb-4">
                     <div
                       className="flex items-center justify-between cursor-pointer"
                       onClick={() => setExpandedWeek(isExpanded ? null : weekNum)}
@@ -1080,13 +1080,13 @@ ${textToTranslate}`
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex gap-4 justify-end sticky bottom-6 bg-gradient-to-r from-white to-blue-50 p-5 rounded-lg border-2 border-blue-200 shadow-xl mt-6">
+        <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-end sticky bottom-0 lg:bottom-6 bg-gradient-to-r from-white to-blue-50 p-4 lg:p-5 rounded-lg border-2 border-blue-200 shadow-xl mt-4 lg:mt-6">
           <Button
             onClick={handleSave}
             variant="outline"
             size="lg"
             disabled={loading}
-            className="h-12 text-base font-semibold border-2"
+            className="h-12 text-sm lg:text-base font-semibold border-2 w-full sm:w-auto"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Save Draft
@@ -1095,7 +1095,7 @@ ${textToTranslate}`
             onClick={handleComplete}
             disabled={loading}
             size="lg"
-            className="h-12 text-base font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+            className="h-12 text-sm lg:text-base font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg w-full sm:w-auto"
           >
             {loading ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating guide...</>
@@ -1108,11 +1108,11 @@ ${textToTranslate}`
 
       {/* 미션 예시 모달 */}
       {showExamplesModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <Lightbulb className="w-6 h-6 text-yellow-500" />
+        <div className="fixed inset-0 bg-black/50 flex items-end lg:items-center justify-center z-50 p-0 lg:p-4">
+          <div className="bg-white rounded-t-xl lg:rounded-lg max-w-3xl w-full max-h-[85vh] lg:max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 lg:p-6 border-b">
+              <h3 className="text-lg lg:text-xl font-bold flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-500" />
                 Week {currentWeekForExample} Mission Examples
               </h3>
               <button onClick={() => setShowExamplesModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -1120,7 +1120,7 @@ ${textToTranslate}`
               </button>
             </div>
 
-            <div className="flex gap-2 p-4 border-b overflow-x-auto">
+            <div className="flex gap-2 p-3 lg:p-4 border-b overflow-x-auto">
               {Object.entries(missionExamples).map(([key, category]) => (
                 <button
                   key={key}
@@ -1134,8 +1134,8 @@ ${textToTranslate}`
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid gap-3">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+              <div className="grid gap-2 lg:gap-3">
                 {missionExamples[selectedCategory].missions.map((mission, index) => (
                   <button
                     key={index}
@@ -1144,7 +1144,7 @@ ${textToTranslate}`
                       updateWeekData(weekKey, 'mission', mission)
                       setShowExamplesModal(false)
                     }}
-                    className="text-left p-4 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
+                    className="text-left p-3 lg:p-4 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-sm font-semibold text-gray-400 group-hover:text-blue-600 mt-0.5">{index + 1}</span>
@@ -1155,7 +1155,7 @@ ${textToTranslate}`
               </div>
             </div>
 
-            <div className="p-4 border-t bg-gray-50">
+            <div className="p-3 lg:p-4 border-t bg-gray-50">
               <p className="text-sm text-gray-600 text-center">Click an example to auto-fill the mission for that week.</p>
             </div>
           </div>

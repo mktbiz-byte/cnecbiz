@@ -795,10 +795,10 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
     <>
       <CompanyNavigation />
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-6 gap-3">
+            <div className="flex items-center gap-3 lg:gap-4">
               <Button
                 variant="outline"
                 onClick={() => navigate(`/company/campaigns/${campaignId}?region=${region}`)}
@@ -807,7 +807,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                 뒤로
               </Button>
               <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
+                <h1 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
                   <User className="w-6 h-6 text-purple-600" />
                   {creatorName}님 씬 가이드
                 </h1>
@@ -816,7 +816,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={copyGuideToClipboard}>
                 <Copy className="w-4 h-4 mr-2" />
                 복사
@@ -837,9 +837,9 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
           </div>
 
           {/* Creator Info */}
-          <Card className="mb-6 bg-purple-50 border-purple-200">
+          <Card className="mb-4 lg:mb-6 bg-purple-50 border-purple-200">
             <CardContent className="py-4">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 lg:gap-6">
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-purple-600" />
                   <span className="font-semibold">{creatorName}</span>
@@ -864,7 +864,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
           </Card>
 
           {/* Disclaimer Notice */}
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+          <div className="mb-4 lg:mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
             <div className="flex items-start gap-3">
               <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-white text-sm font-bold">!</span>
@@ -891,9 +891,9 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Left: Settings & Required Elements */}
-            <div className="space-y-6">
+            <div className="space-y-4 lg:space-y-6">
               {/* Style Settings */}
               <Card>
                 <CardHeader>
@@ -1031,13 +1031,13 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
             {/* Right: Scene Editor (2 columns) */}
             <div className="lg:col-span-2 space-y-4">
               {/* AI Auto-Generate Button */}
-              <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200 gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Sparkles className="w-5 h-5 text-purple-600" />
                   <span className="font-semibold text-purple-900">AI 가이드 자동 작성</span>
                   <span className="text-sm text-purple-700">- 캠페인 정보 기반 10개 씬 생성</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <Button
                     onClick={handleTranslateAll}
                     disabled={translating || generating}
@@ -1088,12 +1088,12 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                           </span>
                           씬 {scene.order}
                         </CardTitle>
-                        <div className="flex gap-2 items-center">
+                        <div className="flex gap-2 items-center flex-wrap">
                           <Input
                             value={scene.scene_type}
                             onChange={(e) => handleSceneChange(index, 'scene_type', e.target.value)}
                             placeholder="씬 타입 (예: 인트로, 제품 소개)"
-                            className="w-40"
+                            className="w-32 lg:w-40"
                           />
                           <Button
                             variant="outline"
@@ -1124,7 +1124,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* Scene Description - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">촬영장면 (한국어)</Label>
                           <Textarea
@@ -1148,7 +1148,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                       </div>
 
                       {/* Dialogue - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">대사 (한국어)</Label>
                           <Textarea
@@ -1172,7 +1172,7 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                       </div>
 
                       {/* Shooting Tip - Side by side */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">촬영 팁 (한국어)</Label>
                           <Input

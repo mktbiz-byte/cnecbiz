@@ -428,18 +428,18 @@ const CampaignGuideEditor = () => {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gray-50 py-8 pb-32">
+      <div className="min-h-screen bg-gray-50 py-4 lg:py-8 pb-32 pt-16 lg:pt-8">
         <div className="container mx-auto px-4 max-w-4xl">
           {/* 헤더 */}
-          <div className="flex justify-between items-start mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start mb-6 lg:mb-8 gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">크리에이터 가이드 작성</h1>
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-900">크리에이터 가이드 작성</h1>
               <p className="text-gray-600 mt-1">크리에이터가 영상 제작 시 참고할 가이드입니다</p>
               {campaignTitle && (
                 <p className="text-sm text-gray-500 mt-2">{campaignTitle}</p>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               {/* 추천 설정 드롭다운 */}
               <Select onValueChange={applyPreset}>
                 <SelectTrigger className="w-44 border-amber-300 text-amber-700 hover:bg-amber-50 bg-white">
@@ -477,15 +477,15 @@ const CampaignGuideEditor = () => {
           )}
 
           {/* 필수 입력 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex items-center gap-2 mb-4 lg:mb-6">
                 <span className="text-xl">🎯</span>
                 <h2 className="text-lg font-semibold text-orange-600">필수 입력</h2>
               </div>
 
               {/* 1초 후킹 포인트 */}
-              <div className="mb-6">
+              <div className="mb-4 lg:mb-6">
                 <Label className="text-base font-semibold mb-2 flex items-center gap-2">
                   <span>⚡</span> 1초 후킹 포인트 <span className="text-red-500">*</span>
                 </Label>
@@ -527,8 +527,8 @@ const CampaignGuideEditor = () => {
           </Card>
 
           {/* 필수 미션 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">🎬</span>
                 <h2 className="text-lg font-semibold">필수 미션 <span className="text-red-500">*</span></h2>
@@ -559,8 +559,8 @@ const CampaignGuideEditor = () => {
           </Card>
 
           {/* 금지 사항 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">🚫</span>
                 <h2 className="text-lg font-semibold">금지 사항 <span className="text-red-500">*</span></h2>
@@ -625,8 +625,8 @@ const CampaignGuideEditor = () => {
           </Card>
 
           {/* 자동 생성 해시태그 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">#️⃣</span>
                 <h2 className="text-lg font-semibold">자동 생성 해시태그</h2>
@@ -653,15 +653,15 @@ const CampaignGuideEditor = () => {
           </Card>
 
           {/* 추가 옵션 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-6">
+          <Card className="mb-4 lg:mb-6 shadow-sm">
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex items-center gap-2 mb-4 lg:mb-6">
                 <span className="text-xl">⚙️</span>
                 <h2 className="text-lg font-semibold">추가 옵션</h2>
               </div>
 
               {/* 영상 설정 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-4 lg:mb-6">
                 {/* 영상 길이 */}
                 <div>
                   <Label className="text-base font-semibold mb-3 block">영상 길이</Label>
@@ -706,7 +706,7 @@ const CampaignGuideEditor = () => {
               </div>
 
               {/* 나레이션 여부 & 파트너십 광고 코드 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-4 lg:mb-6">
                 {/* 나레이션 여부 */}
                 <div>
                   <Label className="text-base font-semibold mb-3 block">나레이션 여부</Label>
@@ -818,7 +818,7 @@ const CampaignGuideEditor = () => {
       {/* 하단 고정 네비게이션 바 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
         <div className="max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* 왼쪽: 템플릿 저장 */}
             <Button
               variant="outline"

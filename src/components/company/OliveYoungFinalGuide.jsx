@@ -217,7 +217,7 @@ export default function OliveYoungFinalGuide() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 pt-14 pb-20 lg:pt-8 lg:pb-8 max-w-7xl">
       <div className="mb-6">
         <Button
           variant="outline"
@@ -226,8 +226,8 @@ export default function OliveYoungFinalGuide() {
         >
           ← 가이드 수정으로 돌아가기
         </Button>
-        
-        <h1 className="text-3xl font-bold mb-2">올리브영 최종 가이드 생성 및 발송</h1>
+
+        <h1 className="text-xl lg:text-3xl font-bold mb-2">올리브영 최종 가이드 생성 및 발송</h1>
         <p className="text-gray-600">{campaign.title}</p>
       </div>
 
@@ -236,11 +236,11 @@ export default function OliveYoungFinalGuide() {
           <CardTitle>참여 크리에이터 목록</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-3">
+          <div className="mb-4 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={generateAllGuides}
               disabled={generating || selectedParticipants.length === 0}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-purple-600 hover:bg-purple-700 text-sm lg:text-base"
             >
               {generating ? (
                 <>
@@ -254,22 +254,22 @@ export default function OliveYoungFinalGuide() {
                 </>
               )}
             </Button>
-            
+
             <Button
               onClick={sendGuidesToCreators}
               disabled={selectedParticipants.length === 0}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-sm lg:text-base"
             >
               <Send className="w-4 h-4 mr-2" />
               선택한 크리에이터에게 발송
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">
+            <table className="w-full min-w-[640px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 lg:px-4 py-3 text-left">
                     <input
                       type="checkbox"
                       checked={selectedParticipants.length === participants.length && participants.length > 0}
@@ -283,12 +283,12 @@ export default function OliveYoungFinalGuide() {
                       className="w-4 h-4"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">개별 메시지</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 상태</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">발송 상태</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">작업</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">개별 메시지</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 상태</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">발송 상태</th>
+                  <th className="px-3 lg:px-4 py-3 text-left text-sm font-medium text-gray-700">작업</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -370,10 +370,10 @@ export default function OliveYoungFinalGuide() {
 
       {/* 가이드 미리보기 모달 */}
       {previewParticipant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-lg sm:rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 lg:p-6 border-b">
+              <h3 className="text-lg lg:text-xl font-bold">
                 {previewParticipant.creator_name || previewParticipant.applicant_name} - 최종 가이드
               </h3>
               <button
@@ -386,13 +386,13 @@ export default function OliveYoungFinalGuide() {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+              <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm lg:text-base">
                 {finalGuides[previewParticipant.id] || previewParticipant.personalized_guide || '가이드가 생성되지 않았습니다.'}
               </div>
             </div>
 
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
+            <div className="flex gap-3 p-4 lg:p-6 border-t bg-gray-50">
               <Button
                 variant="outline"
                 onClick={() => setPreviewParticipant(null)}

@@ -85,7 +85,7 @@ export default function CreatorDetailProfile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto px-4 py-4 pt-14 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="w-5 h-5 mr-2" />
           뒤로 가기
@@ -96,12 +96,12 @@ export default function CreatorDetailProfile() {
           <div className="lg:col-span-1 space-y-6">
             {/* Profile Card */}
             <Card className="shadow-lg">
-              <CardContent className="p-6">
+              <CardContent className="p-4 lg:p-6">
                 <div className="text-center mb-6">
-                  <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
+                  <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl lg:text-3xl font-bold">
                     {creator.creator_name[0]}
                   </div>
-                  <h1 className="text-2xl font-bold mb-2">{creator.creator_name}</h1>
+                  <h1 className="text-xl lg:text-2xl font-bold mb-2">{creator.creator_name}</h1>
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                       승인됨
@@ -175,21 +175,21 @@ export default function CreatorDetailProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-3xl font-bold text-blue-600">
+                <div className="text-center p-3 lg:p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl lg:text-3xl font-bold text-blue-600">
                     {(creator.total_followers || 0).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-600 mt-1">총 팔로워</div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
+                <div className="grid grid-cols-2 gap-3 lg:gap-4">
+                  <div className="text-center p-2 lg:p-3 bg-green-50 rounded-lg">
+                    <div className="text-xl lg:text-2xl font-bold text-green-600">
                       {creator.avg_engagement_rate || 0}%
                     </div>
                     <div className="text-xs text-gray-600 mt-1">평균 참여율</div>
                   </div>
-                  <div className="text-center p-3 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-center p-2 lg:p-3 bg-purple-50 rounded-lg">
+                    <div className="text-xl lg:text-2xl font-bold text-purple-600">
                       {(creator.avg_views || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-600 mt-1">평균 조회수</div>
@@ -219,15 +219,15 @@ export default function CreatorDetailProfile() {
             {/* Collaboration Score */}
             <Card className="shadow-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl">
-                  <Target className="w-6 h-6 text-blue-600" />
+                <CardTitle className="flex items-center gap-2 text-lg lg:text-2xl">
+                  <Target className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
                   협업 적합도
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-6">
-                  <div className="relative w-32 h-32">
-                    <svg className="w-32 h-32 transform -rotate-90">
+                <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
+                  <div className="relative w-28 h-28 lg:w-32 lg:h-32 flex-shrink-0">
+                    <svg className="w-28 h-28 lg:w-32 lg:h-32 transform -rotate-90">
                       <circle
                         cx="64"
                         cy="64"
@@ -254,11 +254,11 @@ export default function CreatorDetailProfile() {
                       </defs>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-blue-600">{collaborationScore}</span>
+                      <span className="text-2xl lg:text-3xl font-bold text-blue-600">{collaborationScore}</span>
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-2">매우 적합</h3>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="text-lg lg:text-xl font-bold mb-2">매우 적합</h3>
                     <p className="text-gray-600 mb-4">
                       높은 참여율과 충성도 높은 팔로워를 보유하고 있어 광고 효과가 우수할 것으로 예상됩니다.
                     </p>
@@ -387,21 +387,21 @@ export default function CreatorDetailProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-white rounded-lg shadow">
-                    <div className="text-2xl font-bold text-orange-600">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                  <div className="text-center p-3 lg:p-4 bg-white rounded-lg shadow">
+                    <div className="text-xl lg:text-2xl font-bold text-orange-600">
                       {Math.round((creator.avg_views || 0) * 0.8).toLocaleString()}+
                     </div>
                     <div className="text-sm text-gray-600 mt-1">예상 도달</div>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg shadow">
-                    <div className="text-2xl font-bold text-green-600">
+                  <div className="text-center p-3 lg:p-4 bg-white rounded-lg shadow">
+                    <div className="text-xl lg:text-2xl font-bold text-green-600">
                       {Math.round((creator.avg_views || 0) * (creator.avg_engagement_rate || 3) / 100).toLocaleString()}+
                     </div>
                     <div className="text-sm text-gray-600 mt-1">예상 참여</div>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg shadow">
-                    <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-center p-3 lg:p-4 bg-white rounded-lg shadow">
+                    <div className="text-xl lg:text-2xl font-bold text-blue-600">
                       {((creator.avg_engagement_rate || 3) * 0.3).toFixed(1)}%
                     </div>
                     <div className="text-sm text-gray-600 mt-1">예상 전환율</div>

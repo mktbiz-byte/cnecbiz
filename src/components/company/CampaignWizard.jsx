@@ -432,8 +432,8 @@ export default function CampaignWizard() {
   // 프로그레스 바 렌더링
   const renderProgressBar = () => (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
+      <div className="max-w-5xl mx-auto px-3 lg:px-4 py-3 lg:py-4">
+        <div className="flex items-center justify-between overflow-x-auto">
           {STEPS.map((step, index) => (
             <div key={step.id} className="flex items-center">
               <button
@@ -470,10 +470,10 @@ export default function CampaignWizard() {
 
   // Step 1: 캠페인 선택
   const renderStep1 = () => (
-    <div className="space-y-8">
+    <div className="space-y-4 lg:space-y-8">
       {/* 타이틀 */}
       <div className="text-center">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
+        <h1 className="text-xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
         <p className="text-gray-500">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
       </div>
 
@@ -543,10 +543,10 @@ export default function CampaignWizard() {
 
       {/* 기획형 캠페인 옵션 */}
       {formData.campaign_type === 'planned' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* 왼쪽: 옵션 선택 */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4 lg:p-6">
+            <h2 className="text-base lg:text-lg font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
             <p className="text-gray-500 text-sm mb-6">예산에 따라 지원하는 크리에이터의 퀄리티와 지원율이 달라집니다.</p>
 
             {/* 패키지 선택 */}
@@ -664,7 +664,7 @@ export default function CampaignWizard() {
 
           {/* 오른쪽: 예상 견적서 */}
           <div className="lg:col-span-1">
-            <div className="bg-slate-900 rounded-xl p-6 text-white sticky top-24">
+            <div className="bg-slate-900 rounded-xl p-4 lg:p-6 text-white lg:sticky lg:top-24">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <span className="text-xl">📋</span> 예상 견적서
               </h3>
@@ -720,11 +720,11 @@ export default function CampaignWizard() {
 
   // Step 2: 상품 정보
   const renderStep2 = () => (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">상품 정보 입력</h1>
-          <p className="text-gray-500">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1 lg:mb-2">상품 정보 입력</h1>
+          <p className="text-gray-500 text-sm lg:text-base">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
         </div>
         {/* 이전 캠페인 불러오기 버튼 */}
         <Button
@@ -790,11 +790,11 @@ export default function CampaignWizard() {
       )}
 
       {/* URL 입력 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6">
         <Label className="text-sm font-semibold text-gray-700 mb-2 block">
-          🔗 상품 URL
+          상품 URL
         </Label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             value={formData.product_url}
             onChange={(e) => setFormData(prev => ({ ...prev, product_url: e.target.value }))}
@@ -852,7 +852,7 @@ export default function CampaignWizard() {
       )}
 
       {/* 브랜드/상품 정보 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">브랜드명 *</Label>
@@ -894,7 +894,7 @@ export default function CampaignWizard() {
       </div>
 
       {/* 참여 조건 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 space-y-4">
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-3 block">참여 조건 *</Label>
           <div className="flex flex-wrap gap-3">
@@ -973,14 +973,14 @@ export default function CampaignWizard() {
 
   // Step 3: 스케줄 설정
   const renderStep3 = () => (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">스케줄 설정</h1>
-        <p className="text-gray-500">제품 발송일만 입력하면 나머지 일정을 자동으로 추천해드립니다</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1 lg:mb-2">스케줄 설정</h1>
+        <p className="text-gray-500 text-sm lg:text-base">제품 발송일만 입력하면 나머지 일정을 자동으로 추천해드립니다</p>
       </div>
 
       {/* 발송일 & 모집 마감일 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 space-y-4">
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-2 block">📦 제품 발송 예정일 *</Label>
           <Input
@@ -1008,10 +1008,10 @@ export default function CampaignWizard() {
 
       {/* 자동 추천 일정 */}
       {formData.shipping_date && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <span>✨</span> AI가 추천하는 일정
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-sm lg:text-base">
+              AI가 추천하는 일정
             </h3>
             <Button variant="ghost" size="sm" className="text-indigo-600">
               모두 수정
@@ -1081,11 +1081,11 @@ export default function CampaignWizard() {
 
   // Step 4: 가이드 작성
   const renderStep4 = () => (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">크리에이터 가이드 작성</h1>
-          <p className="text-gray-500">크리에이터가 영상 제작 시 참고할 가이드입니다</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1 lg:mb-2">크리에이터 가이드 작성</h1>
+          <p className="text-gray-500 text-sm lg:text-base">크리에이터가 영상 제작 시 참고할 가이드입니다</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -1131,7 +1131,7 @@ export default function CampaignWizard() {
       )}
 
       {/* 필수 입력 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 space-y-4 lg:space-y-6">
         <div className="flex items-center gap-2 text-indigo-600 font-semibold">
           <span>🎯</span> 필수 입력
         </div>
@@ -1334,10 +1334,10 @@ export default function CampaignWizard() {
 
       {/* 영상 스타일 (접힘) */}
       <details className="bg-white rounded-xl border border-gray-200">
-        <summary className="p-6 cursor-pointer font-semibold text-gray-700 flex items-center gap-2">
-          <span>🎨</span> 영상 스타일 (선택)
+        <summary className="p-4 lg:p-6 cursor-pointer font-semibold text-gray-700 flex items-center gap-2 text-sm lg:text-base">
+          영상 스타일 (선택)
         </summary>
-        <div className="px-6 pb-6 space-y-4">
+        <div className="px-4 pb-4 lg:px-6 lg:pb-6 space-y-4">
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-3 block">⏱️ 영상 길이</Label>
             <div className="flex flex-wrap gap-2">
@@ -1414,14 +1414,14 @@ export default function CampaignWizard() {
 
   // Step 5: 최종 확인
   const renderStep5 = () => (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">최종 확인</h1>
-        <p className="text-gray-500">입력하신 내용을 확인하고 캠페인을 등록하세요</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1 lg:mb-2">최종 확인</h1>
+        <p className="text-gray-500 text-sm lg:text-base">입력하신 내용을 확인하고 캠페인을 등록하세요</p>
       </div>
 
       {/* 캠페인 요약 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <span>📋</span> 캠페인 요약
@@ -1429,21 +1429,21 @@ export default function CampaignWizard() {
           <button onClick={() => goToStep(1)} className="text-sm text-indigo-600 hover:underline">수정</button>
         </div>
         <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
             <span className="text-gray-500">캠페인 타입</span>
             <span className="text-gray-900">{CAMPAIGN_TYPES.find(t => t.id === formData.campaign_type)?.name} · {selectedPackage?.label}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
             <span className="text-gray-500">브랜드 / 제품</span>
             <span className="text-gray-900">{formData.brand_name || '-'} · {formData.product_name || '-'}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
             <span className="text-gray-500">모집 채널</span>
             <span className="text-gray-900">
               {formData.channels.map(c => CHANNEL_OPTIONS.find(o => o.value === c)?.label).join(', ') || '-'}
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
             <span className="text-gray-500">예상 비용</span>
             <span className="text-gray-900 font-semibold">{totalPrice.toLocaleString()}원</span>
           </div>
@@ -1451,7 +1451,7 @@ export default function CampaignWizard() {
       </div>
 
       {/* 스케줄 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <span>📅</span> 스케줄
@@ -1486,7 +1486,7 @@ export default function CampaignWizard() {
       </div>
 
       {/* 가이드 요약 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <span>🎯</span> 크리에이터 가이드 요약
@@ -1494,21 +1494,21 @@ export default function CampaignWizard() {
           <button onClick={() => goToStep(4)} className="text-sm text-indigo-600 hover:underline">수정</button>
         </div>
         <div className="space-y-3 text-sm">
-          <div className="flex">
-            <span className="text-gray-500 w-24 flex-shrink-0">⚡ 1초 후킹</span>
+          <div className="flex flex-col sm:flex-row gap-1">
+            <span className="text-gray-500 w-24 flex-shrink-0">1초 후킹</span>
             <span className="text-gray-900">"{formData.hooking_point || '-'}"</span>
           </div>
-          <div className="flex">
-            <span className="text-gray-500 w-24 flex-shrink-0">💬 핵심 메시지</span>
+          <div className="flex flex-col sm:flex-row gap-1">
+            <span className="text-gray-500 w-24 flex-shrink-0">핵심 메시지</span>
             <span className="text-gray-900">{formData.core_message || '-'}</span>
           </div>
-          <div className="flex">
-            <span className="text-gray-500 w-24 flex-shrink-0">🎬 필수 미션</span>
+          <div className="flex flex-col sm:flex-row gap-1">
+            <span className="text-gray-500 w-24 flex-shrink-0">필수 미션</span>
             <span className="text-gray-900">
               {formData.required_missions.map(m => MISSION_OPTIONS.find(o => o.id === m)?.label).join(', ') || '-'}
             </span>
           </div>
-          <div className="flex">
+          <div className="flex flex-col sm:flex-row gap-1">
             <span className="text-gray-500 w-24 flex-shrink-0"># 해시태그</span>
             <span className="text-gray-900">
               {formData.required_hashtags.map(t => `#${t}`).join(' ') || '-'}
@@ -1647,12 +1647,12 @@ export default function CampaignWizard() {
       {renderProgressBar()}
 
       {/* 메인 콘텐츠 */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-4 lg:py-8 pb-24 lg:pb-24">
         {renderCurrentStep()}
       </div>
 
       {/* 하단 네비게이션 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 lg:p-4 z-40 pb-safe">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             {isSaving ? (

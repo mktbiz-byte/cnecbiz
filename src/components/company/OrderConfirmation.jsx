@@ -135,7 +135,7 @@ const OrderConfirmation = () => {
   return (
     <>
       <CompanyNavigation />
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:ml-64 pt-14 pb-20 lg:pt-6 lg:pb-6">
       <Button
         variant="ghost"
         onClick={() => {
@@ -157,7 +157,7 @@ const OrderConfirmation = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl">주문서 확인</CardTitle>
+            <CardTitle className="text-xl lg:text-2xl">주문서 확인</CardTitle>
             <Badge variant="secondary" className="text-sm">
               <CreditCard className="w-3 h-3 mr-1" />
               결제 대기
@@ -172,7 +172,7 @@ const OrderConfirmation = () => {
           {/* 패키지 및 비용 정보 */}
           <div>
             <h3 className="font-semibold text-lg mb-4">패키지 및 비용</h3>
-            <div className="bg-blue-50 p-6 rounded-lg space-y-4">
+            <div className="bg-blue-50 p-4 lg:p-6 rounded-lg space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">선택 패키지</span>
                 <span className="font-semibold text-blue-600 text-lg">{campaign.package_type}</span>
@@ -201,8 +201,8 @@ const OrderConfirmation = () => {
               </div>
               <div className="border-t border-blue-200 pt-4 mt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xl font-semibold">예상 총 비용</span>
-                  <span className="text-3xl font-bold text-blue-600">
+                  <span className="text-base lg:text-xl font-semibold">예상 총 비용</span>
+                  <span className="text-2xl lg:text-3xl font-bold text-blue-600">
                     {totalCost.toLocaleString()}원
                   </span>
                 </div>

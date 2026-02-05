@@ -192,7 +192,7 @@ export default function ConsultationBanner() {
   return (
     <>
       {/* 플로팅 상담 버튼 - 우측 하단 (하단 바 위로 위치) - 관리자 페이지에서는 숨김 */}
-      <div className={`fixed bottom-24 right-6 z-50 ${
+      <div className={`fixed bottom-20 right-4 sm:right-6 lg:bottom-6 z-50 ${
         isAdminPage ? 'hidden' : isMainPage ? '' : 'hidden md:block'
       }`}>
         {isLoggedIn ? (
@@ -253,7 +253,7 @@ export default function ConsultationBanner() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
             {/* 헤더 - 그라데이션 */}
-            <div className="relative bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white p-8">
+            <div className="relative bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white p-5 sm:p-8">
               {/* 배경 패턴 */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-4 right-4 w-32 h-32 border border-white/30 rounded-full" />
@@ -281,9 +281,9 @@ export default function ConsultationBanner() {
             </div>
 
             {/* 폼 */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5 max-h-[60vh] overflow-y-auto">
               {/* 상호명 & 브랜드명 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
                     <Building2 className="w-4 h-4 text-violet-500" />

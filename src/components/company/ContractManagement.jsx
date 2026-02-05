@@ -254,46 +254,46 @@ export default function ContractManagement() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64">
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+        <div className="max-w-7xl mx-auto p-4 lg:p-6">
+          <div className="mb-6 lg:mb-8">
+            <h1 className="text-2xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               계약서 관리
             </h1>
-            <p className="text-gray-600 mt-1">크리에이터와의 계약서를 관리하세요</p>
+            <p className="text-sm lg:text-base text-gray-600 mt-1">크리에이터와의 계약서를 관리하세요</p>
           </div>
 
           {/* 통계 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4 mb-6">
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">전체</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+                  <p className="text-xs lg:text-sm text-gray-600">전체</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 mt-1 lg:mt-2">{stats.total}</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">발송됨</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">{stats.sent}</p>
+                  <p className="text-xs lg:text-sm text-gray-600">발송됨</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-blue-600 mt-1 lg:mt-2">{stats.sent}</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">서명완료</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">{stats.signed}</p>
+                  <p className="text-xs lg:text-sm text-gray-600">서명완료</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-green-600 mt-1 lg:mt-2">{stats.signed}</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">만료</p>
-                  <p className="text-3xl font-bold text-red-600 mt-2">{stats.expired}</p>
+                  <p className="text-xs lg:text-sm text-gray-600">만료</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-red-600 mt-1 lg:mt-2">{stats.expired}</p>
                 </div>
               </CardContent>
             </Card>
@@ -346,15 +346,15 @@ export default function ContractManagement() {
           {/* 계약서 목록 */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>계약서 목록</CardTitle>
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <CardTitle className="text-base lg:text-lg">계약서 목록</CardTitle>
+                <div className="relative w-full sm:w-auto">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     placeholder="계약서 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-full sm:w-64"
                   />
                 </div>
               </div>
@@ -362,94 +362,143 @@ export default function ContractManagement() {
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="all">전체</TabsTrigger>
-                  <TabsTrigger value="sent">발송됨</TabsTrigger>
-                  <TabsTrigger value="signed">서명완료</TabsTrigger>
-                  <TabsTrigger value="expired">만료</TabsTrigger>
-                  <TabsTrigger value="pending">대기</TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs lg:text-sm">전체</TabsTrigger>
+                  <TabsTrigger value="sent" className="text-xs lg:text-sm">발송됨</TabsTrigger>
+                  <TabsTrigger value="signed" className="text-xs lg:text-sm">서명완료</TabsTrigger>
+                  <TabsTrigger value="expired" className="text-xs lg:text-sm">만료</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs lg:text-sm">대기</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value={activeTab} className="mt-6">
+                <TabsContent value={activeTab} className="mt-4 lg:mt-6">
                   {loading ? (
                     <div className="text-center py-12">
                       <p className="text-gray-500">로딩 중...</p>
                     </div>
                   ) : filteredContracts.length === 0 ? (
                     <div className="text-center py-12">
-                      <FileSignature className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <FileSignature className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-4 text-gray-400" />
                       <p className="text-gray-500">계약서가 없습니다.</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">캠페인</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">발송일</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">서명일</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">만료일</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredContracts.map((contract) => {
-                            const statusBadge = getStatusBadge(contract.status)
-                            const StatusIcon = statusBadge.icon
-                            return (
-                              <tr key={contract.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                  {getContractTypeName(contract.contract_type)}
-                                </td>
-                                <td className="px-4 py-4 text-sm">
-                                  {contract.title}
-                                </td>
-                                <td className="px-4 py-4 text-sm">
-                                  {contract.campaigns?.title || '-'}
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusBadge.color}`}>
-                                    <StatusIcon className="w-3 h-3" />
-                                    {statusBadge.text}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {contract.sent_at ? new Date(contract.sent_at).toLocaleDateString('ko-KR') : '-'}
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString('ko-KR') : '-'}
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {new Date(contract.expires_at).toLocaleDateString('ko-KR')}
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                  <div className="flex items-center gap-2">
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block lg:hidden space-y-3">
+                        {filteredContracts.map((contract) => {
+                          const statusBadge = getStatusBadge(contract.status)
+                          const StatusIcon = statusBadge.icon
+                          return (
+                            <div key={contract.id} className="border rounded-lg p-4 bg-white overflow-hidden">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{contract.title}</p>
+                                  <p className="text-xs text-gray-500 mt-1">{getContractTypeName(contract.contract_type)}</p>
+                                </div>
+                                <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ml-2 flex-shrink-0 ${statusBadge.color}`}>
+                                  <StatusIcon className="w-3 h-3" />
+                                  {statusBadge.text}
+                                </span>
+                              </div>
+                              {contract.campaigns?.title && (
+                                <p className="text-xs text-gray-500 mb-2 truncate">캠페인: {contract.campaigns.title}</p>
+                              )}
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>만료: {new Date(contract.expires_at).toLocaleDateString('ko-KR')}</span>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(`/sign-contract/${contract.id}`, '_blank')}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  {contract.signed_contract_url && (
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => window.open(`/sign-contract/${contract.id}`, '_blank')}
+                                      onClick={() => window.open(contract.signed_contract_url, '_blank')}
                                     >
-                                      <Eye className="w-4 h-4" />
+                                      <Download className="w-4 h-4" />
                                     </Button>
-                                    {contract.signed_contract_url && (
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden lg:block overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">캠페인</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">발송일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">서명일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">만료일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredContracts.map((contract) => {
+                              const statusBadge = getStatusBadge(contract.status)
+                              const StatusIcon = statusBadge.icon
+                              return (
+                                <tr key={contract.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    {getContractTypeName(contract.contract_type)}
+                                  </td>
+                                  <td className="px-4 py-4 text-sm max-w-[200px]">
+                                    <span className="block truncate">{contract.title}</span>
+                                  </td>
+                                  <td className="px-4 py-4 text-sm max-w-[200px]">
+                                    <span className="block truncate">{contract.campaigns?.title || '-'}</span>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusBadge.color}`}>
+                                      <StatusIcon className="w-3 h-3" />
+                                      {statusBadge.text}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {contract.sent_at ? new Date(contract.sent_at).toLocaleDateString('ko-KR') : '-'}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString('ko-KR') : '-'}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {new Date(contract.expires_at).toLocaleDateString('ko-KR')}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="flex items-center gap-2">
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open(contract.signed_contract_url, '_blank')}
+                                        onClick={() => window.open(`/sign-contract/${contract.id}`, '_blank')}
                                       >
-                                        <Download className="w-4 h-4" />
+                                        <Eye className="w-4 h-4" />
                                       </Button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                      {contract.signed_contract_url && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => window.open(contract.signed_contract_url, '_blank')}
+                                        >
+                                          <Download className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </TabsContent>
               </Tabs>

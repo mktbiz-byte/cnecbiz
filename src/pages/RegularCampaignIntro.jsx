@@ -55,16 +55,16 @@ export default function RegularCampaignIntro() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-16 lg:px-6">
         <div className="text-center mb-12">
           <div className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
             📝 기획형 캠페인 가이드
           </div>
-          <h1 className="text-5xl font-bold mb-6 text-gray-900">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-6 text-gray-900">
             전문 기획으로 완성하는<br />
             프리미엄 인플루언서 마케팅
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 mb-8">
             대사부터 촬영 장면까지, 체계적인 가이드로 브랜드 메시지를 정확하게 전달합니다
           </p>
           <Button
@@ -78,7 +78,7 @@ export default function RegularCampaignIntro() {
         </div>
 
         {/* 가격 정보 */}
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16">
           <Card className="border-2 hover:border-green-400 transition-all">
             <CardContent className="p-6">
               <div className="text-center">
@@ -134,17 +134,17 @@ export default function RegularCampaignIntro() {
         {/* 이 캠페인을 선택해야 하는 이유 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Sparkles className="inline w-8 h-8 text-blue-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Sparkles className="inline w-7 h-7 sm:w-8 sm:h-8 text-blue-600 mr-2" />
               왜 기획형 캠페인을 선택해야 할까요?
             </h2>
             <p className="text-gray-600">전문 기획팀이 만든 완벽한 가이드로 브랜드 메시지를 정확하게 전달합니다</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-blue-100">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-4">
-                  <div className="bg-blue-100 p-3 rounded-lg">
+                  <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
                     <FileText className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
@@ -213,13 +213,13 @@ export default function RegularCampaignIntro() {
         {/* 캠페인 생성 방법 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <FileText className="inline w-8 h-8 text-blue-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <FileText className="inline w-7 h-7 sm:w-8 sm:h-8 text-blue-600 mr-2" />
               캠페인 생성 방법
             </h2>
             <p className="text-gray-600">간단한 5단계로 캠페인을 시작하세요</p>
           </div>
-          <div className="grid md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {[
               { step: '1', title: '캠페인 타입 선택', desc: '기획형 캠페인 선택' },
               { step: '2', title: '등급 및 인원 선택', desc: '초급/스탠다드/프리미엄' },
@@ -243,8 +243,8 @@ export default function RegularCampaignIntro() {
         {/* 프로세스 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Calendar className="inline w-8 h-8 text-blue-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Calendar className="inline w-7 h-7 sm:w-8 sm:h-8 text-blue-600 mr-2" />
               캠페인 진행 프로세스
             </h2>
             <p className="text-gray-600">체계적인 프로세스로 성공적인 캠페인을 보장합니다</p>
@@ -302,13 +302,13 @@ export default function RegularCampaignIntro() {
         {referenceVideos.length > 0 && (
           <div className="mb-16">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-4">
-                <Video className="inline w-8 h-8 text-blue-600 mr-2" />
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+                <Video className="inline w-7 h-7 sm:w-8 sm:h-8 text-blue-600 mr-2" />
                 레퍼런스 영상 확인
               </h2>
               <p className="text-gray-600">실제 기획형 캠페인으로 제작된 영상을 확인해보세요</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {referenceVideos.map((video) => {
                 const videoId = getVideoId(video.video_url)
                 return (
@@ -344,11 +344,11 @@ export default function RegularCampaignIntro() {
         )}
 
         {/* CTA */}
-        <div className="text-center bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">
+        <div className="text-center bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 sm:p-12 text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">
             지금 바로 기획형 캠페인을 시작하세요
           </h2>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="text-lg sm:text-xl mb-8 opacity-90">
             전문 기획으로 완성되는 프리미엄 인플루언서 마케팅
           </p>
           <Button

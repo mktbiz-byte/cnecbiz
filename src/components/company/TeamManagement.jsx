@@ -142,27 +142,27 @@ export default function TeamManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="max-w-4xl mx-auto p-4 lg:p-6">
+        <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             대시보드로 돌아가기
           </Button>
         </div>
 
-        <div className="flex items-center gap-3 mb-8">
-          <Users className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">팀 관리</h1>
+        <div className="flex items-center gap-3 mb-6 lg:mb-8">
+          <Users className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600" />
+          <h1 className="text-2xl lg:text-3xl font-bold">팀 관리</h1>
         </div>
 
         {/* Invite Form */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>팀원 초대</CardTitle>
+            <CardTitle className="text-base lg:text-lg">팀원 초대</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
                   type="email"
@@ -171,18 +171,20 @@ export default function TeamManagement() {
                   onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                 />
               </div>
-              <select
-                value={newMember.role}
-                onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="member">멤버</option>
-                <option value="admin">관리자</option>
-              </select>
-              <Button onClick={handleInvite} disabled={loading}>
-                <Plus className="w-4 h-4 mr-2" />
-                초대
-              </Button>
+              <div className="flex gap-3">
+                <select
+                  value={newMember.role}
+                  onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
+                  className="px-4 py-2 border rounded-lg flex-1 sm:flex-none"
+                >
+                  <option value="member">멤버</option>
+                  <option value="admin">관리자</option>
+                </select>
+                <Button onClick={handleInvite} disabled={loading} className="flex-1 sm:flex-none">
+                  <Plus className="w-4 h-4 mr-2" />
+                  초대
+                </Button>
+              </div>
             </div>
             <p className="text-sm text-gray-500 mt-2">
               초대된 팀원은 이메일로 초대 링크를 받게 됩니다
@@ -193,7 +195,7 @@ export default function TeamManagement() {
         {/* Team Members List */}
         <Card>
           <CardHeader>
-            <CardTitle>팀원 목록 ({teamMembers.length}명)</CardTitle>
+            <CardTitle className="text-base lg:text-lg">팀원 목록 ({teamMembers.length}명)</CardTitle>
           </CardHeader>
           <CardContent>
             {teamMembers.length === 0 ? (
@@ -201,18 +203,18 @@ export default function TeamManagement() {
                 아직 팀원이 없습니다. 위에서 팀원을 초대해보세요!
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 lg:space-y-4">
                 {teamMembers.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 lg:p-4 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Mail className="w-6 h-6 text-blue-600" />
+                    <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+                      <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
                       </div>
-                      <div>
-                        <div className="font-medium">{member.email}</div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm lg:text-base truncate">{member.email}</div>
                         <div className="flex items-center gap-2 mt-1">
                           {getRoleBadge(member.role)}
                           {getStatusBadge(member.status)}
@@ -224,6 +226,7 @@ export default function TeamManagement() {
                         variant="destructive"
                         size="sm"
                         onClick={() => handleRemove(member.id)}
+                        className="flex-shrink-0 ml-2"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -237,7 +240,7 @@ export default function TeamManagement() {
 
         {/* Info Card */}
         <Card className="mt-6">
-          <CardContent className="p-6">
+          <CardContent className="p-4 lg:p-6">
             <div className="flex items-start gap-3">
               <Shield className="w-5 h-5 text-blue-600 mt-1" />
               <div>

@@ -176,19 +176,19 @@ ${snsUrls}
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center px-4 py-6 sm:p-6">
       <Card className="w-full max-w-2xl shadow-2xl border-2 border-purple-100">
-        <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-          <CardTitle className="text-3xl flex items-center gap-3">
-            <Sparkles className="w-8 h-8" />
+        <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 sm:p-6">
+          <CardTitle className="text-2xl sm:text-3xl flex items-center gap-3">
+            <Sparkles className="w-7 h-7 sm:w-8 sm:h-8" />
             추천 크리에이터 신청
           </CardTitle>
-          <p className="text-purple-100 mt-2">
+          <p className="text-purple-100 mt-2 text-sm sm:text-base">
             간단한 정보만 입력하시면 AI가 자동으로 프로필을 생성해드립니다
           </p>
         </CardHeader>
 
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-8">
           {/* Step 1: 기본 정보 */}
           {step === 1 && (
             <div className="space-y-6">
@@ -402,21 +402,21 @@ ${snsUrls}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">
+                        <div className="text-lg sm:text-2xl font-bold text-purple-600">
                           {formData.total_followers.toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-600">총 팔로워</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-pink-600">
+                        <div className="text-lg sm:text-2xl font-bold text-pink-600">
                           {formData.avg_engagement_rate}%
                         </div>
                         <div className="text-xs text-gray-600">평균 참여율</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-lg sm:text-2xl font-bold text-blue-600">
                           {formData.avg_views.toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-600">평균 조회수</div>
@@ -467,7 +467,7 @@ ${snsUrls}
                 <CheckCircle className="w-12 h-12 text-green-600" />
               </div>
               
-              <h2 className="text-3xl font-bold mb-4">신청이 완료되었습니다! 🎉</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">신청이 완료되었습니다! 🎉</h2>
               
               <p className="text-gray-600 mb-8 text-lg">
                 관리자 검토 후 승인되면 이메일로 안내드리겠습니다.<br />

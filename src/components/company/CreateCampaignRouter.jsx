@@ -67,8 +67,8 @@ export default function CreateCampaignRouter() {
   // 미승인 상태
   if (!isApproved) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4 pt-16 lg:pt-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-6 lg:p-8 text-center">
           {/* Icon */}
           <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-6">
             <ShieldAlert className="w-8 h-8 text-amber-600" />
@@ -85,7 +85,7 @@ export default function CreateCampaignRouter() {
           </p>
 
           {/* Info Box */}
-          <div className="bg-indigo-50 rounded-xl p-5 mb-6 text-left">
+          <div className="bg-indigo-50 rounded-xl p-4 lg:p-5 mb-6 text-left">
             <div className="flex items-start gap-3">
               <MessageSquare className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
               <div>

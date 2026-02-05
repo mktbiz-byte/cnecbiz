@@ -105,15 +105,15 @@ const ResetPasswordPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4 py-6 lg:px-8 lg:py-8">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">새 비밀번호 설정</CardTitle>
-          <CardDescription>
+        <CardHeader className="space-y-1 px-4 lg:px-6">
+          <CardTitle className="text-xl lg:text-2xl font-bold">새 비밀번호 설정</CardTitle>
+          <CardDescription className="text-sm lg:text-base">
             새로운 비밀번호를 입력해주세요.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 lg:px-6">
           {!success ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -127,11 +127,12 @@ const ResetPasswordPage = () => {
                     value={formData.password}
                     onChange={handleChange}
                     disabled={loading || !accessToken}
+                    className="h-12 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -152,11 +153,12 @@ const ResetPasswordPage = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     disabled={loading || !accessToken}
+                    className="h-12 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -174,7 +176,7 @@ const ResetPasswordPage = () => {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full h-12"
                 disabled={loading || !accessToken}
               >
                 {loading ? '변경 중...' : '비밀번호 변경'}
@@ -195,7 +197,7 @@ const ResetPasswordPage = () => {
               </div>
 
               <Button
-                className="w-full"
+                className="w-full h-12"
                 onClick={() => navigate('/login')}
               >
                 로그인하기

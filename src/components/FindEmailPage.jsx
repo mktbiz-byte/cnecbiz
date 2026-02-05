@@ -142,7 +142,7 @@ const FindEmailPage = () => {
           </div>
           <button
             onClick={() => navigate('/login')}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>로그인</span>
@@ -151,18 +151,18 @@ const FindEmailPage = () => {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
+      <div className="max-w-md mx-auto px-4 lg:px-6 py-6 sm:py-8 lg:py-12">
         <Card className="shadow-lg">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl sm:text-2xl font-bold text-center text-gray-800">
+          <CardHeader className="space-y-1 pb-4 px-4 lg:px-6">
+            <CardTitle className="text-xl lg:text-2xl font-bold text-center text-gray-800">
               ID(이메일) 찾기
             </CardTitle>
-            <CardDescription className="text-center text-sm sm:text-base">
+            <CardDescription className="text-center text-sm lg:text-base">
               가입 시 등록한 핸드폰 번호로 이메일을 찾을 수 있습니다.
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="px-4 lg:px-6">
             {!foundAccounts ? (
               <div className="space-y-4 sm:space-y-6">
                 {/* 핸드폰 번호 입력 */}
@@ -177,13 +177,13 @@ const FindEmailPage = () => {
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       placeholder="01012345678"
                       disabled={smsVerified}
-                      className="h-11 sm:h-12"
+                      className="h-12"
                     />
                     <Button
                       type="button"
                       onClick={handleSendSMS}
                       disabled={smsLoading || smsVerified || smsTimer > 0}
-                      className="whitespace-nowrap h-11 sm:h-12 px-3 sm:px-4 text-sm"
+                      className="whitespace-nowrap h-12 px-3 sm:px-4 text-sm"
                     >
                       {smsTimer > 0 ? `${Math.floor(smsTimer / 60)}:${String(smsTimer % 60).padStart(2, '0')}` : '인증번호 발송'}
                     </Button>
@@ -203,13 +203,13 @@ const FindEmailPage = () => {
                         onChange={(e) => setSmsCode(e.target.value)}
                         placeholder="인증번호 6자리"
                         maxLength={6}
-                        className="h-11 sm:h-12"
+                        className="h-12"
                       />
                       <Button
                         type="button"
                         onClick={handleVerifyAndFind}
                         disabled={smsLoading}
-                        className="whitespace-nowrap h-11 sm:h-12 px-4 sm:px-6"
+                        className="whitespace-nowrap h-12 px-4 sm:px-6"
                       >
                         {smsLoading ? '확인 중...' : '확인'}
                       </Button>
@@ -219,8 +219,8 @@ const FindEmailPage = () => {
 
                 {/* 인증 완료 */}
                 {smsVerified && (
-                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg text-sm sm:text-base">
-                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg text-sm">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
                     <span className="font-medium">핸드폰 인증 완료</span>
                   </div>
                 )}
@@ -228,7 +228,7 @@ const FindEmailPage = () => {
                 {/* 오류 메시지 */}
                 {error && (
                   <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -280,7 +280,7 @@ const FindEmailPage = () => {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
-                    className="flex-1 h-11 sm:h-12"
+                    className="flex-1 h-12"
                     onClick={() => {
                       setFoundAccounts(null)
                       setPhoneNumber('')
@@ -293,7 +293,7 @@ const FindEmailPage = () => {
                     다시 찾기
                   </Button>
                   <Button
-                    className="flex-1 h-11 sm:h-12"
+                    className="flex-1 h-12"
                     onClick={() => navigate('/login')}
                   >
                     로그인하기

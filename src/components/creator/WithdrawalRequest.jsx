@@ -308,25 +308,25 @@ export default function WithdrawalRequest() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
-          <Wallet className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">포인트 출금</h1>
+          <Wallet className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
+          <h1 className="text-2xl sm:text-3xl font-bold">포인트 출금</h1>
         </div>
 
         {/* 포인트 잔액 */}
         <Card className="mb-6">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">포인트 총 잔액</p>
-                  <p className="text-3xl font-bold text-blue-600">
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                     {pointsBalance.toLocaleString()}P
                   </p>
                 </div>
-                <DollarSign className="w-12 h-12 text-gray-300" />
+                <DollarSign className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300" />
               </div>
               {pendingWithdrawals > 0 && (
                 <div className="flex items-center justify-between pt-3 border-t border-gray-200">
@@ -475,7 +475,7 @@ export default function WithdrawalRequest() {
                 </>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
                 {loading ? '처리 중...' : '출금 신청'}
               </Button>
             </form>

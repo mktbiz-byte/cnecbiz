@@ -70,18 +70,19 @@ export default function Guidebook() {
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
                   CNEC 가이드북
                 </h1>
-                <p className="text-sm text-gray-600">글로벌 인플루언서 마케팅 통합 관리 플랫폼</p>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">글로벌 인플루언서 마케팅 통합 관리 플랫폼</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={() => navigate('/login')}>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => navigate('/login')}>
                 로그인
               </Button>
-              <Button 
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm"
                 onClick={() => navigate('/signup')}
               >
                 무료로 시작하기
@@ -117,7 +118,7 @@ export default function Guidebook() {
       </section>
 
       {/* Content Section */}
-      <section className="py-16 px-4">
+      <section className="py-8 sm:py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div 
             className="prose prose-lg max-w-none"
@@ -125,9 +126,9 @@ export default function Guidebook() {
           />
 
           {/* CTA Section */}
-          <div className="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-center text-white">
-            <h3 className="text-3xl font-bold mb-4">지금 바로 시작하세요</h3>
-            <p className="text-xl mb-8 opacity-90">
+          <div className="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 sm:p-12 text-center text-white">
+            <h3 className="text-2xl sm:text-3xl font-bold mb-4">지금 바로 시작하세요</h3>
+            <p className="text-lg sm:text-xl mb-8 opacity-90">
               14일 만에 완성하는 글로벌 인플루언서 마케팅
             </p>
             <Button 

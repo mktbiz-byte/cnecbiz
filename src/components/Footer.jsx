@@ -86,8 +86,8 @@ export default function Footer() {
       {showTerms && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold">이용약관</h2>
+            <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl sm:text-2xl font-bold">이용약관</h2>
               <button 
                 onClick={() => setShowTerms(false)}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -252,8 +252,8 @@ export default function Footer() {
       {showPrivacy && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold">개인정보처리방침</h2>
+            <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl sm:text-2xl font-bold">개인정보처리방침</h2>
               <button 
                 onClick={() => setShowPrivacy(false)}
                 className="text-gray-500 hover:text-gray-700 text-2xl"

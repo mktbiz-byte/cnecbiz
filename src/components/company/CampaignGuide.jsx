@@ -321,9 +321,9 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
   return (
     <>
       <CompanyNavigation />
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">캠페인 가이드 작성</h1>
+      <div className="max-w-4xl mx-auto px-4 py-4 pt-16 pb-24 lg:px-6 lg:py-6 lg:pt-6 lg:pb-6">
+        <div className="mb-4 lg:mb-6">
+          <h1 className="text-2xl lg:text-3xl font-bold mb-2">캠페인 가이드 작성</h1>
           <p className="text-gray-600">
             캠페인: <span className="font-semibold">{campaign.title}</span>
           </p>
@@ -465,7 +465,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
             {guideDeliveryMode === 'ai' && (
           <>
             {/* 크리에이터 자율성 체크박스 */}
-            <div className="bg-white rounded-lg border p-6">
+            <div className="bg-white rounded-lg border p-4 lg:p-6">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -485,11 +485,11 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
               </label>
             </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* 브랜드명 */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 lg:p-6">
             <label className="block mb-2">
-              <span className="text-lg font-semibold">브랜드명</span>
+              <span className="text-base lg:text-lg font-semibold">브랜드명</span>
               <span className="text-red-500 ml-1">*</span>
             </label>
             <Input
@@ -502,9 +502,9 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
           </div>
 
           {/* 제품명 */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 lg:p-6">
             <label className="block mb-2">
-              <span className="text-lg font-semibold">제품명</span>
+              <span className="text-base lg:text-lg font-semibold">제품명</span>
               <span className="text-red-500 ml-1">*</span>
             </label>
             <Input
@@ -517,9 +517,9 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
           </div>
 
           {/* 제품 특징 */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 lg:p-6">
             <label className="block mb-2">
-              <span className="text-lg font-semibold">제품 특징</span>
+              <span className="text-base lg:text-lg font-semibold">제품 특징</span>
               <span className="text-red-500 ml-1">*</span>
             </label>
             <p className="text-sm text-gray-600 mb-3">
@@ -535,9 +535,9 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
           </div>
 
           {/* 영상에 꼭 들어갈 제품 소구 포인트 */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 lg:p-6">
             <label className="block mb-2">
-              <span className="text-lg font-semibold">영상에 꼭 들어갈 제품 소구 포인트</span>
+              <span className="text-base lg:text-lg font-semibold">영상에 꼭 들어갈 제품 소구 포인트</span>
               <span className="text-red-500 ml-1">*</span>
             </label>
             <p className="text-sm text-gray-600 mb-3">
@@ -556,7 +556,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
             )}
 
             {/* 버튼 */}
-            <div className="flex gap-4 mt-8">
+            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mt-6 lg:mt-8">
               <Button
                 type="button"
                 onClick={handleSaveDraft}

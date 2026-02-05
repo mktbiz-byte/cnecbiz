@@ -55,16 +55,16 @@ export default function OliveYoungCampaignIntro() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white">
       {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-16 lg:px-6">
         <div className="text-center mb-12">
           <div className="inline-block bg-pink-100 text-pink-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
             🌸 올영세일 캠페인 가이드
           </div>
-          <h1 className="text-5xl font-bold mb-6 text-gray-900">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-6 text-gray-900">
             올리브영 세일 시즌<br />
             특화 마케팅 패키지
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 mb-8">
             3단계 콘텐츠 전략으로 세일 기간 매출을 극대화하는 전문 캠페인
           </p>
           <Button
@@ -78,7 +78,7 @@ export default function OliveYoungCampaignIntro() {
         </div>
 
         {/* 가격 정보 */}
-        <div className="grid md:grid-cols-2 gap-6 mb-16 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-16 max-w-4xl mx-auto">
           <Card className="border-2 hover:border-pink-400 transition-all">
             <CardContent className="p-6">
               <div className="text-center">
@@ -117,17 +117,17 @@ export default function OliveYoungCampaignIntro() {
         {/* 이 캠페인을 선택해야 하는 이유 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Sparkles className="inline w-8 h-8 text-pink-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Sparkles className="inline w-7 h-7 sm:w-8 sm:h-8 text-pink-600 mr-2" />
               왜 올영세일 캠페인을 선택해야 할까요?
             </h2>
             <p className="text-gray-600">올리브영 세일 시즌에 최적화된 3단계 콘텐츠 전략으로 매출을 극대화합니다</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-pink-100">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-4">
-                  <div className="bg-pink-100 p-3 rounded-lg">
+                  <div className="bg-pink-100 p-3 rounded-lg flex-shrink-0">
                     <Zap className="w-6 h-6 text-pink-600" />
                   </div>
                   <div>
@@ -197,13 +197,13 @@ export default function OliveYoungCampaignIntro() {
         {/* 캠페인 생성 방법 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <FileText className="inline w-8 h-8 text-pink-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <FileText className="inline w-7 h-7 sm:w-8 sm:h-8 text-pink-600 mr-2" />
               캠페인 생성 방법
             </h2>
             <p className="text-gray-600">간단한 5단계로 캠페인을 시작하세요</p>
           </div>
-          <div className="grid md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {[
               { step: '1', title: '캠페인 타입 선택', desc: '올영세일 캠페인 선택' },
               { step: '2', title: '등급 및 인원 선택', desc: '스탠다드/프리미엄' },
@@ -227,8 +227,8 @@ export default function OliveYoungCampaignIntro() {
         {/* 프로세스 */}
         <div className="mb-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">
-              <Calendar className="inline w-8 h-8 text-pink-600 mr-2" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+              <Calendar className="inline w-7 h-7 sm:w-8 sm:h-8 text-pink-600 mr-2" />
               캠페인 진행 프로세스
             </h2>
             <p className="text-gray-600">3단계 콘텐츠로 세일 기간 매출을 극대화합니다</p>
@@ -286,13 +286,13 @@ export default function OliveYoungCampaignIntro() {
         {referenceVideos.length > 0 && (
           <div className="mb-16">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-4">
-                <Video className="inline w-8 h-8 text-pink-600 mr-2" />
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+                <Video className="inline w-7 h-7 sm:w-8 sm:h-8 text-pink-600 mr-2" />
                 레퍼런스 영상 확인
               </h2>
               <p className="text-gray-600">실제 올영세일 캠페인으로 제작된 영상을 확인해보세요</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {referenceVideos.map((video) => {
                 const videoId = getVideoId(video.video_url)
                 return (
@@ -328,11 +328,11 @@ export default function OliveYoungCampaignIntro() {
         )}
 
         {/* CTA */}
-        <div className="text-center bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">
+        <div className="text-center bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl p-6 sm:p-12 text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">
             지금 바로 올영세일 캠페인을 시작하세요
           </h2>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="text-lg sm:text-xl mb-8 opacity-90">
             3단계 콘텐츠 전략으로 세일 기간 매출을 극대화하세요
           </p>
           <Button

@@ -171,7 +171,7 @@ export default function FourWeekChallengeGuideViewer() {
     return (
       <div className="min-h-screen bg-gray-50">
         <CompanyNavigation />
-        <div className="max-w-6xl mx-auto p-6">
+        <div className="max-w-6xl mx-auto px-4 pt-14 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="text-center py-12">로딩 중...</div>
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function FourWeekChallengeGuideViewer() {
     return (
       <div className="min-h-screen bg-gray-50">
         <CompanyNavigation />
-        <div className="max-w-6xl mx-auto p-6">
+        <div className="max-w-6xl mx-auto px-4 pt-14 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="text-center py-12">캠페인을 찾을 수 없습니다.</div>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function FourWeekChallengeGuideViewer() {
     <div className="min-h-screen bg-gray-50">
       <CompanyNavigation />
       
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto px-4 pt-14 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
         {/* 헤더 */}
         <div className="mb-6">
           <Button
@@ -204,17 +204,17 @@ export default function FourWeekChallengeGuideViewer() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             캠페인 목록으로
           </Button>
-          
-          <h1 className="text-3xl font-bold mb-2">✨ AI 캠페인 지원 가이드</h1>
-          <p className="text-gray-600">생성된 가이드를 확인하고 결제를 진행하세요.</p>
+
+          <h1 className="text-xl lg:text-3xl font-bold mb-2">✨ AI 캠페인 지원 가이드</h1>
+          <p className="text-gray-600 text-sm lg:text-base">생성된 가이드를 확인하고 결제를 진행하세요.</p>
         </div>
 
         {/* 캠페인 기본 정보 */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">📋 캠페인 정보</h2>
+        <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">📋 캠페인 정보</h2>
           <div className="space-y-2">
-            <div className="flex items-start">
-              <span className="font-semibold w-32">캠페인명:</span>
+            <div className="flex flex-col sm:flex-row sm:items-start">
+              <span className="font-semibold w-32 text-sm lg:text-base">캠페인명:</span>
               <span>{campaign.title}</span>
             </div>
             <div className="flex items-start">
@@ -270,8 +270,8 @@ export default function FourWeekChallengeGuideViewer() {
         </div>
 
         {/* 주차별 가이드 */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">📅 주차별 미션 가이드</h2>
+        <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4">📅 주차별 미션 가이드</h2>
 
           {[1, 2, 3, 4].map((week) => {
             const weekKey = `week${week}`
@@ -596,8 +596,8 @@ export default function FourWeekChallengeGuideViewer() {
         </div>
 
         {/* 주의사항 */}
-        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 lg:p-6 mb-6">
+          <h2 className="text-lg lg:text-xl font-bold mb-4 flex items-center gap-2">
             ⚠️ 주의사항
           </h2>
           <div className="space-y-3 text-sm">

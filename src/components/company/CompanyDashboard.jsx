@@ -374,43 +374,43 @@ export default function CompanyDashboard() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         {/* Main Content */}
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
+            {/* Dashboard Header - 모바일: 컴팩트 / PC: 기존 */}
+            <div className="mb-5 lg:mb-8">
+              <div className="flex items-center gap-3 lg:gap-4">
+                <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 flex-shrink-0">
+                  <LayoutDashboard className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg lg:text-3xl font-bold text-gray-900 truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
+                  <p className="text-xs lg:text-sm text-gray-500 mt-0.5">캠페인 현황을 확인하세요</p>
+                </div>
+              </div>
+            </div>
+
             {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative max-w-2xl">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="mb-5 lg:mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="캠페인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 max-w-2xl"
                 />
               </div>
             </div>
 
-            {/* Dashboard Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                  <LayoutDashboard className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">대시보드</h1>
-                  <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Cards Grid - 클릭 시 캠페인 목록으로 이동 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+            {/* Stats Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-5 lg:mb-8">
               {/* 진행 예산 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
@@ -434,7 +434,7 @@ export default function CompanyDashboard() {
               {/* 진행 캠페인 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
@@ -468,12 +468,12 @@ export default function CompanyDashboard() {
               {/* 확정 크리에이터 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-2xl p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
                 <div className="relative">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-500">확정 크리에이터</span>
+                    <span className="text-xs lg:text-sm font-medium text-gray-500">확정 크리에이터</span>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
                       <UserCheck className="w-5 h-5 text-white" />
                     </div>
@@ -492,7 +492,7 @@ export default function CompanyDashboard() {
               {/* 확인 필요 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=attention')}
-                className={`relative overflow-hidden bg-white rounded-2xl p-5 border shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}
+                className={`relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}
               >
                 <div className={`absolute top-0 right-0 w-24 h-24 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 ${stats.needsAttention > 0 ? 'bg-gradient-to-br from-red-100 to-orange-100' : 'bg-gradient-to-br from-amber-100 to-orange-100'}`} />
                 <div className="relative">
@@ -516,7 +516,7 @@ export default function CompanyDashboard() {
 
             {/* Recent Campaigns */}
             <div className="mb-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 md:p-6">
+              <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 md:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
@@ -614,10 +614,10 @@ export default function CompanyDashboard() {
                           className="border border-gray-100 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white"
                           onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
                         >
-                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0 overflow-hidden">
                               {/* Badges */}
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <div className="flex flex-wrap items-center gap-1.5 lg:gap-2 mb-2">
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${typeInfo.dotColor}`}></span>
                                   {typeInfo.label}
@@ -626,32 +626,32 @@ export default function CompanyDashboard() {
                                   <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`}></span>
                                   {statusInfo.label}
                                 </span>
-                              </div>
-
-                              {/* Title */}
-                              <h3 className="font-semibold text-gray-900 text-base truncate mb-1">{campaign.title}</h3>
-
-                              {/* Meta info */}
-                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  {participantInfo.total}/{campaign.max_participants || campaign.total_slots || 0}명
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <UserCheck className="w-4 h-4" />
-                                  확정 {participantInfo.selected}명
-                                </span>
                                 {recruitmentDays !== null && recruitmentDays >= 0 && (
-                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded ${recruitmentDays <= 3 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} text-xs font-medium`}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${recruitmentDays <= 3 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} text-xs font-medium`}>
                                     D-{recruitmentDays}
                                   </span>
                                 )}
                               </div>
+
+                              {/* Title */}
+                              <h3 className="font-semibold text-gray-900 text-sm lg:text-base truncate mb-1">{campaign.title}</h3>
+
+                              {/* Meta info */}
+                              <div className="flex flex-wrap items-center gap-2 lg:gap-3 text-xs lg:text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
+                                  {participantInfo.total}/{campaign.max_participants || campaign.total_slots || 0}명
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <UserCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
+                                  확정 {participantInfo.selected}명
+                                </span>
+                              </div>
                             </div>
 
                             {/* Price */}
-                            <div className="text-right sm:text-right flex-shrink-0">
-                              <div className="text-xl font-bold text-indigo-500">
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-base lg:text-xl font-bold text-indigo-500 whitespace-nowrap">
                                 {totalCost.toLocaleString()}원
                               </div>
                               <span className="text-xs text-gray-400">{campaign.package_type}</span>
@@ -666,15 +666,15 @@ export default function CompanyDashboard() {
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
               {/* Upcoming Schedules - 2 columns */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                      <Bell className="w-4 h-4 text-amber-600" />
+                <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm p-4 lg:p-6">
+                  <div className="flex items-center gap-2 mb-4 lg:mb-5">
+                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-600" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-900">다가오는 일정</h2>
+                    <h2 className="text-base lg:text-lg font-bold text-gray-900">다가오는 일정</h2>
                     <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full text-xs font-medium">
                       {upcomingDeadlines.length}개
                     </span>
@@ -692,7 +692,7 @@ export default function CompanyDashboard() {
                       {upcomingDeadlines.map((item, index) => (
                         <div
                           key={`${item.id}-${index}`}
-                          className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30"
+                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
                           <div className={`w-2 h-2 rounded-full ${item.type.dotColor} flex-shrink-0`} />
@@ -700,9 +700,9 @@ export default function CompanyDashboard() {
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.type.color} mb-1`}>
                               {item.type.label}
                             </span>
-                            <p className="font-semibold text-gray-900 truncate">{item.title}</p>
-                            <p className="text-sm text-gray-500 truncate">{item.subtitle}</p>
-                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
+                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.title}</p>
+                            <p className="text-xs lg:text-sm text-gray-500 truncate">{item.subtitle}</p>
+                            <div className="flex items-center gap-2 mt-1 text-xs lg:text-sm text-gray-400">
                               <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
                               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600'}`}>
                                 D-{item.daysLeft}
@@ -719,7 +719,7 @@ export default function CompanyDashboard() {
 
               {/* Delayed Items - 1 column */}
               <div className="lg:col-span-1">
-                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl border border-red-100 p-5 md:p-6">
+                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl lg:rounded-2xl border border-red-100 p-4 lg:p-6">
                   <div className="flex items-center gap-2 mb-5 text-red-700">
                     <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
                       <AlertCircle className="w-4 h-4 text-red-600" />
@@ -750,9 +750,9 @@ export default function CompanyDashboard() {
                           <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                             <Calendar className="w-5 h-5 text-red-600" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">{item.title}</p>
-                            <p className="text-sm text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
+                          <div className="flex-1 min-w-0 overflow-hidden">
+                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.title}</p>
+                            <p className="text-xs lg:text-sm text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                         </div>

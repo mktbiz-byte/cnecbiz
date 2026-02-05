@@ -2316,33 +2316,54 @@ JSON만 출력.`
                 ? JSON.parse(participant.personalized_guide)
                 : participant.personalized_guide
 
-              const guideContent = {
-                campaign_title: campaign?.title || campaign?.product_name,
-                brand_name: campaign?.brand_name || campaign?.brand,
-                dialogue_style: guide.dialogue_style,
-                tempo: guide.tempo,
-                mood: guide.mood,
-                scenes: (guide.scenes || []).map(scene => ({
-                  order: scene.order,
-                  scene_type: scene.scene_type,
-                  scene_description: scene.scene_description_translated || scene.scene_description,
-                  dialogue: scene.dialogue_translated || scene.dialogue,
-                  shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
-                })),
-                required_dialogues: guide.required_dialogues || [],
-                required_scenes: guide.required_scenes || []
-              }
+              // 외부 가이드(PDF/URL)가 personalized_guide에 저장된 경우 → send-external-guide-email로 라우팅
+              const isExternalGuide = guide?.type === 'external_pdf' || guide?.type === 'external_url'
 
-              emailResponse = await fetch('/.netlify/functions/send-scene-guide-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  campaign_id: id,
-                  region,
-                  guide_content: guideContent,
-                  creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+              if (isExternalGuide) {
+                // 외부 가이드 이메일 (PDF/슬라이드/URL)
+                emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    campaign_id: id,
+                    region,
+                    campaign_title: campaign?.title || campaign?.product_name,
+                    brand_name: campaign?.brand_name || campaign?.brand,
+                    guide_url: guide.fileUrl || guide.url,
+                    guide_title: guide.title || guide.fileName || '촬영 가이드',
+                    creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+                  })
                 })
-              })
+              } else {
+                // AI 씬 가이드 이메일
+                const guideContent = {
+                  campaign_title: campaign?.title || campaign?.product_name,
+                  brand_name: campaign?.brand_name || campaign?.brand,
+                  dialogue_style: guide.dialogue_style,
+                  tempo: guide.tempo,
+                  mood: guide.mood,
+                  scenes: (guide.scenes || []).map(scene => ({
+                    order: scene.order,
+                    scene_type: scene.scene_type,
+                    scene_description: scene.scene_description_translated || scene.scene_description,
+                    dialogue: scene.dialogue_translated || scene.dialogue,
+                    shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+                  })),
+                  required_dialogues: guide.required_dialogues || [],
+                  required_scenes: guide.required_scenes || []
+                }
+
+                emailResponse = await fetch('/.netlify/functions/send-scene-guide-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    campaign_id: id,
+                    region,
+                    guide_content: guideContent,
+                    creators: [{ id: participant.id, name: creatorName, email: creatorEmail }]
+                  })
+                })
+              }
             } else {
               // 외부 가이드 이메일
               emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
@@ -5560,68 +5581,68 @@ Questions? Contact us.
     return (
       <>
         {/* 진행 상태 파이프라인 - 개선된 디자인 */}
-        <div className="grid grid-cols-5 gap-4 mt-6 mb-8">
-          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mt-4 sm:mt-6 mb-6 sm:mb-8">
+          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <Clock className="w-5 h-5 text-purple-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-purple-300 animate-pulse shadow-lg shadow-purple-400/50"></div>
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-purple-200" />
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-purple-300 animate-pulse shadow-lg shadow-purple-400/50"></div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{statusCounts.guideWaiting}</div>
-              <span className="text-sm font-medium text-purple-200">가이드 확인중</span>
+              <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.guideWaiting}</div>
+              <span className="text-xs lg:text-sm font-medium text-purple-200">가이드 확인중</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <Video className="w-5 h-5 text-amber-100" />
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-200"></div>
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <Video className="w-4 h-4 lg:w-5 lg:h-5 text-amber-100" />
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-amber-200"></div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{statusCounts.filming}</div>
-              <span className="text-sm font-medium text-amber-100">촬영중</span>
+              <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.filming}</div>
+              <span className="text-xs lg:text-sm font-medium text-amber-100">촬영중</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <Edit3 className="w-5 h-5 text-pink-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-pink-300"></div>
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <Edit3 className="w-4 h-4 lg:w-5 lg:h-5 text-pink-200" />
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-pink-300"></div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{statusCounts.revision}</div>
-              <span className="text-sm font-medium text-pink-200">수정 요청</span>
+              <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.revision}</div>
+              <span className="text-xs lg:text-sm font-medium text-pink-200">수정 요청</span>
             </div>
           </div>
           <div
-            className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
+            className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
             onClick={() => setActiveTab('editing')}
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <Upload className="w-5 h-5 text-blue-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-300"></div>
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <Upload className="w-4 h-4 lg:w-5 lg:h-5 text-blue-200" />
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-blue-300"></div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{statusCounts.submitted}</div>
-              <span className="text-sm font-medium text-blue-200">영상 제출</span>
+              <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.submitted}</div>
+              <span className="text-xs lg:text-sm font-medium text-blue-200">영상 제출</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircle className="w-5 h-5 text-emerald-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-300"></div>
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-200" />
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-300"></div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{statusCounts.approved}</div>
-              <span className="text-sm font-medium text-emerald-200">승인 완료</span>
+              <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.approved}</div>
+              <span className="text-xs lg:text-sm font-medium text-emerald-200">승인 완료</span>
             </div>
           </div>
         </div>
@@ -6548,7 +6569,7 @@ Questions? Contact us.
   const totalViews = participants.reduce((sum, p) => sum + (p.views || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6 pt-14 pb-20 lg:pt-3 lg:pb-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
@@ -6557,9 +6578,9 @@ Questions? Contact us.
               <ArrowLeft className="w-4 h-4 mr-2" />
               뒤로가기
             </Button>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold break-words">{campaign.title}</h1>
-              <p className="text-sm text-gray-600 mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
+            <div className="min-w-0 overflow-hidden">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold line-clamp-2">{campaign.title}</h1>
+              <p className="text-xs lg:text-sm text-gray-600 mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -6668,12 +6689,12 @@ Questions? Contact us.
 
         {/* Campaign Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">패키지</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
+                  <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
                     {campaign.package_type === 'junior' ? '초급' :
                      campaign.package_type === 'standard' ? '스탠다드' :
                      campaign.package_type === 'intermediate' ? '스탠다드' :
@@ -6690,24 +6711,24 @@ Questions? Contact us.
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">모집 인원</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">{campaign.total_slots}명</p>
+                  <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">{campaign.total_slots}명</p>
                 </div>
                 <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="sm:col-span-2 lg:col-span-1">
+          <Card className="sm:col-span-2 lg:col-span-1 overflow-hidden">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">
+                  <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
                     {campaign.estimated_cost ?
                       `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
                       : campaign.package_type && campaign.total_slots ?
@@ -7087,14 +7108,14 @@ Questions? Contact us.
 
                     {/* 고급 필터 패널 */}
                     {showAdvancedFilters && (
-                      <div className="p-5 bg-white rounded-xl border-2 border-purple-200 shadow-lg space-y-5">
+                      <div className="p-3 sm:p-5 bg-white rounded-xl border-2 border-purple-200 shadow-lg space-y-4 sm:space-y-5">
                         {/* BEAUTY SPEC 필터 */}
                         <div>
                           <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
                             <span className="w-6 h-6 bg-gradient-to-br from-pink-400 to-purple-400 rounded-lg flex items-center justify-center text-white text-xs">✨</span>
                             BEAUTY SPEC
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
                             {/* 피부 타입 */}
                             <div>
                               <label className="text-xs text-gray-500 mb-1 block">피부 타입</label>
@@ -7190,7 +7211,7 @@ Questions? Contact us.
                             <span className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center text-white text-xs">📺</span>
                             채널 & 기타
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
                             {/* 나이대 */}
                             <div>
                               <label className="text-xs text-gray-500 mb-1 block">나이대</label>
@@ -8445,17 +8466,18 @@ Questions? Contact us.
               </CardHeader>
               <CardContent>
                 {/* 플랫폼별 필터 탭 - 모던 디자인 */}
-                <Tabs defaultValue="all" className="mt-6">
-                  <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-md p-1.5 rounded-2xl inline-flex gap-1">
+                <Tabs defaultValue="all" className="mt-4 lg:mt-6">
+                  <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-2">
+                  <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex gap-1 min-w-max">
                     <TabsTrigger
                       value="all"
-                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-700 data-[state=active]:to-gray-800 data-[state=active]:text-white data-[state=active]:shadow-md rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-700 data-[state=active]:to-gray-800 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
-                      전체 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.length}</span>
+                      전체 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="youtube"
-                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-red-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-red-200 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>📺</span> 유튜브 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -8464,23 +8486,24 @@ Questions? Contact us.
                     </TabsTrigger>
                     <TabsTrigger
                       value="instagram"
-                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-pink-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-pink-200 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
-                      <span>📸</span> 인스타 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
+                      <span>📸</span> 인스타 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('instagram') || platform.includes('인스타그램')
                       }).length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="tiktok"
-                      className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-800 data-[state=active]:to-black data-[state=active]:text-white data-[state=active]:shadow-md rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-800 data-[state=active]:to-black data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
-                      <span>🎵</span> 틱톡 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
+                      <span>🎵</span> 틱톡 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('tiktok') || platform.includes('틱톡')
                       }).length}</span>
                     </TabsTrigger>
                   </TabsList>
+                  </div>
                   
                   {/* 전체 */}
                   <TabsContent value="all">
@@ -9008,8 +9031,8 @@ Questions? Contact us.
                         if (!submission) return null
 
                         return (
-                      <div key={userId} className="border rounded-lg p-6 bg-white shadow-sm">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div key={userId} className="border rounded-lg p-3 sm:p-6 bg-white shadow-sm">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
@@ -10160,8 +10183,8 @@ Questions? Contact us.
                               {isMultiVideoCampaign && multiVideoStatus.length > 0 ? (
                                 <div className="space-y-3">
                                   {/* 컴팩트 테이블 형식 */}
-                                  <div className="overflow-hidden rounded-lg border border-gray-200">
-                                    <table className="w-full text-xs">
+                                  <div className="overflow-x-auto overflow-hidden rounded-lg border border-gray-200">
+                                    <table className="w-full text-xs min-w-[400px]">
                                       <thead className="bg-gray-50">
                                         <tr>
                                           <th className="px-3 py-2 text-left font-medium text-gray-600">{is4WeekChallenge ? '주차' : 'STEP'}</th>
@@ -10591,16 +10614,16 @@ Questions? Contact us.
                     아직 참여한 크리에이터가 없습니다.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
+                  <div className="overflow-x-auto -mx-3 sm:mx-0">
+                    <table className="w-full min-w-[600px]">
                       <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                         <tr>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">크리에이터</th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">플랫폼</th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">조회수</th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">콘텐츠 URL</th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">마지막 확인</th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">작업</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">크리에이터</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">플랫폼</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">조회수</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">콘텐츠 URL</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">마지막 확인</th>
+                          <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">작업</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -10709,7 +10732,7 @@ Questions? Contact us.
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-100">
               <div className="bg-gray-50/50 rounded-xl p-3">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">모집 마감일</p>
                 <p className="font-semibold text-gray-900">
@@ -10936,12 +10959,12 @@ Questions? Contact us.
 
       {/* 맞춤 가이드 모달 */}
       {showGuideModal && selectedGuide && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* 모달 헤더 */}
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-purple-900">
+                <h2 className="text-lg sm:text-xl font-bold text-purple-900">
                   맞춤 촬영 가이드
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -10962,10 +10985,10 @@ Questions? Contact us.
             </div>
 
             {/* 모달 컨텐츠 */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
               {/* 크리에이터 분석 정보 */}
               {selectedGuide.creator_analysis && (
-                <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-purple-50 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-900 mb-3">크리에이터 분석</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {selectedGuide.creator_analysis.followers && (
@@ -11731,26 +11754,26 @@ Questions? Contact us.
 
       {/* 가이드 수정요청 모달 */}
       {showRevisionRequestModal && selectedGuide && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-bold text-gray-900">가이드 수정요청</h2>
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">가이드 수정요청</h2>
               <p className="text-sm text-gray-600 mt-1">
                 {selectedGuide.creator_name}님의 가이드 수정을 요청합니다
               </p>
             </div>
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 수정요청 내용
               </label>
               <textarea
                 value={revisionRequestText}
                 onChange={(e) => setRevisionRequestText(e.target.value)}
-                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="수정이 필요한 부분과 원하시는 내용을 상세히 작성해주세요."
               />
             </div>
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-gray-50 flex justify-end gap-2 sm:gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -11814,10 +11837,10 @@ Questions? Contact us.
 
       {/* AI 가이드 수정 모달 */}
       {showAIEditModal && selectedGuide && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl">
-            <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-indigo-600" />
                 AI로 가이드 수정하기
               </h2>
@@ -11826,13 +11849,13 @@ Questions? Contact us.
               </p>
             </div>
 
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
               {/* 빠른 선택 프롬프트 */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   빠른 선택
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {[
                     '더 친근한 말투로 변경해줘',
                     '제품 장점을 더 강조해줘',
@@ -11975,33 +11998,33 @@ Questions? Contact us.
 
       {/* 배송 정보 모달 */}
       {showShippingModal && selectedParticipant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-bold text-gray-900">배송 정보</h2>
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">배송 정보</h2>
               <p className="text-sm text-gray-600 mt-1">
                 {selectedParticipant.creator_name || selectedParticipant.applicant_name}님
               </p>
             </div>
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                <div className="text-gray-900">{selectedParticipant.phone_number || selectedParticipant.creator_phone || '미등록'}</div>
+                <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.phone_number || selectedParticipant.creator_phone || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
-                <div className="text-gray-900">{selectedParticipant.postal_code || '미등록'}</div>
+                <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.postal_code || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <div className="text-gray-900">{selectedParticipant.address || '미등록'}</div>
+                <div className="text-sm sm:text-base text-gray-900 break-words">{selectedParticipant.address || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">배송 요청사항</label>
-                <div className="text-gray-900">{selectedParticipant.delivery_notes || selectedParticipant.delivery_request || '없음'}</div>
+                <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.delivery_notes || selectedParticipant.delivery_request || '없음'}</div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-gray-50 flex justify-end">
               <Button
                 onClick={() => {
                   setShowShippingModal(false)
@@ -12017,19 +12040,19 @@ Questions? Contact us.
 
       {/* 영상 확인 및 수정 요청 모달 */}
       {showVideoModal && selectedParticipant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
-            <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-              <h2 className="text-2xl font-bold text-white">영상 확인 및 수정 요청</h2>
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+              <h2 className="text-lg sm:text-2xl font-bold text-white">영상 확인 및 수정 요청</h2>
               <p className="text-blue-100 mt-1">{selectedParticipant.creator_name}</p>
             </div>
 
             {/* 모달 컨텐츠 */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* 업로드된 영상 목록 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">업로드된 영상</h3>
+              <div className="mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3">업로드된 영상</h3>
                 <div className="space-y-3">
                   {selectedParticipant.video_files?.map((file, index) => (
                     <div key={index} className="bg-gray-50 p-4 rounded-lg">
@@ -12343,11 +12366,11 @@ Questions? Contact us.
 
       {/* 크리에이터 프로필 모달 - 개편 */}
       {showProfileModal && selectedParticipant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
             {/* 고정 헤더 */}
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-20">
-              <h2 className="text-xl font-bold text-gray-900">크리에이터 프로필</h2>
+            <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-20">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">크리에이터 프로필</h2>
               <button
                 onClick={() => {
                   setShowProfileModal(false)
@@ -12362,13 +12385,13 @@ Questions? Contact us.
             {/* 스크롤 가능한 컨텐츠 */}
             <div className="overflow-y-auto flex-1">
               {/* 프로필 상단 - 컴팩트 */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6">
-                <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 sm:p-6">
+                <div className="flex items-center gap-3 sm:gap-4">
                   <div className="relative">
                     <img
                       src={selectedParticipant.profile_photo_url || '/default-avatar.png'}
                       alt={selectedParticipant.name}
-                      className="w-24 h-24 rounded-xl border-4 border-white shadow-lg object-cover"
+                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl border-4 border-white shadow-lg object-cover"
                     />
                     {(() => {
                       const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
@@ -12511,12 +12534,12 @@ Questions? Contact us.
               )}
 
               {/* 모달 컨텐츠 */}
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* BEAUTY SPEC */}
                 {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type) && (
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-xl border border-pink-200">
-                    <h3 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3">BEAUTY SPEC</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-3 sm:p-4 rounded-xl border border-pink-200">
+                    <h3 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2 sm:mb-3">BEAUTY SPEC</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
                       {selectedParticipant.skin_type && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">피부</p>
@@ -12587,9 +12610,9 @@ Questions? Contact us.
 
                 {/* 콘텐츠 스타일 */}
                 {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency) && (
-                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">콘텐츠 스타일</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 sm:p-4 rounded-xl border border-blue-200">
+                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 sm:mb-3">콘텐츠 스타일</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
                       {selectedParticipant.primary_interest && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase">주요 콘텐츠</p>
@@ -12754,19 +12777,19 @@ Questions? Contact us.
 
       {/* 스케줄 연장 처리 모달 */}
       {showExtensionModal && selectedParticipant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             {/* 모달 헤더 */}
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-bold">스케줄 연장 신청 처리</h2>
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+              <h2 className="text-lg sm:text-xl font-bold">스케줄 연장 신청 처리</h2>
               <p className="text-sm text-gray-600 mt-1">{selectedParticipant.creator_name}</p>
             </div>
 
             {/* 모달 컨텐츠 */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="mb-4">
                 <p className="text-sm text-gray-600">연장 기간</p>
-                <p className="text-lg font-semibold">{selectedParticipant.extension_days}일</p>
+                <p className="text-base sm:text-lg font-semibold">{selectedParticipant.extension_days}일</p>
               </div>
               <div className="mb-4">
                 <p className="text-sm text-gray-600">연장 사유</p>
@@ -12779,7 +12802,7 @@ Questions? Contact us.
             </div>
 
             {/* 모달 푸터 */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-gray-50 flex justify-end gap-2 sm:gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -12855,9 +12878,9 @@ Questions? Contact us.
       
       {/* 확정 취소 모달 */}
       {cancelModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">확정 취소</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">확정 취소</h3>
             <p className="text-sm text-gray-600 mb-4">
               {cancellingApp?.applicant_name}님의 확정을 취소하시겠습니까?
             </p>
@@ -12897,10 +12920,10 @@ Questions? Contact us.
 
       {/* AI 가이드 재생성 요청 모달 */}
       {showRegenerateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">AI에게 가이드 재생성 요청</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900">AI에게 가이드 재생성 요청</h3>
               <button
                 onClick={() => {
                   setShowRegenerateModal(false)
@@ -13095,7 +13118,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative sticky top-0">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative sticky top-0">
               <button
                 onClick={() => {
                   setShowGuideSelectModal(false)
@@ -13118,7 +13141,7 @@ Questions? Contact us.
             </div>
 
             {/* 본문 */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {/* 캠페인 타입별 가이드 선택 */}
               {(() => {
                 const is4Week = campaign?.campaign_type === '4week_challenge'
@@ -13480,7 +13503,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-5 text-white relative">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative">
               <button
                 onClick={() => {
                   setShowBulkGuideModal(false)
@@ -13504,7 +13527,7 @@ Questions? Contact us.
             </div>
 
             {/* 본문 */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {/* 방법 선택 */}
               <div className="space-y-3">
                 {/* Option 1: AI 가이드 생성 */}
@@ -13761,7 +13784,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden max-h-[95vh] flex flex-col">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-5 text-white relative flex-shrink-0">
+            <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative flex-shrink-0">
               <button
                 onClick={() => {
                   setShowStyleSelectModal(false)
@@ -13785,7 +13808,7 @@ Questions? Contact us.
             </div>
 
             {/* 본문 */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* 기업 작성 가이드 정보 (있는 경우) */}
               {(campaign.guide_content || campaign.ai_generated_guide || campaign.description) && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -14046,7 +14069,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 text-white relative">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative">
               <button
                 onClick={() => setShowCampaignGuidePopup(false)}
                 className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
@@ -14065,7 +14088,7 @@ Questions? Contact us.
             </div>
 
             {/* 본문 */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4 sm:space-y-6">
               {/* 캠페인 요구사항 */}
               {(campaign.requirements || campaign.description) && (
                 <div className="space-y-2">
@@ -14099,7 +14122,7 @@ Questions? Contact us.
               </div>
 
               {/* 일정 정보 */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {campaign.recruitment_deadline && (
                   <div>
                     <h3 className="text-sm font-bold text-gray-800 mb-1">모집 마감일</h3>
@@ -14211,19 +14234,19 @@ Questions? Contact us.
 
       {/* 캠페인 삭제 확인 모달 */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b bg-red-50">
-              <h2 className="text-lg font-bold text-red-700 flex items-center gap-2">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-red-50">
+              <h2 className="text-base sm:text-lg font-bold text-red-700 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
                 캠페인 삭제 확인
               </h2>
             </div>
-            <div className="p-6 space-y-4">
-              <p className="text-gray-700">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+              <p className="text-sm sm:text-base text-gray-700">
                 정말로 <span className="font-bold text-gray-900">{campaign?.title}</span> 캠페인을 삭제하시겠습니까?
               </p>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
                 <p className="text-red-700 text-sm font-medium">⚠️ 주의사항</p>
                 <ul className="text-red-600 text-sm mt-2 space-y-1 list-disc list-inside">
                   <li>삭제된 캠페인은 복구할 수 없습니다</li>
@@ -14231,7 +14254,7 @@ Questions? Contact us.
                 </ul>
               </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-t flex justify-end gap-2 sm:gap-3">
               <Button
                 variant="outline"
                 onClick={() => setShowDeleteModal(false)}
@@ -14263,10 +14286,10 @@ Questions? Contact us.
 
       {/* 관리자용 SNS URL/광고코드 편집 모달 */}
       {showAdminSnsEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
-              <h3 className="text-lg font-semibold">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+              <h3 className="text-base sm:text-lg font-semibold">
                 {adminSnsEditData.isMultiVideoEdit
                   ? (adminSnsEditData.campaignType === '4week_challenge' ? '4주 챌린지' : '올리브영') + ' SNS 정보 입력'
                   : `SNS 정보 ${adminSnsEditData.isEditMode ? '수정' : '입력'}`}
@@ -14281,7 +14304,7 @@ Questions? Contact us.
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {/* 멀티비디오 캠페인용 입력 폼 */}
               {adminSnsEditData.isMultiVideoEdit ? (
                 <>
@@ -14430,13 +14453,13 @@ Questions? Contact us.
 
       {/* 관리자용 마감일 수정 모달 */}
       {showDeadlineEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h3 className="text-lg font-bold">마감일 수정 (관리자 전용)</h3>
+            <div className="p-4 sm:p-6 border-b">
+              <h3 className="text-base sm:text-lg font-bold">마감일 수정 (관리자 전용)</h3>
               <p className="text-sm text-gray-500 mt-1">영상 제출 마감일 및 SNS 업로드 예정일을 수정합니다.</p>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* 4주 챌린지 */}
               {campaign.campaign_type === '4week_challenge' && (
                 <>

@@ -107,18 +107,18 @@ export default function Translator() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="max-w-5xl mx-auto p-4 lg:p-6">
+        <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             대시보드로 돌아가기
           </Button>
         </div>
 
-        <div className="flex items-center gap-3 mb-8">
-          <Languages className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">AI 번역기</h1>
+        <div className="flex items-center gap-3 mb-6 lg:mb-8 flex-wrap">
+          <Languages className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600" />
+          <h1 className="text-xl lg:text-3xl font-bold">AI 번역기</h1>
           <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
             Powered by Gemini
           </span>
@@ -245,7 +245,7 @@ export default function Translator() {
 
         {/* Tips */}
         <Card className="mt-6">
-          <CardContent className="p-6">
+          <CardContent className="p-4 lg:p-6">
             <h3 className="font-medium mb-3">💡 사용 팁</h3>
             <ul className="text-sm text-gray-600 space-y-2">
               <li>• <strong>Ctrl + Enter</strong>를 눌러 빠르게 번역할 수 있습니다</li>
