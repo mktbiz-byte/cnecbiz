@@ -14,7 +14,8 @@ import {
   ChevronLeft, ChevronRight, Loader2, CheckCircle, XCircle,
   Eye, Download, Filter, RefreshCw, Star, Clock, MessageSquare,
   AlertCircle, Info, PlayCircle, Video, Image, Film, Link2,
-  FileSpreadsheet, Settings, Upload, UserCheck, UserX, BookOpen, Plus
+  FileSpreadsheet, Settings, Upload, UserCheck, UserX, BookOpen, Plus,
+  BarChart3
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -1005,6 +1006,17 @@ export default function YoutuberSearchPage() {
             <TabsTrigger value="gif" className="flex items-center gap-2">
               <Film className="h-4 w-4" />
               쇼츠 → GIF
+            </TabsTrigger>
+            <TabsTrigger
+              value="reports"
+              className="flex items-center gap-2"
+              onClick={(e) => {
+                e.preventDefault()
+                window.open('/admin/daily-reports', '_blank')
+              }}
+            >
+              <BarChart3 className="h-4 w-4" />
+              일일 보고서
             </TabsTrigger>
           </TabsList>
 
