@@ -265,38 +265,22 @@ exports.handler = async (event) => {
         }
 
         // 4단계: user_profiles에서 크리에이터 이름 조회 (applications에 없는 경우)
-        // ★ user_id로도 조회하고 id로도 조회 (관계가 다를 수 있음)
+        // ★ Korea DB에는 user_id 컬럼이 없음! id만으로 조회
         const userProfilesMap = {}
         if (userIds.length > 0) {
-          // id로 조회
+          // Korea는 id = auth user id, Japan/US는 user_id = auth user id
+          // Korea DB는 user_id 컬럼 없음 - id로만 조회
           const { data: profilesById, error: profError1 } = await supabase
             .from('user_profiles')
-            .select('id, user_id, name, nickname, email, phone')
+            .select('id, name, nickname, email, phone')
             .in('id', userIds)
 
           if (profError1) {
-            console.error(`[${regionId}] user_profiles (by id) error:`, profError1.message)
+            console.error(`[${regionId}] user_profiles error:`, profError1.message)
           }
           if (profilesById) {
             profilesById.forEach(p => {
               userProfilesMap[p.id] = p
-              if (p.user_id) userProfilesMap[p.user_id] = p
-            })
-          }
-
-          // user_id 컬럼으로도 조회 (관계가 다를 수 있음)
-          const { data: profilesByUserId, error: profError2 } = await supabase
-            .from('user_profiles')
-            .select('id, user_id, name, nickname, email, phone')
-            .in('user_id', userIds)
-
-          if (profError2) {
-            console.error(`[${regionId}] user_profiles (by user_id) error:`, profError2.message)
-          }
-          if (profilesByUserId) {
-            profilesByUserId.forEach(p => {
-              if (!userProfilesMap[p.id]) userProfilesMap[p.id] = p
-              if (p.user_id && !userProfilesMap[p.user_id]) userProfilesMap[p.user_id] = p
             })
           }
           console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
