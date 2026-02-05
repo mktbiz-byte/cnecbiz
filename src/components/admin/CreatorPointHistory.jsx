@@ -34,7 +34,8 @@ export default function CreatorPointHistory() {
     totalPaid: 0,
     totalDeducted: 0,
     campaignRewards: 0,
-    adminAdd: 0
+    adminAdd: 0,
+    otherAdd: 0
   })
 
   // 크리에이터 상세 모달
@@ -346,10 +347,15 @@ export default function CreatorPointHistory() {
     let totalDeducted = 0
     let campaignRewards = 0
     let adminAdd = 0
+    let otherAdd = 0
 
     transactions.forEach(t => {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
+        // 환불(refund)은 총 지급 포인트에서 제외
+        if (t.transaction_type === 'refund') {
+          return // skip refunds from totalPaid
+        }
         totalPaid += amount
         // 캠페인 보상: campaign_reward, campaign_complete, campaign_payment, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
         if (t.transaction_type === 'campaign_reward' ||
@@ -360,13 +366,15 @@ export default function CreatorPointHistory() {
           campaignRewards += amount
         } else if (t.transaction_type === 'admin_add') {
           adminAdd += amount
+        } else {
+          otherAdd += amount
         }
       } else {
         totalDeducted += amount
       }
     })
 
-    setStats({ totalPaid, totalDeducted, campaignRewards, adminAdd })
+    setStats({ totalPaid, totalDeducted, campaignRewards, adminAdd, otherAdd })
   }
 
   const getFilteredTransactions = () => {
@@ -642,7 +650,7 @@ export default function CreatorPointHistory() {
               </div>
 
           {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -681,6 +689,21 @@ export default function CreatorPointHistory() {
                     </p>
                   </div>
                   <Coins className="w-10 h-10 text-purple-300" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">기타 지급</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {stats.otherAdd.toLocaleString()}P
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">환불 제외</p>
+                  </div>
+                  <Coins className="w-10 h-10 text-orange-300" />
                 </div>
               </CardContent>
             </Card>

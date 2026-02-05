@@ -25,12 +25,13 @@ export default function UnpaidCampaignsManagement() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('confirmed')
+  const [activeTab, setActiveTab] = useState('pending')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // 데이터: confirmed = 지급 확인 (point_transactions 기록 있음), unpaid = 미지급 건
+  // 데이터: confirmed = 지급 확인, unpaid = 미지급 건, pendingConfirmation = SNS 제출 미확정
   const [confirmedList, setConfirmedList] = useState([])
   const [unpaidList, setUnpaidList] = useState([])
+  const [pendingList, setPendingList] = useState([])
 
   // 수동 지급 모달
   const [paymentModal, setPaymentModal] = useState(null)
@@ -57,7 +58,8 @@ export default function UnpaidCampaignsManagement() {
       if (result.success) {
         setConfirmedList(result.confirmed || [])
         setUnpaidList(result.unpaid || [])
-        console.log(`데이터 로드 완료 - 지급확인: ${(result.confirmed || []).length}건, 미지급: ${(result.unpaid || []).length}건`)
+        setPendingList(result.pendingConfirmation || [])
+        console.log(`데이터 로드 완료 - 지급확인: ${(result.confirmed || []).length}건, 미지급: ${(result.unpaid || []).length}건, SNS미확정: ${(result.pendingConfirmation || []).length}건`)
       } else {
         console.error('데이터 로드 실패:', result.error)
       }
@@ -122,8 +124,10 @@ export default function UnpaidCampaignsManagement() {
   // 통계 계산
   const confirmedCount = confirmedList.length
   const unpaidCount = unpaidList.length
+  const pendingCount = pendingList.length
   const totalPaidAmount = confirmedList.reduce((sum, c) => sum + (c.paidAmount || 0), 0)
   const totalUnpaidAmount = unpaidList.reduce((sum, u) => sum + (u.pointAmount || 0), 0)
+  const totalPendingAmount = pendingList.reduce((sum, p) => sum + (p.pointAmount || 0), 0)
 
   // 수동 지급완료 처리 (이미 지급된 건을 기록만 추가)
   const handleMarkAsPaid = async (item) => {
@@ -194,20 +198,22 @@ export default function UnpaidCampaignsManagement() {
     }
   }
 
-  // 아이템 렌더링
-  const renderItem = (item, idx, isConfirmed = true) => {
+  // 아이템 렌더링 (type: 'confirmed' | 'unpaid' | 'pending')
+  const renderItem = (item, idx, type = 'confirmed') => {
     const regionInfo = REGIONS[item.region] || { label: item.region, flag: '🌐', color: 'bg-gray-100 text-gray-700', shortCode: '??' }
     const hasName = item.creatorName && item.creatorName !== '이름 없음'
     const hasCampaign = item.campaignTitle && item.campaignTitle !== '캠페인 정보 없음'
 
+    const bgClass = type === 'confirmed'
+      ? 'bg-green-50 border-green-200'
+      : type === 'unpaid'
+        ? 'bg-red-50 border-red-200'
+        : 'bg-amber-50 border-amber-200'
+
     return (
       <div
         key={`${item.id}-${idx}`}
-        className={`p-4 rounded-lg border ${
-          isConfirmed
-            ? 'bg-green-50 border-green-200'
-            : 'bg-red-50 border-red-200'
-        }`}
+        className={`p-4 rounded-lg border ${bgClass}`}
       >
         <div className="flex items-start justify-between gap-4">
           {/* 왼쪽: 크리에이터 & 캠페인 정보 */}
@@ -224,15 +230,22 @@ export default function UnpaidCampaignsManagement() {
                     {hasName ? item.creatorName : '크리에이터 정보 없음'}
                   </span>
                 </div>
-                {isConfirmed ? (
+                {type === 'confirmed' && (
                   <Badge className="bg-green-100 text-green-700">
                     <Check className="w-3 h-3 mr-1" />
                     지급확인
                   </Badge>
-                ) : (
+                )}
+                {type === 'unpaid' && (
                   <Badge variant="destructive">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     미지급
+                  </Badge>
+                )}
+                {type === 'pending' && (
+                  <Badge className="bg-amber-100 text-amber-700">
+                    <Clock className="w-3 h-3 mr-1" />
+                    최종확정 대기
                   </Badge>
                 )}
               </div>
@@ -246,6 +259,21 @@ export default function UnpaidCampaignsManagement() {
                   <span className="text-gray-400 ml-2">({item.campaignBrand})</span>
                 )}
               </div>
+
+              {/* SNS URL (pending일 때) */}
+              {type === 'pending' && item.snsUploadUrl && (
+                <div className="mt-1">
+                  <a
+                    href={item.snsUploadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    SNS 링크
+                  </a>
+                </div>
+              )}
 
               {/* 연락처 */}
               {(item.email || item.phone) && (
@@ -275,7 +303,7 @@ export default function UnpaidCampaignsManagement() {
           {/* 오른쪽: 포인트 & 액션 */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
-              {isConfirmed ? (
+              {type === 'confirmed' ? (
                 <>
                   <p className="text-sm font-bold text-green-600">
                     {item.paidAmount?.toLocaleString()}P 지급
@@ -286,7 +314,7 @@ export default function UnpaidCampaignsManagement() {
                     </p>
                   )}
                 </>
-              ) : (
+              ) : type === 'unpaid' ? (
                 <>
                   <p className="text-sm font-bold text-red-600">
                     {item.pointAmount?.toLocaleString() || 0}P 미지급
@@ -298,6 +326,15 @@ export default function UnpaidCampaignsManagement() {
                   )}
                   <p className="text-xs text-gray-400">
                     상태: {item.status || '없음'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-amber-600">
+                    {item.pointAmount?.toLocaleString() || 0}P (예정)
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    SNS 제출 완료
                   </p>
                 </>
               )}
@@ -316,7 +353,7 @@ export default function UnpaidCampaignsManagement() {
               </Button>
 
               {/* 미지급 건에 대한 액션 */}
-              {!isConfirmed && (
+              {type === 'unpaid' && (
                 <>
                   <Button
                     size="sm"
@@ -340,15 +377,17 @@ export default function UnpaidCampaignsManagement() {
                 </>
               )}
 
-              {/* 캠페인 상세 */}
+              {/* 캠페인 상세 (최종 확정 하러 가기) */}
               {item.campaignId && (
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant={type === 'pending' ? 'default' : 'ghost'}
+                  className={type === 'pending' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
                   onClick={() => navigate(`/admin/campaigns/${item.campaignId}?region=${item.region}`)}
-                  title="캠페인 상세"
+                  title={type === 'pending' ? '캠페인으로 이동하여 최종 확정' : '캠페인 상세'}
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4 mr-1" />
+                  {type === 'pending' ? '최종 확정' : ''}
                 </Button>
               )}
             </div>
@@ -396,7 +435,7 @@ export default function UnpaidCampaignsManagement() {
         </div>
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card className="bg-green-50 border-green-200">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -404,22 +443,22 @@ export default function UnpaidCampaignsManagement() {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-green-600">포인트 지급 확인</p>
+                  <p className="text-sm text-green-600">지급 확인</p>
                   <p className="text-2xl font-bold text-green-700">{confirmedCount}건</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-50 border-blue-200">
+          <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-full">
-                  <CreditCard className="w-5 h-5 text-blue-600" />
+                <div className="p-3 bg-amber-100 rounded-full">
+                  <Clock className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-blue-600">지급 총액</p>
-                  <p className="text-2xl font-bold text-blue-700">{totalPaidAmount.toLocaleString()}P</p>
+                  <p className="text-sm text-amber-600">SNS 미확정</p>
+                  <p className="text-2xl font-bold text-amber-700">{pendingCount}건</p>
                 </div>
               </div>
             </CardContent>
@@ -439,6 +478,20 @@ export default function UnpaidCampaignsManagement() {
             </CardContent>
           </Card>
 
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <CreditCard className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-blue-600">지급 총액</p>
+                  <p className="text-2xl font-bold text-blue-700">{totalPaidAmount.toLocaleString()}P</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-orange-50 border-orange-200">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -446,8 +499,8 @@ export default function UnpaidCampaignsManagement() {
                   <AlertCircle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-orange-600">미지급 총액</p>
-                  <p className="text-2xl font-bold text-orange-700">{totalUnpaidAmount.toLocaleString()}P</p>
+                  <p className="text-sm text-orange-600">미확정+미지급 총액</p>
+                  <p className="text-2xl font-bold text-orange-700">{(totalPendingAmount + totalUnpaidAmount).toLocaleString()}P</p>
                 </div>
               </div>
             </CardContent>
@@ -470,36 +523,47 @@ export default function UnpaidCampaignsManagement() {
         {/* 탭 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
-            <TabsTrigger value="confirmed" className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" />
-              포인트 지급 확인 ({confirmedCount})
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              SNS 제출 - 미확정 ({pendingCount})
             </TabsTrigger>
             <TabsTrigger value="unpaid" className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
               미지급 건 ({unpaidCount})
             </TabsTrigger>
+            <TabsTrigger value="confirmed" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              지급 확인 ({confirmedCount})
+            </TabsTrigger>
           </TabsList>
 
-          {/* 포인트 지급 확인 탭 */}
-          <TabsContent value="confirmed">
+          {/* SNS 제출 - 미확정 탭 */}
+          <TabsContent value="pending">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center justify-between">
-                  <span>포인트 지급 확인 목록</span>
-                  <span className="text-sm font-normal text-gray-500">
-                    point_transactions 기록 기준 | 총 {totalPaidAmount.toLocaleString()}P
+                  <span>SNS 제출 완료 - 최종 확정 대기</span>
+                  <span className="text-sm font-normal text-amber-600">
+                    영상 승인 + SNS 제출 완료, 최종 확정 필요 | {pendingCount}건 ({totalPendingAmount.toLocaleString()}P)
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {filterBySearch(confirmedList).length === 0 ? (
+                {pendingCount > 0 && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    아래 크리에이터들은 SNS에 영상을 업로드했지만 아직 최종 확정이 되지 않았습니다.
+                    캠페인 상세에서 &apos;최종 확정&apos; 버튼을 눌러 포인트를 지급해주세요.
+                  </div>
+                )}
+                {filterBySearch(pendingList).length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>지급 확인된 건이 없습니다</p>
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-300" />
+                    <p>모든 SNS 제출 건이 확정되었습니다</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filterBySearch(confirmedList).map((item, idx) => renderItem(item, idx, true))}
+                    {filterBySearch(pendingList).map((item, idx) => renderItem(item, idx, 'pending'))}
                   </div>
                 )}
               </CardContent>
@@ -513,7 +577,7 @@ export default function UnpaidCampaignsManagement() {
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span>미지급 건 목록</span>
                   <span className="text-sm font-normal text-red-500">
-                    확정/완료 되었지만 point_transactions 기록 없음 | 총 {totalUnpaidAmount.toLocaleString()}P
+                    확정/완료 되었지만 point_transactions 기록 없음 | {unpaidCount}건 ({totalUnpaidAmount.toLocaleString()}P)
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -532,7 +596,33 @@ export default function UnpaidCampaignsManagement() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filterBySearch(unpaidList).map((item, idx) => renderItem(item, idx, false))}
+                    {filterBySearch(unpaidList).map((item, idx) => renderItem(item, idx, 'unpaid'))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 포인트 지급 확인 탭 */}
+          <TabsContent value="confirmed">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>포인트 지급 확인 목록</span>
+                  <span className="text-sm font-normal text-gray-500">
+                    point_transactions 기록 기준 | {confirmedCount}건 ({totalPaidAmount.toLocaleString()}P)
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {filterBySearch(confirmedList).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>지급 확인된 건이 없습니다</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filterBySearch(confirmedList).map((item, idx) => renderItem(item, idx, 'confirmed'))}
                   </div>
                 )}
               </CardContent>

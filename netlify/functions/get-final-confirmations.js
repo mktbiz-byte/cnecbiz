@@ -250,9 +250,11 @@ exports.handler = async (event) => {
     // ===== 전체 데이터 조회 (point_transactions 기반 재설계) =====
     // confirmed: point_transactions에 기록이 있는 건 (실제 지급 확인)
     // unpaid: 최종확정/완료 되었지만 point_transactions 기록이 없는 건 (진짜 미지급)
+    // pendingConfirmation: SNS 제출했지만 최종확정이 안 된 건 (확정 대기)
     const results = {
       confirmed: [],
-      unpaid: []
+      unpaid: [],
+      pendingConfirmation: []
     }
 
     for (const [regionId, config] of Object.entries(regionConfigs)) {
@@ -288,7 +290,7 @@ exports.handler = async (event) => {
         // ── Step 2: video_submissions 조회 (미지급 건 탐지 + 보충 데이터용) ──
         const { data: submissions, error: subError } = await supabase
           .from('video_submissions')
-          .select('id, user_id, campaign_id, application_id, status, final_confirmed_at, auto_confirmed, created_at')
+          .select('id, user_id, campaign_id, application_id, status, final_confirmed_at, auto_confirmed, sns_upload_url, created_at')
           .order('created_at', { ascending: false })
           .limit(500)
 
@@ -441,7 +443,56 @@ exports.handler = async (event) => {
           })
         }
 
-        console.log(`[${regionId}] 결과: confirmed=${results.confirmed.length}, unpaid=${results.unpaid.length}`)
+        // ── Step 7: pendingConfirmation 목록 (SNS 제출했지만 최종확정 안 된 건) ──
+        const seenPending = new Set()
+        for (const sub of (submissions || [])) {
+          const payKey = `${sub.user_id}_${sub.campaign_id}`
+          const dedupeKey = `${sub.user_id}_${sub.campaign_id}_${regionId}`
+
+          // 이미 point_transactions에 있으면 skip (지급 완료)
+          if (paidKeys.has(payKey)) continue
+
+          // 이미 최종확정 됐으면 skip (unpaid에서 처리됨)
+          if (sub.final_confirmed_at) continue
+
+          // SNS URL이 있고, status가 approved인 건만 (영상 승인 + SNS 제출 완료)
+          if (!sub.sns_upload_url || sub.status !== 'approved') continue
+
+          if (seenPending.has(dedupeKey)) continue
+          seenPending.add(dedupeKey)
+
+          let app = sub.application_id ? applicationsMap[sub.application_id] : null
+          if (!app) app = applicationsMap[payKey]
+
+          const campaign = campaignsMap[sub.campaign_id] || {}
+          const profile = userProfilesMap[sub.user_id] || {}
+          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
+            Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+
+          results.pendingConfirmation.push({
+            id: sub.id,
+            region: regionId,
+            userId: sub.user_id,
+            campaignId: sub.campaign_id,
+            applicationId: sub.application_id,
+            status: sub.status,
+            snsUploadUrl: sub.sns_upload_url,
+            finalConfirmedAt: null,
+            createdAt: sub.created_at,
+            creatorName: app?.applicant_name || profile?.name || null,
+            phone: app?.phone_number || profile?.phone || null,
+            email: profile?.email || null,
+            campaignTitle: campaign.title || null,
+            campaignBrand: campaign.brand || null,
+            campaignType: campaign.campaign_type,
+            pointAmount: pointAmount,
+            isPaid: false,
+            paidAmount: 0,
+            paidAt: null
+          })
+        }
+
+        console.log(`[${regionId}] 결과: confirmed=${results.confirmed.length}, unpaid=${results.unpaid.length}, pendingConfirmation=${results.pendingConfirmation.length}`)
 
       } catch (err) {
         console.error(`[${regionId}] Error:`, err)
@@ -451,8 +502,9 @@ exports.handler = async (event) => {
     // 정렬
     results.confirmed.sort((a, b) => new Date(b.paidAt || b.finalConfirmedAt) - new Date(a.paidAt || a.finalConfirmedAt))
     results.unpaid.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    results.pendingConfirmation.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-    console.log(`Total - confirmed: ${results.confirmed.length}, unpaid: ${results.unpaid.length}`)
+    console.log(`Total - confirmed: ${results.confirmed.length}, unpaid: ${results.unpaid.length}, pendingConfirmation: ${results.pendingConfirmation.length}`)
 
     return {
       statusCode: 200,
@@ -460,7 +512,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         confirmed: results.confirmed,
-        unpaid: results.unpaid
+        unpaid: results.unpaid,
+        pendingConfirmation: results.pendingConfirmation
       })
     }
 
