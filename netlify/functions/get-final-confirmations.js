@@ -171,7 +171,7 @@ exports.handler = async (event) => {
 
       const supabase = createClient(config.url, config.key)
 
-      // point_transactions 조회 (point_history 테이블은 Korea DB에 존재하지 않음)
+      // 1) point_transactions 조회
       const { data: pointTx } = await supabase
         .from('point_transactions')
         .select('*')
@@ -179,13 +179,70 @@ exports.handler = async (event) => {
         .order('created_at', { ascending: false })
         .limit(50)
 
+      // 2) video_submissions에서 캠페인 지급 기록 복원
+      //    (기존에 point_history에 기록하다 실패한 건들 = point_transactions에 없는 건)
+      let reconstructedPayments = []
+      const { data: confirmedVideos } = await supabase
+        .from('video_submissions')
+        .select('id, campaign_id, final_confirmed_at, auto_confirmed, created_at')
+        .eq('user_id', userId)
+        .not('final_confirmed_at', 'is', null)
+        .order('final_confirmed_at', { ascending: false })
+
+      if (confirmedVideos && confirmedVideos.length > 0) {
+        // 캠페인 정보 조회
+        const cIds = [...new Set(confirmedVideos.map(v => v.campaign_id).filter(Boolean))]
+        let cMap = {}
+        if (cIds.length > 0) {
+          const { data: camps } = await supabase
+            .from('campaigns')
+            .select('id, title, reward_points, creator_points_override')
+            .in('id', cIds)
+          if (camps) camps.forEach(c => { cMap[c.id] = c })
+        }
+
+        // point_transactions에 이미 있는 캠페인 ID
+        const existingCampaignIds = new Set(
+          (pointTx || [])
+            .filter(t => t.related_campaign_id)
+            .map(t => t.related_campaign_id)
+        )
+
+        // 중복 제거 (같은 캠페인 여러 영상이면 한 번만)
+        const seenCampaigns = new Set()
+        for (const v of confirmedVideos) {
+          if (!v.campaign_id || seenCampaigns.has(v.campaign_id)) continue
+          if (existingCampaignIds.has(v.campaign_id)) continue
+          seenCampaigns.add(v.campaign_id)
+
+          const camp = cMap[v.campaign_id]
+          const amount = camp?.creator_points_override || camp?.reward_points || 0
+          if (amount > 0) {
+            reconstructedPayments.push({
+              id: `vs_${v.id}`,
+              user_id: userId,
+              amount: amount,
+              transaction_type: 'campaign_payment',
+              description: `캠페인 완료: ${camp?.title || ''}`,
+              related_campaign_id: v.campaign_id,
+              created_at: v.final_confirmed_at,
+              source: 'reconstructed_from_video_submissions'
+            })
+          }
+        }
+      }
+
+      // 합쳐서 반환
+      const allTransactions = [...(pointTx || []), ...reconstructedPayments]
+      allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
           history: [],
-          transactions: pointTx || []
+          transactions: allTransactions
         })
       }
     }
