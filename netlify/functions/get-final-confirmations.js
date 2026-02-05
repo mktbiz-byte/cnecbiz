@@ -69,7 +69,7 @@ exports.handler = async (event) => {
         if (sub.application_id) {
           const { data: app1, error: e1 } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, phone_number')
             .eq('id', sub.application_id)
             .maybeSingle()
           result.applicationById = app1 || { error: e1?.message }
@@ -79,7 +79,7 @@ exports.handler = async (event) => {
         if (sub.user_id && sub.campaign_id) {
           const { data: app2, error: e2 } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, phone_number')
             .eq('user_id', sub.user_id)
             .eq('campaign_id', sub.campaign_id)
             .maybeSingle()
@@ -204,7 +204,7 @@ exports.handler = async (event) => {
         if (applicationIds.length > 0) {
           const { data: applications, error: appError } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, email, phone_number')
             .in('id', applicationIds)
 
           if (appError) {
@@ -222,7 +222,7 @@ exports.handler = async (event) => {
         if (userIds.length > 0 && campaignIds.length > 0) {
           const { data: appsByUserCampaign, error: appError2 } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, email, phone_number')
             .in('user_id', userIds)
             .in('campaign_id', campaignIds)
 
@@ -360,7 +360,8 @@ exports.handler = async (event) => {
           const pointRecord = pointHistoryMap[pointKey]
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
-          const creatorName = app?.applicant_name || app?.nickname ||
+          // ★ applications에는 nickname 컬럼 없음 - applicant_name만 사용
+          const creatorName = app?.applicant_name ||
                               profile?.name || profile?.nickname || null
 
           // 연락처 (applications에는 phone_number만 있음, user_profiles에는 phone)
