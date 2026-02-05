@@ -689,7 +689,7 @@ export default function CreatorPointHistory() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">총 차감 포인트</p>
+                    <p className="text-sm text-gray-600 mb-1">출금 포인트</p>
                     <p className="text-2xl font-bold text-red-600">
                       {stats.totalDeducted.toLocaleString()}P
                     </p>
@@ -1289,7 +1289,7 @@ export default function CreatorPointHistory() {
                   </p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-red-600 mb-1">총 차감 포인트</p>
+                  <p className="text-sm text-red-600 mb-1">출금 포인트</p>
                   <p className="text-xl font-bold text-red-700">
                     -{selectedCreator.totalDeducted.toLocaleString()}P
                   </p>
