@@ -240,21 +240,20 @@ exports.handler = async (event, context) => {
               .update({ points: newPoints, updated_at: new Date().toISOString() })
               .eq('id', submission.user_id);
 
-            // 포인트 히스토리 기록
+            // 포인트 트랜잭션 기록 (point_transactions 테이블)
             try {
               await supabaseKorea
-                .from('point_history')
-                .insert([{
+                .from('point_transactions')
+                .insert({
                   user_id: submission.user_id,
-                  campaign_id: campaign.id,
                   amount: pointAmount,
-                  type: 'campaign_complete',
-                  reason: `캠페인 자동 완료: ${campaign.title}`,
-                  balance_after: newPoints,
+                  transaction_type: 'campaign_payment',
+                  description: `캠페인 자동 완료: ${campaign.title}`,
+                  related_campaign_id: campaign.id,
                   created_at: new Date().toISOString()
-                }]);
-            } catch (historyError) {
-              console.log('point_history 저장 실패:', historyError);
+                });
+            } catch (txError) {
+              console.log('point_transactions 저장 실패:', txError);
             }
 
             const creatorName = profile.name || profile.full_name || '크리에이터';

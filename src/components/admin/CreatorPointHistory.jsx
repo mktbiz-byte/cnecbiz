@@ -128,22 +128,18 @@ export default function CreatorPointHistory() {
             .select('*')
             .limit(2000)
 
-          // 프로필 맵 생성 (id와 user_id 모두 키로 사용)
-          // 필드명 정규화 (다른 DB 스키마 대응)
+          // 프로필 맵 생성 (id를 키로 사용 - Korea DB에는 user_id 컬럼 없음)
           const profileMap = {}
           if (allProfiles) {
             allProfiles.forEach(p => {
-              // 필드명 정규화
               const normalizedProfile = {
                 id: p.id,
-                user_id: p.user_id,
                 name: p.name || p.creator_name || p.channel_name || p.full_name || null,
                 channel_name: p.channel_name || p.name || p.creator_name || null,
                 email: p.email || null,
-                phone: p.phone || p.phone_number || p.mobile || p.contact || null
+                phone: p.phone || p.phone_number || null
               }
               if (p.id) profileMap[p.id] = normalizedProfile
-              if (p.user_id) profileMap[p.user_id] = normalizedProfile
             })
             console.log('프로필 맵 생성:', Object.keys(profileMap).length, '개 키')
           }
@@ -202,82 +198,8 @@ export default function CreatorPointHistory() {
           allTransactions = [...allTransactions, ...koreaTransactions]
         }
 
-        // Korea DB에서 point_history도 조회 (캠페인 완료 포인트)
-        try {
-          let historyQuery = supabaseKorea
-            .from('point_history')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(500)
-
-          if (dateStart) {
-            historyQuery = historyQuery.gte('created_at', dateStart)
-          }
-
-          const { data: historyData, error: historyError } = await historyQuery
-
-          if (!historyError && historyData && historyData.length > 0) {
-            console.log('Korea DB point_history:', historyData.length, '건')
-
-            // 프로필 맵 재사용
-            const { data: allProfiles } = await supabaseKorea
-              .from('user_profiles')
-              .select('*')
-              .limit(2000)
-
-            const profileMap = {}
-            if (allProfiles) {
-              allProfiles.forEach(p => {
-                const normalizedProfile = {
-                  id: p.id,
-                  user_id: p.user_id,
-                  name: p.name || p.creator_name || p.channel_name || p.full_name || null,
-                  channel_name: p.channel_name || p.name || p.creator_name || null,
-                  email: p.email || null,
-                  phone: p.phone || p.phone_number || p.mobile || p.contact || null
-                }
-                if (p.id) profileMap[p.id] = normalizedProfile
-                if (p.user_id) profileMap[p.user_id] = normalizedProfile
-              })
-            }
-
-            // 캠페인 정보 조회
-            const campaignIds = [...new Set(historyData.map(t => t.campaign_id).filter(Boolean))]
-            let campaignMap = {}
-            if (campaignIds.length > 0) {
-              const { data: campaignData } = await supabaseKorea
-                .from('campaigns')
-                .select('id, title')
-                .in('id', campaignIds)
-              if (campaignData) {
-                campaignData.forEach(c => campaignMap[c.id] = c)
-              }
-            }
-
-            const historyTransactions = historyData.map(t => {
-              const profile = profileMap[t.user_id]
-              const campaign = campaignMap[t.campaign_id]
-              return {
-                id: t.id,
-                user_id: t.user_id,
-                amount: t.amount,
-                transaction_type: t.type || 'campaign_complete',
-                description: t.reason || t.description || `캠페인 완료: ${campaign?.title || ''}`,
-                related_campaign_id: t.campaign_id,
-                created_at: t.created_at,
-                creator_name: profile?.channel_name || profile?.name || t.user_id?.substring(0, 8) + '...',
-                creator_email: profile?.email || '',
-                creator_phone: profile?.phone || '',
-                campaign_title: campaign?.title || null,
-                source_db: 'korea_history'
-              }
-            })
-
-            allTransactions = [...allTransactions, ...historyTransactions]
-          }
-        } catch (historyError) {
-          console.log('point_history 조회 스킵 (테이블 없을 수 있음):', historyError.message)
-        }
+        // point_history 테이블은 Korea DB에 존재하지 않으므로 조회하지 않음
+        // 포인트 지급 기록은 point_transactions 테이블에서 조회됨
       }
 
       // BIZ DB에서 creator_points 조회 (테이블이 없을 수 있음)
@@ -429,9 +351,10 @@ export default function CreatorPointHistory() {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
         totalPaid += amount
-        // 캠페인 보상: campaign_reward, campaign_complete, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
+        // 캠페인 보상: campaign_reward, campaign_complete, campaign_payment, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
         if (t.transaction_type === 'campaign_reward' ||
             t.transaction_type === 'campaign_complete' ||
+            t.transaction_type === 'campaign_payment' ||
             t.transaction_type === 'bonus' ||
             t.description?.includes('캠페인')) {
           campaignRewards += amount
@@ -458,6 +381,7 @@ export default function CreatorPointHistory() {
         filtered = filtered.filter(t =>
           t.transaction_type === 'campaign_reward' ||
           t.transaction_type === 'campaign_complete' ||
+          t.transaction_type === 'campaign_payment' ||
           t.transaction_type === 'bonus' ||
           t.related_campaign_id ||
           t.campaign_id ||
@@ -494,6 +418,7 @@ export default function CreatorPointHistory() {
       'admin_add': { color: 'bg-blue-100 text-blue-700', label: '관리자 지급' },
       'campaign_reward': { color: 'bg-green-100 text-green-700', label: '캠페인 보상' },
       'campaign_complete': { color: 'bg-green-100 text-green-700', label: '캠페인 완료' },
+      'campaign_payment': { color: 'bg-teal-100 text-teal-700', label: '캠페인 지급' },
       'earn': { color: 'bg-emerald-100 text-emerald-700', label: '포인트 적립' },
       'bonus': { color: 'bg-purple-100 text-purple-700', label: '보너스' },
       'refund': { color: 'bg-orange-100 text-orange-700', label: '환불' },
