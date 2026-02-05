@@ -55,9 +55,23 @@ export default function UnpaidCampaignsManagement() {
       const result = await response.json()
 
       if (result.success) {
-        setConfirmedList(result.confirmed || [])
-        setPendingList(result.pending || [])
-        console.log(`데이터 로드 완료 - 확정: ${result.confirmed?.length || 0}건, 대기: ${result.pending?.length || 0}건`)
+        // isPaid인 pending 항목은 confirmed로 이동 (포인트 지급됐지만 video_submissions 미업데이트 건)
+        const serverConfirmed = result.confirmed || []
+        const serverPending = result.pending || []
+        const adjustedConfirmed = [...serverConfirmed]
+        const adjustedPending = []
+
+        for (const item of serverPending) {
+          if (item.isPaid) {
+            adjustedConfirmed.push(item)
+          } else {
+            adjustedPending.push(item)
+          }
+        }
+
+        setConfirmedList(adjustedConfirmed)
+        setPendingList(adjustedPending)
+        console.log(`데이터 로드 완료 - 확정: ${adjustedConfirmed.length}건 (서버 ${serverConfirmed.length} + 이동 ${adjustedConfirmed.length - serverConfirmed.length}), 대기: ${adjustedPending.length}건`)
       } else {
         console.error('데이터 로드 실패:', result.error)
       }
