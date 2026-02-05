@@ -339,12 +339,20 @@ export default function DailyReportPage() {
   const updateSheetColumn = (sheetId, columnField, value) => {
     setNewStaff(prev => ({
       ...prev,
-      sheets: prev.sheets.map(s =>
-        s.id === sheetId ? {
+      sheets: prev.sheets.map(s => {
+        if (s.id !== sheetId) return s
+        // 기존 columnConfig가 없으면 기본값으로 초기화
+        const currentConfig = s.columnConfig || {
+          dateColumn: 'B',
+          creatorColumn: 'D',
+          dmColumn: 'I',
+          emailColumn: 'H'
+        }
+        return {
           ...s,
-          columnConfig: { ...s.columnConfig, [columnField]: value }
-        } : s
-      )
+          columnConfig: { ...currentConfig, [columnField]: value }
+        }
+      })
     }))
   }
 
@@ -359,9 +367,20 @@ export default function DailyReportPage() {
   // 수정 모드
   const openEditModal = (staff) => {
     setEditingStaff(staff)
+    // 시트 데이터에 columnConfig가 없으면 기본값으로 초기화
+    const sheetsWithConfig = staff.sheets.map(sheet => ({
+      ...sheet,
+      country: sheet.country || 'KR',
+      columnConfig: {
+        dateColumn: sheet.columnConfig?.dateColumn || 'B',
+        creatorColumn: sheet.columnConfig?.creatorColumn || 'D',
+        dmColumn: sheet.columnConfig?.dmColumn || 'I',
+        emailColumn: sheet.columnConfig?.emailColumn || 'H'
+      }
+    }))
     setNewStaff({
       name: staff.name,
-      sheets: staff.sheets,
+      sheets: sheetsWithConfig,
       kpi: staff.kpi || { creators: 30, dm: 20, emails: 10 }
     })
     setShowAddStaffModal(true)
