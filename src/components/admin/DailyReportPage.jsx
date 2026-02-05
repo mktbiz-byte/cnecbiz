@@ -1385,8 +1385,11 @@ export default function DailyReportPage() {
                           <div>
                             <Label className="text-xs">날짜 컬럼</Label>
                             <Input
-                              value={sheet.columnConfig?.dateColumn || 'B'}
-                              onChange={(e) => updateSheetColumn(sheet.id, 'dateColumn', e.target.value.toUpperCase())}
+                              value={(sheet.columnConfig && sheet.columnConfig.dateColumn) || 'B'}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase()
+                                updateSheetColumn(sheet.id, 'dateColumn', val)
+                              }}
                               placeholder="B"
                               className="h-9"
                             />
@@ -1394,8 +1397,11 @@ export default function DailyReportPage() {
                           <div>
                             <Label className="text-xs">크리에이터 컬럼</Label>
                             <Input
-                              value={sheet.columnConfig?.creatorColumn || 'D'}
-                              onChange={(e) => updateSheetColumn(sheet.id, 'creatorColumn', e.target.value.toUpperCase())}
+                              value={(sheet.columnConfig && sheet.columnConfig.creatorColumn) || 'D'}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase()
+                                updateSheetColumn(sheet.id, 'creatorColumn', val)
+                              }}
                               placeholder="D"
                               className="h-9"
                             />
@@ -1403,8 +1409,11 @@ export default function DailyReportPage() {
                           <div>
                             <Label className="text-xs">DM 컬럼</Label>
                             <Input
-                              value={sheet.columnConfig?.dmColumn || 'I'}
-                              onChange={(e) => updateSheetColumn(sheet.id, 'dmColumn', e.target.value.toUpperCase())}
+                              value={(sheet.columnConfig && sheet.columnConfig.dmColumn) || 'I'}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase()
+                                updateSheetColumn(sheet.id, 'dmColumn', val)
+                              }}
                               placeholder="I"
                               className="h-9"
                             />
@@ -1412,8 +1421,11 @@ export default function DailyReportPage() {
                           <div>
                             <Label className="text-xs">이메일 컬럼</Label>
                             <Input
-                              value={sheet.columnConfig?.emailColumn || 'H'}
-                              onChange={(e) => updateSheetColumn(sheet.id, 'emailColumn', e.target.value.toUpperCase())}
+                              value={(sheet.columnConfig && sheet.columnConfig.emailColumn) || 'H'}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase()
+                                updateSheetColumn(sheet.id, 'emailColumn', val)
+                              }}
                               placeholder="H"
                               className="h-9"
                             />
