@@ -49,19 +49,36 @@ export default function UnpaidCampaignsManagement() {
           const supabase = getSupabaseClient(region.id)
           if (!supabase) continue
 
-          // video_submissions 조회 (final_confirmed_at 기준)
+          // video_submissions 조회 (조인 없이 개별 조회)
           const { data: submissions, error } = await supabase
             .from('video_submissions')
-            .select(`
-              id, user_id, campaign_id, status, final_confirmed_at, created_at, updated_at,
-              campaigns (id, title, brand, campaign_type, point_amount)
-            `)
+            .select('id, user_id, campaign_id, status, final_confirmed_at, created_at, updated_at')
             .order('created_at', { ascending: false })
             .limit(500)
 
           if (error) {
-            console.error(`[${region.id}] 조회 오류:`, error)
+            console.error(`[${region.id}] video_submissions 조회 오류:`, error)
             continue
+          }
+
+          console.log(`[${region.id}] video_submissions 조회: ${submissions?.length || 0}건`)
+
+          // 캠페인 ID 목록 추출
+          const campaignIds = [...new Set((submissions || []).map(s => s.campaign_id).filter(Boolean))]
+
+          // campaigns 별도 조회
+          let campaignMap = {}
+          if (campaignIds.length > 0) {
+            const { data: campaigns, error: campError } = await supabase
+              .from('campaigns')
+              .select('id, title, brand, campaign_type, point_amount')
+              .in('id', campaignIds)
+
+            if (!campError && campaigns) {
+              campaigns.forEach(c => {
+                campaignMap[c.id] = c
+              })
+            }
           }
 
           // user_profiles 조회
@@ -116,7 +133,7 @@ export default function UnpaidCampaignsManagement() {
           // 데이터 분류
           for (const sub of (submissions || [])) {
             const profile = profileMap[sub.user_id]
-            const campaign = sub.campaigns
+            const campaign = campaignMap[sub.campaign_id]
             const pointKey = `${sub.user_id}_${sub.campaign_id}`
             const pointRecord = pointHistoryMap[pointKey]
 
@@ -158,6 +175,8 @@ export default function UnpaidCampaignsManagement() {
       // 정렬: 최신순
       confirmed.sort((a, b) => new Date(b.finalConfirmedAt) - new Date(a.finalConfirmedAt))
       pending.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+      console.log(`최종 확정 완료: ${confirmed.length}건, 대기: ${pending.length}건`)
 
       setConfirmedList(confirmed)
       setPendingList(pending)
