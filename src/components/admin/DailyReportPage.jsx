@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import {
   Loader2, Plus, Trash2, Save, RefreshCw, Users, Mail, MessageSquare,
-  BarChart3, TrendingUp, Calendar, ChevronRight, Sparkles, Settings,
+  BarChart3, TrendingUp, Calendar, ChevronRight, ChevronDown, Sparkles, Settings,
   FileSpreadsheet, User, ArrowLeft, Target, AlertTriangle, CheckCircle2,
   Globe, Flag
 } from 'lucide-react'
@@ -55,6 +55,9 @@ export default function DailyReportPage() {
 
   // 국가별 통계
   const [countryStats, setCountryStats] = useState({})
+
+  // 월별 현황 펼침 상태
+  const [expandedMonth, setExpandedMonth] = useState(null)
 
   // 관리자 인증 체크
   useEffect(() => {
@@ -966,6 +969,7 @@ export default function DailyReportPage() {
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
                       월별 현황
+                      <span className="text-sm font-normal text-gray-500">(클릭하여 일별 상세 보기)</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -981,23 +985,100 @@ export default function DailyReportPage() {
                             <th className="text-right py-2 px-4">일평균</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {staffDetail.stats.monthly.map(month => (
-                            <tr key={month.month} className="border-b hover:bg-gray-50">
-                              <td className="py-2 px-4 font-medium">{month.month}</td>
-                              <td className="text-right py-2 px-4">{month.creators}</td>
-                              <td className="text-right py-2 px-4">{month.dm}</td>
-                              <td className="text-right py-2 px-4">{month.emails}</td>
-                              <td className="text-right py-2 px-4">{month.workDays}일</td>
-                              <td className="text-right py-2 px-4 text-gray-500">
-                                {month.workDays > 0
-                                  ? (month.creators / month.workDays).toFixed(1)
-                                  : '-'
-                                }/일
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
+                          {staffDetail.stats.monthly.map(month => {
+                            const isExpanded = expandedMonth === month.month
+                            // 해당 월의 일별 데이터 필터링
+                            const monthDailyData = staffDetail.stats.daily
+                              .filter(d => d.date.startsWith(month.month))
+                              .sort((a, b) => b.date.localeCompare(a.date))
+
+                            return (
+                              <tbody key={month.month}>
+                                <tr
+                                  className="border-b hover:bg-blue-50 cursor-pointer transition-colors"
+                                  onClick={() => setExpandedMonth(isExpanded ? null : month.month)}
+                                >
+                                  <td className="py-2 px-4 font-medium">
+                                    <div className="flex items-center gap-2">
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-4 h-4 text-blue-500" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                                      )}
+                                      {month.month}
+                                    </div>
+                                  </td>
+                                  <td className="text-right py-2 px-4">{month.creators}</td>
+                                  <td className="text-right py-2 px-4">{month.dm}</td>
+                                  <td className="text-right py-2 px-4">{month.emails}</td>
+                                  <td className="text-right py-2 px-4">{month.workDays}일</td>
+                                  <td className="text-right py-2 px-4 text-gray-500">
+                                    {month.workDays > 0
+                                      ? (month.creators / month.workDays).toFixed(1)
+                                      : '-'
+                                    }/일
+                                  </td>
+                                </tr>
+                                {/* 일별 상세 데이터 (펼침 시) */}
+                                {isExpanded && monthDailyData.length > 0 && (
+                                  <tr>
+                                    <td colSpan={6} className="p-0">
+                                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                        <div className="text-sm font-medium text-blue-700 mb-3">
+                                          {month.month} 일별 상세 ({monthDailyData.length}일)
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-sm">
+                                            <thead>
+                                              <tr className="border-b border-blue-200">
+                                                <th className="text-left py-1 px-3">날짜</th>
+                                                <th className="text-right py-1 px-3">크리에이터</th>
+                                                <th className="text-right py-1 px-3">DM</th>
+                                                <th className="text-right py-1 px-3">메일수집</th>
+                                                <th className="text-right py-1 px-3">KPI</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {monthDailyData.map(day => {
+                                                const staff = staffSheets.find(s => s.id === staffDetail.staffInfo.id)
+                                                const kpi = staff?.kpi || { creators: 30, dm: 20, emails: 10 }
+                                                const creatorsRate = Math.round((day.creators / kpi.creators) * 100)
+                                                const dmRate = Math.round((day.dm / kpi.dm) * 100)
+                                                const emailsRate = Math.round((day.emails / kpi.emails) * 100)
+                                                const allMet = creatorsRate >= 100 && dmRate >= 100 && emailsRate >= 100
+
+                                                return (
+                                                  <tr key={day.date} className="border-b border-blue-100 hover:bg-blue-100">
+                                                    <td className="py-1 px-3 font-medium">{day.date.slice(5)}</td>
+                                                    <td className={`text-right py-1 px-3 ${creatorsRate >= 100 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      {day.creators} <span className="text-xs text-gray-400">({creatorsRate}%)</span>
+                                                    </td>
+                                                    <td className={`text-right py-1 px-3 ${dmRate >= 100 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      {day.dm} <span className="text-xs text-gray-400">({dmRate}%)</span>
+                                                    </td>
+                                                    <td className={`text-right py-1 px-3 ${emailsRate >= 100 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      {day.emails} <span className="text-xs text-gray-400">({emailsRate}%)</span>
+                                                    </td>
+                                                    <td className="text-right py-1 px-3">
+                                                      {allMet ? (
+                                                        <Badge className="bg-green-100 text-green-700 text-xs">달성</Badge>
+                                                      ) : (
+                                                        <Badge variant="destructive" className="text-xs">미달</Badge>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                )
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            )
+                          })}
                       </table>
                     </div>
                   </CardContent>
