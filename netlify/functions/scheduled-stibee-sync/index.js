@@ -338,11 +338,15 @@ exports.handler = async (event) => {
     }
 
     // 락 설정 (리전 정보 포함)
-    await supabase.from('site_settings').upsert({
-      key: LOCK_KEY,
-      value: JSON.stringify({ time: new Date().toISOString(), regions: targetRegions || 'all' }),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(function () {})
+    try {
+      await supabase.from('site_settings').upsert({
+        key: LOCK_KEY,
+        value: JSON.stringify({ time: new Date().toISOString(), regions: targetRegions || 'all' }),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+    } catch (lockSetErr) {
+      console.log('[stibee-sync] Lock set warning:', lockSetErr.message)
+    }
 
     // 설정 로드
     const { data: settingsData } = await supabase
@@ -430,11 +434,15 @@ exports.handler = async (event) => {
     console.log('[stibee-sync] All results:', JSON.stringify(results))
 
     // 동기화 로그 저장
-    await supabase.from('site_settings').upsert({
-      key: 'stibee_sync_last_result',
-      value: JSON.stringify({ timestamp: new Date().toISOString(), results: results }),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(function () {})
+    try {
+      await supabase.from('site_settings').upsert({
+        key: 'stibee_sync_last_result',
+        value: JSON.stringify({ timestamp: new Date().toISOString(), results: results }),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+    } catch (logErr) {
+      console.log('[stibee-sync] Log save warning:', logErr.message)
+    }
 
     return {
       statusCode: 200, headers,
@@ -453,7 +461,11 @@ exports.handler = async (event) => {
       if (supabase) {
         await supabase.from('site_settings').delete().eq('key', LOCK_KEY)
         // 이전 형식 락도 정리
-        await supabase.from('site_settings').delete().eq('key', 'stibee_sync_lock').catch(function () {})
+        try {
+          await supabase.from('site_settings').delete().eq('key', 'stibee_sync_lock')
+        } catch (legacyLockErr) {
+          // ignore
+        }
       }
     } catch (finallyErr) {
       console.error('[stibee-sync] Lock release error:', finallyErr)
