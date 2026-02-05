@@ -4419,7 +4419,7 @@ Questions? Contact us.
         return
       }
 
-      const pointAmount = campaign.reward_points || campaign.point || 0
+      const pointAmount = campaign.creator_points_override || campaign.reward_points || 0
       const userId = participant.user_id
 
       // 1. Korea DB의 applications 상태 업데이트
@@ -9629,22 +9629,75 @@ Questions? Contact us.
                                                     확정
                                                   </Badge>
                                                 ) : submission.status === 'approved' && (
-                                                  <Button
-                                                    size="sm"
-                                                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                                                    onClick={async () => {
-                                                      if (!snsUrl) {
-                                                        setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
-                                                        setShowAdminSnsEditModal(true)
-                                                        return
-                                                      }
-                                                      if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
-                                                      await handleFinalConfirmation(submission)
-                                                    }}
-                                                  >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    최종 확정
-                                                  </Button>
+                                                  snsUrl ? (
+                                                    <Badge className="bg-green-100 text-green-700 px-2 py-1 text-xs">
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      SNS 업로드됨
+                                                    </Badge>
+                                                  ) : (
+                                                    <Button
+                                                      size="sm"
+                                                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                                                      onClick={async () => {
+                                                        const phone = participant.phone || participant.phone_number || participant.creator_phone
+                                                        const email = participant.email || participant.creator_email || participant.applicant_email
+                                                        const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+                                                        const weekLabel = submission.week_number ? `${submission.week_number}주차` : (submission.video_number ? `영상 ${submission.video_number}` : '')
+                                                        const deadline = participant.upload_deadline || '확인 후 7일 이내'
+
+                                                        if (!confirm(`${creatorName}님에게 ${weekLabel} SNS 업로드 요청 알림을 보내시겠습니까?`)) return
+
+                                                        try {
+                                                          if (region === 'korea' && phone) {
+                                                            await fetch('/.netlify/functions/send-kakao-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                receiverNum: phone.replace(/-/g, ''),
+                                                                receiverName: creatorName,
+                                                                templateCode: '025100001017',
+                                                                variables: {
+                                                                  '크리에이터명': creatorName,
+                                                                  '캠페인명': campaign?.title || '캠페인',
+                                                                  '업로드기한': deadline
+                                                                }
+                                                              })
+                                                            })
+                                                          } else if (region === 'japan') {
+                                                            await fetch('/.netlify/functions/send-japan-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                type: 'sns_upload_request',
+                                                                creatorEmail: email,
+                                                                lineUserId: participant.line_user_id,
+                                                                creatorPhone: phone,
+                                                                data: { creatorName, campaignName: campaign?.title || 'キャンペーン', deadline }
+                                                              })
+                                                            })
+                                                          } else if (region === 'us') {
+                                                            await fetch('/.netlify/functions/send-us-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                type: 'sns_upload_request',
+                                                                creatorEmail: email,
+                                                                creatorPhone: phone,
+                                                                data: { creatorName, campaignName: campaign?.title || 'Campaign', deadline }
+                                                              })
+                                                            })
+                                                          }
+                                                          alert(`${creatorName}님에게 ${weekLabel} SNS 업로드 요청을 보냈습니다.`)
+                                                        } catch (err) {
+                                                          console.error('SNS 업로드 요청 알림 실패:', err)
+                                                          alert('알림 발송에 실패했습니다.')
+                                                        }
+                                                      }}
+                                                    >
+                                                      <ExternalLink className="w-4 h-4 mr-1" />
+                                                      SNS 업로드 요청
+                                                    </Button>
+                                                  )
                                                 )}
                                               </div>
                                             </div>
