@@ -6,11 +6,17 @@
 const { createClient } = require('@supabase/supabase-js')
 const { sendNotification } = require('./send-notification-helper')
 
-// Supabase Admin 클라이언트 초기화
+// Supabase 클라이언트 초기화
+// Korea DB - 크리에이터/캠페인 데이터
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 )
+
+// BIZ DB - 기업 데이터 (회사 정보는 여기에 있음)
+const bizUrl = process.env.VITE_SUPABASE_BIZ_URL
+const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : null
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -47,7 +53,7 @@ exports.handler = async (event) => {
 
     console.log('[INFO] Sending resubmit notification for submission:', submissionId)
 
-    // 1. submission 정보 조회
+    // 1. submission 정보 조회 (company_email 포함)
     const { data: submission, error: submissionError } = await supabaseAdmin
       .from('video_submissions')
       .select(`
@@ -58,7 +64,8 @@ exports.handler = async (event) => {
             id,
             title,
             company_name,
-            company_id
+            company_id,
+            company_email
           )
         )
       `)
@@ -75,38 +82,100 @@ exports.handler = async (event) => {
     }
 
     const campaignTitle = submission.applications?.campaigns?.title || '캠페인'
-    const companyName = submission.applications?.campaigns?.company_name || '기업'
+    const companyNameFromCampaign = submission.applications?.campaigns?.company_name || '기업'
     const creatorName = submission.applications?.applicant_name || '크리에이터'
     const companyId = submission.applications?.campaigns?.company_id
+    const companyEmailFromCampaign = submission.applications?.campaigns?.company_email
 
-    if (!companyId) {
-      console.error('[ERROR] Company ID not found')
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Company ID not found' })
+    console.log('[INFO] Campaign company info:', { companyId, companyEmailFromCampaign })
+
+    // 2. 기업 담당자 정보 조회
+    // ★ 캠페인 이관 후에도 올바른 기업에게 알림이 가도록 company_email 우선 사용
+    let companyPhone = null
+    let companyEmail = null
+    let companyContactName = companyNameFromCampaign
+    let companyName = companyNameFromCampaign
+
+    // 1순위: BIZ DB에서 company_email로 조회 (이관된 캠페인의 경우 이 값이 최신)
+    if (companyEmailFromCampaign && supabaseBiz) {
+      const { data: bizCompany, error: bizError } = await supabaseBiz
+        .from('companies')
+        .select('company_name, phone, email')
+        .eq('email', companyEmailFromCampaign)
+        .maybeSingle()
+
+      console.log('[INFO] BIZ DB (email) lookup:', { bizCompany, error: bizError?.message })
+
+      if (bizCompany) {
+        companyPhone = bizCompany.phone
+        companyEmail = bizCompany.email
+        companyName = bizCompany.company_name || companyName
+        companyContactName = bizCompany.company_name || companyContactName
       }
     }
 
-    // 2. 기업 담당자 정보 조회
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from('companies')
-      .select('company_name, contact_person, contact_phone, contact_email')
-      .eq('id', companyId)
-      .single()
+    // 2순위: BIZ DB에서 company_id(user_id)로 조회
+    if (!companyPhone && companyId && supabaseBiz) {
+      const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
+        .from('companies')
+        .select('company_name, phone, email')
+        .eq('user_id', companyId)
+        .maybeSingle()
 
-    if (companyError || !company) {
-      console.error('[ERROR] Company not found:', companyError)
+      console.log('[INFO] BIZ DB (user_id) lookup:', { bizCompanyById, error: bizError2?.message })
+
+      if (bizCompanyById) {
+        companyPhone = bizCompanyById.phone
+        companyEmail = bizCompanyById.email
+        companyName = bizCompanyById.company_name || companyName
+        companyContactName = bizCompanyById.company_name || companyContactName
+      }
+    }
+
+    // 3순위: Korea DB companies 테이블에서 조회 (레거시)
+    if (!companyPhone && companyEmailFromCampaign) {
+      const { data: koreaCompany, error: koreaError } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, contact_person, contact_phone, contact_email, phone, email')
+        .eq('email', companyEmailFromCampaign)
+        .maybeSingle()
+
+      console.log('[INFO] Korea DB (email) lookup:', { koreaCompany, error: koreaError?.message })
+
+      if (koreaCompany) {
+        companyPhone = koreaCompany.contact_phone || koreaCompany.phone
+        companyEmail = koreaCompany.contact_email || koreaCompany.email
+        companyName = koreaCompany.company_name || companyName
+        companyContactName = koreaCompany.contact_person || koreaCompany.company_name || companyContactName
+      }
+    }
+
+    // 4순위: Korea DB에서 company_id로 조회 (기존 로직 유지)
+    if (!companyPhone && companyId) {
+      const { data: company, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, contact_person, contact_phone, contact_email, phone, email')
+        .eq('id', companyId)
+        .maybeSingle()
+
+      console.log('[INFO] Korea DB (id) lookup:', { company, error: companyError?.message })
+
+      if (company) {
+        companyPhone = company.contact_phone || company.phone
+        companyEmail = company.contact_email || company.email
+        companyName = company.company_name || companyName
+        companyContactName = company.contact_person || company.company_name || companyContactName
+      }
+    }
+
+    if (!companyPhone && !companyEmail) {
+      console.error('[ERROR] Company contact info not found')
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ error: 'Company not found' })
+        body: JSON.stringify({ error: 'Company contact info not found' })
       }
     }
-
-    const companyPhone = company.contact_phone
-    const companyEmail = company.contact_email
-    const companyContactName = company.contact_person || company.company_name
 
     console.log('[INFO] Company contact:', { companyPhone, companyEmail })
 

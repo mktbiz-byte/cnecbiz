@@ -132,6 +132,7 @@ exports.handler = async (event) => {
     const creatorName = record.creator_name || record.applicant_name || '크리에이터';
 
     // 3. 기업 정보 조회 (기업 데이터는 BIZ DB에만 있음)
+    // ★ 캠페인 이관 후에도 올바른 기업에게 알림이 가도록 company_email 우선 사용
     let companyPhone = null;
     let companyName = campaign.brand || '기업';
 
@@ -140,7 +141,7 @@ exports.handler = async (event) => {
       company_email: campaign.company_email
     });
 
-    // BIZ DB companies 테이블에서 조회 (컬럼: company_name, phone, email)
+    // 1순위: BIZ DB companies 테이블에서 company_email로 조회
     if (campaign.company_email && supabaseBiz) {
       const { data: bizCompany, error: bizError } = await supabaseBiz
         .from('companies')
@@ -148,12 +149,46 @@ exports.handler = async (event) => {
         .eq('email', campaign.company_email)
         .single();
 
-      console.log('BIZ DB companies 조회 결과:', { bizCompany, error: bizError?.message });
+      console.log('BIZ DB companies (email) 조회 결과:', { bizCompany, error: bizError?.message });
 
       if (bizCompany) {
         companyPhone = bizCompany.phone;
         companyName = bizCompany.company_name || companyName;
-        console.log('BIZ DB에서 정보 찾음:', { companyPhone, companyName });
+        console.log('BIZ DB (email)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // 2순위: BIZ DB에서 못 찾으면 company_id(user_id)로 조회 시도
+    if (!companyPhone && campaign.company_id && supabaseBiz) {
+      const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
+        .from('companies')
+        .select('company_name, phone')
+        .eq('user_id', campaign.company_id)
+        .maybeSingle();
+
+      console.log('BIZ DB companies (user_id) 조회 결과:', { bizCompanyById, error: bizError2?.message });
+
+      if (bizCompanyById) {
+        companyPhone = bizCompanyById.phone;
+        companyName = bizCompanyById.company_name || companyName;
+        console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // 3순위: Korea DB companies 테이블에서 조회 (레거시 지원)
+    if (!companyPhone && campaign.company_email) {
+      const { data: koreaCompany, error: koreaError } = await supabaseKorea
+        .from('companies')
+        .select('company_name, phone, contact_phone')
+        .eq('email', campaign.company_email)
+        .maybeSingle();
+
+      console.log('Korea DB companies 조회 결과:', { koreaCompany, error: koreaError?.message });
+
+      if (koreaCompany) {
+        companyPhone = koreaCompany.phone || koreaCompany.contact_phone;
+        companyName = koreaCompany.company_name || companyName;
+        console.log('Korea DB에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
