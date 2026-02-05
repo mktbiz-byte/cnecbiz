@@ -217,28 +217,43 @@ const analyzeDailyData = (rows, columnConfig) => {
     const creatorName = creatorIdx >= 0 ? row[creatorIdx]?.trim() : null
     const hasCreator = !!creatorName
 
-    // DM 수량 (YES = 1, NO/빈값 = 0, DM/DM on Instagram 등 = 1)
+    // DM 수량 (YES = 1, NO/빈값 = 0)
     let dmCount = 0
     if (dmIdx >= 0) {
-      const dmValue = row[dmIdx]?.trim()?.toUpperCase()
-      if (dmValue) {
-        if (dmValue === 'YES' || dmValue === 'Y' || dmValue.includes('DM')) {
+      const rawDmValue = row[dmIdx]
+      if (rawDmValue) {
+        // 공백 제거 및 대문자 변환
+        const dmValue = String(rawDmValue).trim().toUpperCase()
+        // YES 변형들 체크 (YES, Y, O, TRUE, 1, DM, DM SENT 등)
+        if (dmValue === 'YES' || dmValue === 'Y' || dmValue === 'O' ||
+            dmValue === 'TRUE' || dmValue === '1' ||
+            dmValue.includes('DM') || dmValue.includes('SENT')) {
           dmCount = 1
-        } else if (dmValue !== 'NO' && dmValue !== 'N' && dmValue !== 'X' && dmValue !== '0') {
+        } else if (dmValue !== 'NO' && dmValue !== 'N' && dmValue !== 'X' &&
+                   dmValue !== '0' && dmValue !== 'FALSE' && dmValue !== '') {
           // 숫자인 경우
           const num = parseInt(dmValue)
-          dmCount = !isNaN(num) ? num : 0
+          if (!isNaN(num) && num > 0) {
+            dmCount = num
+          }
         }
       }
     }
 
-    // 이메일 수집 여부 (이메일이 있으면 1)
+    // 이메일 수집 여부 (유효한 이메일 형식만 카운트)
     let emailCount = 0
     if (emailIdx >= 0) {
-      const emailValue = row[emailIdx]?.trim()
-      // 이메일 형식 체크 (@가 포함되어 있으면 유효)
-      if (emailValue && emailValue.includes('@')) {
-        emailCount = 1
+      const rawEmailValue = row[emailIdx]
+      if (rawEmailValue) {
+        const emailValue = String(rawEmailValue).trim().toLowerCase()
+        // "dm", "n/a", "-", "x", "no" 등 비이메일 값 제외
+        const excludeValues = ['dm', 'n/a', 'na', '-', 'x', 'no', 'none', '', 'null', 'undefined']
+        if (!excludeValues.includes(emailValue)) {
+          // 이메일 형식 체크 (@가 포함되고 기본적인 이메일 패턴)
+          if (emailValue.includes('@') && emailValue.includes('.')) {
+            emailCount = 1
+          }
+        }
       }
     }
 
