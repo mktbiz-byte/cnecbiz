@@ -208,7 +208,7 @@ exports.handler = async (event) => {
         // 1단계: video_submissions 조회
         const { data: submissions, error: subError } = await supabase
           .from('video_submissions')
-          .select('id, user_id, campaign_id, application_id, status, final_confirmed_at, created_at')
+          .select('id, user_id, campaign_id, application_id, status, final_confirmed_at, auto_confirmed, created_at')
           .order('created_at', { ascending: false })
           .limit(500)
 
@@ -359,10 +359,12 @@ exports.handler = async (event) => {
           const profile = userProfilesMap[sub.user_id] || {}
           if (profile.id) debugStats.foundProfile++
 
-          // 포인트 지급 여부: point_transactions에 related_campaign_id로 기록된 건 확인
+          // 포인트 지급 여부 판정:
+          // 1) point_transactions에 related_campaign_id 기록이 있으면 지급 완료 (수동 마킹 또는 새 자동확정)
+          // 2) auto_confirmed = true면 auto-confirm-videos.js가 실행돼서 user_profiles.points 업데이트 완료된 건
           const paymentKey = `${sub.user_id}_${sub.campaign_id}`
           const paymentRecord = paymentMap[paymentKey]
-          const isPaid = !!paymentRecord
+          const isPaid = !!paymentRecord || (sub.auto_confirmed === true && !!sub.final_confirmed_at)
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
           // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
