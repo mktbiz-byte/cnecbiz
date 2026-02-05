@@ -480,20 +480,20 @@ exports.handler = async (event) => {
         }
       }
 
-      // point_history에 기록
+      // point_transactions에 캠페인 연결 기록 추가 (지급 추적용)
       try {
         await regionDB
-          .from('point_history')
+          .from('point_transactions')
           .insert({
             user_id: userId,
             amount: amount,
-            type: 'manual_pay',
-            reason: reason || '수동 포인트 지급 (미지급 건 처리)',
-            campaign_id: campaignId || null,
+            transaction_type: 'campaign_payment',
+            description: reason || '수동 포인트 지급 (미지급 건 처리)',
+            related_campaign_id: campaignId || null,
             created_at: new Date().toISOString()
           })
       } catch (e) {
-        console.error('[check-unpaid-points] point_history insert error:', e)
+        console.error('[check-unpaid-points] point_transactions insert error:', e)
       }
 
       // video_submissions에서 final_confirmed_at 업데이트

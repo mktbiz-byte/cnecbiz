@@ -111,6 +111,53 @@ exports.handler = async (event) => {
       }
     }
 
+    // 수동 지급완료 처리 (이미 지급된 건을 수동으로 마킹)
+    if (action === 'mark_as_paid') {
+      const { amount, campaignTitle, submissionId } = JSON.parse(event.body || '{}')
+      const config = regionConfigs[region]
+      if (!config || !config.url || !config.key) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Invalid region' }) }
+      }
+      if (!userId || !campaignId) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'userId와 campaignId가 필요합니다.' }) }
+      }
+
+      const supabase = createClient(config.url, config.key)
+
+      // point_transactions에 캠페인 연결 기록 추가
+      const { error: insertError } = await supabase
+        .from('point_transactions')
+        .insert({
+          user_id: userId,
+          amount: amount || 0,
+          transaction_type: 'campaign_payment',
+          description: `캠페인 포인트 지급: ${campaignTitle || ''}`,
+          related_campaign_id: campaignId,
+          created_at: new Date().toISOString()
+        })
+
+      if (insertError) {
+        console.error('[mark_as_paid] insert error:', insertError)
+        return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: insertError.message }) }
+      }
+
+      // video_submissions에 final_confirmed_at 설정 (아직 없는 경우)
+      if (submissionId) {
+        await supabase
+          .from('video_submissions')
+          .update({ final_confirmed_at: new Date().toISOString() })
+          .eq('id', submissionId)
+          .is('final_confirmed_at', null)
+      }
+
+      console.log(`[mark_as_paid] user=${userId}, campaign=${campaignId}, amount=${amount}`)
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, message: '지급완료 처리되었습니다.' })
+      }
+    }
+
     // 단일 지역 조회 (지급 이력 조회용)
     if (action === 'get_payment_history') {
       const config = regionConfigs[region]
@@ -124,20 +171,7 @@ exports.handler = async (event) => {
 
       const supabase = createClient(config.url, config.key)
 
-      // point_history 조회
-      let history = []
-      const { data: pointHistory, error: phError } = await supabase
-        .from('point_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (!phError && pointHistory) {
-        history = pointHistory
-      }
-
-      // point_transactions 도 조회 (fallback)
+      // point_transactions 조회 (point_history 테이블은 Korea DB에 존재하지 않음)
       const { data: pointTx } = await supabase
         .from('point_transactions')
         .select('*')
@@ -150,7 +184,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: true,
-          history: history,
+          history: [],
           transactions: pointTx || []
         })
       }
@@ -280,11 +314,29 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
         }
 
-        // 5단계: 포인트 지급 여부 판단
-        // ★ point_transactions에는 캠페인별 지급 기록이 없음 (related_campaign_id 항상 null)
-        // ★ point_history 테이블은 Korea DB에 존재하지 않음
-        // ★ 실제 지급 프로세스: manual_pay/auto-confirm → user_profiles.points 증가 + video_submissions.final_confirmed_at 설정
-        // → 따라서 final_confirmed_at이 설정되어 있으면 = 지급 완료로 판단
+        // 5단계: point_transactions에서 캠페인별 지급 기록 조회
+        // ★ related_campaign_id가 있는 건만 = mark_as_paid 또는 manual_pay로 기록된 건
+        const paymentMap = {}
+        if (userIds.length > 0) {
+          const { data: campaignPayments, error: cpError } = await supabase
+            .from('point_transactions')
+            .select('user_id, related_campaign_id, amount, transaction_type, description, created_at')
+            .in('user_id', userIds)
+            .not('related_campaign_id', 'is', null)
+
+          if (cpError) {
+            console.error(`[${regionId}] campaign payments query error:`, cpError.message)
+          }
+          if (campaignPayments) {
+            campaignPayments.forEach(p => {
+              const key = `${p.user_id}_${p.related_campaign_id}`
+              if (!paymentMap[key]) {
+                paymentMap[key] = p
+              }
+            })
+          }
+          console.log(`[${regionId}] campaign payment records: ${Object.keys(paymentMap).length}건`)
+        }
 
         // 6단계: 데이터 매핑
         let debugStats = { foundApp: 0, foundCampaign: 0, foundProfile: 0, total: 0 }
@@ -307,9 +359,10 @@ exports.handler = async (event) => {
           const profile = userProfilesMap[sub.user_id] || {}
           if (profile.id) debugStats.foundProfile++
 
-          // 포인트 지급 여부: final_confirmed_at이 설정되어 있으면 지급 완료
-          // (manual_pay, auto-confirm 모두 final_confirmed_at을 설정함)
-          const isPaid = !!sub.final_confirmed_at
+          // 포인트 지급 여부: point_transactions에 related_campaign_id로 기록된 건 확인
+          const paymentKey = `${sub.user_id}_${sub.campaign_id}`
+          const paymentRecord = paymentMap[paymentKey]
+          const isPaid = !!paymentRecord
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
           // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
@@ -345,10 +398,10 @@ exports.handler = async (event) => {
             campaignBrand: campaignBrand,
             campaignType: campaign.campaign_type,
             pointAmount: pointAmount,
-            // 포인트 지급 여부 (final_confirmed_at 기준)
+            // 포인트 지급 여부 (point_transactions.related_campaign_id 기준)
             isPaid: isPaid,
-            paidAmount: isPaid ? pointAmount : 0,
-            paidAt: isPaid ? sub.final_confirmed_at : null
+            paidAmount: paymentRecord?.amount || 0,
+            paidAt: paymentRecord?.created_at || null
           }
 
           if (sub.final_confirmed_at) {

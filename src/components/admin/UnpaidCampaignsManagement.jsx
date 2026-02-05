@@ -89,21 +89,14 @@ export default function UnpaidCampaignsManagement() {
       const result = await response.json()
 
       if (result.success) {
-        // history와 transactions 합치기
-        const allHistory = [
-          ...(result.history || []).map(h => ({ ...h, source: 'point_history' })),
-          ...(result.transactions || []).map(t => ({ ...t, source: 'point_transactions' }))
-        ]
-        // 중복 제거 및 정렬
-        const uniqueHistory = allHistory.reduce((acc, curr) => {
-          const key = `${curr.created_at}_${curr.amount}_${curr.type}`
-          if (!acc.find(h => `${h.created_at}_${h.amount}_${h.type}` === key)) {
-            acc.push(curr)
-          }
-          return acc
-        }, [])
-        uniqueHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        setPaymentHistory(uniqueHistory)
+        // point_transactions 데이터 정리
+        const transactions = (result.transactions || []).map(t => ({
+          ...t,
+          type: t.transaction_type || t.type || '알 수 없음',
+          source: 'point_transactions'
+        }))
+        transactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        setPaymentHistory(transactions)
       }
     } catch (error) {
       console.error('이력 조회 오류:', error)
@@ -138,6 +131,42 @@ export default function UnpaidCampaignsManagement() {
   }
 
   const stats = getStats()
+
+  // 수동 지급완료 처리 (이미 지급된 건을 기록만 추가)
+  const handleMarkAsPaid = async (item) => {
+    if (!confirm(`${item.creatorName || '크리에이터'}님의 ${item.campaignTitle || '캠페인'} 건을 지급완료로 처리하시겠습니까?\n\n※ 실제 포인트가 지급되지 않고, 지급 기록만 추가됩니다.`)) {
+      return
+    }
+    setProcessing(true)
+    try {
+      const response = await fetch('/.netlify/functions/get-final-confirmations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'mark_as_paid',
+          region: item.region,
+          userId: item.userId,
+          campaignId: item.campaignId,
+          submissionId: item.id,
+          amount: item.pointAmount,
+          campaignTitle: item.campaignTitle
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('지급완료로 처리되었습니다.')
+        fetchData()
+      } else {
+        throw new Error(result.error || '처리 실패')
+      }
+    } catch (error) {
+      console.error('지급완료 처리 오류:', error)
+      alert(`처리 실패: ${error.message}`)
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   // 수동 포인트 지급
   const handleManualPayment = async (item) => {
@@ -311,14 +340,26 @@ export default function UnpaidCampaignsManagement() {
 
               {/* 수동 지급 (미지급인 경우만) */}
               {isConfirmed && !item.isPaid && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPaymentModal(item)}
-                >
-                  <CreditCard className="w-4 h-4 mr-1" />
-                  지급
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleMarkAsPaid(item)}
+                    disabled={processing}
+                    title="이미 지급된 건을 지급완료로 표시"
+                  >
+                    <Check className="w-4 h-4 mr-1" />
+                    지급완료 처리
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPaymentModal(item)}
+                  >
+                    <CreditCard className="w-4 h-4 mr-1" />
+                    포인트 지급
+                  </Button>
+                </>
               )}
 
               {/* 캠페인 상세 */}
@@ -606,14 +647,16 @@ export default function UnpaidCampaignsManagement() {
                           <p className="text-xs text-gray-400">
                             {new Date(record.created_at).toLocaleTimeString('ko-KR')}
                           </p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {record.source === 'point_history' ? 'history' : 'tx'}
+                          <Badge variant="outline" className={`text-xs mt-1 ${
+                            record.transaction_type === 'campaign_payment' ? 'bg-green-50 text-green-600' : ''
+                          }`}>
+                            {record.transaction_type === 'campaign_payment' ? '캠페인지급' : 'tx'}
                           </Badge>
                         </div>
                       </div>
-                      {record.campaign_id && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Campaign: {record.campaign_id?.slice(0, 8)}...
+                      {record.related_campaign_id && (
+                        <p className="text-xs text-green-500 mt-1">
+                          Campaign: {record.related_campaign_id?.slice(0, 8)}...
                         </p>
                       )}
                     </div>
