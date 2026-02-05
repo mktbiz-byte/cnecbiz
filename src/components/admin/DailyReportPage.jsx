@@ -936,15 +936,29 @@ export default function DailyReportPage() {
                           </div>
                         </div>
 
+                        {/* KPI 정보 */}
+                        {staff.kpi && (
+                          <div className="flex items-center gap-4 text-xs text-gray-500 mb-2 p-2 bg-blue-50 rounded">
+                            <Target className="w-4 h-4 text-blue-500" />
+                            <span>KPI: 크리에이터 {staff.kpi.creators}/일</span>
+                            <span>DM {staff.kpi.dm}/일</span>
+                            <span>메일 {staff.kpi.emails}/일</span>
+                          </div>
+                        )}
+
                         <div className="space-y-2">
-                          {staff.sheets.map(sheet => (
-                            <div key={sheet.id} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded">
-                              <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                              <span className="font-medium">{sheet.name || '이름 없음'}</span>
-                              <span className="text-gray-400">|</span>
-                              <span className="text-gray-500 truncate max-w-xs">{sheet.url}</span>
-                            </div>
-                          ))}
+                          {staff.sheets.map(sheet => {
+                            const country = COUNTRIES.find(c => c.code === sheet.country)
+                            return (
+                              <div key={sheet.id} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded">
+                                <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                                {country && <span>{country.flag}</span>}
+                                <span className="font-medium">{sheet.name || '이름 없음'}</span>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-500 truncate max-w-xs">{sheet.url}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
@@ -980,6 +994,58 @@ export default function DailyReportPage() {
               />
             </div>
 
+            {/* KPI 설정 */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Label className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-blue-600" />
+                일일 KPI 설정
+              </Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-blue-700">크리에이터 목표</Label>
+                  <Input
+                    type="number"
+                    value={newStaff.kpi?.creators || 30}
+                    onChange={(e) => setNewStaff({
+                      ...newStaff,
+                      kpi: { ...newStaff.kpi, creators: parseInt(e.target.value) || 0 }
+                    })}
+                    className="h-9"
+                    placeholder="30"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-blue-700">DM 목표</Label>
+                  <Input
+                    type="number"
+                    value={newStaff.kpi?.dm || 20}
+                    onChange={(e) => setNewStaff({
+                      ...newStaff,
+                      kpi: { ...newStaff.kpi, dm: parseInt(e.target.value) || 0 }
+                    })}
+                    className="h-9"
+                    placeholder="20"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-blue-700">메일수집 목표</Label>
+                  <Input
+                    type="number"
+                    value={newStaff.kpi?.emails || 10}
+                    onChange={(e) => setNewStaff({
+                      ...newStaff,
+                      kpi: { ...newStaff.kpi, emails: parseInt(e.target.value) || 0 }
+                    })}
+                    className="h-9"
+                    placeholder="10"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                KPI 미달 시 빨간색으로 표시됩니다.
+              </p>
+            </div>
+
             {/* 시트 목록 */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -1011,7 +1077,7 @@ export default function DailyReportPage() {
                       </div>
 
                       <div className="grid gap-3">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                           <div>
                             <Label className="text-xs">시트 이름</Label>
                             <Input
@@ -1029,6 +1095,24 @@ export default function DailyReportPage() {
                               placeholder="0"
                               className="h-9"
                             />
+                          </div>
+                          <div>
+                            <Label className="text-xs">국가 (모집 대상)</Label>
+                            <Select
+                              value={sheet.country || 'KR'}
+                              onValueChange={(value) => updateSheet(sheet.id, 'country', value)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="국가 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COUNTRIES.map(country => (
+                                  <SelectItem key={country.code} value={country.code}>
+                                    {country.flag} {country.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 

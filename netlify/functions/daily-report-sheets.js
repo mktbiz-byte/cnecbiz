@@ -456,6 +456,32 @@ exports.handler = async (event) => {
       }
     }
 
+    // 캐시된 분석 결과 로드
+    if (action === 'load_cached_reports') {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'daily_report_cached_results')
+        .maybeSingle()
+
+      if (error && error.code !== 'PGRST116') throw error
+
+      let cachedReports = null
+      if (data?.value) {
+        try {
+          cachedReports = JSON.parse(data.value)
+        } catch (e) {
+          console.error('[daily-report-sheets] Cached reports parse error:', e)
+        }
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, cachedReports })
+      }
+    }
+
     // 시트 분석
     if (action === 'analyze_sheet') {
       const { sheetUrl, sheetTab, columnConfig, staffName, sheetName } = body
@@ -628,6 +654,7 @@ exports.handler = async (event) => {
 
     // 전체 담당자 요약 보고서
     if (action === 'analyze_all') {
+      const { saveResults } = body
       const { data: settingsData } = await supabase
         .from('site_settings')
         .select('value')
@@ -638,12 +665,21 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, staffReports: [] })
+          body: JSON.stringify({ success: true, staffReports: [], countryStats: {} })
         }
       }
 
       const staffSheets = JSON.parse(settingsData.value)
       const staffReports = []
+
+      // 국가별 통계
+      const countryStats = {
+        KR: { creators: 0, dm: 0, emails: 0 },
+        JP: { creators: 0, dm: 0, emails: 0 },
+        US: { creators: 0, dm: 0, emails: 0 },
+        TW: { creators: 0, dm: 0, emails: 0 },
+        OTHER: { creators: 0, dm: 0, emails: 0 }
+      }
 
       for (const staff of staffSheets) {
         const combinedTotals = { creators: 0, dm: 0, emails: 0 }
@@ -666,6 +702,18 @@ exports.handler = async (event) => {
           combinedTotals.dm += stats.totals.dm
           combinedTotals.emails += stats.totals.emails
 
+          // 국가별 통계 업데이트
+          const country = sheet.country || 'KR'
+          if (countryStats[country]) {
+            countryStats[country].creators += stats.totals.creators
+            countryStats[country].dm += stats.totals.dm
+            countryStats[country].emails += stats.totals.emails
+          } else {
+            countryStats.OTHER.creators += stats.totals.creators
+            countryStats.OTHER.dm += stats.totals.dm
+            countryStats.OTHER.emails += stats.totals.emails
+          }
+
           // 최근 7일 합산
           for (const day of stats.daily.slice(0, 7)) {
             if (!recentDaily[day.date]) {
@@ -682,14 +730,34 @@ exports.handler = async (event) => {
           staffName: staff.name,
           sheetCount: staff.sheets.length,
           totals: combinedTotals,
-          recentDaily: Object.values(recentDaily).sort((a, b) => b.date.localeCompare(a.date))
+          recentDaily: Object.values(recentDaily).sort((a, b) => b.date.localeCompare(a.date)),
+          kpi: staff.kpi || { creators: 30, dm: 20, emails: 10 }
         })
+      }
+
+      // 결과 저장 (캐싱)
+      if (saveResults) {
+        const cachedData = {
+          staffReports,
+          countryStats,
+          analyzedAt: new Date().toISOString()
+        }
+
+        await supabase
+          .from('site_settings')
+          .upsert({
+            key: 'daily_report_cached_results',
+            value: JSON.stringify(cachedData),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+
+        console.log('[daily-report-sheets] Analysis results cached')
       }
 
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, staffReports })
+        body: JSON.stringify({ success: true, staffReports, countryStats })
       }
     }
 
