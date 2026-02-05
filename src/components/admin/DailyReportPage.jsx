@@ -583,78 +583,128 @@ export default function DailyReportPage() {
 
                 {/* 담당자 카드 목록 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {staffReports.map(report => (
-                    <Card
-                      key={report.staffId}
-                      className="cursor-pointer hover:shadow-lg transition-shadow"
-                      onClick={() => analyzeStaff(report.staffId)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-5 h-5 text-blue-600" />
-                            {report.staffName}
-                          </CardTitle>
-                          <Badge variant="outline">{report.sheetCount}개 시트</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-blue-600">{report.totals.creators}</p>
-                            <p className="text-xs text-gray-500">크리에이터</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-green-600">{report.totals.dm}</p>
-                            <p className="text-xs text-gray-500">DM</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-purple-600">{report.totals.emails}</p>
-                            <p className="text-xs text-gray-500">메일수집</p>
-                          </div>
-                        </div>
+                  {staffReports.map(report => {
+                    // 오늘 KPI 상태 계산
+                    const staff = staffSheets.find(s => s.id === report.staffId)
+                    const kpiStatus = getTodayKPIStatus(report, staff)
+                    const hasKPIWarning = kpiStatus.creatorsRate < 100 || kpiStatus.dmRate < 100 || kpiStatus.emailsRate < 100
 
-                        {/* 최근 7일 미니 차트 */}
-                        {report.recentDaily.length > 0 && (
-                          <div className="h-20">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={[...report.recentDaily].reverse()}>
-                                <defs>
-                                  <linearGradient id={`gradient-${report.staffId}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                                  </linearGradient>
-                                </defs>
-                                <Area
-                                  type="monotone"
-                                  dataKey="creators"
-                                  stroke="#3B82F6"
-                                  fill={`url(#gradient-${report.staffId})`}
-                                />
-                                <Tooltip
-                                  content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                      return (
-                                        <div className="bg-white p-2 shadow rounded text-xs">
-                                          <p>{payload[0].payload.date}</p>
-                                          <p className="text-blue-600">{payload[0].value}명</p>
-                                        </div>
-                                      )
-                                    }
-                                    return null
-                                  }}
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
+                    return (
+                      <Card
+                        key={report.staffId}
+                        className={`cursor-pointer hover:shadow-lg transition-shadow ${hasKPIWarning && kpiStatus.creators > 0 ? 'border-l-4 border-l-yellow-500' : ''}`}
+                        onClick={() => analyzeStaff(report.staffId)}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <User className="w-5 h-5 text-blue-600" />
+                              {report.staffName}
+                              {hasKPIWarning && kpiStatus.creators > 0 && (
+                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                              )}
+                            </CardTitle>
+                            <Badge variant="outline">{report.sheetCount}개 시트</Badge>
                           </div>
-                        )}
+                        </CardHeader>
+                        <CardContent>
+                          {/* 오늘 KPI 현황 */}
+                          {kpiStatus.creators > 0 && (
+                            <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="text-gray-500">오늘 KPI 달성률</span>
+                                <span className={getKPIColor(Math.min(kpiStatus.creatorsRate, kpiStatus.dmRate, kpiStatus.emailsRate))}>
+                                  {kpiStatus.creatorsRate >= 100 && kpiStatus.dmRate >= 100 && kpiStatus.emailsRate >= 100 ? (
+                                    <span className="flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3" /> 달성
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" /> 미달
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.creatorsRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.creatorsRate)}`}>
+                                    {kpiStatus.creators}/{staff?.kpi?.creators || 30}
+                                  </div>
+                                  <div className="text-gray-500">크리에이터</div>
+                                </div>
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.dmRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.dmRate)}`}>
+                                    {kpiStatus.dm}/{staff?.kpi?.dm || 20}
+                                  </div>
+                                  <div className="text-gray-500">DM</div>
+                                </div>
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.emailsRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.emailsRate)}`}>
+                                    {kpiStatus.emails}/{staff?.kpi?.emails || 10}
+                                  </div>
+                                  <div className="text-gray-500">메일</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
-                        <div className="flex items-center justify-end mt-2 text-sm text-blue-600">
-                          상세 보기 <ChevronRight className="w-4 h-4" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div className="text-center">
+                              <p className="text-2xl font-bold text-blue-600">{report.totals.creators}</p>
+                              <p className="text-xs text-gray-500">총 크리에이터</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-2xl font-bold text-green-600">{report.totals.dm}</p>
+                              <p className="text-xs text-gray-500">총 DM</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-2xl font-bold text-purple-600">{report.totals.emails}</p>
+                              <p className="text-xs text-gray-500">총 메일수집</p>
+                            </div>
+                          </div>
+
+                          {/* 최근 7일 미니 차트 */}
+                          {report.recentDaily.length > 0 && (
+                            <div className="h-20">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={[...report.recentDaily].reverse()}>
+                                  <defs>
+                                    <linearGradient id={`gradient-${report.staffId}`} x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <Area
+                                    type="monotone"
+                                    dataKey="creators"
+                                    stroke="#3B82F6"
+                                    fill={`url(#gradient-${report.staffId})`}
+                                  />
+                                  <Tooltip
+                                    content={({ active, payload }) => {
+                                      if (active && payload && payload.length) {
+                                        return (
+                                          <div className="bg-white p-2 shadow rounded text-xs">
+                                            <p>{payload[0].payload.date}</p>
+                                            <p className="text-blue-600">{payload[0].value}명</p>
+                                          </div>
+                                        )
+                                      }
+                                      return null
+                                    }}
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-end mt-2 text-sm text-blue-600">
+                            상세 보기 <ChevronRight className="w-4 h-4" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               </div>
             )}
