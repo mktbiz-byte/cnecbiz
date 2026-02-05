@@ -209,7 +209,8 @@ const analyzeDailyData = (rows, columnConfig) => {
 
     if (!date) continue
 
-    const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD
+    // 로컬 날짜로 dateKey 생성 (UTC 변환으로 인한 날짜 밀림 방지)
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     const monthKey = dateKey.substring(0, 7) // YYYY-MM
 
     // 크리에이터 데이터 존재 여부 (Account Name이 있으면 카운트)
