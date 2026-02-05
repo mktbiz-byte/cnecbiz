@@ -158,6 +158,26 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] profiles: ${Object.keys(profileMap).length}건`)
         }
 
+        // 3-2. applications 테이블에서 크리에이터 정보 보충 조회
+        const applicationMap = {}
+        if (userIds.length > 0 && campaignIds.length > 0) {
+          const { data: applications } = await supabase
+            .from('applications')
+            .select('id, user_id, campaign_id, name, email, phone, channel_name, nickname, created_at')
+            .in('user_id', userIds)
+
+          ;(applications || []).forEach(app => {
+            // user_id + campaign_id 조합으로 저장
+            const key = `${app.user_id}_${app.campaign_id}`
+            applicationMap[key] = app
+            // user_id로도 저장 (fallback)
+            if (!applicationMap[app.user_id]) {
+              applicationMap[app.user_id] = app
+            }
+          })
+          console.log(`[${regionId}] applications: ${Object.keys(applicationMap).length}건`)
+        }
+
         // 4. point_history 조회 (캠페인별 포인트 지급 기록)
         const pointHistoryMap = {}
 
@@ -199,9 +219,21 @@ exports.handler = async (event) => {
           const pointKey = `${sub.user_id}_${sub.campaign_id}`
           const pointRecord = pointHistoryMap[pointKey]
 
+          // applications에서 크리에이터 정보 가져오기 (user_id + campaign_id 조합 우선)
+          const appKey = `${sub.user_id}_${sub.campaign_id}`
+          const application = applicationMap[appKey] || applicationMap[sub.user_id] || {}
+
           // 포인트 금액 결정 (여러 필드 체크)
           const pointAmount = campaign.point_amount || campaign.reward_points ||
             Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+
+          // 크리에이터 이름: profile > application 순서로 우선순위
+          const creatorName = profile.channel_name || profile.nickname || profile.name ||
+            application.channel_name || application.nickname || application.name || null
+
+          // 연락처: profile > application 순서
+          const creatorPhone = profile.phone || profile.phone_number || application.phone || null
+          const creatorEmail = profile.email || application.email || null
 
           const item = {
             id: sub.id,
@@ -211,10 +243,10 @@ exports.handler = async (event) => {
             status: sub.status,
             finalConfirmedAt: sub.final_confirmed_at,
             createdAt: sub.created_at,
-            // 크리에이터 정보
-            creatorName: profile.channel_name || profile.nickname || profile.name || null,
-            phone: profile.phone || profile.phone_number,
-            email: profile.email,
+            // 크리에이터 정보 (profile + application 병합)
+            creatorName: creatorName,
+            phone: creatorPhone,
+            email: creatorEmail,
             // 캠페인 정보
             campaignTitle: campaign.title || null,
             campaignBrand: campaign.brand,
