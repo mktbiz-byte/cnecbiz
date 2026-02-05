@@ -106,7 +106,7 @@ exports.handler = async (event) => {
               // 해당 리전 DB에서 먼저 조회
               const { data: regionCampaigns } = await regionDB
                 .from('campaigns')
-                .select('id, title, campaign_type, video_count, reward_points, point')
+                .select('id, title, campaign_type, reward_points, creator_points_override')
                 .in('id', campaignIds)
 
               if (regionCampaigns) {
@@ -118,7 +118,7 @@ exports.handler = async (event) => {
               if (missingIds.length > 0) {
                 const { data: bizCampaigns } = await supabaseBiz
                   .from('campaigns')
-                  .select('id, title, campaign_type, video_count, reward_points, point')
+                  .select('id, title, campaign_type, reward_points, creator_points_override')
                   .in('id', missingIds)
 
                 if (bizCampaigns) {
@@ -207,7 +207,7 @@ exports.handler = async (event) => {
               }
 
               // 포인트 금액
-              const pointAmount = campaign.reward_points || campaign.point || 0
+              const pointAmount = campaign.creator_points_override || campaign.reward_points || 0
 
               if (pointAmount === 0) {
                 reason = reason ? `${reason}, 보상 포인트 미설정` : '보상 포인트 미설정'
@@ -277,7 +277,7 @@ exports.handler = async (event) => {
               if (campaignIds.length > 0) {
                 const { data: campaigns } = await regionDB
                   .from('campaigns')
-                  .select('id, title, reward_points, point')
+                  .select('id, title, reward_points, creator_points_override')
                   .in('id', campaignIds)
 
                 if (campaigns) {
@@ -289,7 +289,7 @@ exports.handler = async (event) => {
                 if (missingIds.length > 0) {
                   const { data: bizCampaigns } = await supabaseBiz
                     .from('campaigns')
-                    .select('id, title, reward_points, point')
+                    .select('id, title, reward_points, creator_points_override')
                     .in('id', missingIds)
 
                   if (bizCampaigns) {
@@ -298,34 +298,36 @@ exports.handler = async (event) => {
                 }
               }
 
-              // point_history에서 이미 지급된 건 확인
-              const appIds = completedApps.map(a => a.id)
-              let paidAppIds = new Set()
+              // point_transactions에서 이미 지급된 건 확인 (related_campaign_id 기반)
+              const appUserIds = [...new Set(completedApps.map(a => a.user_id).filter(Boolean))]
+              const paidCampaignKeys = new Set()
 
-              try {
-                const { data: paidHistory } = await regionDB
-                  .from('point_history')
-                  .select('application_id')
-                  .in('application_id', appIds)
+              if (appUserIds.length > 0) {
+                try {
+                  const { data: paidRecords } = await regionDB
+                    .from('point_transactions')
+                    .select('user_id, related_campaign_id')
+                    .in('user_id', appUserIds)
+                    .not('related_campaign_id', 'is', null)
 
-                if (paidHistory) {
-                  paidHistory.forEach(h => {
-                    if (h.application_id) paidAppIds.add(h.application_id)
-                  })
+                  if (paidRecords) {
+                    paidRecords.forEach(r => {
+                      paidCampaignKeys.add(`${r.user_id}_${r.related_campaign_id}`)
+                    })
+                  }
+                } catch (e) {
+                  console.error(`[check-unpaid-points] point_transactions query error:`, e)
                 }
-              } catch (e) {
-                // point_history 테이블 없을 수 있음
               }
 
               // 프로필 정보 조회
-              const userIds = [...new Set(completedApps.map(a => a.user_id).filter(Boolean))]
               let profileMap = {}
 
-              if (userIds.length > 0) {
+              if (appUserIds.length > 0) {
                 const { data: profiles } = await regionDB
                   .from('user_profiles')
                   .select('id, name, channel_name, email, phone, points')
-                  .in('id', userIds)
+                  .in('id', appUserIds)
 
                 if (profiles) {
                   profiles.forEach(p => { profileMap[p.id] = p })
@@ -333,8 +335,9 @@ exports.handler = async (event) => {
               }
 
               for (const app of completedApps) {
-                // 이미 지급된 건은 스킵
-                if (paidAppIds.has(app.id)) continue
+                // point_transactions에 캠페인 지급 기록이 있으면 스킵
+                const paidKey = `${app.user_id}_${app.campaign_id}`
+                if (paidCampaignKeys.has(paidKey)) continue
 
                 // 이미 unpaidItems에 있는지 체크
                 const alreadyAdded = unpaidItems.some(item =>
@@ -344,9 +347,9 @@ exports.handler = async (event) => {
 
                 const campaign = campaignMap[app.campaign_id]
                 const profile = profileMap[app.user_id]
-                const pointAmount = campaign?.reward_points || campaign?.point || 0
+                const pointAmount = campaign?.creator_points_override || campaign?.reward_points || 0
 
-                let reason = 'completed 상태이나 point_history에 기록 없음'
+                let reason = 'completed 상태이나 point_transactions에 캠페인 지급 기록 없음'
 
                 if (!campaign) {
                   reason += ', 캠페인 정보 없음'
