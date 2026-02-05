@@ -178,23 +178,53 @@ export default function DailyReportPage() {
     }
   }
 
-  // 오늘 KPI 달성률 계산
-  const getTodayKPIStatus = (report, staff) => {
-    const today = new Date().toISOString().split('T')[0]
-    const todayData = report.recentDaily?.find(d => d.date === today)
+  // 오늘/어제 KPI 상태 계산
+  const getKPIStatus = (report, staff) => {
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+
+    // 어제 날짜 계산
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+    const todayData = report.recentDaily?.find(d => d.date === todayStr)
+    const yesterdayData = report.recentDaily?.find(d => d.date === yesterdayStr)
     const kpi = staff?.kpi || { creators: 30, dm: 20, emails: 10 }
 
-    if (!todayData) {
-      return { creators: 0, dm: 0, emails: 0, creatorsRate: 0, dmRate: 0, emailsRate: 0 }
-    }
+    // 어제 KPI 달성 여부
+    const yesterdayCreatorsRate = yesterdayData ? Math.round((yesterdayData.creators / kpi.creators) * 100) : 0
+    const yesterdayDmRate = yesterdayData ? Math.round((yesterdayData.dm / kpi.dm) * 100) : 0
+    const yesterdayEmailsRate = yesterdayData ? Math.round((yesterdayData.emails / kpi.emails) * 100) : 0
+    const yesterdayMet = yesterdayData && yesterdayCreatorsRate >= 100 && yesterdayDmRate >= 100 && yesterdayEmailsRate >= 100
+
+    // 오늘 진행률
+    const todayCreatorsRate = todayData ? Math.round((todayData.creators / kpi.creators) * 100) : 0
+    const todayDmRate = todayData ? Math.round((todayData.dm / kpi.dm) * 100) : 0
+    const todayEmailsRate = todayData ? Math.round((todayData.emails / kpi.emails) * 100) : 0
 
     return {
-      creators: todayData.creators,
-      dm: todayData.dm,
-      emails: todayData.emails,
-      creatorsRate: Math.round((todayData.creators / kpi.creators) * 100),
-      dmRate: Math.round((todayData.dm / kpi.dm) * 100),
-      emailsRate: Math.round((todayData.emails / kpi.emails) * 100)
+      // 오늘 데이터
+      today: {
+        creators: todayData?.creators || 0,
+        dm: todayData?.dm || 0,
+        emails: todayData?.emails || 0,
+        creatorsRate: todayCreatorsRate,
+        dmRate: todayDmRate,
+        emailsRate: todayEmailsRate
+      },
+      // 어제 데이터
+      yesterday: {
+        creators: yesterdayData?.creators || 0,
+        dm: yesterdayData?.dm || 0,
+        emails: yesterdayData?.emails || 0,
+        creatorsRate: yesterdayCreatorsRate,
+        dmRate: yesterdayDmRate,
+        emailsRate: yesterdayEmailsRate,
+        met: yesterdayMet,
+        hasData: !!yesterdayData
+      },
+      kpi
     }
   }
 
@@ -584,15 +614,16 @@ export default function DailyReportPage() {
                 {/* 담당자 카드 목록 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {staffReports.map(report => {
-                    // 오늘 KPI 상태 계산
+                    // KPI 상태 계산 (오늘 + 어제)
                     const staff = staffSheets.find(s => s.id === report.staffId)
-                    const kpiStatus = getTodayKPIStatus(report, staff)
-                    const hasKPIWarning = kpiStatus.creatorsRate < 100 || kpiStatus.dmRate < 100 || kpiStatus.emailsRate < 100
+                    const kpiStatus = getKPIStatus(report, staff)
+                    // 어제 미달 여부로 경고 표시
+                    const hasYesterdayWarning = kpiStatus.yesterday.hasData && !kpiStatus.yesterday.met
 
                     return (
                       <Card
                         key={report.staffId}
-                        className={`cursor-pointer hover:shadow-lg transition-shadow ${hasKPIWarning && kpiStatus.creators > 0 ? 'border-l-4 border-l-yellow-500' : ''}`}
+                        className={`cursor-pointer hover:shadow-lg transition-shadow ${hasYesterdayWarning ? 'border-l-4 border-l-red-500' : ''}`}
                         onClick={() => analyzeStaff(report.staffId)}
                       >
                         <CardHeader className="pb-2">
@@ -600,53 +631,81 @@ export default function DailyReportPage() {
                             <CardTitle className="text-lg flex items-center gap-2">
                               <User className="w-5 h-5 text-blue-600" />
                               {report.staffName}
-                              {hasKPIWarning && kpiStatus.creators > 0 && (
-                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                              {hasYesterdayWarning && (
+                                <Badge variant="destructive" className="text-xs">어제 미달</Badge>
                               )}
                             </CardTitle>
                             <Badge variant="outline">{report.sheetCount}개 시트</Badge>
                           </div>
                         </CardHeader>
                         <CardContent>
-                          {/* 오늘 KPI 현황 */}
-                          {kpiStatus.creators > 0 && (
-                            <div className="mb-3 p-2 bg-gray-50 rounded-lg">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-gray-500">오늘 KPI 달성률</span>
-                                <span className={getKPIColor(Math.min(kpiStatus.creatorsRate, kpiStatus.dmRate, kpiStatus.emailsRate))}>
-                                  {kpiStatus.creatorsRate >= 100 && kpiStatus.dmRate >= 100 && kpiStatus.emailsRate >= 100 ? (
-                                    <span className="flex items-center gap-1">
-                                      <CheckCircle2 className="w-3 h-3" /> 달성
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center gap-1">
-                                      <AlertTriangle className="w-3 h-3" /> 미달
-                                    </span>
-                                  )}
-                                </span>
+                          {/* 어제 KPI 미달 경고 */}
+                          {hasYesterdayWarning && (
+                            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex items-center gap-2 text-xs text-red-700 mb-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span className="font-medium">어제 KPI 미달</span>
                               </div>
                               <div className="grid grid-cols-3 gap-2 text-xs">
-                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.creatorsRate)}`}>
-                                  <div className={`font-bold ${getKPIColor(kpiStatus.creatorsRate)}`}>
-                                    {kpiStatus.creators}/{staff?.kpi?.creators || 30}
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.yesterday.creatorsRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.yesterday.creatorsRate)}`}>
+                                    {kpiStatus.yesterday.creators}/{kpiStatus.kpi.creators}
                                   </div>
                                   <div className="text-gray-500">크리에이터</div>
                                 </div>
-                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.dmRate)}`}>
-                                  <div className={`font-bold ${getKPIColor(kpiStatus.dmRate)}`}>
-                                    {kpiStatus.dm}/{staff?.kpi?.dm || 20}
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.yesterday.dmRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.yesterday.dmRate)}`}>
+                                    {kpiStatus.yesterday.dm}/{kpiStatus.kpi.dm}
                                   </div>
                                   <div className="text-gray-500">DM</div>
                                 </div>
-                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.emailsRate)}`}>
-                                  <div className={`font-bold ${getKPIColor(kpiStatus.emailsRate)}`}>
-                                    {kpiStatus.emails}/{staff?.kpi?.emails || 10}
+                                <div className={`text-center p-1 rounded ${getKPIBgColor(kpiStatus.yesterday.emailsRate)}`}>
+                                  <div className={`font-bold ${getKPIColor(kpiStatus.yesterday.emailsRate)}`}>
+                                    {kpiStatus.yesterday.emails}/{kpiStatus.kpi.emails}
                                   </div>
                                   <div className="text-gray-500">메일</div>
                                 </div>
                               </div>
                             </div>
                           )}
+
+                          {/* 오늘 진행률 */}
+                          <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-blue-700 font-medium">오늘 진행률</span>
+                              <span className={getKPIColor(Math.min(kpiStatus.today.creatorsRate, kpiStatus.today.dmRate, kpiStatus.today.emailsRate))}>
+                                {kpiStatus.today.creatorsRate >= 100 && kpiStatus.today.dmRate >= 100 && kpiStatus.today.emailsRate >= 100 ? (
+                                  <span className="flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> 달성
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-blue-600">
+                                    진행중
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="text-center p-1 rounded bg-white">
+                                <div className={`font-bold ${getKPIColor(kpiStatus.today.creatorsRate)}`}>
+                                  {kpiStatus.today.creators}/{kpiStatus.kpi.creators}
+                                </div>
+                                <div className="text-gray-500">크리에이터 ({kpiStatus.today.creatorsRate}%)</div>
+                              </div>
+                              <div className="text-center p-1 rounded bg-white">
+                                <div className={`font-bold ${getKPIColor(kpiStatus.today.dmRate)}`}>
+                                  {kpiStatus.today.dm}/{kpiStatus.kpi.dm}
+                                </div>
+                                <div className="text-gray-500">DM ({kpiStatus.today.dmRate}%)</div>
+                              </div>
+                              <div className="text-center p-1 rounded bg-white">
+                                <div className={`font-bold ${getKPIColor(kpiStatus.today.emailsRate)}`}>
+                                  {kpiStatus.today.emails}/{kpiStatus.kpi.emails}
+                                </div>
+                                <div className="text-gray-500">메일 ({kpiStatus.today.emailsRate}%)</div>
+                              </div>
+                            </div>
+                          </div>
 
                           <div className="grid grid-cols-3 gap-4 mb-4">
                             <div className="text-center">
