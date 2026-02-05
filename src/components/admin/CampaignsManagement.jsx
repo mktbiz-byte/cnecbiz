@@ -233,6 +233,7 @@ export default function CampaignsManagement() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const filterCompanyId = searchParams.get('company_id')
+  const filterCompanyEmail = searchParams.get('company_email')
   const filterCompanyName = searchParams.get('company_name')
 
   const [campaigns, setCampaigns] = useState([])
@@ -325,8 +326,10 @@ export default function CampaignsManagement() {
   // 필터링된 캠페인 (useMemo로 최적화 + 스마트 정렬)
   const filteredCampaigns = useMemo(() => {
     const filtered = campaigns.filter(campaign => {
-      // 기업 ID 필터 (URL 파라미터로 들어온 경우)
-      const matchesCompany = !filterCompanyId || campaign.company_id === filterCompanyId
+      // 기업 필터 (URL 파라미터로 들어온 경우 - ID 또는 이메일)
+      const matchesCompany = (!filterCompanyId && !filterCompanyEmail) ||
+        (filterCompanyId && campaign.company_id === filterCompanyId) ||
+        (filterCompanyEmail && campaign.company_email === filterCompanyEmail)
 
       const matchesSearch = searchTerm === '' ||
         campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -379,7 +382,7 @@ export default function CampaignsManagement() {
           return getSmartSortScore(b) - getSmartSortScore(a)
       }
     })
-  }, [campaigns, searchTerm, selectedRegion, selectedStatus, filterCompanyId, sortOrder])
+  }, [campaigns, searchTerm, selectedRegion, selectedStatus, filterCompanyId, filterCompanyEmail, sortOrder])
 
   // 페이지네이션 계산
   const paginatedCampaigns = useMemo(() => {

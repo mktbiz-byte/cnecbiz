@@ -714,7 +714,7 @@ export default function CompaniesManagement() {
                             </td>
                             <td className="px-4 py-4 text-center">
                               <button
-                                onClick={() => navigate(`/admin/campaigns?company=${encodeURIComponent(company.email)}`)}
+                                onClick={() => navigate(`/admin/campaigns?company_email=${encodeURIComponent(company.email)}&company_name=${encodeURIComponent(company.company_name || '')}`)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors cursor-pointer"
                               >
                                 <span className="text-purple-700 font-bold">{campaignData.inProgress}건</span>
