@@ -250,7 +250,7 @@ exports.handler = async (event) => {
     // ===== 전체 데이터 조회 (point_transactions 기반 재설계) =====
     // confirmed: point_transactions에 기록이 있는 건 (실제 지급 확인)
     // unpaid: 최종확정/완료 되었지만 point_transactions 기록이 없는 건 (진짜 미지급)
-    // pendingConfirmation: SNS 제출했지만 최종확정이 안 된 건 (확정 대기)
+    // pendingConfirmation: 영상 승인 완료(approved)이지만 최종확정이 안 된 건 (확정 대기)
     const results = {
       confirmed: [],
       unpaid: [],
@@ -443,7 +443,7 @@ exports.handler = async (event) => {
           })
         }
 
-        // ── Step 7: pendingConfirmation 목록 (SNS 제출했지만 최종확정 안 된 건) ──
+        // ── Step 7: pendingConfirmation 목록 (영상 승인 완료 but 최종확정 안 된 건) ──
         const seenPending = new Set()
         for (const sub of (submissions || [])) {
           const payKey = `${sub.user_id}_${sub.campaign_id}`
@@ -455,8 +455,8 @@ exports.handler = async (event) => {
           // 이미 최종확정 됐으면 skip (unpaid에서 처리됨)
           if (sub.final_confirmed_at) continue
 
-          // SNS URL이 있고, status가 approved인 건만 (영상 승인 + SNS 제출 완료)
-          if (!sub.sns_upload_url || sub.status !== 'approved') continue
+          // status가 approved인 건만 (영상 승인 완료 = 최종확정 버튼 활성화 상태)
+          if (sub.status !== 'approved') continue
 
           if (seenPending.has(dedupeKey)) continue
           seenPending.add(dedupeKey)

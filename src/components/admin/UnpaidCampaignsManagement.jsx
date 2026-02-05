@@ -28,7 +28,7 @@ export default function UnpaidCampaignsManagement() {
   const [activeTab, setActiveTab] = useState('pending')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // 데이터: confirmed = 지급 확인, unpaid = 미지급 건, pendingConfirmation = SNS 제출 미확정
+  // 데이터: confirmed = 지급 확인, unpaid = 미지급 건, pendingConfirmation = 최종확정 대기
   const [confirmedList, setConfirmedList] = useState([])
   const [unpaidList, setUnpaidList] = useState([])
   const [pendingList, setPendingList] = useState([])
@@ -59,7 +59,7 @@ export default function UnpaidCampaignsManagement() {
         setConfirmedList(result.confirmed || [])
         setUnpaidList(result.unpaid || [])
         setPendingList(result.pendingConfirmation || [])
-        console.log(`데이터 로드 완료 - 지급확인: ${(result.confirmed || []).length}건, 미지급: ${(result.unpaid || []).length}건, SNS미확정: ${(result.pendingConfirmation || []).length}건`)
+        console.log(`데이터 로드 완료 - 지급확인: ${(result.confirmed || []).length}건, 미지급: ${(result.unpaid || []).length}건, 최종확정대기: ${(result.pendingConfirmation || []).length}건`)
       } else {
         console.error('데이터 로드 실패:', result.error)
       }
@@ -334,7 +334,7 @@ export default function UnpaidCampaignsManagement() {
                     {item.pointAmount?.toLocaleString() || 0}P (예정)
                   </p>
                   <p className="text-xs text-gray-400">
-                    SNS 제출 완료
+                    영상 승인 완료
                   </p>
                 </>
               )}
@@ -457,7 +457,7 @@ export default function UnpaidCampaignsManagement() {
                   <Clock className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-amber-600">SNS 미확정</p>
+                  <p className="text-sm text-amber-600">최종확정 대기</p>
                   <p className="text-2xl font-bold text-amber-700">{pendingCount}건</p>
                 </div>
               </div>
@@ -499,7 +499,7 @@ export default function UnpaidCampaignsManagement() {
                   <AlertCircle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-orange-600">미확정+미지급 총액</p>
+                  <p className="text-sm text-orange-600">대기+미지급 총액</p>
                   <p className="text-2xl font-bold text-orange-700">{(totalPendingAmount + totalUnpaidAmount).toLocaleString()}P</p>
                 </div>
               </div>
@@ -525,7 +525,7 @@ export default function UnpaidCampaignsManagement() {
           <TabsList className="mb-4">
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              SNS 제출 - 미확정 ({pendingCount})
+              최종확정 대기 ({pendingCount})
             </TabsTrigger>
             <TabsTrigger value="unpaid" className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -537,14 +537,14 @@ export default function UnpaidCampaignsManagement() {
             </TabsTrigger>
           </TabsList>
 
-          {/* SNS 제출 - 미확정 탭 */}
+          {/* 최종확정 대기 탭 */}
           <TabsContent value="pending">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center justify-between">
-                  <span>SNS 제출 완료 - 최종 확정 대기</span>
+                  <span>최종확정 대기 목록</span>
                   <span className="text-sm font-normal text-amber-600">
-                    영상 승인 + SNS 제출 완료, 최종 확정 필요 | {pendingCount}건 ({totalPendingAmount.toLocaleString()}P)
+                    영상 승인 완료, 최종 확정 필요 | {pendingCount}건 ({totalPendingAmount.toLocaleString()}P)
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -552,14 +552,14 @@ export default function UnpaidCampaignsManagement() {
                 {pendingCount > 0 && (
                   <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                     <Clock className="w-4 h-4 inline mr-1" />
-                    아래 크리에이터들은 SNS에 영상을 업로드했지만 아직 최종 확정이 되지 않았습니다.
+                    아래 크리에이터들은 영상이 승인되었지만 아직 최종 확정이 되지 않았습니다.
                     캠페인 상세에서 &apos;최종 확정&apos; 버튼을 눌러 포인트를 지급해주세요.
                   </div>
                 )}
                 {filterBySearch(pendingList).length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-300" />
-                    <p>모든 SNS 제출 건이 확정되었습니다</p>
+                    <p>모든 승인 건이 최종확정 되었습니다</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
