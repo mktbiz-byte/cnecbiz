@@ -469,8 +469,8 @@ exports.handler = async (event) => {
             pointAmount: pointAmount,
             // 포인트 지급 여부 (point_transactions.related_campaign_id 기준)
             isPaid: isPaid,
-            paidAmount: paymentRecord?.amount || 0,
-            paidAt: paymentRecord?.created_at || null
+            paidAmount: paymentRecord?.amount || (isPaid ? pointAmount : 0),
+            paidAt: paymentRecord?.created_at || (isPaid ? sub.final_confirmed_at : null)
           }
 
           if (sub.final_confirmed_at) {
