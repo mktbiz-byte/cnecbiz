@@ -86,10 +86,10 @@ exports.handler = async (event) => {
           result.applicationByUserCampaign = app2 || { error: e2?.message }
         }
 
-        // user_profiles 조회 (Korea DB는 user_id 컬럼 없음 - id로만 조회)
+        // user_profiles 조회 (Korea DB는 user_id, nickname 컬럼 없음)
         if (sub.user_id) {
           const { data: prof1 } = await supabase.from('user_profiles')
-            .select('id, name, nickname, phone').eq('id', sub.user_id).maybeSingle()
+            .select('id, name, email, phone').eq('id', sub.user_id).maybeSingle()
           result.userProfile = prof1
         }
 
@@ -193,12 +193,12 @@ exports.handler = async (event) => {
         const applicationIds = [...new Set(submissions.map(s => s.application_id).filter(Boolean))]
 
         // 2단계: applications 테이블에서 크리에이터 정보 조회
-        // ★ phone 컬럼 없음 - phone_number만 사용
+        // ★ email, phone 컬럼 없음 - phone_number만 사용, applicant_name만 사용
         const applicationsMap = {}
         if (applicationIds.length > 0) {
           const { data: applications, error: appError } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, email, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, phone_number')
             .in('id', applicationIds)
 
           if (appError) {
@@ -216,7 +216,7 @@ exports.handler = async (event) => {
         if (userIds.length > 0 && campaignIds.length > 0) {
           const { data: appsByUserCampaign, error: appError2 } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, email, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, phone_number')
             .in('user_id', userIds)
             .in('campaign_id', campaignIds)
 
@@ -259,14 +259,14 @@ exports.handler = async (event) => {
         }
 
         // 4단계: user_profiles에서 크리에이터 이름 조회 (applications에 없는 경우)
-        // ★ Korea DB에는 user_id 컬럼이 없음! id만으로 조회
+        // ★ Korea DB: user_id 컬럼 없음, nickname 컬럼 없음
         const userProfilesMap = {}
         if (userIds.length > 0) {
-          // Korea는 id = auth user id, Japan/US는 user_id = auth user id
-          // Korea DB는 user_id 컬럼 없음 - id로만 조회
+          // Korea는 id = auth user id
+          // Korea DB는 user_id, nickname 컬럼 없음 - id, name, email, phone만 사용
           const { data: profilesById, error: profError1 } = await supabase
             .from('user_profiles')
-            .select('id, name, nickname, email, phone')
+            .select('id, name, email, phone')
             .in('id', userIds)
 
           if (profError1) {
@@ -365,13 +365,12 @@ exports.handler = async (event) => {
           }
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
-          // ★ applications에는 nickname 컬럼 없음 - applicant_name만 사용
-          const creatorName = app?.applicant_name ||
-                              profile?.name || profile?.nickname || null
+          // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
+          const creatorName = app?.applicant_name || profile?.name || null
 
-          // 연락처 (applications에는 phone_number만 있음, user_profiles에는 phone)
+          // 연락처: applications에는 phone_number만 있음 (email 없음), user_profiles에는 phone, email 있음
           const phone = app?.phone_number || profile?.phone || null
-          const email = app?.email || profile?.email || null
+          const email = profile?.email || null
 
           // 캠페인 정보
           const campaignTitle = campaign.title || null
