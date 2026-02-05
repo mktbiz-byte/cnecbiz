@@ -49,6 +49,7 @@ export default function CreatorPointHistory() {
   const [selectedUnpaid, setSelectedUnpaid] = useState(null)
   const [showPayModal, setShowPayModal] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [regionFilter, setRegionFilter] = useState('all') // all, korea, japan, us
 
   useEffect(() => {
     checkAuth()
@@ -603,7 +604,11 @@ export default function CreatorPointHistory() {
   const handleManualPay = async () => {
     if (!selectedUnpaid) return
 
-    if (!confirm(`${selectedUnpaid.creator_name}님에게 ${selectedUnpaid.reward_points.toLocaleString()}P를 지급하시겠습니까?`)) {
+    const regionName = selectedUnpaid.region === 'korea' ? '한국' :
+                       selectedUnpaid.region === 'japan' ? '일본' :
+                       selectedUnpaid.region === 'us' ? '미국' : selectedUnpaid.regionName
+
+    if (!confirm(`[${regionName}] ${selectedUnpaid.creator_name}님에게 ${selectedUnpaid.reward_points.toLocaleString()}P를 지급하시겠습니까?`)) {
       return
     }
 
@@ -618,7 +623,8 @@ export default function CreatorPointHistory() {
           userId: selectedUnpaid.user_id,
           campaignId: selectedUnpaid.campaign_id,
           amount: selectedUnpaid.reward_points,
-          reason: `수동 지급 - ${selectedUnpaid.campaign_title}`
+          reason: `수동 지급 - ${selectedUnpaid.campaign_title}`,
+          region: selectedUnpaid.region || 'korea' // 리전 정보 전달
         })
       })
 
@@ -984,43 +990,71 @@ export default function CreatorPointHistory() {
 
                 {/* 요약 카드 */}
                 {unpaidSummary && (
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-red-600">{unpaidSummary.total}</p>
-                        <p className="text-xs text-gray-500">전체 미지급</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-yellow-600">{unpaidSummary.multiVideoIncomplete}</p>
-                        <p className="text-xs text-gray-500">멀티비디오 미완성</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-red-500">{unpaidSummary.noRewardPoints}</p>
-                        <p className="text-xs text-gray-500">보상 미설정</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-orange-500">{unpaidSummary.noProfile}</p>
-                        <p className="text-xs text-gray-500">프로필 없음</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-gray-500">{unpaidSummary.noCampaign}</p>
-                        <p className="text-xs text-gray-500">캠페인 없음</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-purple-500">{unpaidSummary.unknown}</p>
-                        <p className="text-xs text-gray-500">원인 불명</p>
-                      </CardContent>
-                    </Card>
+                  <div className="space-y-4">
+                    {/* 리전별 요약 */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <Card className={`cursor-pointer ${regionFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('all')}>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-red-600">{unpaidSummary.total}</p>
+                          <p className="text-xs text-gray-500">전체 미지급</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'korea' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('korea')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇰🇷</div>
+                          <p className="text-2xl font-bold text-blue-600">{unpaidSummary.byRegion?.korea || 0}</p>
+                          <p className="text-xs text-gray-500">한국</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'japan' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('japan')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇯🇵</div>
+                          <p className="text-2xl font-bold text-red-500">{unpaidSummary.byRegion?.japan || 0}</p>
+                          <p className="text-xs text-gray-500">일본</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'us' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('us')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇺🇸</div>
+                          <p className="text-2xl font-bold text-indigo-600">{unpaidSummary.byRegion?.us || 0}</p>
+                          <p className="text-xs text-gray-500">미국</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 사유별 요약 */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-yellow-600">{unpaidSummary.multiVideoIncomplete}</p>
+                          <p className="text-xs text-gray-500">멀티비디오 미완성</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-red-500">{unpaidSummary.noRewardPoints}</p>
+                          <p className="text-xs text-gray-500">보상 미설정</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-orange-500">{unpaidSummary.noProfile}</p>
+                          <p className="text-xs text-gray-500">프로필 없음</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-gray-500">{unpaidSummary.noCampaign}</p>
+                          <p className="text-xs text-gray-500">캠페인 없음</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-purple-500">{unpaidSummary.unknown}</p>
+                          <p className="text-xs text-gray-500">원인 불명</p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 )}
 
@@ -1048,19 +1082,35 @@ export default function CreatorPointHistory() {
                       <div className="space-y-3">
                         {/* 테이블 헤더 */}
                         <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
+                          <div className="col-span-1">리전</div>
                           <div className="col-span-2">승인일</div>
                           <div className="col-span-2">크리에이터</div>
-                          <div className="col-span-3">캠페인</div>
+                          <div className="col-span-2">캠페인</div>
                           <div className="col-span-2">미지급 사유</div>
                           <div className="col-span-1 text-right">보상</div>
                           <div className="col-span-2 text-center">작업</div>
                         </div>
 
-                        {unpaidItems.map((item) => (
+                        {unpaidItems
+                          .filter(item => regionFilter === 'all' || item.region === regionFilter)
+                          .map((item) => (
                           <div
-                            key={`${item.type}-${item.id}`}
+                            key={`${item.type}-${item.id}-${item.region}`}
                             className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200"
                           >
+                            {/* 리전 */}
+                            <div className="col-span-1">
+                              <Badge variant="outline" className={
+                                item.region === 'korea' ? 'bg-blue-50 text-blue-700' :
+                                item.region === 'japan' ? 'bg-red-50 text-red-700' :
+                                item.region === 'us' ? 'bg-indigo-50 text-indigo-700' : ''
+                              }>
+                                {item.region === 'korea' ? '🇰🇷 한국' :
+                                 item.region === 'japan' ? '🇯🇵 일본' :
+                                 item.region === 'us' ? '🇺🇸 미국' : item.regionName || '-'}
+                              </Badge>
+                            </div>
+
                             {/* 승인일 */}
                             <div className="col-span-2">
                               <div className="text-sm font-medium">
@@ -1071,7 +1121,7 @@ export default function CreatorPointHistory() {
                                   : '-'
                                 }
                               </div>
-                              {item.days_since_approval && (
+                              {item.days_since_approval > 0 && (
                                 <div className="text-xs text-red-500">
                                   {item.days_since_approval}일 경과
                                 </div>
@@ -1085,7 +1135,7 @@ export default function CreatorPointHistory() {
                             </div>
 
                             {/* 캠페인 */}
-                            <div className="col-span-3">
+                            <div className="col-span-2">
                               <div className="text-sm truncate">{item.campaign_title}</div>
                               {item.is_multi_video && (
                                 <div className="text-xs text-blue-500">
@@ -1173,6 +1223,19 @@ export default function CreatorPointHistory() {
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg space-y-2">
                 <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-gray-500">리전:</span></div>
+                  <div>
+                    <Badge variant="outline" className={
+                      selectedUnpaid.region === 'korea' ? 'bg-blue-50 text-blue-700' :
+                      selectedUnpaid.region === 'japan' ? 'bg-red-50 text-red-700' :
+                      selectedUnpaid.region === 'us' ? 'bg-indigo-50 text-indigo-700' : ''
+                    }>
+                      {selectedUnpaid.region === 'korea' ? '🇰🇷 한국' :
+                       selectedUnpaid.region === 'japan' ? '🇯🇵 일본' :
+                       selectedUnpaid.region === 'us' ? '🇺🇸 미국' : selectedUnpaid.regionName || '-'}
+                    </Badge>
+                  </div>
+
                   <div><span className="text-gray-500">크리에이터:</span></div>
                   <div className="font-medium">{selectedUnpaid.creator_name}</div>
 
@@ -1187,7 +1250,7 @@ export default function CreatorPointHistory() {
                     {selectedUnpaid.approved_at
                       ? new Date(selectedUnpaid.approved_at).toLocaleDateString('ko-KR')
                       : '-'}
-                    {selectedUnpaid.days_since_approval && (
+                    {selectedUnpaid.days_since_approval > 0 && (
                       <span className="text-red-500 ml-2">({selectedUnpaid.days_since_approval}일 경과)</span>
                     )}
                   </div>

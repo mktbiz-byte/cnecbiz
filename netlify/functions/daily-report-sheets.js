@@ -123,6 +123,15 @@ const parseDate = (dateStr) => {
     return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]))
   }
 
+  // DD-M-YY 또는 D-M-YY 형식 (예: 26-1-26 = 2026년 1월 26일)
+  match = cleaned.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2})$/)
+  if (match) {
+    let year = parseInt(match[3])
+    if (year < 100) year += 2000
+    // DD-M-YY 형식으로 가정 (일-월-년)
+    return new Date(year, parseInt(match[2]) - 1, parseInt(match[1]))
+  }
+
   // MM/DD/YYYY, MM-DD-YYYY
   match = cleaned.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
   if (match) {
@@ -141,6 +150,21 @@ const parseDate = (dateStr) => {
     let year = parseInt(match[1])
     if (year < 100) year += 2000
     return new Date(year, parseInt(match[2]) - 1, parseInt(match[3]))
+  }
+
+  // 영어 날짜 형식: Jan 26 2026, January 26, 2026 등
+  match = cleaned.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/)
+  if (match) {
+    const months = {
+      'jan': 0, 'january': 0, 'feb': 1, 'february': 1, 'mar': 2, 'march': 2,
+      'apr': 3, 'april': 3, 'may': 4, 'jun': 5, 'june': 5, 'jul': 6, 'july': 6,
+      'aug': 7, 'august': 7, 'sep': 8, 'september': 8, 'oct': 9, 'october': 9,
+      'nov': 10, 'november': 10, 'dec': 11, 'december': 11
+    }
+    const monthName = match[1].toLowerCase()
+    if (months[monthName] !== undefined) {
+      return new Date(parseInt(match[3]), months[monthName], parseInt(match[2]))
+    }
   }
 
   // 시도: JavaScript Date 파싱

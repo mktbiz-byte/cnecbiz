@@ -11,13 +11,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import {
   Loader2, Plus, Trash2, Save, RefreshCw, Users, Mail, MessageSquare,
   BarChart3, TrendingUp, Calendar, ChevronRight, Sparkles, Settings,
-  FileSpreadsheet, User, ArrowLeft
+  FileSpreadsheet, User, ArrowLeft, Target, AlertTriangle, CheckCircle2,
+  Globe, Flag
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
+  AreaChart, Area, Cell, ReferenceLine
 } from 'recharts'
 import { supabaseBiz } from '../../lib/supabaseClients'
+
+// 국가 목록
+const COUNTRIES = [
+  { code: 'KR', name: '한국', flag: '🇰🇷' },
+  { code: 'JP', name: '일본', flag: '🇯🇵' },
+  { code: 'US', name: '미국', flag: '🇺🇸' },
+  { code: 'TW', name: '대만', flag: '🇹🇼' },
+  { code: 'OTHER', name: '기타', flag: '🌏' }
+]
 
 export default function DailyReportPage() {
   const navigate = useNavigate()
@@ -28,7 +38,11 @@ export default function DailyReportPage() {
   const [staffSheets, setStaffSheets] = useState([])
   const [showAddStaffModal, setShowAddStaffModal] = useState(false)
   const [editingStaff, setEditingStaff] = useState(null)
-  const [newStaff, setNewStaff] = useState({ name: '', sheets: [] })
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    sheets: [],
+    kpi: { creators: 30, dm: 20, emails: 10 } // 일일 KPI 기본값
+  })
   const [saving, setSaving] = useState(false)
 
   // 분석 데이터
@@ -36,6 +50,11 @@ export default function DailyReportPage() {
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [staffDetail, setStaffDetail] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [cachedReports, setCachedReports] = useState(null)
+  const [lastAnalyzedAt, setLastAnalyzedAt] = useState(null)
+
+  // 국가별 통계
+  const [countryStats, setCountryStats] = useState({})
 
   // 관리자 인증 체크
   useEffect(() => {
@@ -62,7 +81,28 @@ export default function DailyReportPage() {
     }
 
     await loadStaffSheets()
+    await loadCachedReports()
     setLoading(false)
+  }
+
+  // 캐시된 분석 결과 로드
+  const loadCachedReports = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/daily-report-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load_cached_reports' })
+      })
+
+      const result = await response.json()
+      if (result.success && result.cachedReports) {
+        setStaffReports(result.cachedReports.staffReports || [])
+        setCountryStats(result.cachedReports.countryStats || {})
+        setLastAnalyzedAt(result.cachedReports.analyzedAt)
+      }
+    } catch (error) {
+      console.error('Error loading cached reports:', error)
+    }
   }
 
   // 담당자 시트 설정 로드
@@ -118,12 +158,15 @@ export default function DailyReportPage() {
       const response = await fetch('/.netlify/functions/daily-report-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'analyze_all' })
+        body: JSON.stringify({ action: 'analyze_all', saveResults: true })
       })
 
       const result = await response.json()
       if (result.success) {
         setStaffReports(result.staffReports)
+        setCountryStats(result.countryStats || {})
+        setLastAnalyzedAt(new Date().toISOString())
+        alert('분석이 완료되어 저장되었습니다.')
       } else {
         throw new Error(result.error)
       }
@@ -133,6 +176,39 @@ export default function DailyReportPage() {
     } finally {
       setAnalyzing(false)
     }
+  }
+
+  // 오늘 KPI 달성률 계산
+  const getTodayKPIStatus = (report, staff) => {
+    const today = new Date().toISOString().split('T')[0]
+    const todayData = report.recentDaily?.find(d => d.date === today)
+    const kpi = staff?.kpi || { creators: 30, dm: 20, emails: 10 }
+
+    if (!todayData) {
+      return { creators: 0, dm: 0, emails: 0, creatorsRate: 0, dmRate: 0, emailsRate: 0 }
+    }
+
+    return {
+      creators: todayData.creators,
+      dm: todayData.dm,
+      emails: todayData.emails,
+      creatorsRate: Math.round((todayData.creators / kpi.creators) * 100),
+      dmRate: Math.round((todayData.dm / kpi.dm) * 100),
+      emailsRate: Math.round((todayData.emails / kpi.emails) * 100)
+    }
+  }
+
+  // KPI 달성 여부에 따른 색상
+  const getKPIColor = (rate) => {
+    if (rate >= 100) return 'text-green-600'
+    if (rate >= 70) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  const getKPIBgColor = (rate) => {
+    if (rate >= 100) return 'bg-green-100'
+    if (rate >= 70) return 'bg-yellow-100'
+    return 'bg-red-100'
   }
 
   // 담당자 상세 분석
@@ -188,7 +264,7 @@ export default function DailyReportPage() {
 
     saveStaffSheets(updatedStaffs)
     setShowAddStaffModal(false)
-    setNewStaff({ name: '', sheets: [] })
+    setNewStaff({ name: '', sheets: [], kpi: { creators: 30, dm: 20, emails: 10 } })
     setEditingStaff(null)
   }
 
@@ -208,6 +284,7 @@ export default function DailyReportPage() {
         name: '',
         url: '',
         sheetTab: '',
+        country: 'KR', // 기본 국가
         columnConfig: {
           dateColumn: 'B',
           creatorColumn: 'D',
@@ -252,7 +329,11 @@ export default function DailyReportPage() {
   // 수정 모드
   const openEditModal = (staff) => {
     setEditingStaff(staff)
-    setNewStaff({ name: staff.name, sheets: staff.sheets })
+    setNewStaff({
+      name: staff.name,
+      sheets: staff.sheets,
+      kpi: staff.kpi || { creators: 30, dm: 20, emails: 10 }
+    })
     setShowAddStaffModal(true)
   }
 
@@ -287,7 +368,12 @@ export default function DailyReportPage() {
                 <p className="text-sm text-gray-500">담당자별 구글 시트 업무량 분석</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              {lastAnalyzedAt && (
+                <span className="text-xs text-gray-500">
+                  마지막 분석: {new Date(lastAnalyzedAt).toLocaleString('ko-KR')}
+                </span>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setActiveTab('settings')}
@@ -432,6 +518,37 @@ export default function DailyReportPage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* 국가별 현황 */}
+                {Object.keys(countryStats).length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Globe className="w-5 h-5" />
+                        국가별 모집 현황
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        {COUNTRIES.map(country => {
+                          const stats = countryStats[country.code] || { creators: 0, dm: 0, emails: 0 }
+                          return (
+                            <div key={country.code} className="p-4 bg-gray-50 rounded-lg text-center">
+                              <div className="text-2xl mb-1">{country.flag}</div>
+                              <div className="font-medium text-sm mb-2">{country.name}</div>
+                              <div className="text-2xl font-bold text-blue-600">{stats.creators}</div>
+                              <div className="text-xs text-gray-500">크리에이터</div>
+                              <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                                <div className="text-green-600">DM {stats.dm}</div>
+                                <div className="text-purple-600">메일 {stats.emails}</div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* 담당자별 비교 차트 */}
                 <Card>
@@ -643,13 +760,13 @@ export default function DailyReportPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="w-5 h-5" />
-                      일별 업무량 추이
+                      일별 업무량 (막대 그래프)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
+                        <BarChart
                           data={[...staffDetail.stats.daily].reverse().slice(-30)}
                           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                         >
@@ -661,10 +778,10 @@ export default function DailyReportPage() {
                           <YAxis />
                           <Tooltip />
                           <Legend />
-                          <Line type="monotone" dataKey="creators" name="크리에이터" stroke="#3B82F6" strokeWidth={2} />
-                          <Line type="monotone" dataKey="dm" name="DM" stroke="#22C55E" strokeWidth={2} />
-                          <Line type="monotone" dataKey="emails" name="메일수집" stroke="#A855F7" strokeWidth={2} />
-                        </LineChart>
+                          <Bar dataKey="creators" name="크리에이터" fill="#3B82F6" />
+                          <Bar dataKey="dm" name="DM" fill="#22C55E" />
+                          <Bar dataKey="emails" name="메일수집" fill="#A855F7" />
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
