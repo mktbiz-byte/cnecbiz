@@ -120,48 +120,64 @@ exports.handler = async (event) => {
         const applicationIds = [...new Set(submissions.map(s => s.application_id).filter(Boolean))]
 
         // 2단계: applications 테이블에서 크리에이터 정보 조회
+        // ★ phone 컬럼 없음 - phone_number만 사용
         const applicationsMap = {}
         if (applicationIds.length > 0) {
           const { data: applications, error: appError } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone_number')
             .in('id', applicationIds)
 
-          if (!appError && applications) {
+          if (appError) {
+            console.error(`[${regionId}] applications (by id) error:`, appError.message)
+          }
+          if (applications) {
             applications.forEach(app => {
               applicationsMap[app.id] = app
             })
           }
-          console.log(`[${regionId}] applications: ${Object.keys(applicationsMap).length}건`)
+          console.log(`[${regionId}] applications (by id): ${Object.keys(applicationsMap).length}건`)
         }
 
         // user_id + campaign_id 기반으로도 applications 조회 (application_id가 없는 경우 대비)
         if (userIds.length > 0 && campaignIds.length > 0) {
-          const { data: appsByUserCampaign } = await supabase
+          const { data: appsByUserCampaign, error: appError2 } = await supabase
             .from('applications')
-            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone, phone_number')
+            .select('id, user_id, campaign_id, applicant_name, nickname, email, phone_number')
             .in('user_id', userIds)
             .in('campaign_id', campaignIds)
 
+          if (appError2) {
+            console.error(`[${regionId}] applications (by user+campaign) error:`, appError2.message)
+          }
           if (appsByUserCampaign) {
             appsByUserCampaign.forEach(app => {
+              // id로도 저장하고 user_id+campaign_id 조합으로도 저장
+              if (!applicationsMap[app.id]) {
+                applicationsMap[app.id] = app
+              }
               const key = `${app.user_id}_${app.campaign_id}`
               if (!applicationsMap[key]) {
                 applicationsMap[key] = app
               }
             })
+            console.log(`[${regionId}] applications (by user+campaign): ${appsByUserCampaign.length}건 추가`)
           }
         }
 
         // 3단계: campaigns 테이블에서 캠페인 정보 조회
+        // ★ point_amount 컬럼 없음 - creator_points_override, reward_points 사용
         const campaignsMap = {}
         if (campaignIds.length > 0) {
           const { data: campaigns, error: campError } = await supabase
             .from('campaigns')
-            .select('id, title, brand, campaign_type, point_amount, reward_points, estimated_cost')
+            .select('id, title, brand, campaign_type, creator_points_override, reward_points, estimated_cost')
             .in('id', campaignIds)
 
-          if (!campError && campaigns) {
+          if (campError) {
+            console.error(`[${regionId}] campaigns error:`, campError.message)
+          }
+          if (campaigns) {
             campaigns.forEach(camp => {
               campaignsMap[camp.id] = camp
             })
@@ -170,19 +186,41 @@ exports.handler = async (event) => {
         }
 
         // 4단계: user_profiles에서 크리에이터 이름 조회 (applications에 없는 경우)
+        // ★ user_id로도 조회하고 id로도 조회 (관계가 다를 수 있음)
         const userProfilesMap = {}
         if (userIds.length > 0) {
-          const { data: profiles } = await supabase
+          // id로 조회
+          const { data: profilesById, error: profError1 } = await supabase
             .from('user_profiles')
             .select('id, user_id, name, nickname, email, phone')
             .in('id', userIds)
 
-          if (profiles) {
-            profiles.forEach(p => {
+          if (profError1) {
+            console.error(`[${regionId}] user_profiles (by id) error:`, profError1.message)
+          }
+          if (profilesById) {
+            profilesById.forEach(p => {
               userProfilesMap[p.id] = p
               if (p.user_id) userProfilesMap[p.user_id] = p
             })
           }
+
+          // user_id 컬럼으로도 조회 (관계가 다를 수 있음)
+          const { data: profilesByUserId, error: profError2 } = await supabase
+            .from('user_profiles')
+            .select('id, user_id, name, nickname, email, phone')
+            .in('user_id', userIds)
+
+          if (profError2) {
+            console.error(`[${regionId}] user_profiles (by user_id) error:`, profError2.message)
+          }
+          if (profilesByUserId) {
+            profilesByUserId.forEach(p => {
+              if (!userProfilesMap[p.id]) userProfilesMap[p.id] = p
+              if (p.user_id && !userProfilesMap[p.user_id]) userProfilesMap[p.user_id] = p
+            })
+          }
+          console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
         }
 
         // 5단계: point_history 조회 (캠페인별 포인트 지급 기록)
@@ -218,19 +256,25 @@ exports.handler = async (event) => {
         }
 
         // 6단계: 데이터 매핑
+        let debugStats = { foundApp: 0, foundCampaign: 0, foundProfile: 0, total: 0 }
         for (const sub of submissions) {
+          debugStats.total++
+
           // applications 찾기: application_id 또는 user_id+campaign_id
           let app = sub.application_id ? applicationsMap[sub.application_id] : null
           if (!app) {
             const key = `${sub.user_id}_${sub.campaign_id}`
             app = applicationsMap[key]
           }
+          if (app) debugStats.foundApp++
 
           // campaigns 찾기
           const campaign = campaignsMap[sub.campaign_id] || {}
+          if (campaign.id) debugStats.foundCampaign++
 
           // user_profiles 찾기
           const profile = userProfilesMap[sub.user_id] || {}
+          if (profile.id) debugStats.foundProfile++
 
           // point 기록 찾기
           const pointKey = `${sub.user_id}_${sub.campaign_id}`
@@ -240,16 +284,16 @@ exports.handler = async (event) => {
           const creatorName = app?.applicant_name || app?.nickname ||
                               profile?.name || profile?.nickname || null
 
-          // 연락처
-          const phone = app?.phone_number || app?.phone || profile?.phone || null
+          // 연락처 (applications에는 phone_number만 있음, user_profiles에는 phone)
+          const phone = app?.phone_number || profile?.phone || null
           const email = app?.email || profile?.email || null
 
           // 캠페인 정보
           const campaignTitle = campaign.title || null
           const campaignBrand = campaign.brand || null
 
-          // 포인트 금액 결정 (여러 필드 체크)
-          const pointAmount = campaign.point_amount || campaign.reward_points ||
+          // 포인트 금액 결정 (creator_points_override > reward_points > estimated_cost 계산)
+          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
             Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
 
           const item = {
@@ -282,6 +326,9 @@ exports.handler = async (event) => {
             results.pending.push(item)
           }
         }
+
+        // 디버그: 매핑 성공률 로그
+        console.log(`[${regionId}] 매핑 결과: total=${debugStats.total}, app=${debugStats.foundApp}, campaign=${debugStats.foundCampaign}, profile=${debugStats.foundProfile}`)
 
       } catch (err) {
         console.error(`[${regionId}] Error:`, err)
