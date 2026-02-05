@@ -712,38 +712,83 @@ export default function DailyReportPage() {
 
           {/* 상세 분석 탭 */}
           <TabsContent value="detail">
-            {staffDetail && (
-              <div className="space-y-6">
-                {/* 담당자 헤더 */}
+            <div className="space-y-6">
+              {/* 담당자 선택 탭 */}
+              {staffSheets.length > 0 && (
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                          <User className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold">{staffDetail.staffInfo.name}</h2>
-                          <p className="text-sm text-gray-500">
-                            {staffDetail.staffInfo.sheets.length}개 시트 통합 분석
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => analyzeStaff(staffDetail.staffInfo.id)}
-                        disabled={analyzing}
-                      >
-                        {analyzing ? (
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                        )}
-                        새로고침
-                      </Button>
+                  <CardContent className="pt-4 pb-2">
+                    <div className="flex flex-wrap gap-2">
+                      {staffSheets.map(staff => (
+                        <Button
+                          key={staff.id}
+                          variant={selectedStaff === staff.id ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => analyzeStaff(staff.id)}
+                          disabled={analyzing}
+                          className="flex items-center gap-2"
+                        >
+                          <User className="w-4 h-4" />
+                          {staff.name}
+                          {analyzing && selectedStaff === staff.id && (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          )}
+                        </Button>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {!staffDetail && !analyzing && (
+                <Card>
+                  <CardContent className="py-12 text-center text-gray-500">
+                    <User className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>위에서 담당자를 선택하면 상세 분석이 표시됩니다.</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {analyzing && !staffDetail && (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+                    <p className="text-gray-500">분석 중...</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {staffDetail && (
+                <>
+                  {/* 담당자 헤더 */}
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-blue-100 rounded-lg">
+                            <User className="w-8 h-8 text-blue-600" />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold">{staffDetail.staffInfo.name}</h2>
+                            <p className="text-sm text-gray-500">
+                              {staffDetail.staffInfo.sheets.length}개 시트 통합 분석
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => analyzeStaff(staffDetail.staffInfo.id)}
+                          disabled={analyzing}
+                        >
+                          {analyzing ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4 mr-1" />
+                          )}
+                          새로고침
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                 {/* AI 분석 결과 */}
                 {staffDetail.aiAnalysis && (
@@ -923,8 +968,9 @@ export default function DailyReportPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </TabsContent>
 
           {/* 담당자 설정 탭 */}
