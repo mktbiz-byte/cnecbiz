@@ -247,10 +247,12 @@ exports.handler = async (event) => {
       }
     }
 
-    // 전체 데이터 조회
+    // ===== 전체 데이터 조회 (point_transactions 기반 재설계) =====
+    // confirmed: point_transactions에 기록이 있는 건 (실제 지급 확인)
+    // unpaid: 최종확정/완료 되었지만 point_transactions 기록이 없는 건 (진짜 미지급)
     const results = {
       confirmed: [],
-      pending: []
+      unpaid: []
     }
 
     for (const [regionId, config] of Object.entries(regionConfigs)) {
@@ -262,7 +264,28 @@ exports.handler = async (event) => {
       try {
         const supabase = createClient(config.url, config.key)
 
-        // 1단계: video_submissions 조회
+        // ── Step 1: point_transactions에서 캠페인 지급 기록 전부 조회 (Source of Truth) ──
+        const { data: campaignPayments, error: cpError } = await supabase
+          .from('point_transactions')
+          .select('user_id, related_campaign_id, amount, transaction_type, description, created_at')
+          .not('related_campaign_id', 'is', null)
+          .order('created_at', { ascending: false })
+
+        if (cpError) {
+          console.error(`[${regionId}] point_transactions error:`, cpError.message)
+        }
+
+        // 지급 맵 구축
+        const paidKeys = new Set()
+        const paymentMap = {}
+        for (const p of (campaignPayments || [])) {
+          const key = `${p.user_id}_${p.related_campaign_id}`
+          paidKeys.add(key)
+          if (!paymentMap[key]) paymentMap[key] = p
+        }
+        console.log(`[${regionId}] point_transactions 캠페인 지급 기록: ${paidKeys.size}건`)
+
+        // ── Step 2: video_submissions 조회 (미지급 건 탐지 + 보충 데이터용) ──
         const { data: submissions, error: subError } = await supabase
           .from('video_submissions')
           .select('id, user_id, campaign_id, application_id, status, final_confirmed_at, auto_confirmed, created_at')
@@ -271,185 +294,132 @@ exports.handler = async (event) => {
 
         if (subError) {
           console.error(`[${regionId}] video_submissions error:`, subError)
-          continue
         }
 
-        console.log(`[${regionId}] video_submissions: ${submissions?.length || 0}건`)
+        // ── Step 3: ID 목록 수집 ──
+        const paidUserIds = (campaignPayments || []).map(p => p.user_id).filter(Boolean)
+        const paidCampaignIds = (campaignPayments || []).map(p => p.related_campaign_id).filter(Boolean)
+        const subUserIds = (submissions || []).map(s => s.user_id).filter(Boolean)
+        const subCampaignIds = (submissions || []).map(s => s.campaign_id).filter(Boolean)
+        const applicationIds = [...new Set((submissions || []).map(s => s.application_id).filter(Boolean))]
 
-        if (!submissions || submissions.length === 0) continue
+        const allUserIds = [...new Set([...paidUserIds, ...subUserIds])]
+        const allCampaignIds = [...new Set([...paidCampaignIds, ...subCampaignIds])]
 
-        // user_id, campaign_id, application_id 목록 수집
-        const userIds = [...new Set(submissions.map(s => s.user_id).filter(Boolean))]
-        const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))]
-        const applicationIds = [...new Set(submissions.map(s => s.application_id).filter(Boolean))]
-
-        // 2단계: applications 테이블에서 크리에이터 정보 조회
-        // ★ email, phone 컬럼 없음 - phone_number만 사용, applicant_name만 사용
+        // ── Step 4: 보충 데이터 조회 (applications, campaigns, user_profiles) ──
         const applicationsMap = {}
         if (applicationIds.length > 0) {
-          const { data: applications, error: appError } = await supabase
+          const { data: apps } = await supabase
             .from('applications')
             .select('id, user_id, campaign_id, applicant_name, phone_number')
             .in('id', applicationIds)
-
-          if (appError) {
-            console.error(`[${regionId}] applications (by id) error:`, appError.message)
-          }
-          if (applications) {
-            applications.forEach(app => {
-              applicationsMap[app.id] = app
-            })
-          }
-          console.log(`[${regionId}] applications (by id): ${Object.keys(applicationsMap).length}건`)
+          if (apps) apps.forEach(a => { applicationsMap[a.id] = a })
         }
-
-        // user_id + campaign_id 기반으로도 applications 조회 (application_id가 없는 경우 대비)
-        if (userIds.length > 0 && campaignIds.length > 0) {
-          const { data: appsByUserCampaign, error: appError2 } = await supabase
+        // user_id + campaign_id 기반 추가 조회
+        if (allUserIds.length > 0 && allCampaignIds.length > 0) {
+          const { data: apps2 } = await supabase
             .from('applications')
             .select('id, user_id, campaign_id, applicant_name, phone_number')
-            .in('user_id', userIds)
-            .in('campaign_id', campaignIds)
-
-          if (appError2) {
-            console.error(`[${regionId}] applications (by user+campaign) error:`, appError2.message)
-          }
-          if (appsByUserCampaign) {
-            appsByUserCampaign.forEach(app => {
-              // id로도 저장하고 user_id+campaign_id 조합으로도 저장
-              if (!applicationsMap[app.id]) {
-                applicationsMap[app.id] = app
-              }
-              const key = `${app.user_id}_${app.campaign_id}`
-              if (!applicationsMap[key]) {
-                applicationsMap[key] = app
-              }
+            .in('user_id', allUserIds)
+            .in('campaign_id', allCampaignIds)
+          if (apps2) {
+            apps2.forEach(a => {
+              if (!applicationsMap[a.id]) applicationsMap[a.id] = a
+              const key = `${a.user_id}_${a.campaign_id}`
+              if (!applicationsMap[key]) applicationsMap[key] = a
             })
-            console.log(`[${regionId}] applications (by user+campaign): ${appsByUserCampaign.length}건 추가`)
           }
         }
 
-        // 3단계: campaigns 테이블에서 캠페인 정보 조회
-        // ★ point_amount 컬럼 없음 - creator_points_override, reward_points 사용
         const campaignsMap = {}
-        if (campaignIds.length > 0) {
-          const { data: campaigns, error: campError } = await supabase
+        if (allCampaignIds.length > 0) {
+          const { data: camps } = await supabase
             .from('campaigns')
             .select('id, title, brand, campaign_type, creator_points_override, reward_points, estimated_cost')
-            .in('id', campaignIds)
-
-          if (campError) {
-            console.error(`[${regionId}] campaigns error:`, campError.message)
-          }
-          if (campaigns) {
-            campaigns.forEach(camp => {
-              campaignsMap[camp.id] = camp
-            })
-          }
-          console.log(`[${regionId}] campaigns: ${Object.keys(campaignsMap).length}건`)
+            .in('id', allCampaignIds)
+          if (camps) camps.forEach(c => { campaignsMap[c.id] = c })
         }
 
-        // 4단계: user_profiles에서 크리에이터 이름 조회 (applications에 없는 경우)
-        // ★ Korea DB: user_id 컬럼 없음, nickname 컬럼 없음
         const userProfilesMap = {}
-        if (userIds.length > 0) {
-          // Korea는 id = auth user id
-          // Korea DB는 user_id, nickname 컬럼 없음 - id, name, email, phone만 사용
-          const { data: profilesById, error: profError1 } = await supabase
+        if (allUserIds.length > 0) {
+          const { data: profiles } = await supabase
             .from('user_profiles')
             .select('id, name, email, phone')
-            .in('id', userIds)
-
-          if (profError1) {
-            console.error(`[${regionId}] user_profiles error:`, profError1.message)
-          }
-          if (profilesById) {
-            profilesById.forEach(p => {
-              userProfilesMap[p.id] = p
-            })
-          }
-          console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
+            .in('id', allUserIds)
+          if (profiles) profiles.forEach(p => { userProfilesMap[p.id] = p })
         }
 
-        // 5단계: point_transactions에서 캠페인별 지급 기록 조회
-        // ★ related_campaign_id가 있는 건만 = mark_as_paid 또는 manual_pay로 기록된 건
-        const paymentMap = {}
-        if (userIds.length > 0) {
-          const { data: campaignPayments, error: cpError } = await supabase
-            .from('point_transactions')
-            .select('user_id, related_campaign_id, amount, transaction_type, description, created_at')
-            .in('user_id', userIds)
-            .not('related_campaign_id', 'is', null)
+        // ── Step 5: confirmed 목록 구축 (point_transactions 기준 = Source of Truth) ──
+        const seenConfirmed = new Set()
 
-          if (cpError) {
-            console.error(`[${regionId}] campaign payments query error:`, cpError.message)
-          }
-          if (campaignPayments) {
-            campaignPayments.forEach(p => {
-              const key = `${p.user_id}_${p.related_campaign_id}`
-              if (!paymentMap[key]) {
-                paymentMap[key] = p
-              }
-            })
-          }
-          console.log(`[${regionId}] campaign payment records: ${Object.keys(paymentMap).length}건`)
+        // video_submissions를 user+campaign으로 인덱싱
+        const subByUserCampaign = {}
+        for (const sub of (submissions || [])) {
+          const key = `${sub.user_id}_${sub.campaign_id}`
+          if (!subByUserCampaign[key]) subByUserCampaign[key] = sub
         }
 
-        // 6단계: 데이터 매핑 (user_id + campaign_id 중복 제거)
-        let debugStats = { foundApp: 0, foundCampaign: 0, foundProfile: 0, total: 0 }
-        const seenConfirmed = new Set()  // 확정 목록 중복 제거 (user_id + campaign_id + region)
-        const seenPending = new Set()    // 대기 목록 중복 제거
+        for (const payment of (campaignPayments || [])) {
+          const dedupeKey = `${payment.user_id}_${payment.related_campaign_id}_${regionId}`
+          if (seenConfirmed.has(dedupeKey)) continue
+          seenConfirmed.add(dedupeKey)
 
-        for (const sub of submissions) {
-          debugStats.total++
+          const matchingSub = subByUserCampaign[`${payment.user_id}_${payment.related_campaign_id}`]
+          const appKey = `${payment.user_id}_${payment.related_campaign_id}`
+          let app = applicationsMap[appKey]
+          if (!app && matchingSub?.application_id) app = applicationsMap[matchingSub.application_id]
 
-          // 멀티비디오 캠페인 중복 방지: 같은 user+campaign은 1건만 표시
-          const dedupeKey = `${sub.user_id}_${sub.campaign_id}_${regionId}`
-
-          // applications 찾기: application_id 또는 user_id+campaign_id
-          let app = sub.application_id ? applicationsMap[sub.application_id] : null
-          if (!app) {
-            const key = `${sub.user_id}_${sub.campaign_id}`
-            app = applicationsMap[key]
-          }
-          if (app) debugStats.foundApp++
-
-          // campaigns 찾기
-          const campaign = campaignsMap[sub.campaign_id] || {}
-          if (campaign.id) debugStats.foundCampaign++
-
-          // user_profiles 찾기
-          const profile = userProfilesMap[sub.user_id] || {}
-          if (profile.id) debugStats.foundProfile++
-
-          // 포인트 지급 여부 판정:
-          // 1) point_transactions에 related_campaign_id 기록이 있으면 지급 완료
-          // 2) auto_confirmed = true면 auto-confirm-videos.js가 실행됨
-          // 3) final_confirmed_at이 설정되고 status가 completed면 수동 최종확정으로 지급된 건
-          //    (이전 코드에서 point_history에 기록하려다 실패한 건도 포인트는 user_profiles.points에 반영됨)
-          const paymentKey = `${sub.user_id}_${sub.campaign_id}`
-          const paymentRecord = paymentMap[paymentKey]
-          const isPaid = !!paymentRecord ||
-            (sub.auto_confirmed === true && !!sub.final_confirmed_at) ||
-            (!!sub.final_confirmed_at && sub.status === 'completed')
-
-          // 크리에이터 이름: applications → user_profiles 순서로 우선
-          // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
-          const creatorName = app?.applicant_name || profile?.name || null
-
-          // 연락처: applications에는 phone_number만 있음 (email 없음), user_profiles에는 phone, email 있음
-          const phone = app?.phone_number || profile?.phone || null
-          const email = profile?.email || null
-
-          // 캠페인 정보
-          const campaignTitle = campaign.title || null
-          const campaignBrand = campaign.brand || null
-
-          // 포인트 금액 결정 (creator_points_override > reward_points > estimated_cost 계산)
+          const campaign = campaignsMap[payment.related_campaign_id] || {}
+          const profile = userProfilesMap[payment.user_id] || {}
           const pointAmount = campaign.creator_points_override || campaign.reward_points ||
             Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
 
-          const item = {
+          results.confirmed.push({
+            id: matchingSub?.id || `pt_${payment.user_id}_${payment.related_campaign_id}`,
+            region: regionId,
+            userId: payment.user_id,
+            campaignId: payment.related_campaign_id,
+            applicationId: matchingSub?.application_id || app?.id || null,
+            status: matchingSub?.status || 'completed',
+            finalConfirmedAt: matchingSub?.final_confirmed_at || payment.created_at,
+            createdAt: matchingSub?.created_at || payment.created_at,
+            creatorName: app?.applicant_name || profile?.name || null,
+            phone: app?.phone_number || profile?.phone || null,
+            email: profile?.email || null,
+            campaignTitle: campaign.title || null,
+            campaignBrand: campaign.brand || null,
+            campaignType: campaign.campaign_type,
+            pointAmount: pointAmount,
+            isPaid: true,
+            paidAmount: payment.amount,
+            paidAt: payment.created_at
+          })
+        }
+
+        // ── Step 6: unpaid 목록 구축 (확정/완료 되었지만 point_transactions에 없는 건) ──
+        const seenUnpaid = new Set()
+        for (const sub of (submissions || [])) {
+          const payKey = `${sub.user_id}_${sub.campaign_id}`
+          const dedupeKey = `${sub.user_id}_${sub.campaign_id}_${regionId}`
+
+          // 이미 point_transactions에 있으면 skip (지급 확인됨)
+          if (paidKeys.has(payKey)) continue
+
+          // 미지급 대상: final_confirmed_at 설정됨 OR status=completed OR auto_confirmed
+          if (!sub.final_confirmed_at && sub.status !== 'completed' && !sub.auto_confirmed) continue
+
+          if (seenUnpaid.has(dedupeKey)) continue
+          seenUnpaid.add(dedupeKey)
+
+          let app = sub.application_id ? applicationsMap[sub.application_id] : null
+          if (!app) app = applicationsMap[payKey]
+
+          const campaign = campaignsMap[sub.campaign_id] || {}
+          const profile = userProfilesMap[sub.user_id] || {}
+          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
+            Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+
+          results.unpaid.push({
             id: sub.id,
             region: regionId,
             userId: sub.user_id,
@@ -458,37 +428,20 @@ exports.handler = async (event) => {
             status: sub.status,
             finalConfirmedAt: sub.final_confirmed_at,
             createdAt: sub.created_at,
-            // 크리에이터 정보
-            creatorName: creatorName,
-            phone: phone,
-            email: email,
-            // 캠페인 정보
-            campaignTitle: campaignTitle,
-            campaignBrand: campaignBrand,
+            creatorName: app?.applicant_name || profile?.name || null,
+            phone: app?.phone_number || profile?.phone || null,
+            email: profile?.email || null,
+            campaignTitle: campaign.title || null,
+            campaignBrand: campaign.brand || null,
             campaignType: campaign.campaign_type,
             pointAmount: pointAmount,
-            // 포인트 지급 여부 (point_transactions.related_campaign_id 기준)
-            isPaid: isPaid,
-            paidAmount: paymentRecord?.amount || (isPaid ? pointAmount : 0),
-            paidAt: paymentRecord?.created_at || (isPaid ? sub.final_confirmed_at : null)
-          }
-
-          // isPaid이면 final_confirmed_at 없어도 confirmed로 분류
-          // (관리자가 포인트를 지급했지만 video_submissions 상태가 업데이트 안 된 경우)
-          if (sub.final_confirmed_at || isPaid) {
-            // 같은 user+campaign+region은 1건만 (멀티비디오 중복 방지)
-            if (seenConfirmed.has(dedupeKey)) continue
-            seenConfirmed.add(dedupeKey)
-            results.confirmed.push(item)
-          } else {
-            if (seenPending.has(dedupeKey)) continue
-            seenPending.add(dedupeKey)
-            results.pending.push(item)
-          }
+            isPaid: false,
+            paidAmount: 0,
+            paidAt: null
+          })
         }
 
-        // 디버그: 매핑 성공률 로그
-        console.log(`[${regionId}] 매핑 결과: total=${debugStats.total}, app=${debugStats.foundApp}, campaign=${debugStats.foundCampaign}, profile=${debugStats.foundProfile}`)
+        console.log(`[${regionId}] 결과: confirmed=${results.confirmed.length}, unpaid=${results.unpaid.length}`)
 
       } catch (err) {
         console.error(`[${regionId}] Error:`, err)
@@ -496,10 +449,10 @@ exports.handler = async (event) => {
     }
 
     // 정렬
-    results.confirmed.sort((a, b) => new Date(b.finalConfirmedAt) - new Date(a.finalConfirmedAt))
-    results.pending.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    results.confirmed.sort((a, b) => new Date(b.paidAt || b.finalConfirmedAt) - new Date(a.paidAt || a.finalConfirmedAt))
+    results.unpaid.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-    console.log(`Total - confirmed: ${results.confirmed.length}, pending: ${results.pending.length}`)
+    console.log(`Total - confirmed: ${results.confirmed.length}, unpaid: ${results.unpaid.length}`)
 
     return {
       statusCode: 200,
@@ -507,7 +460,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         confirmed: results.confirmed,
-        pending: results.pending
+        unpaid: results.unpaid
       })
     }
 

@@ -608,6 +608,7 @@ export default function CampaignDetail() {
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
+  const [paidCreatorUserIds, setPaidCreatorUserIds] = useState(new Set()) // 이미 포인트 지급된 크리에이터 user_id Set
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
   const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
@@ -723,6 +724,7 @@ export default function CampaignDetail() {
       fetchParticipants()
       fetchApplications()
       fetchVideoSubmissions()
+      fetchPaidCreators()
     }
     initPage()
   }, [id])
@@ -1544,6 +1546,25 @@ export default function CampaignDetail() {
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
+    }
+  }
+
+  // 이미 포인트 지급된 크리에이터 목록 조회 (point_transactions 기준)
+  const fetchPaidCreators = async () => {
+    try {
+      const { data: payments } = await supabase
+        .from('point_transactions')
+        .select('user_id')
+        .eq('related_campaign_id', id)
+        .not('user_id', 'is', null)
+
+      if (payments && payments.length > 0) {
+        const paidSet = new Set(payments.map(p => p.user_id))
+        setPaidCreatorUserIds(paidSet)
+        console.log(`[fetchPaidCreators] ${paidSet.size}명 이미 포인트 지급됨`)
+      }
+    } catch (error) {
+      console.error('Error fetching paid creators:', error)
     }
   }
 
@@ -4400,6 +4421,12 @@ Questions? Contact us.
       // fetchVideoSubmissions() 제거 - 로컬 상태가 이미 업데이트됨
       // fetchVideoSubmissions()를 호출하면 DB 복제 지연으로 인해 이전 상태를 가져와 로컬 상태를 덮어쓸 수 있음
       await fetchParticipants()
+
+      // 포인트 지급 완료 후 paidCreatorUserIds 즉시 업데이트 (버튼 비활성화 반영)
+      const paidUserId = applicationData?.user_id || submission.user_id
+      if (paidUserId) {
+        setPaidCreatorUserIds(prev => new Set([...prev, paidUserId]))
+      }
 
       // 기업에게는 포인트 금액 안 보여줌
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
@@ -9623,10 +9650,10 @@ Questions? Contact us.
                                                     SNS 보기
                                                   </Button>
                                                 )}
-                                                {submission.final_confirmed_at ? (
-                                                  <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
+                                                  <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                                                     <CheckCircle className="w-3 h-3 mr-1" />
-                                                    확정
+                                                    {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                   </Badge>
                                                 ) : submission.status === 'approved' && (
                                                   snsUrl ? (
@@ -9915,10 +9942,10 @@ Questions? Contact us.
                                                       SNS 보기
                                                     </Button>
                                                   )}
-                                                  {submission.final_confirmed_at ? (
-                                                    <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                  {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
+                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                                                       <CheckCircle className="w-3 h-3 mr-1" />
-                                                      확정
+                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                     </Badge>
                                                   ) : submission.status === 'approved' && (
                                                     <Button
