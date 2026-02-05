@@ -302,36 +302,40 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
         }
 
-        // 5단계: point_history 조회 (캠페인별 포인트 지급 기록)
+        // 5단계: point_transactions 조회 (포인트 지급 기록)
+        // ★ related_campaign_id가 null인 경우가 많음 (수동 지급) → description으로 매칭 필요
         const pointHistoryMap = {}
-        if (userIds.length > 0) {
-          const { data: pointHistory, error: phError } = await supabase
-            .from('point_history')
-            .select('user_id, campaign_id, amount, type, created_at')
-            .in('user_id', userIds)
+        const userPointTxMap = {} // user_id별 모든 트랜잭션 저장
 
-          if (!phError && pointHistory) {
-            pointHistory.forEach(ph => {
-              const key = `${ph.user_id}_${ph.campaign_id}`
-              pointHistoryMap[key] = ph
-            })
+        if (userIds.length > 0) {
+          // point_transactions 조회 (description 포함)
+          const { data: pointTx, error: ptError } = await supabase
+            .from('point_transactions')
+            .select('user_id, related_campaign_id, amount, transaction_type, description, created_at')
+            .in('user_id', userIds)
+            .gt('amount', 0) // 지급 내역만 (양수)
+
+          if (ptError) {
+            console.error(`[${regionId}] point_transactions error:`, ptError.message)
           }
 
-          // point_transactions 테이블도 시도
-          const { data: pointTx } = await supabase
-            .from('point_transactions')
-            .select('user_id, campaign_id, related_campaign_id, amount, type, created_at')
-            .in('user_id', userIds)
-
+          // user_id별로 모든 트랜잭션 저장
           ;(pointTx || []).forEach(pt => {
-            const campId = pt.campaign_id || pt.related_campaign_id
-            const key = `${pt.user_id}_${campId}`
-            if (!pointHistoryMap[key]) {
-              pointHistoryMap[key] = pt
+            if (!userPointTxMap[pt.user_id]) {
+              userPointTxMap[pt.user_id] = []
+            }
+            userPointTxMap[pt.user_id].push(pt)
+
+            // related_campaign_id가 있으면 직접 매핑
+            if (pt.related_campaign_id) {
+              const key = `${pt.user_id}_${pt.related_campaign_id}`
+              if (!pointHistoryMap[key]) {
+                pointHistoryMap[key] = pt
+              }
             }
           })
 
-          console.log(`[${regionId}] point records: ${Object.keys(pointHistoryMap).length}건`)
+          console.log(`[${regionId}] point_transactions: ${(pointTx || []).length}건, users: ${Object.keys(userPointTxMap).length}명`)
         }
 
         // 6단계: 데이터 매핑
@@ -356,8 +360,25 @@ exports.handler = async (event) => {
           if (profile.id) debugStats.foundProfile++
 
           // point 기록 찾기
+          // 1순위: related_campaign_id로 직접 매칭
           const pointKey = `${sub.user_id}_${sub.campaign_id}`
-          const pointRecord = pointHistoryMap[pointKey]
+          let pointRecord = pointHistoryMap[pointKey]
+
+          // 2순위: description에서 캠페인 제목/브랜드로 매칭 (related_campaign_id가 null인 경우)
+          if (!pointRecord && campaign.title) {
+            const userTxList = userPointTxMap[sub.user_id] || []
+            const matchedTx = userTxList.find(tx => {
+              if (!tx.description) return false
+              const desc = tx.description.toLowerCase()
+              const title = (campaign.title || '').toLowerCase()
+              const brand = (campaign.brand || '').toLowerCase()
+              // 제목 또는 브랜드가 description에 포함되어 있으면 매칭
+              return (title && desc.includes(title)) || (brand && desc.includes(brand))
+            })
+            if (matchedTx) {
+              pointRecord = matchedTx
+            }
+          }
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
           // ★ applications에는 nickname 컬럼 없음 - applicant_name만 사용
