@@ -1780,6 +1780,45 @@ export default function YoutuberSearchPage() {
                       </Button>
                       <Button
                         size="sm"
+                        variant="ghost"
+                        className="text-xs text-gray-400 hover:text-orange-500"
+                        disabled={runningSyncManual}
+                        onClick={async () => {
+                          try {
+                            const checkRes = await fetch('/.netlify/functions/fetch-google-sheets', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'check_lock' })
+                            })
+                            const checkResult = await checkRes.json()
+
+                            if (!checkResult.locks || checkResult.locks.length === 0) {
+                              alert('현재 활성화된 lock이 없습니다.\n스케줄 함수가 정상적으로 실행될 수 있습니다.')
+                              return
+                            }
+
+                            const lockInfo = checkResult.locks.map(l =>
+                              `- ${l.key}: ${l.time || l.updated_at} (리전: ${l.regions || 'all'})`
+                            ).join('\n')
+
+                            if (confirm(`현재 활성화된 lock:\n${lockInfo}\n\nlock을 해제하시겠습니까?`)) {
+                              const clearRes = await fetch('/.netlify/functions/fetch-google-sheets', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'clear_lock' })
+                              })
+                              const clearResult = await clearRes.json()
+                              alert(clearResult.message || 'Lock 해제 완료')
+                            }
+                          } catch (e) {
+                            alert('오류: ' + e.message)
+                          }
+                        }}
+                      >
+                        Lock 확인
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="outline"
                         disabled={runningSyncManual}
                         onClick={async () => {

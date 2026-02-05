@@ -266,6 +266,18 @@ async function syncRegion(supabase, apiKey, sheetConfig) {
 }
 
 exports.handler = async (event) => {
+  // 스케줄 실행 여부 확인 (Netlify 스케줄 함수는 body가 비어있거나 없음)
+  const isScheduledRun = !event.httpMethod || event.httpMethod === 'GET' ||
+    (event.headers && event.headers['x-netlify-schedule'] === 'true')
+
+  console.log('[stibee-sync] Triggered.', {
+    httpMethod: event.httpMethod,
+    hasBody: !!event.body,
+    bodyLength: event.body?.length,
+    isScheduledRun,
+    timestamp: new Date().toISOString()
+  })
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' }
   }
@@ -282,6 +294,8 @@ exports.handler = async (event) => {
   }
   var lockSuffix = targetRegions ? targetRegions.sort().join('_') : 'default'
   var LOCK_KEY = 'stibee_sync_lock_' + lockSuffix
+
+  console.log('[stibee-sync] Lock key:', LOCK_KEY, 'targetRegions:', targetRegions)
 
   try {
     supabase = getSupabase()
@@ -386,8 +400,8 @@ exports.handler = async (event) => {
       } catch (parseErr) { /* ignore */ }
     }
 
-    var isScheduled = !event.body && !event.httpMethod
-    var allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduled ? DEFAULT_REGIONS : null))
+    // 스케줄 실행이거나 명시적인 리전 지정이 없으면 기본 리전 사용
+    var allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduledRun ? DEFAULT_REGIONS : null))
 
     var apiKey = await getStibeeApiKey(supabase)
     if (!apiKey) {
