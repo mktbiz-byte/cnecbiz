@@ -280,41 +280,11 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] user_profiles: ${Object.keys(userProfilesMap).length}건`)
         }
 
-        // 5단계: point_transactions 조회 (포인트 지급 기록)
-        // ★ related_campaign_id가 null인 경우가 많음 (수동 지급) → description으로 매칭 필요
-        const pointHistoryMap = {}
-        const userPointTxMap = {} // user_id별 모든 트랜잭션 저장
-
-        if (userIds.length > 0) {
-          // point_transactions 조회 (description 포함)
-          const { data: pointTx, error: ptError } = await supabase
-            .from('point_transactions')
-            .select('user_id, related_campaign_id, amount, transaction_type, description, created_at')
-            .in('user_id', userIds)
-            .gt('amount', 0) // 지급 내역만 (양수)
-
-          if (ptError) {
-            console.error(`[${regionId}] point_transactions error:`, ptError.message)
-          }
-
-          // user_id별로 모든 트랜잭션 저장
-          ;(pointTx || []).forEach(pt => {
-            if (!userPointTxMap[pt.user_id]) {
-              userPointTxMap[pt.user_id] = []
-            }
-            userPointTxMap[pt.user_id].push(pt)
-
-            // related_campaign_id가 있으면 직접 매핑
-            if (pt.related_campaign_id) {
-              const key = `${pt.user_id}_${pt.related_campaign_id}`
-              if (!pointHistoryMap[key]) {
-                pointHistoryMap[key] = pt
-              }
-            }
-          })
-
-          console.log(`[${regionId}] point_transactions: ${(pointTx || []).length}건, users: ${Object.keys(userPointTxMap).length}명`)
-        }
+        // 5단계: 포인트 지급 여부 판단
+        // ★ point_transactions에는 캠페인별 지급 기록이 없음 (related_campaign_id 항상 null)
+        // ★ point_history 테이블은 Korea DB에 존재하지 않음
+        // ★ 실제 지급 프로세스: manual_pay/auto-confirm → user_profiles.points 증가 + video_submissions.final_confirmed_at 설정
+        // → 따라서 final_confirmed_at이 설정되어 있으면 = 지급 완료로 판단
 
         // 6단계: 데이터 매핑
         let debugStats = { foundApp: 0, foundCampaign: 0, foundProfile: 0, total: 0 }
@@ -337,32 +307,9 @@ exports.handler = async (event) => {
           const profile = userProfilesMap[sub.user_id] || {}
           if (profile.id) debugStats.foundProfile++
 
-          // point 기록 찾기
-          // 1순위: related_campaign_id로 직접 매칭
-          const pointKey = `${sub.user_id}_${sub.campaign_id}`
-          let pointRecord = pointHistoryMap[pointKey]
-
-          // 2순위: description에서 캠페인 제목/브랜드로 매칭 (related_campaign_id가 null인 경우)
-          // ★ 공백/대소문자 무시하여 유연하게 매칭
-          if (!pointRecord && (campaign.title || campaign.brand)) {
-            const userTxList = userPointTxMap[sub.user_id] || []
-            const normalize = (str) => (str || '').toLowerCase().replace(/\s+/g, '')
-            const matchedTx = userTxList.find(tx => {
-              if (!tx.description) return false
-              const desc = normalize(tx.description)
-              const title = normalize(campaign.title)
-              const brand = normalize(campaign.brand)
-              // 제목 또는 브랜드가 description에 포함되어 있으면 매칭
-              // 또는 브랜드 첫 단어(주요 키워드)로도 매칭 시도
-              const brandFirstWord = brand.split(/[^a-z가-힣0-9]/)[0]
-              return (title && desc.includes(title)) ||
-                     (brand && desc.includes(brand)) ||
-                     (brandFirstWord && brandFirstWord.length >= 2 && desc.includes(brandFirstWord))
-            })
-            if (matchedTx) {
-              pointRecord = matchedTx
-            }
-          }
+          // 포인트 지급 여부: final_confirmed_at이 설정되어 있으면 지급 완료
+          // (manual_pay, auto-confirm 모두 final_confirmed_at을 설정함)
+          const isPaid = !!sub.final_confirmed_at
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
           // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
@@ -398,10 +345,10 @@ exports.handler = async (event) => {
             campaignBrand: campaignBrand,
             campaignType: campaign.campaign_type,
             pointAmount: pointAmount,
-            // 포인트 지급 여부
-            isPaid: !!pointRecord,
-            paidAmount: pointRecord?.amount || 0,
-            paidAt: pointRecord?.created_at
+            // 포인트 지급 여부 (final_confirmed_at 기준)
+            isPaid: isPaid,
+            paidAmount: isPaid ? pointAmount : 0,
+            paidAt: isPaid ? sub.final_confirmed_at : null
           }
 
           if (sub.final_confirmed_at) {
