@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Coins, Search, Download, ArrowUpCircle, ArrowDownCircle,
-  RefreshCw, Calendar, User, Briefcase, X, Eye
+  RefreshCw, Calendar, User, Briefcase, X, Eye, AlertTriangle,
+  CheckCircle, XCircle, Play, Loader2, ExternalLink
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -20,6 +24,7 @@ import * as XLSX from 'xlsx'
 
 export default function CreatorPointHistory() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState('history')
   const [transactions, setTransactions] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
@@ -36,6 +41,14 @@ export default function CreatorPointHistory() {
   const [selectedCreator, setSelectedCreator] = useState(null)
   const [creatorTransactions, setCreatorTransactions] = useState([])
   const [showCreatorModal, setShowCreatorModal] = useState(false)
+
+  // 미지급 건 체크 관련
+  const [unpaidItems, setUnpaidItems] = useState([])
+  const [unpaidSummary, setUnpaidSummary] = useState(null)
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false)
+  const [selectedUnpaid, setSelectedUnpaid] = useState(null)
+  const [showPayModal, setShowPayModal] = useState(false)
+  const [paying, setPaying] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -561,6 +574,89 @@ export default function CreatorPointHistory() {
     alert(`${filtered.length}건의 데이터가 다운로드되었습니다.`)
   }
 
+  // 미지급 건 조회
+  const fetchUnpaidItems = async () => {
+    setLoadingUnpaid(true)
+    try {
+      const response = await fetch('/.netlify/functions/check-unpaid-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_unpaid' })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setUnpaidItems(result.unpaidItems || [])
+        setUnpaidSummary(result.summary)
+      } else {
+        alert(`조회 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('미지급 건 조회 오류:', error)
+      alert(`조회 오류: ${error.message}`)
+    } finally {
+      setLoadingUnpaid(false)
+    }
+  }
+
+  // 수동 포인트 지급
+  const handleManualPay = async () => {
+    if (!selectedUnpaid) return
+
+    if (!confirm(`${selectedUnpaid.creator_name}님에게 ${selectedUnpaid.reward_points.toLocaleString()}P를 지급하시겠습니까?`)) {
+      return
+    }
+
+    setPaying(true)
+    try {
+      const response = await fetch('/.netlify/functions/check-unpaid-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'manual_pay',
+          videoId: selectedUnpaid.id,
+          userId: selectedUnpaid.user_id,
+          campaignId: selectedUnpaid.campaign_id,
+          amount: selectedUnpaid.reward_points,
+          reason: `수동 지급 - ${selectedUnpaid.campaign_title}`
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(result.message)
+        setShowPayModal(false)
+        setSelectedUnpaid(null)
+        // 목록 새로고침
+        fetchUnpaidItems()
+      } else {
+        alert(`지급 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('포인트 지급 오류:', error)
+      alert(`지급 오류: ${error.message}`)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  // 미지급 사유별 배지 색상
+  const getReasonBadge = (reason) => {
+    if (reason?.includes('멀티비디오')) {
+      return <Badge className="bg-yellow-100 text-yellow-800">멀티비디오 미완성</Badge>
+    }
+    if (reason?.includes('보상 포인트')) {
+      return <Badge className="bg-red-100 text-red-800">보상 미설정</Badge>
+    }
+    if (reason?.includes('프로필')) {
+      return <Badge className="bg-orange-100 text-orange-800">프로필 없음</Badge>
+    }
+    if (reason?.includes('캠페인 정보')) {
+      return <Badge className="bg-gray-100 text-gray-800">캠페인 없음</Badge>
+    }
+    return <Badge className="bg-purple-100 text-purple-800">확인 필요</Badge>
+  }
+
   const filteredTransactions = getFilteredTransactions()
 
   return (
@@ -572,11 +668,30 @@ export default function CreatorPointHistory() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 포인트 지급 내역</h1>
-                <p className="text-gray-600">크리에이터에게 지급된 포인트 전체 내역을 확인합니다</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 포인트 관리</h1>
+                <p className="text-gray-600">포인트 지급 내역 및 미지급 건을 확인합니다</p>
               </div>
+            </div>
+          </div>
 
-              <div className="flex gap-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <Coins className="w-4 h-4" />
+                지급 내역
+              </TabsTrigger>
+              <TabsTrigger value="unpaid" className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                미지급 체크
+                {unpaidItems.length > 0 && (
+                  <Badge className="ml-1 bg-red-500 text-white">{unpaidItems.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* 지급 내역 탭 */}
+            <TabsContent value="history">
+              <div className="flex justify-end gap-2 mb-4">
                 <Button
                   variant="outline"
                   onClick={fetchTransactions}
@@ -594,8 +709,6 @@ export default function CreatorPointHistory() {
                   엑셀 다운로드
                 </Button>
               </div>
-            </div>
-          </div>
 
           {/* 통계 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -845,8 +958,304 @@ export default function CreatorPointHistory() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+
+            {/* 미지급 체크 탭 */}
+            <TabsContent value="unpaid">
+              <div className="space-y-6">
+                {/* 헤더 및 새로고침 */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">미지급 건 체크</h2>
+                    <p className="text-sm text-gray-500">승인 후 5일 이상 경과했지만 포인트가 지급되지 않은 건을 확인합니다</p>
+                  </div>
+                  <Button
+                    onClick={fetchUnpaidItems}
+                    disabled={loadingUnpaid}
+                  >
+                    {loadingUnpaid ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    미지급 건 조회
+                  </Button>
+                </div>
+
+                {/* 요약 카드 */}
+                {unpaidSummary && (
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-red-600">{unpaidSummary.total}</p>
+                        <p className="text-xs text-gray-500">전체 미지급</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-yellow-600">{unpaidSummary.multiVideoIncomplete}</p>
+                        <p className="text-xs text-gray-500">멀티비디오 미완성</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-red-500">{unpaidSummary.noRewardPoints}</p>
+                        <p className="text-xs text-gray-500">보상 미설정</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-orange-500">{unpaidSummary.noProfile}</p>
+                        <p className="text-xs text-gray-500">프로필 없음</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-gray-500">{unpaidSummary.noCampaign}</p>
+                        <p className="text-xs text-gray-500">캠페인 없음</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-purple-500">{unpaidSummary.unknown}</p>
+                        <p className="text-xs text-gray-500">원인 불명</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* 미지급 목록 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                      미지급 건 목록 ({unpaidItems.length}건)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingUnpaid ? (
+                      <div className="text-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                        <p className="mt-2 text-gray-500">조회 중...</p>
+                      </div>
+                    ) : unpaidItems.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-400" />
+                        <p>미지급 건이 없거나 조회되지 않았습니다.</p>
+                        <p className="text-sm mt-2">상단의 "미지급 건 조회" 버튼을 클릭해주세요.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* 테이블 헤더 */}
+                        <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
+                          <div className="col-span-2">승인일</div>
+                          <div className="col-span-2">크리에이터</div>
+                          <div className="col-span-3">캠페인</div>
+                          <div className="col-span-2">미지급 사유</div>
+                          <div className="col-span-1 text-right">보상</div>
+                          <div className="col-span-2 text-center">작업</div>
+                        </div>
+
+                        {unpaidItems.map((item) => (
+                          <div
+                            key={`${item.type}-${item.id}`}
+                            className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200"
+                          >
+                            {/* 승인일 */}
+                            <div className="col-span-2">
+                              <div className="text-sm font-medium">
+                                {item.approved_at
+                                  ? new Date(item.approved_at).toLocaleDateString('ko-KR')
+                                  : item.completed_at
+                                  ? new Date(item.completed_at).toLocaleDateString('ko-KR')
+                                  : '-'
+                                }
+                              </div>
+                              {item.days_since_approval && (
+                                <div className="text-xs text-red-500">
+                                  {item.days_since_approval}일 경과
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 크리에이터 */}
+                            <div className="col-span-2">
+                              <div className="text-sm font-medium truncate">{item.creator_name}</div>
+                              <div className="text-xs text-gray-400 truncate">{item.creator_email || '-'}</div>
+                            </div>
+
+                            {/* 캠페인 */}
+                            <div className="col-span-3">
+                              <div className="text-sm truncate">{item.campaign_title}</div>
+                              {item.is_multi_video && (
+                                <div className="text-xs text-blue-500">
+                                  멀티비디오 ({item.completed_count}/{item.required_count}개)
+                                </div>
+                              )}
+                              {item.video_url && (
+                                <a
+                                  href={item.video_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> 영상 보기
+                                </a>
+                              )}
+                            </div>
+
+                            {/* 미지급 사유 */}
+                            <div className="col-span-2">
+                              {getReasonBadge(item.reason)}
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-2">{item.reason}</div>
+                            </div>
+
+                            {/* 보상 포인트 */}
+                            <div className="col-span-1 text-right">
+                              <span className="text-lg font-bold text-green-600">
+                                {item.reward_points > 0 ? `${item.reward_points.toLocaleString()}P` : '-'}
+                              </span>
+                            </div>
+
+                            {/* 작업 버튼 */}
+                            <div className="col-span-2 flex items-center justify-center gap-2">
+                              {item.reward_points > 0 && !item.reason?.includes('멀티비디오') && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUnpaid(item)
+                                    setShowPayModal(true)
+                                  }}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  지급
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedUnpaid(item)
+                                  setShowPayModal(true)
+                                }}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                상세
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+
+      {/* 수동 지급 모달 */}
+      <Dialog open={showPayModal} onOpenChange={setShowPayModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-green-600" />
+              미지급 건 상세
+            </DialogTitle>
+            <DialogDescription>
+              미지급 사유를 확인하고 필요 시 수동으로 포인트를 지급합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUnpaid && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-gray-500">크리에이터:</span></div>
+                  <div className="font-medium">{selectedUnpaid.creator_name}</div>
+
+                  <div><span className="text-gray-500">이메일:</span></div>
+                  <div>{selectedUnpaid.creator_email || '-'}</div>
+
+                  <div><span className="text-gray-500">캠페인:</span></div>
+                  <div className="truncate">{selectedUnpaid.campaign_title}</div>
+
+                  <div><span className="text-gray-500">승인일:</span></div>
+                  <div>
+                    {selectedUnpaid.approved_at
+                      ? new Date(selectedUnpaid.approved_at).toLocaleDateString('ko-KR')
+                      : '-'}
+                    {selectedUnpaid.days_since_approval && (
+                      <span className="text-red-500 ml-2">({selectedUnpaid.days_since_approval}일 경과)</span>
+                    )}
+                  </div>
+
+                  <div><span className="text-gray-500">보상 포인트:</span></div>
+                  <div className="font-bold text-green-600">
+                    {selectedUnpaid.reward_points > 0
+                      ? `${selectedUnpaid.reward_points.toLocaleString()}P`
+                      : '미설정'}
+                  </div>
+
+                  <div><span className="text-gray-500">현재 잔액:</span></div>
+                  <div>{(selectedUnpaid.current_points || 0).toLocaleString()}P</div>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">미지급 사유</h4>
+                <p className="text-sm text-yellow-700">{selectedUnpaid.reason}</p>
+              </div>
+
+              {selectedUnpaid.is_multi_video && (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">멀티비디오 캠페인</h4>
+                  <p className="text-sm text-blue-700">
+                    필요 영상: {selectedUnpaid.required_count}개 / 완료: {selectedUnpaid.completed_count}개
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    모든 영상이 승인되면 자동으로 포인트가 지급됩니다.
+                  </p>
+                </div>
+              )}
+
+              {selectedUnpaid.video_url && (
+                <a
+                  href={selectedUnpaid.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-blue-600 hover:underline"
+                >
+                  <ExternalLink className="w-4 h-4 inline mr-1" />
+                  영상 확인하기
+                </a>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayModal(false)}>
+              닫기
+            </Button>
+            {selectedUnpaid?.reward_points > 0 && (
+              <Button
+                onClick={handleManualPay}
+                disabled={paying}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {paying ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                {selectedUnpaid?.reward_points?.toLocaleString()}P 지급하기
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 크리에이터 상세 모달 */}
       <Dialog open={showCreatorModal} onOpenChange={setShowCreatorModal}>
