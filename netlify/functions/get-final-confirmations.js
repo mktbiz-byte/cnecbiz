@@ -395,10 +395,16 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] campaign payment records: ${Object.keys(paymentMap).length}건`)
         }
 
-        // 6단계: 데이터 매핑
+        // 6단계: 데이터 매핑 (user_id + campaign_id 중복 제거)
         let debugStats = { foundApp: 0, foundCampaign: 0, foundProfile: 0, total: 0 }
+        const seenConfirmed = new Set()  // 확정 목록 중복 제거 (user_id + campaign_id + region)
+        const seenPending = new Set()    // 대기 목록 중복 제거
+
         for (const sub of submissions) {
           debugStats.total++
+
+          // 멀티비디오 캠페인 중복 방지: 같은 user+campaign은 1건만 표시
+          const dedupeKey = `${sub.user_id}_${sub.campaign_id}_${regionId}`
 
           // applications 찾기: application_id 또는 user_id+campaign_id
           let app = sub.application_id ? applicationsMap[sub.application_id] : null
@@ -464,8 +470,13 @@ exports.handler = async (event) => {
           }
 
           if (sub.final_confirmed_at) {
+            // 같은 user+campaign+region은 1건만 (멀티비디오 중복 방지)
+            if (seenConfirmed.has(dedupeKey)) continue
+            seenConfirmed.add(dedupeKey)
             results.confirmed.push(item)
           } else {
+            if (seenPending.has(dedupeKey)) continue
+            seenPending.add(dedupeKey)
             results.pending.push(item)
           }
         }

@@ -167,8 +167,8 @@ export default function CreatorPointHistory() {
             const profile = profileMap[t.user_id]
             const campaign = campaignMap[t.related_campaign_id]
 
-            // description에서 크리에이터명 추출 시도
-            let creatorName = profile?.channel_name || profile?.name
+            // description에서 크리에이터명 추출 시도 (실제 이름 우선)
+            let creatorName = profile?.name || profile?.channel_name
             if (!creatorName && t.description) {
               // [크리에이터: XXX] 패턴
               const nameMatch = t.description.match(/크리에이터[:\s]*([^\],]+)/i)
@@ -313,7 +313,7 @@ export default function CreatorPointHistory() {
                   description: `캠페인 완료: ${campaign?.title || ''}`,
                   related_campaign_id: app.campaign_id,
                   created_at: app.updated_at || app.created_at,
-                  creator_name: profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
+                  creator_name: profile?.name || profile?.channel_name || app.user_id?.substring(0, 8) + '...',
                   creator_email: profile?.email || '',
                   creator_phone: profile?.phone || '',
                   campaign_title: campaign?.title || null,

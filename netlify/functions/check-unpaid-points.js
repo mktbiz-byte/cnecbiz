@@ -142,8 +142,14 @@ exports.handler = async (event) => {
               }
             }
 
-            // 각 영상 분석
+            // 각 영상 분석 (같은 user+campaign 중복 방지)
+            const seenUserCampaign = new Set()
             for (const video of pendingVideos) {
+              // 멀티비디오 캠페인: 같은 user+campaign은 1건만 표시
+              const ucKey = `${video.user_id}_${video.campaign_id}_${regionKey}`
+              if (seenUserCampaign.has(ucKey)) continue
+              seenUserCampaign.add(ucKey)
+
               const campaign = campaignMap[video.campaign_id]
               const profile = profileMap[video.user_id]
 
