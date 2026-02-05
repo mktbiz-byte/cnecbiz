@@ -38,6 +38,85 @@ exports.handler = async (event) => {
       }
     }
 
+    // 디버그: 데이터 관계 확인
+    if (action === 'debug_relationships') {
+      const config = regionConfigs[region || 'korea']
+      if (!config || !config.url || !config.key) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid region' }) }
+      }
+
+      const supabase = createClient(config.url, config.key)
+
+      // 최근 video_submissions 5개 샘플
+      const { data: sampleSubs } = await supabase
+        .from('video_submissions')
+        .select('id, user_id, campaign_id, application_id, status, final_confirmed_at')
+        .not('final_confirmed_at', 'is', null)
+        .order('final_confirmed_at', { ascending: false })
+        .limit(5)
+
+      const debugResults = []
+      for (const sub of sampleSubs || []) {
+        const result = {
+          submission: sub,
+          applicationById: null,
+          applicationByUserCampaign: null,
+          userProfile: null,
+          campaign: null
+        }
+
+        // application_id로 조회
+        if (sub.application_id) {
+          const { data: app1, error: e1 } = await supabase
+            .from('applications')
+            .select('id, user_id, campaign_id, applicant_name, nickname, phone_number')
+            .eq('id', sub.application_id)
+            .maybeSingle()
+          result.applicationById = app1 || { error: e1?.message }
+        }
+
+        // user_id + campaign_id로 조회
+        if (sub.user_id && sub.campaign_id) {
+          const { data: app2, error: e2 } = await supabase
+            .from('applications')
+            .select('id, user_id, campaign_id, applicant_name, nickname, phone_number')
+            .eq('user_id', sub.user_id)
+            .eq('campaign_id', sub.campaign_id)
+            .maybeSingle()
+          result.applicationByUserCampaign = app2 || { error: e2?.message }
+        }
+
+        // user_profiles 조회
+        if (sub.user_id) {
+          const { data: prof1 } = await supabase.from('user_profiles')
+            .select('id, user_id, name, nickname, phone').eq('id', sub.user_id).maybeSingle()
+          if (prof1) {
+            result.userProfile = prof1
+          } else {
+            const { data: prof2 } = await supabase.from('user_profiles')
+              .select('id, user_id, name, nickname, phone').eq('user_id', sub.user_id).maybeSingle()
+            result.userProfile = prof2
+          }
+        }
+
+        // campaign 조회
+        if (sub.campaign_id) {
+          const { data: camp } = await supabase.from('campaigns')
+            .select('id, title, brand, creator_points_override, reward_points')
+            .eq('id', sub.campaign_id).maybeSingle()
+          result.campaign = camp
+        }
+
+        debugResults.push(result)
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, debug: debugResults })
+      }
+    }
+
     // 단일 지역 조회 (지급 이력 조회용)
     if (action === 'get_payment_history') {
       const config = regionConfigs[region]
