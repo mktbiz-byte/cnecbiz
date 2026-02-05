@@ -423,11 +423,15 @@ exports.handler = async (event) => {
           if (profile.id) debugStats.foundProfile++
 
           // 포인트 지급 여부 판정:
-          // 1) point_transactions에 related_campaign_id 기록이 있으면 지급 완료 (수동 마킹 또는 새 자동확정)
-          // 2) auto_confirmed = true면 auto-confirm-videos.js가 실행돼서 user_profiles.points 업데이트 완료된 건
+          // 1) point_transactions에 related_campaign_id 기록이 있으면 지급 완료
+          // 2) auto_confirmed = true면 auto-confirm-videos.js가 실행됨
+          // 3) final_confirmed_at이 설정되고 status가 completed면 수동 최종확정으로 지급된 건
+          //    (이전 코드에서 point_history에 기록하려다 실패한 건도 포인트는 user_profiles.points에 반영됨)
           const paymentKey = `${sub.user_id}_${sub.campaign_id}`
           const paymentRecord = paymentMap[paymentKey]
-          const isPaid = !!paymentRecord || (sub.auto_confirmed === true && !!sub.final_confirmed_at)
+          const isPaid = !!paymentRecord ||
+            (sub.auto_confirmed === true && !!sub.final_confirmed_at) ||
+            (!!sub.final_confirmed_at && sub.status === 'completed')
 
           // 크리에이터 이름: applications → user_profiles 순서로 우선
           // ★ applications에는 nickname, email 없음 / user_profiles에는 nickname 없음
