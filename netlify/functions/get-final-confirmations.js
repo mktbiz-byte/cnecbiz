@@ -473,7 +473,9 @@ exports.handler = async (event) => {
             paidAt: paymentRecord?.created_at || (isPaid ? sub.final_confirmed_at : null)
           }
 
-          if (sub.final_confirmed_at) {
+          // isPaid이면 final_confirmed_at 없어도 confirmed로 분류
+          // (관리자가 포인트를 지급했지만 video_submissions 상태가 업데이트 안 된 경우)
+          if (sub.final_confirmed_at || isPaid) {
             // 같은 user+campaign+region은 1건만 (멀티비디오 중복 방지)
             if (seenConfirmed.has(dedupeKey)) continue
             seenConfirmed.add(dedupeKey)
