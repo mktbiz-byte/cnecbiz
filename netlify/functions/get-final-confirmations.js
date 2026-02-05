@@ -1,6 +1,8 @@
 /**
  * 캠페인 최종 확정 관리 - 데이터 조회 API
  * Service Role Key로 RLS 우회하여 조회
+ *
+ * video_submissions.application_id → applications.id 관계 사용
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -96,10 +98,38 @@ exports.handler = async (event) => {
       try {
         const supabase = createClient(config.url, config.key)
 
-        // 1. video_submissions 조회
+        // 핵심: video_submissions + applications + campaigns 조인 쿼리
+        // Supabase의 관계형 쿼리 사용 (application_id → applications.id)
         const { data: submissions, error: subError } = await supabase
           .from('video_submissions')
-          .select('*')
+          .select(`
+            id,
+            user_id,
+            campaign_id,
+            application_id,
+            status,
+            final_confirmed_at,
+            created_at,
+            applications (
+              id,
+              applicant_name,
+              channel_name,
+              nickname,
+              email,
+              phone_number,
+              phone,
+              campaign_id,
+              campaigns (
+                id,
+                title,
+                brand,
+                campaign_type,
+                point_amount,
+                reward_points,
+                estimated_cost
+              )
+            )
+          `)
           .order('created_at', { ascending: false })
           .limit(500)
 
@@ -112,76 +142,14 @@ exports.handler = async (event) => {
 
         if (!submissions || submissions.length === 0) continue
 
-        // 2. 캠페인 ID 수집 및 조회
-        const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))]
-        const campaignMap = {}
-
-        if (campaignIds.length > 0) {
-          const { data: campaigns } = await supabase
-            .from('campaigns')
-            .select('id, title, brand, campaign_type, point_amount, reward_points, estimated_cost')
-            .in('id', campaignIds)
-
-          ;(campaigns || []).forEach(c => {
-            campaignMap[c.id] = c
-          })
-          console.log(`[${regionId}] campaigns: ${Object.keys(campaignMap).length}건`)
-        }
-
-        // 3. user_id 수집 및 user_profiles 조회
+        // user_id 목록 수집 (point_history 조회용)
         const userIds = [...new Set(submissions.map(s => s.user_id).filter(Boolean))]
-        const profileMap = {}
+        const campaignIds = [...new Set(submissions.map(s => s.campaign_id).filter(Boolean))]
 
-        if (userIds.length > 0) {
-          // user_id로 조회 시도
-          const { data: profiles1 } = await supabase
-            .from('user_profiles')
-            .select('id, user_id, name, channel_name, phone, phone_number, email, nickname')
-            .in('user_id', userIds)
-
-          ;(profiles1 || []).forEach(p => {
-            if (p.user_id) profileMap[p.user_id] = p
-            if (p.id) profileMap[p.id] = p
-          })
-
-          // id로도 조회 시도 (user_id가 없는 경우 대비)
-          const { data: profiles2 } = await supabase
-            .from('user_profiles')
-            .select('id, user_id, name, channel_name, phone, phone_number, email, nickname')
-            .in('id', userIds)
-
-          ;(profiles2 || []).forEach(p => {
-            if (p.user_id && !profileMap[p.user_id]) profileMap[p.user_id] = p
-            if (p.id && !profileMap[p.id]) profileMap[p.id] = p
-          })
-
-          console.log(`[${regionId}] profiles: ${Object.keys(profileMap).length}건`)
-        }
-
-        // 3-2. applications 테이블에서 크리에이터 정보 보충 조회
-        const applicationMap = {}
-        if (userIds.length > 0 && campaignIds.length > 0) {
-          const { data: applications } = await supabase
-            .from('applications')
-            .select('id, user_id, campaign_id, name, email, phone, channel_name, nickname, created_at')
-            .in('user_id', userIds)
-
-          ;(applications || []).forEach(app => {
-            // user_id + campaign_id 조합으로 저장
-            const key = `${app.user_id}_${app.campaign_id}`
-            applicationMap[key] = app
-            // user_id로도 저장 (fallback)
-            if (!applicationMap[app.user_id]) {
-              applicationMap[app.user_id] = app
-            }
-          })
-          console.log(`[${regionId}] applications: ${Object.keys(applicationMap).length}건`)
-        }
-
-        // 4. point_history 조회 (캠페인별 포인트 지급 기록)
+        // point_history 조회 (캠페인별 포인트 지급 기록)
         const pointHistoryMap = {}
 
-        if (userIds.length > 0 && campaignIds.length > 0) {
+        if (userIds.length > 0) {
           // point_history 테이블 시도
           const { data: pointHistory, error: phError } = await supabase
             .from('point_history')
@@ -212,44 +180,44 @@ exports.handler = async (event) => {
           console.log(`[${regionId}] point records: ${Object.keys(pointHistoryMap).length}건`)
         }
 
-        // 5. 데이터 매핑
+        // 데이터 매핑
         for (const sub of submissions) {
-          const profile = profileMap[sub.user_id] || {}
-          const campaign = campaignMap[sub.campaign_id] || {}
+          const app = sub.applications || {}
+          const campaign = app.campaigns || {}
           const pointKey = `${sub.user_id}_${sub.campaign_id}`
           const pointRecord = pointHistoryMap[pointKey]
 
-          // applications에서 크리에이터 정보 가져오기 (user_id + campaign_id 조합 우선)
-          const appKey = `${sub.user_id}_${sub.campaign_id}`
-          const application = applicationMap[appKey] || applicationMap[sub.user_id] || {}
+          // 크리에이터 이름: applications의 다양한 필드에서 가져오기
+          const creatorName = app.channel_name || app.nickname || app.applicant_name || null
+
+          // 연락처
+          const phone = app.phone_number || app.phone || null
+          const email = app.email || null
+
+          // 캠페인 정보
+          const campaignTitle = campaign.title || null
+          const campaignBrand = campaign.brand || null
 
           // 포인트 금액 결정 (여러 필드 체크)
           const pointAmount = campaign.point_amount || campaign.reward_points ||
             Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
-
-          // 크리에이터 이름: profile > application 순서로 우선순위
-          const creatorName = profile.channel_name || profile.nickname || profile.name ||
-            application.channel_name || application.nickname || application.name || null
-
-          // 연락처: profile > application 순서
-          const creatorPhone = profile.phone || profile.phone_number || application.phone || null
-          const creatorEmail = profile.email || application.email || null
 
           const item = {
             id: sub.id,
             region: regionId,
             userId: sub.user_id,
             campaignId: sub.campaign_id,
+            applicationId: sub.application_id,
             status: sub.status,
             finalConfirmedAt: sub.final_confirmed_at,
             createdAt: sub.created_at,
-            // 크리에이터 정보 (profile + application 병합)
+            // 크리에이터 정보 (applications에서)
             creatorName: creatorName,
-            phone: creatorPhone,
-            email: creatorEmail,
-            // 캠페인 정보
-            campaignTitle: campaign.title || null,
-            campaignBrand: campaign.brand,
+            phone: phone,
+            email: email,
+            // 캠페인 정보 (campaigns에서)
+            campaignTitle: campaignTitle,
+            campaignBrand: campaignBrand,
             campaignType: campaign.campaign_type,
             pointAmount: pointAmount,
             // 포인트 지급 여부
