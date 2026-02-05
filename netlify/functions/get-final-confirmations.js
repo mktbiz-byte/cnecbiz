@@ -86,17 +86,11 @@ exports.handler = async (event) => {
           result.applicationByUserCampaign = app2 || { error: e2?.message }
         }
 
-        // user_profiles 조회
+        // user_profiles 조회 (Korea DB는 user_id 컬럼 없음 - id로만 조회)
         if (sub.user_id) {
           const { data: prof1 } = await supabase.from('user_profiles')
-            .select('id, user_id, name, nickname, phone').eq('id', sub.user_id).maybeSingle()
-          if (prof1) {
-            result.userProfile = prof1
-          } else {
-            const { data: prof2 } = await supabase.from('user_profiles')
-              .select('id, user_id, name, nickname, phone').eq('user_id', sub.user_id).maybeSingle()
-            result.userProfile = prof2
-          }
+            .select('id, name, nickname, phone').eq('id', sub.user_id).maybeSingle()
+          result.userProfile = prof1
         }
 
         // campaign 조회
