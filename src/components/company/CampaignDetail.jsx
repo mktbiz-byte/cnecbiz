@@ -1708,11 +1708,129 @@ export default function CampaignDetail() {
         }
       }
 
-      // 5. Fallback: video_submissions에 데이터가 없으면 applications 테이블에서 영상 데이터 가져오기
-      // (video_submissions 테이블이 없었을 때 업로드된 영상을 표시하기 위함)
+      // 5. Fallback: video_submissions에 데이터가 없으면 다른 테이블에서 영상 데이터 가져오기
       if (allVideoSubmissions.length === 0) {
-        console.log('video_submissions 비어있음 → applications 테이블에서 영상 데이터 fallback 조회')
+        console.log('video_submissions 비어있음 → campaign_participants / campaign_applications / applications fallback 조회')
 
+        // 5-1. campaign_participants.video_files (JSONB array) fallback
+        const fallbackFromCampaignParticipants = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: participants, error: cpError } = await client
+              .from('campaign_participants')
+              .select('id, campaign_id, user_id, creator_name, creator_email, video_files, video_status')
+              .eq('campaign_id', id)
+
+            if (cpError) {
+              console.log(`${dbName} campaign_participants fallback error:`, cpError.message)
+              return []
+            }
+            if (!participants || participants.length === 0) return []
+
+            const results = []
+            participants.forEach(p => {
+              if (p.video_files && Array.isArray(p.video_files) && p.video_files.length > 0) {
+                p.video_files.forEach((file, idx) => {
+                  results.push({
+                    id: `cp_${p.id}_${idx}`,
+                    campaign_id: p.campaign_id,
+                    application_id: p.id,
+                    user_id: p.user_id,
+                    video_number: file.version || idx + 1,
+                    week_number: null,
+                    version: file.version || idx + 1,
+                    video_file_url: file.url,
+                    video_file_name: file.name,
+                    video_file_size: null,
+                    clean_video_url: null,
+                    sns_upload_url: null,
+                    ad_code: null,
+                    partnership_code: null,
+                    status: p.video_status === 'confirmed' ? 'confirmed' : 'submitted',
+                    final_confirmed_at: null,
+                    submitted_at: file.uploaded_at || new Date().toISOString(),
+                    updated_at: file.uploaded_at || new Date().toISOString(),
+                    created_at: file.uploaded_at || new Date().toISOString(),
+                    _from_campaign_participants: true
+                  })
+                })
+              }
+            })
+            if (results.length > 0) {
+              console.log(`${dbName} campaign_participants fallback: found ${results.length} video files`)
+            }
+            return results
+          } catch (e) {
+            console.log(`${dbName} campaign_participants fallback exception:`, e.message)
+            return []
+          }
+        }
+
+        // 5-2. campaign_applications.video_upload_links (JSONB) fallback (Japan/US)
+        const fallbackFromCampaignApplications = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: campApps, error: caError } = await client
+              .from('campaign_applications')
+              .select('id, campaign_id, user_id, video_upload_links, video_uploaded_at, status')
+              .eq('campaign_id', id)
+
+            if (caError) {
+              console.log(`${dbName} campaign_applications fallback error:`, caError.message)
+              return []
+            }
+            if (!campApps || campApps.length === 0) return []
+
+            const results = []
+            campApps.forEach(ca => {
+              if (ca.video_upload_links) {
+                // video_upload_links can be array or object
+                const links = Array.isArray(ca.video_upload_links) ? ca.video_upload_links : [ca.video_upload_links]
+                links.forEach((link, idx) => {
+                  // Support various JSONB structures: {url, name, ...} or just a string URL
+                  const videoUrl = typeof link === 'string' ? link : (link.url || link.video_url || link.file_url || link.video_file_url)
+                  const videoName = typeof link === 'string' ? null : (link.name || link.file_name || link.video_file_name)
+                  const uploadedAt = typeof link === 'string' ? null : (link.uploaded_at || link.created_at)
+                  const version = typeof link === 'string' ? idx + 1 : (link.version || idx + 1)
+
+                  if (videoUrl) {
+                    results.push({
+                      id: `ca_${ca.id}_${idx}`,
+                      campaign_id: ca.campaign_id,
+                      application_id: ca.id,
+                      user_id: ca.user_id,
+                      video_number: version,
+                      week_number: null,
+                      version: version,
+                      video_file_url: videoUrl,
+                      video_file_name: videoName,
+                      video_file_size: null,
+                      clean_video_url: null,
+                      sns_upload_url: null,
+                      ad_code: null,
+                      partnership_code: null,
+                      status: ca.status === 'completed' ? 'confirmed' : 'submitted',
+                      final_confirmed_at: null,
+                      submitted_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      updated_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      created_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      _from_campaign_applications: true
+                    })
+                  }
+                })
+              }
+            })
+            if (results.length > 0) {
+              console.log(`${dbName} campaign_applications fallback: found ${results.length} video links`)
+            }
+            return results
+          } catch (e) {
+            console.log(`${dbName} campaign_applications fallback exception:`, e.message)
+            return []
+          }
+        }
+
+        // 5-3. applications.video_file_url (TEXT) fallback
         const fallbackFromApps = async (client, dbName) => {
           if (!client) return []
           try {
@@ -1723,7 +1841,7 @@ export default function CampaignDetail() {
               .not('video_file_url', 'is', null)
 
             if (appError) {
-              console.error(`${dbName} applications fallback error:`, appError)
+              console.log(`${dbName} applications fallback error:`, appError.message)
               return []
             }
             if (apps && apps.length > 0) {
@@ -1753,32 +1871,51 @@ export default function CampaignDetail() {
             }
             return []
           } catch (e) {
-            console.error(`${dbName} applications fallback exception:`, e)
+            console.log(`${dbName} applications fallback exception:`, e.message)
             return []
           }
         }
 
-        // Japan, US, Korea, BIZ 순서로 fallback 조회
-        const [japanApps, usApps, koreaApps, bizApps] = await Promise.all([
+        // 모든 DB에서 병렬로 fallback 조회
+        const [
+          jpCP, usCP, krCP, bizCP,
+          jpCA, usCA,
+          jpApps, usApps, krApps, bizApps
+        ] = await Promise.all([
+          // campaign_participants (all DBs)
+          fallbackFromCampaignParticipants(supabaseJapan, 'Japan'),
+          fallbackFromCampaignParticipants(supabaseUS, 'US'),
+          fallbackFromCampaignParticipants(supabaseKorea, 'Korea'),
+          fallbackFromCampaignParticipants(supabaseBiz, 'BIZ'),
+          // campaign_applications (Japan/US only)
+          fallbackFromCampaignApplications(supabaseJapan, 'Japan'),
+          fallbackFromCampaignApplications(supabaseUS, 'US'),
+          // applications (all DBs)
           fallbackFromApps(supabaseJapan, 'Japan'),
           fallbackFromApps(supabaseUS, 'US'),
           fallbackFromApps(supabaseKorea, 'Korea'),
           fallbackFromApps(supabaseBiz, 'BIZ')
         ])
 
-        // 중복 제외하며 병합
+        // 우선순위: campaign_participants > campaign_applications > applications
         const seenUserIds = new Set()
-        ;[japanApps, usApps, koreaApps, bizApps].forEach(apps => {
-          apps.forEach(app => {
-            if (!seenUserIds.has(app.user_id)) {
-              seenUserIds.add(app.user_id)
-              allVideoSubmissions.push(app)
+        const allFallbacks = [
+          jpCP, usCP, krCP, bizCP,
+          jpCA, usCA,
+          jpApps, usApps, krApps, bizApps
+        ]
+        allFallbacks.forEach(items => {
+          items.forEach(item => {
+            const key = `${item.user_id}_${item.version || 1}`
+            if (!seenUserIds.has(key)) {
+              seenUserIds.add(key)
+              allVideoSubmissions.push(item)
             }
           })
         })
 
         if (allVideoSubmissions.length > 0) {
-          console.log('Applications fallback total:', allVideoSubmissions.length)
+          console.log('Fallback total video submissions:', allVideoSubmissions.length)
         }
       }
 
