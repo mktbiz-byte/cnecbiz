@@ -131,11 +131,23 @@ exports.handler = async (event) => {
     switch (action) {
       // 가상 선정 토글
       case 'virtual_select':
-        // US DB는 main_channel, updated_at 컬럼이 없을 수 있음
         const virtualSelectData = { virtual_selected: data.virtual_selected }
+        if (data.main_channel) {
+          virtualSelectData.main_channel = data.main_channel
+        }
         result = await supabaseUS
           .from('applications')
           .update(virtualSelectData)
+          .eq('id', application_id)
+          .eq('campaign_id', campaign_id)
+          .select()
+        break
+
+      // 업로드 채널 변경
+      case 'update_channel':
+        result = await supabaseUS
+          .from('applications')
+          .update({ main_channel: data.main_channel })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
@@ -229,10 +241,10 @@ exports.handler = async (event) => {
           .order('created_at', { ascending: false })
         break
 
-      // 일반 업데이트 (updated_at, main_channel 제외)
+      // 일반 업데이트 (updated_at 제외)
       case 'update_application':
         // US DB에 없는 컬럼 제외
-        const { updated_at, main_channel, ...safeData } = data
+        const { updated_at, ...safeData } = data
         result = await supabaseUS
           .from('applications')
           .update(safeData)

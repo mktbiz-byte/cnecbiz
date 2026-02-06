@@ -1047,6 +1047,63 @@ export default function CampaignDetail() {
         }
       }
 
+      // US DB에서 영상 데이터 병합
+      if (supabaseUS && region === 'us') {
+        try {
+          console.log('[fetchParticipants] US DB 영상 데이터 병합 시도...')
+          const { data: usApps } = await supabaseUS
+            .from('applications')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url, main_channel')
+            .eq('campaign_id', id)
+
+          if (usApps && usApps.length > 0) {
+            console.log('[fetchParticipants] US DB 참가자:', usApps.length, '명')
+
+            const matchedUsIds = new Set()
+            combinedData = combinedData.map(participant => {
+              const usApp = usApps.find(u => u.user_id && u.user_id === participant.user_id)
+              if (usApp) {
+                matchedUsIds.add(usApp.id)
+                return {
+                  ...participant,
+                  video_file_url: usApp.video_file_url || participant.video_file_url,
+                  video_file_name: usApp.video_file_name || participant.video_file_name,
+                  video_file_size: usApp.video_file_size || participant.video_file_size,
+                  video_uploaded_at: usApp.video_uploaded_at || participant.video_uploaded_at,
+                  clean_video_file_url: usApp.clean_video_file_url || participant.clean_video_file_url,
+                  clean_video_file_name: usApp.clean_video_file_name || participant.clean_video_file_name,
+                  clean_video_uploaded_at: usApp.clean_video_uploaded_at || participant.clean_video_uploaded_at,
+                  clean_video_url: usApp.clean_video_url || usApp.clean_video_file_url || participant.clean_video_url,
+                  ad_code: usApp.ad_code || participant.ad_code,
+                  partnership_code: usApp.partnership_code || participant.partnership_code,
+                  sns_upload_url: usApp.sns_upload_url || participant.sns_upload_url,
+                  main_channel: usApp.main_channel || participant.main_channel,
+                  us_app_status: usApp.status
+                }
+              }
+              return participant
+            })
+
+            // US DB에만 있는 참가자 추가
+            const usOnlyApps = usApps.filter(u =>
+              !matchedUsIds.has(u.id) &&
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(u.status)
+            )
+            if (usOnlyApps.length > 0) {
+              console.log('[fetchParticipants] US DB에만 있는 참가자:', usOnlyApps.length, '명 추가')
+              const usAppsFormatted = usOnlyApps.map(u => ({
+                ...u,
+                creator_name: u.applicant_name,
+                source_db: 'us'
+              }))
+              combinedData = [...combinedData, ...usAppsFormatted]
+            }
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] US DB 영상 병합 실패:', e.message)
+        }
+      }
+
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
       if (combinedData.length === 0 && supabaseKorea) {
         console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
@@ -1651,7 +1708,218 @@ export default function CampaignDetail() {
         }
       }
 
-      // 5. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      // 5. Fallback: video_submissions에 데이터가 없으면 다른 테이블에서 영상 데이터 가져오기
+      if (allVideoSubmissions.length === 0) {
+        console.log('video_submissions 비어있음 → campaign_participants / campaign_applications / applications fallback 조회')
+
+        // 5-1. campaign_participants.video_files (JSONB array) fallback
+        const fallbackFromCampaignParticipants = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: participants, error: cpError } = await client
+              .from('campaign_participants')
+              .select('id, campaign_id, user_id, creator_name, creator_email, video_files, video_status')
+              .eq('campaign_id', id)
+
+            if (cpError) {
+              console.log(`${dbName} campaign_participants fallback error:`, cpError.message)
+              return []
+            }
+            if (!participants || participants.length === 0) return []
+
+            const results = []
+            participants.forEach(p => {
+              if (p.video_files && Array.isArray(p.video_files) && p.video_files.length > 0) {
+                p.video_files.forEach((file, idx) => {
+                  results.push({
+                    id: `cp_${p.id}_${idx}`,
+                    campaign_id: p.campaign_id,
+                    application_id: p.id,
+                    user_id: p.user_id,
+                    video_number: file.version || idx + 1,
+                    week_number: null,
+                    version: file.version || idx + 1,
+                    video_file_url: file.url,
+                    video_file_name: file.name,
+                    video_file_size: null,
+                    clean_video_url: null,
+                    sns_upload_url: null,
+                    ad_code: null,
+                    partnership_code: null,
+                    status: p.video_status === 'confirmed' ? 'confirmed' : 'submitted',
+                    final_confirmed_at: null,
+                    submitted_at: file.uploaded_at || new Date().toISOString(),
+                    updated_at: file.uploaded_at || new Date().toISOString(),
+                    created_at: file.uploaded_at || new Date().toISOString(),
+                    _from_campaign_participants: true
+                  })
+                })
+              }
+            })
+            if (results.length > 0) {
+              console.log(`${dbName} campaign_participants fallback: found ${results.length} video files`)
+            }
+            return results
+          } catch (e) {
+            console.log(`${dbName} campaign_participants fallback exception:`, e.message)
+            return []
+          }
+        }
+
+        // 5-2. campaign_applications.video_upload_links (JSONB) fallback (Japan/US)
+        const fallbackFromCampaignApplications = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: campApps, error: caError } = await client
+              .from('campaign_applications')
+              .select('id, campaign_id, user_id, video_upload_links, video_uploaded_at, status')
+              .eq('campaign_id', id)
+
+            if (caError) {
+              console.log(`${dbName} campaign_applications fallback error:`, caError.message)
+              return []
+            }
+            if (!campApps || campApps.length === 0) return []
+
+            const results = []
+            campApps.forEach(ca => {
+              if (ca.video_upload_links) {
+                // video_upload_links can be array or object
+                const links = Array.isArray(ca.video_upload_links) ? ca.video_upload_links : [ca.video_upload_links]
+                links.forEach((link, idx) => {
+                  // Support various JSONB structures: {url, name, ...} or just a string URL
+                  const videoUrl = typeof link === 'string' ? link : (link.url || link.video_url || link.file_url || link.video_file_url)
+                  const videoName = typeof link === 'string' ? null : (link.name || link.file_name || link.video_file_name)
+                  const uploadedAt = typeof link === 'string' ? null : (link.uploaded_at || link.created_at)
+                  const version = typeof link === 'string' ? idx + 1 : (link.version || idx + 1)
+
+                  if (videoUrl) {
+                    results.push({
+                      id: `ca_${ca.id}_${idx}`,
+                      campaign_id: ca.campaign_id,
+                      application_id: ca.id,
+                      user_id: ca.user_id,
+                      video_number: version,
+                      week_number: null,
+                      version: version,
+                      video_file_url: videoUrl,
+                      video_file_name: videoName,
+                      video_file_size: null,
+                      clean_video_url: null,
+                      sns_upload_url: null,
+                      ad_code: null,
+                      partnership_code: null,
+                      status: ca.status === 'completed' ? 'confirmed' : 'submitted',
+                      final_confirmed_at: null,
+                      submitted_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      updated_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      created_at: uploadedAt || ca.video_uploaded_at || new Date().toISOString(),
+                      _from_campaign_applications: true
+                    })
+                  }
+                })
+              }
+            })
+            if (results.length > 0) {
+              console.log(`${dbName} campaign_applications fallback: found ${results.length} video links`)
+            }
+            return results
+          } catch (e) {
+            console.log(`${dbName} campaign_applications fallback exception:`, e.message)
+            return []
+          }
+        }
+
+        // 5-3. applications.video_file_url (TEXT) fallback
+        const fallbackFromApps = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: apps, error: appError } = await client
+              .from('applications')
+              .select('id, campaign_id, user_id, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_url, sns_upload_url, ad_code, partnership_code, final_confirmed_at, main_channel, week1_url, week2_url, week3_url, week4_url')
+              .eq('campaign_id', id)
+              .not('video_file_url', 'is', null)
+
+            if (appError) {
+              console.log(`${dbName} applications fallback error:`, appError.message)
+              return []
+            }
+            if (apps && apps.length > 0) {
+              console.log(`${dbName} applications fallback: found ${apps.length} records with video`)
+              return apps.map(app => ({
+                id: `app_${app.id}`,
+                campaign_id: app.campaign_id,
+                application_id: app.id,
+                user_id: app.user_id,
+                video_number: 1,
+                week_number: null,
+                version: 1,
+                video_file_url: app.video_file_url,
+                video_file_name: app.video_file_name,
+                video_file_size: app.video_file_size,
+                clean_video_url: app.clean_video_file_url || app.clean_video_url,
+                sns_upload_url: app.sns_upload_url,
+                ad_code: app.ad_code,
+                partnership_code: app.partnership_code,
+                status: app.final_confirmed_at ? 'confirmed' : 'submitted',
+                final_confirmed_at: app.final_confirmed_at,
+                submitted_at: app.video_uploaded_at || new Date().toISOString(),
+                updated_at: app.video_uploaded_at || new Date().toISOString(),
+                created_at: app.video_uploaded_at || new Date().toISOString(),
+                _from_applications: true
+              }))
+            }
+            return []
+          } catch (e) {
+            console.log(`${dbName} applications fallback exception:`, e.message)
+            return []
+          }
+        }
+
+        // 모든 DB에서 병렬로 fallback 조회
+        const [
+          jpCP, usCP, krCP, bizCP,
+          jpCA, usCA,
+          jpApps, usApps, krApps, bizApps
+        ] = await Promise.all([
+          // campaign_participants (all DBs)
+          fallbackFromCampaignParticipants(supabaseJapan, 'Japan'),
+          fallbackFromCampaignParticipants(supabaseUS, 'US'),
+          fallbackFromCampaignParticipants(supabaseKorea, 'Korea'),
+          fallbackFromCampaignParticipants(supabaseBiz, 'BIZ'),
+          // campaign_applications (Japan/US only)
+          fallbackFromCampaignApplications(supabaseJapan, 'Japan'),
+          fallbackFromCampaignApplications(supabaseUS, 'US'),
+          // applications (all DBs)
+          fallbackFromApps(supabaseJapan, 'Japan'),
+          fallbackFromApps(supabaseUS, 'US'),
+          fallbackFromApps(supabaseKorea, 'Korea'),
+          fallbackFromApps(supabaseBiz, 'BIZ')
+        ])
+
+        // 우선순위: campaign_participants > campaign_applications > applications
+        const seenUserIds = new Set()
+        const allFallbacks = [
+          jpCP, usCP, krCP, bizCP,
+          jpCA, usCA,
+          jpApps, usApps, krApps, bizApps
+        ]
+        allFallbacks.forEach(items => {
+          items.forEach(item => {
+            const key = `${item.user_id}_${item.version || 1}`
+            if (!seenUserIds.has(key)) {
+              seenUserIds.add(key)
+              allVideoSubmissions.push(item)
+            }
+          })
+        })
+
+        if (allVideoSubmissions.length > 0) {
+          console.log('Fallback total video submissions:', allVideoSubmissions.length)
+        }
+      }
+
+      // 6. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
       const videoMap = new Map()
       allVideoSubmissions.forEach(sub => {
         const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
@@ -1678,6 +1946,25 @@ export default function CampaignDetail() {
       
       // Generate signed URLs for all video submissions (5 hours validity)
       if (data && data.length > 0) {
+        // 영상 URL의 호스트를 기반으로 적절한 Supabase 클라이언트 결정
+        const getClientForUrl = (videoUrl) => {
+          try {
+            const hostname = new URL(videoUrl).hostname
+            const koreaUrl = import.meta.env.VITE_SUPABASE_KOREA_URL
+            const japanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL
+            const usUrl = import.meta.env.VITE_SUPABASE_US_URL
+            const bizUrl = import.meta.env.VITE_SUPABASE_BIZ_URL
+
+            if (koreaUrl && hostname === new URL(koreaUrl).hostname) return supabaseKorea
+            if (japanUrl && hostname === new URL(japanUrl).hostname) return supabaseJapan
+            if (usUrl && hostname === new URL(usUrl).hostname) return supabaseUS
+            if (bizUrl && hostname === new URL(bizUrl).hostname) return supabaseBiz
+          } catch (e) {
+            // URL 파싱 실패 시 기본 클라이언트 사용
+          }
+          return supabaseKorea || supabaseBiz
+        }
+
         const urlPromises = data.map(async (submission) => {
           if (submission.video_file_url) {
             try {
@@ -1696,6 +1983,7 @@ export default function CampaignDetail() {
 
               if (pathMatch) {
                 const filePath = pathMatch[1]
+                const videoClient = getClientForUrl(submission.video_file_url)
                 const { data: signedData, error: signedError } = await videoClient.storage
                   .from(bucketName)
                   .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
@@ -4023,7 +4311,7 @@ Questions? Contact us.
   // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
   const handleVideoApproval = async (submission, customUploadDeadline = null) => {
     try {
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
 
       // 업로드 기한 입력받기 (customUploadDeadline이 없으면 prompt)
       const inputDeadline = customUploadDeadline || prompt(
@@ -4260,7 +4548,7 @@ Questions? Contact us.
         return
       }
 
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
       const pointAmount = campaign.reward_points || campaign.point || 0
       const confirmedAt = new Date().toISOString()
 
@@ -4745,7 +5033,7 @@ Questions? Contact us.
 
     setSavingAdminSnsEdit(true)
     try {
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
 
       // video_submissions 테이블에 SNS URL 및 광고코드 업데이트
       if (adminSnsEditData.submissionId) {
@@ -5684,29 +5972,33 @@ Questions? Contact us.
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-1" />
-                    가이드 전체 생성
+                    {(campaign?.campaign_type === '4week_challenge' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign?.campaign_type === 'megawari'))
+                      ? '가이드 전달'
+                      : '가이드 전체 생성'}
                   </>
                 )}
               </Button>
-              {/* 가이드 전체 발송 버튼 (생성된 가이드를 선택된 크리에이터에게 이메일 발송) */}
-              <Button
-                onClick={() => handleBulkGuideDelivery('ai')}
-                disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm"
-                size="sm"
-              >
-                {sendingBulkGuideEmail ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    발송 중...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4 mr-1" />
-                    가이드 전체 발송
-                  </>
-                )}
-              </Button>
+              {/* 가이드 전체 발송 버튼 - 기획형에서만 표시 (4주/올영/메가와리는 가이드 전달 버튼에서 통합 처리) */}
+              {campaign?.campaign_type !== '4week_challenge' && campaign?.campaign_type !== 'oliveyoung' && campaign?.campaign_type !== 'oliveyoung_sale' && !(region === 'japan' && campaign?.campaign_type === 'megawari') && (
+                <Button
+                  onClick={() => handleBulkGuideDelivery('ai')}
+                  disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
+                  className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                  size="sm"
+                >
+                  {sendingBulkGuideEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      발송 중...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-1" />
+                      가이드 전체 발송
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -6045,8 +6337,8 @@ Questions? Contact us.
                           </div>
                         )}
 
-                        {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) */}
-                        {(region === 'us' || region === 'japan') && (
+                        {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) - 4week/oliveyoung/megawari는 별도 섹션 사용 */}
+                        {(region === 'us' || region === 'japan') && campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && campaign.campaign_type !== 'oliveyoung_sale' && !(region === 'japan' && campaign.campaign_type === 'megawari') && (
                           <div className="flex items-center gap-1.5">
                             {/* 가이드 전달 버튼 - 모달에서 AI 또는 파일/URL 선택 */}
                             <Button
@@ -6156,9 +6448,17 @@ Questions? Contact us.
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
+                                  // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
+                                  let _parsedAiWeek = null
+                                  try {
+                                    const _aiRaw = campaign.challenge_weekly_guides_ai
+                                    _parsedAiWeek = _aiRaw
+                                      ? (typeof _aiRaw === 'string' ? JSON.parse(_aiRaw) : _aiRaw)?.[weekKey]
+                                      : null
+                                  } catch (e) { /* ignore */ }
                                   const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
                                                        campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       _parsedAiWeek ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   const isDelivered = participant[`${weekKey}_guide_delivered`]
@@ -8279,9 +8579,17 @@ Questions? Contact us.
                                 <span className="text-xs text-purple-700 font-medium">주차별:</span>
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
+                                  // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
+                                  let _parsedAiWeek2 = null
+                                  try {
+                                    const _aiRaw2 = campaign.challenge_weekly_guides_ai
+                                    _parsedAiWeek2 = _aiRaw2
+                                      ? (typeof _aiRaw2 === 'string' ? JSON.parse(_aiRaw2) : _aiRaw2)?.[weekKey]
+                                      : null
+                                  } catch (e) { /* ignore */ }
                                   const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
                                                        campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       _parsedAiWeek2 ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   return (
@@ -11722,14 +12030,18 @@ Questions? Contact us.
                   </>
                 ) : (
                   <>
-                    {/* 올영/4주/PDF 가이드는 수정 버튼 숨김 */}
+                    {/* 올영/4주/메가와리/PDF 가이드는 수정 버튼 숨김 - campaign_type도 체크 */}
                     {(() => {
                       const guide = selectedGuide.personalized_guide
                       const guideType = typeof guide === 'object' ? guide?.type : null
-                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide' || guideType === 'megawari_guide'
                       const isPdfGuide = campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url
+                      // Also check campaign type directly (guide may not have type field)
+                      const is4WeekCampaign = campaign?.campaign_type === '4week_challenge'
+                      const isOYCampaign = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                      const isMegawariCampaign = region === 'japan' && campaign?.campaign_type === 'megawari'
 
-                      if (isOliveYoungOr4Week || isPdfGuide) return null
+                      if (isOliveYoungOr4Week || isPdfGuide || is4WeekCampaign || isOYCampaign || isMegawariCampaign) return null
 
                       return (
                         <>
@@ -13133,6 +13445,9 @@ Questions? Contact us.
         <FourWeekGuideViewer
           campaign={campaign}
           onClose={() => setShow4WeekGuideModal(false)}
+          onUpdate={fetchCampaignDetail}
+          region={region}
+          supabaseClient={supabase}
         />
       )}
 
@@ -13574,62 +13889,123 @@ Questions? Contact us.
             <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {/* 방법 선택 */}
               <div className="space-y-3">
-                {/* Option 1: AI 가이드 생성 */}
-                <button
-                  onClick={() => {
-                    setShowBulkGuideModal(false)
-                    handleBulkGuideGeneration()
-                  }}
-                  disabled={isGeneratingBulkGuides}
-                  className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <Sparkles className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
-                      <p className="text-sm text-gray-500">
-                        크리에이터별 맞춤 AI 가이드를 자동 생성합니다
-                      </p>
-                      <p className="text-xs text-purple-600 mt-1">
-                        ※ 생성 완료 후 개별적으로 발송할 수 있습니다
-                      </p>
-                    </div>
-                    {isGeneratingBulkGuides ? (
-                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
-                    )}
-                  </div>
-                </button>
+                {(() => {
+                  const is4WeekBulk = campaign?.campaign_type === '4week_challenge'
+                  const isOYBulk = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                  const isMegawariBulk = region === 'japan' && campaign?.campaign_type === 'megawari'
 
-                {/* Option 2: AI 가이드 발송 (이미 생성된 가이드) */}
-                <button
-                  onClick={() => handleBulkGuideDelivery('ai')}
-                  disabled={sendingBulkGuideEmail}
-                  className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                      <Mail className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
-                      <p className="text-sm text-gray-500">
-                        이미 생성된 AI 가이드를 크리에이터에게 발송합니다
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        ※ 가이드가 생성된 크리에이터에게만 발송됩니다
-                      </p>
-                    </div>
-                    {sendingBulkGuideEmail ? (
-                      <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
-                    )}
-                  </div>
-                </button>
+                  // 4주 챌린지 / 올영 / 메가와리: 캠페인 레벨 가이드 전달 (per-creator AI 생성 아님)
+                  if (is4WeekBulk || isOYBulk || isMegawariBulk) {
+                    const guideLabel = is4WeekBulk ? '4주 챌린지' : isMegawariBulk ? 'メガ割' : '올영 세일'
+                    const hasGuideData = is4WeekBulk
+                      ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
+                         campaign?.challenge_guide_data_ja || campaign?.challenge_guide_data_en)
+                      : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
+
+                    return (
+                      <button
+                        onClick={() => {
+                          setShowBulkGuideModal(false)
+                          if (!hasGuideData) {
+                            const guidePath = is4WeekBulk
+                              ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                              : isMegawariBulk
+                                ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                                : `/company/campaigns/guide/oliveyoung?id=${id}`
+                            if (confirm(`${guideLabel} 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?`)) {
+                              navigate(guidePath)
+                            }
+                            return
+                          }
+                          handleDeliverOliveYoung4WeekGuide()
+                        }}
+                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                            <Send className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">{guideLabel} 가이드 전달</h3>
+                            <p className="text-sm text-gray-500">
+                              {hasGuideData
+                                ? `선택된 크리에이터에게 ${guideLabel} 가이드를 전달하고 알림을 발송합니다`
+                                : `가이드가 아직 설정되지 않았습니다. 클릭하면 설정 페이지로 이동합니다`}
+                            </p>
+                            {hasGuideData && (
+                              <p className="text-xs text-purple-600 mt-1">
+                                ※ 크리에이터 상태가 '촬영중'으로 변경되고 알림이 발송됩니다
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                        </div>
+                      </button>
+                    )
+                  }
+
+                  // 기획형: AI 가이드 생성 + 발송 분리
+                  return (
+                    <>
+                      {/* Option 1: AI 가이드 생성 */}
+                      <button
+                        onClick={() => {
+                          setShowBulkGuideModal(false)
+                          handleBulkGuideGeneration()
+                        }}
+                        disabled={isGeneratingBulkGuides}
+                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                            <Sparkles className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                            <p className="text-sm text-gray-500">
+                              크리에이터별 맞춤 AI 가이드를 자동 생성합니다
+                            </p>
+                            <p className="text-xs text-purple-600 mt-1">
+                              ※ 생성 완료 후 개별적으로 발송할 수 있습니다
+                            </p>
+                          </div>
+                          {isGeneratingBulkGuides ? (
+                            <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Option 2: AI 가이드 발송 (이미 생성된 가이드) */}
+                      <button
+                        onClick={() => handleBulkGuideDelivery('ai')}
+                        disabled={sendingBulkGuideEmail}
+                        className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                            <Mail className="w-6 h-6 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
+                            <p className="text-sm text-gray-500">
+                              이미 생성된 AI 가이드를 크리에이터에게 발송합니다
+                            </p>
+                            <p className="text-xs text-green-600 mt-1">
+                              ※ 가이드가 생성된 크리에이터에게만 발송됩니다
+                            </p>
+                          </div>
+                          {sendingBulkGuideEmail ? (
+                            <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
+                          )}
+                        </div>
+                      </button>
+                    </>
+                  )
+                })()}
 
                 {/* Option 3: 외부 가이드 (PDF/URL) 발송 */}
                 <div className="border-2 border-blue-200 rounded-xl overflow-hidden">

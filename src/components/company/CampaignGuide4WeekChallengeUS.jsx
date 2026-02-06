@@ -173,7 +173,16 @@ export default function CampaignGuide4WeekChallengeUS() {
       })
 
       // 주차별 가이드 전달 완료 상태 확인
-      const weeklyAiGuides = data.challenge_weekly_guides_ai || {}
+      // challenge_weekly_guides_ai is TEXT column - needs JSON.parse
+      let weeklyAiGuides = {}
+      try {
+        const rawAi = data.challenge_weekly_guides_ai
+        weeklyAiGuides = rawAi
+          ? (typeof rawAi === 'string' ? JSON.parse(rawAi) : rawAi)
+          : {}
+      } catch (e) {
+        console.error('challenge_weekly_guides_ai parse error:', e)
+      }
       setWeekGuideDelivered({
         week1: !!(weeklyAiGuides.week1 || data.week1_external_url || data.week1_external_file_url),
         week2: !!(weeklyAiGuides.week2 || data.week2_external_url || data.week2_external_file_url),
@@ -396,12 +405,19 @@ ${textToTranslate}`
 
     try {
       const weekKey = `week${weekNum}`
-      const currentAiGuides = campaign.challenge_weekly_guides_ai || {}
+      // challenge_weekly_guides_ai is TEXT column - parse before use
+      let currentAiGuides = {}
+      try {
+        const rawAi = campaign.challenge_weekly_guides_ai
+        currentAiGuides = rawAi
+          ? (typeof rawAi === 'string' ? JSON.parse(rawAi) : rawAi)
+          : {}
+      } catch (e) { /* ignore */ }
       const updatedAiGuides = { ...currentAiGuides }
       delete updatedAiGuides[weekKey]
 
       const updateData = {
-        challenge_weekly_guides_ai: Object.keys(updatedAiGuides).length > 0 ? updatedAiGuides : null,
+        challenge_weekly_guides_ai: Object.keys(updatedAiGuides).length > 0 ? JSON.stringify(updatedAiGuides) : null,
         [`${weekKey}_guide_mode`]: null,
         [`${weekKey}_external_type`]: null,
         [`${weekKey}_external_url`]: null,

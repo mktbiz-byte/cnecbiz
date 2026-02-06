@@ -114,17 +114,59 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. 크리에이터 정보 조회 (Korea DB: name 컬럼 사용)
+    // 2. 크리에이터 정보 조회 (여러 소스에서 순차 조회)
     let creatorName = '크리에이터';
     if (record.user_id) {
+      // 1순위: Korea DB user_profiles
       const { data: profile } = await supabaseKorea
         .from('user_profiles')
         .select('name')
         .eq('id', record.user_id)
         .single();
 
-      if (profile) {
-        creatorName = profile.name || '크리에이터';
+      if (profile?.name) {
+        creatorName = profile.name;
+      }
+
+      // 2순위: BIZ DB applications 테이블에서 creator_name/applicant_name 조회
+      if (creatorName === '크리에이터' && supabaseBiz) {
+        const { data: appData } = await supabaseBiz
+          .from('applications')
+          .select('creator_name, applicant_name')
+          .eq('campaign_id', record.campaign_id)
+          .eq('user_id', record.user_id)
+          .maybeSingle();
+
+        if (appData) {
+          creatorName = appData.creator_name || appData.applicant_name || '크리에이터';
+        }
+      }
+
+      // 3순위: Korea DB applications 테이블
+      if (creatorName === '크리에이터') {
+        const { data: koreaAppData } = await supabaseKorea
+          .from('applications')
+          .select('creator_name, applicant_name')
+          .eq('campaign_id', record.campaign_id)
+          .eq('user_id', record.user_id)
+          .maybeSingle();
+
+        if (koreaAppData) {
+          creatorName = koreaAppData.creator_name || koreaAppData.applicant_name || '크리에이터';
+        }
+      }
+
+      // 4순위: BIZ DB user_profiles
+      if (creatorName === '크리에이터' && supabaseBiz) {
+        const { data: bizProfile } = await supabaseBiz
+          .from('user_profiles')
+          .select('full_name, name')
+          .eq('id', record.user_id)
+          .maybeSingle();
+
+        if (bizProfile) {
+          creatorName = bizProfile.full_name || bizProfile.name || '크리에이터';
+        }
       }
     }
 
