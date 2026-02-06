@@ -87,6 +87,7 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorMappingManagement from './components/admin/CreatorMappingManagement'
 import YoutuberSearchPage from './components/admin/YoutuberSearchPage'
+import DailyReportPage from './components/admin/DailyReportPage'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import ProfileCompletionKorea from './components/creator/ProfileCompletionKorea'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
@@ -207,6 +208,7 @@ function App() {
         <Route path="/company/creators/:id/profile" element={<CreatorProfilePage />} />
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
         <Route path="/admin/youtuber-search" element={<YoutuberSearchPage />} />
+        <Route path="/admin/daily-reports" element={<DailyReportPage />} />
         <Route path="/admin/channel-report/:creatorId" element={<CreatorReport />} />
         <Route path="/admin/our-channel-report/:channelId" element={<OurChannelReport />} />
         

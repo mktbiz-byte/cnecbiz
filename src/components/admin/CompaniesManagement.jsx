@@ -11,6 +11,7 @@ export default function CompaniesManagement() {
   const navigate = useNavigate()
   const [companies, setCompanies] = useState([])
   const [companyCampaigns, setCompanyCampaigns] = useState({}) // {company_email: {count, total_amount}}
+  const [voucherStats, setVoucherStats] = useState({}) // {company_user_id: {totalCharged, totalUsed}}
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all') // all, active, suspended, pending
@@ -35,6 +36,7 @@ export default function CompaniesManagement() {
     checkAuth()
     fetchCompanies()
     fetchCompanyCampaigns()
+    fetchVoucherStats()
   }, [])
 
   const checkAuth = async () => {
@@ -105,6 +107,37 @@ export default function CompaniesManagement() {
       }
     } catch (error) {
       console.error('Error fetching company campaigns:', error)
+    }
+  }
+
+  // 바우처 거래 내역 조회 (총 충전액, 사용액 계산)
+  const fetchVoucherStats = async () => {
+    try {
+      const { data: transactions, error } = await supabaseBiz
+        .from('points_transactions')
+        .select('company_id, amount, type')
+
+      if (error) {
+        console.error('Error fetching voucher stats:', error)
+        return
+      }
+
+      // company_id별로 충전액/사용액 집계
+      const stats = {}
+      ;(transactions || []).forEach(tx => {
+        if (!tx.company_id) return
+        if (!stats[tx.company_id]) {
+          stats[tx.company_id] = { totalCharged: 0, totalUsed: 0 }
+        }
+        if (tx.type === 'charge' && tx.amount > 0) {
+          stats[tx.company_id].totalCharged += tx.amount
+        } else if (tx.type === 'spend' && tx.amount < 0) {
+          stats[tx.company_id].totalUsed += Math.abs(tx.amount)
+        }
+      })
+      setVoucherStats(stats)
+    } catch (error) {
+      console.error('Error fetching voucher stats:', error)
     }
   }
 
@@ -301,6 +334,7 @@ export default function CompaniesManagement() {
       alert(`수출바우처 ${pointsAction === 'add' ? '충전' : '차감'}이 완료되었습니다.\n${pointsAction === 'add' ? '충전' : '차감'} 금액: ${parseInt(pointsAmount).toLocaleString()}원 (VAT 별도)`)
       setShowPointsModal(false)
       fetchCompanies()
+      fetchVoucherStats()
     } catch (error) {
       console.error('Error adjusting voucher:', error)
       alert('수출바우처 처리에 실패했습니다: ' + error.message)
@@ -680,7 +714,7 @@ export default function CompaniesManagement() {
                             </td>
                             <td className="px-4 py-4 text-center">
                               <button
-                                onClick={() => navigate(`/admin/campaigns?company=${encodeURIComponent(company.email)}`)}
+                                onClick={() => navigate(`/admin/campaigns?company_email=${encodeURIComponent(company.email)}&company_name=${encodeURIComponent(company.company_name || '')}`)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors cursor-pointer"
                               >
                                 <span className="text-purple-700 font-bold">{campaignData.inProgress}건</span>
@@ -689,24 +723,50 @@ export default function CompaniesManagement() {
                               </button>
                             </td>
                             <td className="px-4 py-4 text-right">
-                              <span className="font-bold text-gray-900">
-                                {campaignData.totalAmount.toLocaleString()}원
-                              </span>
+                              <div>
+                                <span className="font-bold text-gray-900">
+                                  {Math.round(campaignData.totalAmount / 1.1).toLocaleString()}원
+                                </span>
+                                <p className="text-xs text-gray-400">VAT 별도</p>
+                              </div>
                             </td>
                             <td className="px-4 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <span className={`font-bold ${(company.points_balance || 0) > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
-                                  {(company.points_balance || 0).toLocaleString()}원
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleAdjustPoints(company)}
-                                  className="h-7 px-2 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                              </div>
+                              {(() => {
+                                const stats = voucherStats[company.user_id] || { totalCharged: 0, totalUsed: 0 }
+                                const remaining = company.points_balance || 0
+                                const hasVoucher = stats.totalCharged > 0 || remaining > 0
+
+                                return (
+                                  <div className="flex items-center justify-end gap-2">
+                                    {hasVoucher ? (
+                                      <div className="text-right">
+                                        <div className="flex items-center gap-1 justify-end">
+                                          <span className="text-xs text-gray-500">충전</span>
+                                          <span className="font-medium text-gray-700">{stats.totalCharged.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 justify-end">
+                                          <span className="text-xs text-gray-500">사용</span>
+                                          <span className="font-medium text-red-500">-{stats.totalUsed.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 justify-end border-t border-gray-200 pt-0.5 mt-0.5">
+                                          <span className="text-xs text-purple-500 font-medium">잔액</span>
+                                          <span className="font-bold text-purple-600">{remaining.toLocaleString()}원</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleAdjustPoints(company)}
+                                      className="h-7 px-2 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                )
+                              })()}
                             </td>
                             <td className="px-4 py-4 text-center">
                               {company.is_blocked ? (
@@ -994,15 +1054,38 @@ export default function CompaniesManagement() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-100">
-                    <div className="flex items-center gap-2 text-purple-600 text-sm mb-1">
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-100 md:col-span-2">
+                    <div className="flex items-center gap-2 text-purple-600 text-sm mb-2">
                       <Wallet className="w-4 h-4" />
-                      수출바우처 잔액
+                      수출바우처 현황
                     </div>
-                    <div className="text-2xl font-bold text-purple-600">
-                      {(detailCompany.points_balance || 0).toLocaleString()}원
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">VAT 별도</p>
+                    {(() => {
+                      const stats = voucherStats[detailCompany.user_id] || { totalCharged: 0, totalUsed: 0 }
+                      const remaining = detailCompany.points_balance || 0
+                      return (
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500 mb-1">총 충전액</p>
+                            <p className="text-lg font-bold text-gray-700">
+                              {stats.totalCharged.toLocaleString()}원
+                            </p>
+                          </div>
+                          <div className="text-center border-x border-purple-200">
+                            <p className="text-xs text-gray-500 mb-1">사용 금액</p>
+                            <p className="text-lg font-bold text-red-500">
+                              -{stats.totalUsed.toLocaleString()}원
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-purple-500 font-medium mb-1">남은 잔액</p>
+                            <p className="text-xl font-bold text-purple-600">
+                              {remaining.toLocaleString()}원
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    <p className="text-xs text-gray-400 mt-2 text-center">VAT 별도</p>
                   </div>
                 </div>
 

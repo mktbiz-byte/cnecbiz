@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Coins, Search, Download, ArrowUpCircle, ArrowDownCircle,
-  RefreshCw, Calendar, User, Briefcase, X, Eye
+  RefreshCw, Calendar, User, Briefcase, X, Eye, AlertTriangle,
+  CheckCircle, XCircle, Play, Loader2, ExternalLink
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -20,6 +24,7 @@ import * as XLSX from 'xlsx'
 
 export default function CreatorPointHistory() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState('history')
   const [transactions, setTransactions] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
@@ -29,13 +34,23 @@ export default function CreatorPointHistory() {
     totalPaid: 0,
     totalDeducted: 0,
     campaignRewards: 0,
-    adminAdd: 0
+    adminAdd: 0,
+    otherAdd: 0
   })
 
   // 크리에이터 상세 모달
   const [selectedCreator, setSelectedCreator] = useState(null)
   const [creatorTransactions, setCreatorTransactions] = useState([])
   const [showCreatorModal, setShowCreatorModal] = useState(false)
+
+  // 미지급 건 체크 관련
+  const [unpaidItems, setUnpaidItems] = useState([])
+  const [unpaidSummary, setUnpaidSummary] = useState(null)
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false)
+  const [selectedUnpaid, setSelectedUnpaid] = useState(null)
+  const [showPayModal, setShowPayModal] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [regionFilter, setRegionFilter] = useState('all') // all, korea, japan, us
 
   useEffect(() => {
     checkAuth()
@@ -114,22 +129,18 @@ export default function CreatorPointHistory() {
             .select('*')
             .limit(2000)
 
-          // 프로필 맵 생성 (id와 user_id 모두 키로 사용)
-          // 필드명 정규화 (다른 DB 스키마 대응)
+          // 프로필 맵 생성 (id를 키로 사용 - Korea DB에는 user_id 컬럼 없음)
           const profileMap = {}
           if (allProfiles) {
             allProfiles.forEach(p => {
-              // 필드명 정규화
               const normalizedProfile = {
                 id: p.id,
-                user_id: p.user_id,
                 name: p.name || p.creator_name || p.channel_name || p.full_name || null,
                 channel_name: p.channel_name || p.name || p.creator_name || null,
                 email: p.email || null,
-                phone: p.phone || p.phone_number || p.mobile || p.contact || null
+                phone: p.phone || p.phone_number || null
               }
               if (p.id) profileMap[p.id] = normalizedProfile
-              if (p.user_id) profileMap[p.user_id] = normalizedProfile
             })
             console.log('프로필 맵 생성:', Object.keys(profileMap).length, '개 키')
           }
@@ -157,8 +168,8 @@ export default function CreatorPointHistory() {
             const profile = profileMap[t.user_id]
             const campaign = campaignMap[t.related_campaign_id]
 
-            // description에서 크리에이터명 추출 시도
-            let creatorName = profile?.channel_name || profile?.name
+            // description에서 크리에이터명 추출 시도 (실제 이름 우선)
+            let creatorName = profile?.name || profile?.channel_name
             if (!creatorName && t.description) {
               // [크리에이터: XXX] 패턴
               const nameMatch = t.description.match(/크리에이터[:\s]*([^\],]+)/i)
@@ -188,82 +199,8 @@ export default function CreatorPointHistory() {
           allTransactions = [...allTransactions, ...koreaTransactions]
         }
 
-        // Korea DB에서 point_history도 조회 (캠페인 완료 포인트)
-        try {
-          let historyQuery = supabaseKorea
-            .from('point_history')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(500)
-
-          if (dateStart) {
-            historyQuery = historyQuery.gte('created_at', dateStart)
-          }
-
-          const { data: historyData, error: historyError } = await historyQuery
-
-          if (!historyError && historyData && historyData.length > 0) {
-            console.log('Korea DB point_history:', historyData.length, '건')
-
-            // 프로필 맵 재사용
-            const { data: allProfiles } = await supabaseKorea
-              .from('user_profiles')
-              .select('*')
-              .limit(2000)
-
-            const profileMap = {}
-            if (allProfiles) {
-              allProfiles.forEach(p => {
-                const normalizedProfile = {
-                  id: p.id,
-                  user_id: p.user_id,
-                  name: p.name || p.creator_name || p.channel_name || p.full_name || null,
-                  channel_name: p.channel_name || p.name || p.creator_name || null,
-                  email: p.email || null,
-                  phone: p.phone || p.phone_number || p.mobile || p.contact || null
-                }
-                if (p.id) profileMap[p.id] = normalizedProfile
-                if (p.user_id) profileMap[p.user_id] = normalizedProfile
-              })
-            }
-
-            // 캠페인 정보 조회
-            const campaignIds = [...new Set(historyData.map(t => t.campaign_id).filter(Boolean))]
-            let campaignMap = {}
-            if (campaignIds.length > 0) {
-              const { data: campaignData } = await supabaseKorea
-                .from('campaigns')
-                .select('id, title')
-                .in('id', campaignIds)
-              if (campaignData) {
-                campaignData.forEach(c => campaignMap[c.id] = c)
-              }
-            }
-
-            const historyTransactions = historyData.map(t => {
-              const profile = profileMap[t.user_id]
-              const campaign = campaignMap[t.campaign_id]
-              return {
-                id: t.id,
-                user_id: t.user_id,
-                amount: t.amount,
-                transaction_type: t.type || 'campaign_complete',
-                description: t.reason || t.description || `캠페인 완료: ${campaign?.title || ''}`,
-                related_campaign_id: t.campaign_id,
-                created_at: t.created_at,
-                creator_name: profile?.channel_name || profile?.name || t.user_id?.substring(0, 8) + '...',
-                creator_email: profile?.email || '',
-                creator_phone: profile?.phone || '',
-                campaign_title: campaign?.title || null,
-                source_db: 'korea_history'
-              }
-            })
-
-            allTransactions = [...allTransactions, ...historyTransactions]
-          }
-        } catch (historyError) {
-          console.log('point_history 조회 스킵 (테이블 없을 수 있음):', historyError.message)
-        }
+        // point_history 테이블은 Korea DB에 존재하지 않으므로 조회하지 않음
+        // 포인트 지급 기록은 point_transactions 테이블에서 조회됨
       }
 
       // BIZ DB에서 creator_points 조회 (테이블이 없을 수 있음)
@@ -377,7 +314,7 @@ export default function CreatorPointHistory() {
                   description: `캠페인 완료: ${campaign?.title || ''}`,
                   related_campaign_id: app.campaign_id,
                   created_at: app.updated_at || app.created_at,
-                  creator_name: profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
+                  creator_name: profile?.name || profile?.channel_name || app.user_id?.substring(0, 8) + '...',
                   creator_email: profile?.email || '',
                   creator_phone: profile?.phone || '',
                   campaign_title: campaign?.title || null,
@@ -410,26 +347,34 @@ export default function CreatorPointHistory() {
     let totalDeducted = 0
     let campaignRewards = 0
     let adminAdd = 0
+    let otherAdd = 0
 
     transactions.forEach(t => {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
+        // 환불(refund)은 총 지급 포인트에서 제외
+        if (t.transaction_type === 'refund') {
+          return // skip refunds from totalPaid
+        }
         totalPaid += amount
-        // 캠페인 보상: campaign_reward, campaign_complete, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
+        // 캠페인 보상: campaign_reward, campaign_complete, campaign_payment, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
         if (t.transaction_type === 'campaign_reward' ||
             t.transaction_type === 'campaign_complete' ||
+            t.transaction_type === 'campaign_payment' ||
             t.transaction_type === 'bonus' ||
             t.description?.includes('캠페인')) {
           campaignRewards += amount
         } else if (t.transaction_type === 'admin_add') {
           adminAdd += amount
+        } else {
+          otherAdd += amount
         }
       } else {
         totalDeducted += amount
       }
     })
 
-    setStats({ totalPaid, totalDeducted, campaignRewards, adminAdd })
+    setStats({ totalPaid, totalDeducted, campaignRewards, adminAdd, otherAdd })
   }
 
   const getFilteredTransactions = () => {
@@ -444,6 +389,7 @@ export default function CreatorPointHistory() {
         filtered = filtered.filter(t =>
           t.transaction_type === 'campaign_reward' ||
           t.transaction_type === 'campaign_complete' ||
+          t.transaction_type === 'campaign_payment' ||
           t.transaction_type === 'bonus' ||
           t.related_campaign_id ||
           t.campaign_id ||
@@ -480,6 +426,7 @@ export default function CreatorPointHistory() {
       'admin_add': { color: 'bg-blue-100 text-blue-700', label: '관리자 지급' },
       'campaign_reward': { color: 'bg-green-100 text-green-700', label: '캠페인 보상' },
       'campaign_complete': { color: 'bg-green-100 text-green-700', label: '캠페인 완료' },
+      'campaign_payment': { color: 'bg-teal-100 text-teal-700', label: '캠페인 지급' },
       'earn': { color: 'bg-emerald-100 text-emerald-700', label: '포인트 적립' },
       'bonus': { color: 'bg-purple-100 text-purple-700', label: '보너스' },
       'refund': { color: 'bg-orange-100 text-orange-700', label: '환불' },
@@ -561,6 +508,94 @@ export default function CreatorPointHistory() {
     alert(`${filtered.length}건의 데이터가 다운로드되었습니다.`)
   }
 
+  // 미지급 건 조회
+  const fetchUnpaidItems = async () => {
+    setLoadingUnpaid(true)
+    try {
+      const response = await fetch('/.netlify/functions/check-unpaid-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_unpaid' })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setUnpaidItems(result.unpaidItems || [])
+        setUnpaidSummary(result.summary)
+      } else {
+        alert(`조회 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('미지급 건 조회 오류:', error)
+      alert(`조회 오류: ${error.message}`)
+    } finally {
+      setLoadingUnpaid(false)
+    }
+  }
+
+  // 수동 포인트 지급
+  const handleManualPay = async () => {
+    if (!selectedUnpaid) return
+
+    const regionName = selectedUnpaid.region === 'korea' ? '한국' :
+                       selectedUnpaid.region === 'japan' ? '일본' :
+                       selectedUnpaid.region === 'us' ? '미국' : selectedUnpaid.regionName
+
+    if (!confirm(`[${regionName}] ${selectedUnpaid.creator_name}님에게 ${selectedUnpaid.reward_points.toLocaleString()}P를 지급하시겠습니까?`)) {
+      return
+    }
+
+    setPaying(true)
+    try {
+      const response = await fetch('/.netlify/functions/check-unpaid-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'manual_pay',
+          videoId: selectedUnpaid.id,
+          userId: selectedUnpaid.user_id,
+          campaignId: selectedUnpaid.campaign_id,
+          amount: selectedUnpaid.reward_points,
+          reason: `수동 지급 - ${selectedUnpaid.campaign_title}`,
+          region: selectedUnpaid.region || 'korea' // 리전 정보 전달
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(result.message)
+        setShowPayModal(false)
+        setSelectedUnpaid(null)
+        // 목록 새로고침
+        fetchUnpaidItems()
+      } else {
+        alert(`지급 실패: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('포인트 지급 오류:', error)
+      alert(`지급 오류: ${error.message}`)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  // 미지급 사유별 배지 색상
+  const getReasonBadge = (reason) => {
+    if (reason?.includes('멀티비디오')) {
+      return <Badge className="bg-yellow-100 text-yellow-800">멀티비디오 미완성</Badge>
+    }
+    if (reason?.includes('보상 포인트')) {
+      return <Badge className="bg-red-100 text-red-800">보상 미설정</Badge>
+    }
+    if (reason?.includes('프로필')) {
+      return <Badge className="bg-orange-100 text-orange-800">프로필 없음</Badge>
+    }
+    if (reason?.includes('캠페인 정보')) {
+      return <Badge className="bg-gray-100 text-gray-800">캠페인 없음</Badge>
+    }
+    return <Badge className="bg-purple-100 text-purple-800">확인 필요</Badge>
+  }
+
   const filteredTransactions = getFilteredTransactions()
 
   return (
@@ -572,11 +607,30 @@ export default function CreatorPointHistory() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 포인트 지급 내역</h1>
-                <p className="text-gray-600">크리에이터에게 지급된 포인트 전체 내역을 확인합니다</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 포인트 관리</h1>
+                <p className="text-gray-600">포인트 지급 내역 및 미지급 건을 확인합니다</p>
               </div>
+            </div>
+          </div>
 
-              <div className="flex gap-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <Coins className="w-4 h-4" />
+                지급 내역
+              </TabsTrigger>
+              <TabsTrigger value="unpaid" className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                미지급 체크
+                {unpaidItems.length > 0 && (
+                  <Badge className="ml-1 bg-red-500 text-white">{unpaidItems.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* 지급 내역 탭 */}
+            <TabsContent value="history">
+              <div className="flex justify-end gap-2 mb-4">
                 <Button
                   variant="outline"
                   onClick={fetchTransactions}
@@ -594,11 +648,9 @@ export default function CreatorPointHistory() {
                   엑셀 다운로드
                 </Button>
               </div>
-            </div>
-          </div>
 
           {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -645,7 +697,22 @@ export default function CreatorPointHistory() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">총 차감 포인트</p>
+                    <p className="text-sm text-gray-600 mb-1">기타 지급</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {stats.otherAdd.toLocaleString()}P
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">환불 제외</p>
+                  </div>
+                  <Coins className="w-10 h-10 text-orange-300" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">출금 포인트</p>
                     <p className="text-2xl font-bold text-red-600">
                       {stats.totalDeducted.toLocaleString()}P
                     </p>
@@ -845,8 +912,361 @@ export default function CreatorPointHistory() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+
+            {/* 미지급 체크 탭 */}
+            <TabsContent value="unpaid">
+              <div className="space-y-6">
+                {/* 헤더 및 새로고침 */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">미지급 건 체크</h2>
+                    <p className="text-sm text-gray-500">승인 후 5일 이상 경과했지만 포인트가 지급되지 않은 건을 확인합니다</p>
+                  </div>
+                  <Button
+                    onClick={fetchUnpaidItems}
+                    disabled={loadingUnpaid}
+                  >
+                    {loadingUnpaid ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    미지급 건 조회
+                  </Button>
+                </div>
+
+                {/* 요약 카드 */}
+                {unpaidSummary && (
+                  <div className="space-y-4">
+                    {/* 리전별 요약 */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <Card className={`cursor-pointer ${regionFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('all')}>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-red-600">{unpaidSummary.total}</p>
+                          <p className="text-xs text-gray-500">전체 미지급</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'korea' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('korea')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇰🇷</div>
+                          <p className="text-2xl font-bold text-blue-600">{unpaidSummary.byRegion?.korea || 0}</p>
+                          <p className="text-xs text-gray-500">한국</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'japan' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('japan')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇯🇵</div>
+                          <p className="text-2xl font-bold text-red-500">{unpaidSummary.byRegion?.japan || 0}</p>
+                          <p className="text-xs text-gray-500">일본</p>
+                        </CardContent>
+                      </Card>
+                      <Card className={`cursor-pointer ${regionFilter === 'us' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setRegionFilter('us')}>
+                        <CardContent className="p-4 text-center">
+                          <div className="text-lg mb-1">🇺🇸</div>
+                          <p className="text-2xl font-bold text-indigo-600">{unpaidSummary.byRegion?.us || 0}</p>
+                          <p className="text-xs text-gray-500">미국</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 사유별 요약 */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-yellow-600">{unpaidSummary.multiVideoIncomplete}</p>
+                          <p className="text-xs text-gray-500">멀티비디오 미완성</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-red-500">{unpaidSummary.noRewardPoints}</p>
+                          <p className="text-xs text-gray-500">보상 미설정</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-orange-500">{unpaidSummary.noProfile}</p>
+                          <p className="text-xs text-gray-500">프로필 없음</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-gray-500">{unpaidSummary.noCampaign}</p>
+                          <p className="text-xs text-gray-500">캠페인 없음</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4 text-center">
+                          <p className="text-2xl font-bold text-purple-500">{unpaidSummary.unknown}</p>
+                          <p className="text-xs text-gray-500">원인 불명</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {/* 미지급 목록 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                      미지급 건 목록 ({unpaidItems.length}건)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingUnpaid ? (
+                      <div className="text-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                        <p className="mt-2 text-gray-500">조회 중...</p>
+                      </div>
+                    ) : unpaidItems.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-400" />
+                        <p>미지급 건이 없거나 조회되지 않았습니다.</p>
+                        <p className="text-sm mt-2">상단의 "미지급 건 조회" 버튼을 클릭해주세요.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* 테이블 헤더 */}
+                        <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
+                          <div className="col-span-1">리전</div>
+                          <div className="col-span-2">승인일</div>
+                          <div className="col-span-2">크리에이터</div>
+                          <div className="col-span-2">캠페인</div>
+                          <div className="col-span-2">미지급 사유</div>
+                          <div className="col-span-1 text-right">보상</div>
+                          <div className="col-span-2 text-center">작업</div>
+                        </div>
+
+                        {unpaidItems
+                          .filter(item => regionFilter === 'all' || item.region === regionFilter)
+                          .map((item) => (
+                          <div
+                            key={`${item.type}-${item.id}-${item.region}`}
+                            className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200"
+                          >
+                            {/* 리전 */}
+                            <div className="col-span-1">
+                              <Badge variant="outline" className={
+                                item.region === 'korea' ? 'bg-blue-50 text-blue-700' :
+                                item.region === 'japan' ? 'bg-red-50 text-red-700' :
+                                item.region === 'us' ? 'bg-indigo-50 text-indigo-700' : ''
+                              }>
+                                {item.region === 'korea' ? '🇰🇷 한국' :
+                                 item.region === 'japan' ? '🇯🇵 일본' :
+                                 item.region === 'us' ? '🇺🇸 미국' : item.regionName || '-'}
+                              </Badge>
+                            </div>
+
+                            {/* 승인일 */}
+                            <div className="col-span-2">
+                              <div className="text-sm font-medium">
+                                {item.approved_at
+                                  ? new Date(item.approved_at).toLocaleDateString('ko-KR')
+                                  : item.completed_at
+                                  ? new Date(item.completed_at).toLocaleDateString('ko-KR')
+                                  : '-'
+                                }
+                              </div>
+                              {item.days_since_approval > 0 && (
+                                <div className="text-xs text-red-500">
+                                  {item.days_since_approval}일 경과
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 크리에이터 */}
+                            <div className="col-span-2">
+                              <div className="text-sm font-medium truncate">{item.creator_name}</div>
+                              <div className="text-xs text-gray-400 truncate">{item.creator_email || '-'}</div>
+                            </div>
+
+                            {/* 캠페인 */}
+                            <div className="col-span-2">
+                              <div className="text-sm truncate">{item.campaign_title}</div>
+                              {item.is_multi_video && (
+                                <div className="text-xs text-blue-500">
+                                  멀티비디오 ({item.completed_count}/{item.required_count}개)
+                                </div>
+                              )}
+                              {item.video_url && (
+                                <a
+                                  href={item.video_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> 영상 보기
+                                </a>
+                              )}
+                            </div>
+
+                            {/* 미지급 사유 */}
+                            <div className="col-span-2">
+                              {getReasonBadge(item.reason)}
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-2">{item.reason}</div>
+                            </div>
+
+                            {/* 보상 포인트 */}
+                            <div className="col-span-1 text-right">
+                              <span className="text-lg font-bold text-green-600">
+                                {item.reward_points > 0 ? `${item.reward_points.toLocaleString()}P` : '-'}
+                              </span>
+                            </div>
+
+                            {/* 작업 버튼 */}
+                            <div className="col-span-2 flex items-center justify-center gap-2">
+                              {item.reward_points > 0 && !item.reason?.includes('멀티비디오') && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUnpaid(item)
+                                    setShowPayModal(true)
+                                  }}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  지급
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedUnpaid(item)
+                                  setShowPayModal(true)
+                                }}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                상세
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+
+      {/* 수동 지급 모달 */}
+      <Dialog open={showPayModal} onOpenChange={setShowPayModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-green-600" />
+              미지급 건 상세
+            </DialogTitle>
+            <DialogDescription>
+              미지급 사유를 확인하고 필요 시 수동으로 포인트를 지급합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUnpaid && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-gray-500">리전:</span></div>
+                  <div>
+                    <Badge variant="outline" className={
+                      selectedUnpaid.region === 'korea' ? 'bg-blue-50 text-blue-700' :
+                      selectedUnpaid.region === 'japan' ? 'bg-red-50 text-red-700' :
+                      selectedUnpaid.region === 'us' ? 'bg-indigo-50 text-indigo-700' : ''
+                    }>
+                      {selectedUnpaid.region === 'korea' ? '🇰🇷 한국' :
+                       selectedUnpaid.region === 'japan' ? '🇯🇵 일본' :
+                       selectedUnpaid.region === 'us' ? '🇺🇸 미국' : selectedUnpaid.regionName || '-'}
+                    </Badge>
+                  </div>
+
+                  <div><span className="text-gray-500">크리에이터:</span></div>
+                  <div className="font-medium">{selectedUnpaid.creator_name}</div>
+
+                  <div><span className="text-gray-500">이메일:</span></div>
+                  <div>{selectedUnpaid.creator_email || '-'}</div>
+
+                  <div><span className="text-gray-500">캠페인:</span></div>
+                  <div className="truncate">{selectedUnpaid.campaign_title}</div>
+
+                  <div><span className="text-gray-500">승인일:</span></div>
+                  <div>
+                    {selectedUnpaid.approved_at
+                      ? new Date(selectedUnpaid.approved_at).toLocaleDateString('ko-KR')
+                      : '-'}
+                    {selectedUnpaid.days_since_approval > 0 && (
+                      <span className="text-red-500 ml-2">({selectedUnpaid.days_since_approval}일 경과)</span>
+                    )}
+                  </div>
+
+                  <div><span className="text-gray-500">보상 포인트:</span></div>
+                  <div className="font-bold text-green-600">
+                    {selectedUnpaid.reward_points > 0
+                      ? `${selectedUnpaid.reward_points.toLocaleString()}P`
+                      : '미설정'}
+                  </div>
+
+                  <div><span className="text-gray-500">현재 잔액:</span></div>
+                  <div>{(selectedUnpaid.current_points || 0).toLocaleString()}P</div>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">미지급 사유</h4>
+                <p className="text-sm text-yellow-700">{selectedUnpaid.reason}</p>
+              </div>
+
+              {selectedUnpaid.is_multi_video && (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">멀티비디오 캠페인</h4>
+                  <p className="text-sm text-blue-700">
+                    필요 영상: {selectedUnpaid.required_count}개 / 완료: {selectedUnpaid.completed_count}개
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    모든 영상이 승인되면 자동으로 포인트가 지급됩니다.
+                  </p>
+                </div>
+              )}
+
+              {selectedUnpaid.video_url && (
+                <a
+                  href={selectedUnpaid.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-blue-600 hover:underline"
+                >
+                  <ExternalLink className="w-4 h-4 inline mr-1" />
+                  영상 확인하기
+                </a>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayModal(false)}>
+              닫기
+            </Button>
+            {selectedUnpaid?.reward_points > 0 && (
+              <Button
+                onClick={handleManualPay}
+                disabled={paying}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {paying ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                {selectedUnpaid?.reward_points?.toLocaleString()}P 지급하기
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 크리에이터 상세 모달 */}
       <Dialog open={showCreatorModal} onOpenChange={setShowCreatorModal}>
@@ -892,7 +1312,7 @@ export default function CreatorPointHistory() {
                   </p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-red-600 mb-1">총 차감 포인트</p>
+                  <p className="text-sm text-red-600 mb-1">출금 포인트</p>
                   <p className="text-xl font-bold text-red-700">
                     -{selectedCreator.totalDeducted.toLocaleString()}P
                   </p>

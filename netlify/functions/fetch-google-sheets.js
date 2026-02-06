@@ -729,6 +729,100 @@ exports.handler = async (event) => {
       }
     }
 
+    if (action === 'check_lock') {
+      // 스케줄 동기화 lock 상태 확인
+      console.log('[check_lock] Checking sync lock status...')
+
+      const lockKeys = [
+        'stibee_sync_lock_default',
+        'stibee_sync_lock_korea_japan_japan2',
+        'stibee_sync_lock_us',
+        'stibee_sync_lock'
+      ]
+
+      const locks = []
+      for (const lockKey of lockKeys) {
+        const { data: lockData } = await supabase
+          .from('site_settings')
+          .select('key, value, updated_at')
+          .eq('key', lockKey)
+          .maybeSingle()
+
+        if (lockData) {
+          let lockInfo = null
+          try {
+            lockInfo = JSON.parse(lockData.value)
+          } catch (e) {
+            lockInfo = { time: lockData.value }
+          }
+          locks.push({
+            key: lockKey,
+            ...lockInfo,
+            updated_at: lockData.updated_at
+          })
+        }
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, locks })
+      }
+    }
+
+    if (action === 'clear_lock') {
+      // 스케줄 동기화 lock 강제 해제
+      console.log('[clear_lock] Clearing sync locks...')
+
+      const lockKeys = [
+        'stibee_sync_lock_default',
+        'stibee_sync_lock_korea_japan_japan2',
+        'stibee_sync_lock_us',
+        'stibee_sync_lock'
+      ]
+
+      for (const lockKey of lockKeys) {
+        try {
+          await supabase.from('site_settings').delete().eq('key', lockKey)
+          console.log(`[clear_lock] Deleted: ${lockKey}`)
+        } catch (e) {
+          console.log(`[clear_lock] Failed to delete ${lockKey}:`, e.message)
+        }
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, message: '모든 동기화 lock이 해제되었습니다.' })
+      }
+    }
+
+    if (action === 'trigger_scheduled_sync') {
+      // 스케줄 함수 수동 트리거 (디버깅용)
+      console.log('[trigger_scheduled_sync] Manually triggering scheduled-stibee-sync...')
+
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-stibee-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetRegions: body.targetRegions || ['korea', 'japan', 'japan2'] })
+        })
+
+        const result = await response.json()
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, result })
+        }
+      } catch (e) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: false, error: e.message })
+        }
+      }
+    }
+
     return {
       statusCode: 400,
       headers,

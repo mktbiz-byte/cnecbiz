@@ -266,6 +266,18 @@ async function syncRegion(supabase, apiKey, sheetConfig) {
 }
 
 exports.handler = async (event) => {
+  // 스케줄 실행 여부 확인 (Netlify 스케줄 함수는 body가 비어있거나 없음)
+  const isScheduledRun = !event.httpMethod || event.httpMethod === 'GET' ||
+    (event.headers && event.headers['x-netlify-schedule'] === 'true')
+
+  console.log('[stibee-sync] Triggered.', {
+    httpMethod: event.httpMethod,
+    hasBody: !!event.body,
+    bodyLength: event.body?.length,
+    isScheduledRun,
+    timestamp: new Date().toISOString()
+  })
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' }
   }
@@ -282,6 +294,8 @@ exports.handler = async (event) => {
   }
   var lockSuffix = targetRegions ? targetRegions.sort().join('_') : 'default'
   var LOCK_KEY = 'stibee_sync_lock_' + lockSuffix
+
+  console.log('[stibee-sync] Lock key:', LOCK_KEY, 'targetRegions:', targetRegions)
 
   try {
     supabase = getSupabase()
@@ -324,11 +338,15 @@ exports.handler = async (event) => {
     }
 
     // 락 설정 (리전 정보 포함)
-    await supabase.from('site_settings').upsert({
-      key: LOCK_KEY,
-      value: JSON.stringify({ time: new Date().toISOString(), regions: targetRegions || 'all' }),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(function () {})
+    try {
+      await supabase.from('site_settings').upsert({
+        key: LOCK_KEY,
+        value: JSON.stringify({ time: new Date().toISOString(), regions: targetRegions || 'all' }),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+    } catch (lockSetErr) {
+      console.log('[stibee-sync] Lock set warning:', lockSetErr.message)
+    }
 
     // 설정 로드
     const { data: settingsData } = await supabase
@@ -386,8 +404,8 @@ exports.handler = async (event) => {
       } catch (parseErr) { /* ignore */ }
     }
 
-    var isScheduled = !event.body && !event.httpMethod
-    var allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduled ? DEFAULT_REGIONS : null))
+    // 스케줄 실행이거나 명시적인 리전 지정이 없으면 기본 리전 사용
+    var allowedRegions = targetRegions || (targetRegion ? [targetRegion] : (isScheduledRun ? DEFAULT_REGIONS : null))
 
     var apiKey = await getStibeeApiKey(supabase)
     if (!apiKey) {
@@ -416,11 +434,15 @@ exports.handler = async (event) => {
     console.log('[stibee-sync] All results:', JSON.stringify(results))
 
     // 동기화 로그 저장
-    await supabase.from('site_settings').upsert({
-      key: 'stibee_sync_last_result',
-      value: JSON.stringify({ timestamp: new Date().toISOString(), results: results }),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(function () {})
+    try {
+      await supabase.from('site_settings').upsert({
+        key: 'stibee_sync_last_result',
+        value: JSON.stringify({ timestamp: new Date().toISOString(), results: results }),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+    } catch (logErr) {
+      console.log('[stibee-sync] Log save warning:', logErr.message)
+    }
 
     return {
       statusCode: 200, headers,
@@ -439,7 +461,11 @@ exports.handler = async (event) => {
       if (supabase) {
         await supabase.from('site_settings').delete().eq('key', LOCK_KEY)
         // 이전 형식 락도 정리
-        await supabase.from('site_settings').delete().eq('key', 'stibee_sync_lock').catch(function () {})
+        try {
+          await supabase.from('site_settings').delete().eq('key', 'stibee_sync_lock')
+        } catch (legacyLockErr) {
+          // ignore
+        }
       }
     } catch (finallyErr) {
       console.error('[stibee-sync] Lock release error:', finallyErr)

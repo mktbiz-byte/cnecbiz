@@ -608,6 +608,7 @@ export default function CampaignDetail() {
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
+  const [paidCreatorUserIds, setPaidCreatorUserIds] = useState(new Set()) // 이미 포인트 지급된 크리에이터 user_id Set
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
   const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
@@ -723,6 +724,7 @@ export default function CampaignDetail() {
       fetchParticipants()
       fetchApplications()
       fetchVideoSubmissions()
+      fetchPaidCreators()
     }
     initPage()
   }, [id])
@@ -1544,6 +1546,25 @@ export default function CampaignDetail() {
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
+    }
+  }
+
+  // 이미 포인트 지급된 크리에이터 목록 조회 (point_transactions 기준)
+  const fetchPaidCreators = async () => {
+    try {
+      const { data: payments } = await supabase
+        .from('point_transactions')
+        .select('user_id')
+        .eq('related_campaign_id', id)
+        .not('user_id', 'is', null)
+
+      if (payments && payments.length > 0) {
+        const paidSet = new Set(payments.map(p => p.user_id))
+        setPaidCreatorUserIds(paidSet)
+        console.log(`[fetchPaidCreators] ${paidSet.size}명 이미 포인트 지급됨`)
+      }
+    } catch (error) {
+      console.error('Error fetching paid creators:', error)
     }
   }
 
@@ -4308,40 +4329,22 @@ Questions? Contact us.
             .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq(profileMatchField, userId)
 
-          // 포인트 이력 저장 (point_history 또는 point_transactions)
-          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
-          const { error: historyError } = await supabase
-            .from('point_history')
+          // 포인트 이력 저장 (point_transactions 테이블)
+          const { error: txError } = await supabase
+            .from('point_transactions')
             .insert([{
               user_id: userId,
-              campaign_id: campaign.id,
               amount: pointAmount,
-              type: 'campaign_complete',
-              reason: `캠페인 완료: ${campaign.title}`,
-              balance_after: newPoints,
+              transaction_type: 'campaign_payment',
+              description: `캠페인 완료: ${campaign.title}`,
+              related_campaign_id: campaign.id,
               created_at: new Date().toISOString()
             }])
 
-          if (historyError) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError.message)
-            const { error: txError } = await supabase
-              .from('point_transactions')
-              .insert([{
-                user_id: userId,
-                amount: pointAmount,
-                type: 'earn',
-                description: `캠페인 완료: ${campaign.title}`,
-                related_campaign_id: campaign.id,
-                created_at: new Date().toISOString()
-              }])
-
-            if (txError) {
-              console.log('point_transactions 저장도 실패:', txError.message)
-            } else {
-              console.log('point_transactions에 저장 완료')
-            }
+          if (txError) {
+            console.log('point_transactions 저장 실패:', txError.message)
           } else {
-            console.log('point_history에 저장 완료')
+            console.log('point_transactions에 저장 완료')
           }
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
@@ -4419,6 +4422,12 @@ Questions? Contact us.
       // fetchVideoSubmissions()를 호출하면 DB 복제 지연으로 인해 이전 상태를 가져와 로컬 상태를 덮어쓸 수 있음
       await fetchParticipants()
 
+      // 포인트 지급 완료 후 paidCreatorUserIds 즉시 업데이트 (버튼 비활성화 반영)
+      const paidUserId = applicationData?.user_id || submission.user_id
+      if (paidUserId) {
+        setPaidCreatorUserIds(prev => new Set([...prev, paidUserId]))
+      }
+
       // 기업에게는 포인트 금액 안 보여줌
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
     } catch (error) {
@@ -4437,7 +4446,7 @@ Questions? Contact us.
         return
       }
 
-      const pointAmount = campaign.reward_points || campaign.point || 0
+      const pointAmount = campaign.creator_points_override || campaign.reward_points || 0
       const userId = participant.user_id
 
       // 1. Korea DB의 applications 상태 업데이트
@@ -4490,40 +4499,22 @@ Questions? Contact us.
             .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq(profileMatchField2, userId)
 
-          // 포인트 이력 저장 (point_history 또는 point_transactions)
-          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
-          const { error: historyError2 } = await supabase
-            .from('point_history')
+          // 포인트 이력 저장 (point_transactions 테이블)
+          const { error: txError2 } = await supabase
+            .from('point_transactions')
             .insert([{
               user_id: userId,
-              campaign_id: campaign.id,
               amount: pointAmount,
-              type: 'campaign_complete',
-              reason: `캠페인 완료: ${campaign.title}`,
-              balance_after: newPoints,
+              transaction_type: 'campaign_payment',
+              description: `캠페인 완료: ${campaign.title}`,
+              related_campaign_id: campaign.id,
               created_at: new Date().toISOString()
             }])
 
-          if (historyError2) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError2.message)
-            const { error: txError2 } = await supabase
-              .from('point_transactions')
-              .insert([{
-                user_id: userId,
-                amount: pointAmount,
-                type: 'earn',
-                description: `캠페인 완료: ${campaign.title}`,
-                related_campaign_id: campaign.id,
-                created_at: new Date().toISOString()
-              }])
-
-            if (txError2) {
-              console.log('point_transactions 저장도 실패:', txError2.message)
-            } else {
-              console.log('point_transactions에 저장 완료')
-            }
+          if (txError2) {
+            console.log('point_transactions 저장 실패:', txError2.message)
           } else {
-            console.log('point_history에 저장 완료')
+            console.log('point_transactions에 저장 완료')
           }
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -9659,28 +9650,81 @@ Questions? Contact us.
                                                     SNS 보기
                                                   </Button>
                                                 )}
-                                                {submission.final_confirmed_at ? (
-                                                  <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
+                                                  <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                                                     <CheckCircle className="w-3 h-3 mr-1" />
-                                                    확정
+                                                    {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                   </Badge>
                                                 ) : submission.status === 'approved' && (
-                                                  <Button
-                                                    size="sm"
-                                                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                                                    onClick={async () => {
-                                                      if (!snsUrl) {
-                                                        setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
-                                                        setShowAdminSnsEditModal(true)
-                                                        return
-                                                      }
-                                                      if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
-                                                      await handleFinalConfirmation(submission)
-                                                    }}
-                                                  >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    최종 확정
-                                                  </Button>
+                                                  snsUrl ? (
+                                                    <Badge className="bg-green-100 text-green-700 px-2 py-1 text-xs">
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      SNS 업로드됨
+                                                    </Badge>
+                                                  ) : (
+                                                    <Button
+                                                      size="sm"
+                                                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                                                      onClick={async () => {
+                                                        const phone = participant.phone || participant.phone_number || participant.creator_phone
+                                                        const email = participant.email || participant.creator_email || participant.applicant_email
+                                                        const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+                                                        const weekLabel = submission.week_number ? `${submission.week_number}주차` : (submission.video_number ? `영상 ${submission.video_number}` : '')
+                                                        const deadline = participant.upload_deadline || '확인 후 7일 이내'
+
+                                                        if (!confirm(`${creatorName}님에게 ${weekLabel} SNS 업로드 요청 알림을 보내시겠습니까?`)) return
+
+                                                        try {
+                                                          if (region === 'korea' && phone) {
+                                                            await fetch('/.netlify/functions/send-kakao-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                receiverNum: phone.replace(/-/g, ''),
+                                                                receiverName: creatorName,
+                                                                templateCode: '025100001017',
+                                                                variables: {
+                                                                  '크리에이터명': creatorName,
+                                                                  '캠페인명': campaign?.title || '캠페인',
+                                                                  '업로드기한': deadline
+                                                                }
+                                                              })
+                                                            })
+                                                          } else if (region === 'japan') {
+                                                            await fetch('/.netlify/functions/send-japan-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                type: 'sns_upload_request',
+                                                                creatorEmail: email,
+                                                                lineUserId: participant.line_user_id,
+                                                                creatorPhone: phone,
+                                                                data: { creatorName, campaignName: campaign?.title || 'キャンペーン', deadline }
+                                                              })
+                                                            })
+                                                          } else if (region === 'us') {
+                                                            await fetch('/.netlify/functions/send-us-notification', {
+                                                              method: 'POST',
+                                                              headers: { 'Content-Type': 'application/json' },
+                                                              body: JSON.stringify({
+                                                                type: 'sns_upload_request',
+                                                                creatorEmail: email,
+                                                                creatorPhone: phone,
+                                                                data: { creatorName, campaignName: campaign?.title || 'Campaign', deadline }
+                                                              })
+                                                            })
+                                                          }
+                                                          alert(`${creatorName}님에게 ${weekLabel} SNS 업로드 요청을 보냈습니다.`)
+                                                        } catch (err) {
+                                                          console.error('SNS 업로드 요청 알림 실패:', err)
+                                                          alert('알림 발송에 실패했습니다.')
+                                                        }
+                                                      }}
+                                                    >
+                                                      <ExternalLink className="w-4 h-4 mr-1" />
+                                                      SNS 업로드 요청
+                                                    </Button>
+                                                  )
                                                 )}
                                               </div>
                                             </div>
@@ -9898,10 +9942,10 @@ Questions? Contact us.
                                                       SNS 보기
                                                     </Button>
                                                   )}
-                                                  {submission.final_confirmed_at ? (
-                                                    <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                  {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
+                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                                                       <CheckCircle className="w-3 h-3 mr-1" />
-                                                      확정
+                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                     </Badge>
                                                   ) : submission.status === 'approved' && (
                                                     <Button
