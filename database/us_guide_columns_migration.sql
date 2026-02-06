@@ -173,6 +173,79 @@ CREATE TABLE IF NOT EXISTS video_submissions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- =====================================================
+-- video_review_comments 테이블 생성 (없으면)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS video_review_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  submission_id UUID REFERENCES video_submissions(id) ON DELETE CASCADE,
+  timestamp FLOAT NOT NULL DEFAULT 0,
+  comment TEXT NOT NULL,
+  box_x FLOAT,
+  box_y FLOAT,
+  box_width FLOAT DEFAULT 120,
+  box_height FLOAT DEFAULT 120,
+  attachment_url TEXT,
+  attachment_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- video_review_comment_replies 테이블 생성 (없으면)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS video_review_comment_replies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  comment_id UUID REFERENCES video_review_comments(id) ON DELETE CASCADE,
+  author_name TEXT NOT NULL,
+  reply TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- RLS 정책 설정
+-- =====================================================
+ALTER TABLE video_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_review_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_review_comment_replies ENABLE ROW LEVEL SECURITY;
+
+-- 모든 접근 허용 정책
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'video_submissions' AND policyname = 'Allow all for video_submissions') THEN
+    CREATE POLICY "Allow all for video_submissions" ON video_submissions FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'video_review_comments' AND policyname = 'Allow all for video_review_comments') THEN
+    CREATE POLICY "Allow all for video_review_comments" ON video_review_comments FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'video_review_comment_replies' AND policyname = 'Allow all for video_review_comment_replies') THEN
+    CREATE POLICY "Allow all for video_review_comment_replies" ON video_review_comment_replies FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- =====================================================
+-- 스토리지 → video_submissions 동기화
+-- (campaign-videos 버킷의 기존 영상을 video_submissions에 등록)
+-- =====================================================
+INSERT INTO video_submissions (campaign_id, user_id, video_file_url, video_file_name, video_file_size, version, status, submitted_at, created_at, updated_at)
+SELECT
+  split_part(name, '/', 2)::uuid as campaign_id,
+  split_part(name, '/', 1)::uuid as user_id,
+  'https://ybsibqlaipsbvbyqlcny.supabase.co/storage/v1/object/public/campaign-videos/' || name as video_file_url,
+  split_part(name, '/', 4) as video_file_name,
+  (metadata->>'size')::bigint as video_file_size,
+  1 as version,
+  'submitted' as status,
+  created_at as submitted_at,
+  created_at,
+  created_at as updated_at
+FROM storage.objects
+WHERE bucket_id = 'campaign-videos'
+AND name LIKE '%_main.%'
+AND NOT EXISTS (
+  SELECT 1 FROM video_submissions vs
+  WHERE vs.video_file_url = 'https://ybsibqlaipsbvbyqlcny.supabase.co/storage/v1/object/public/campaign-videos/' || storage.objects.name
+);
+
 -- 완료 메시지
 DO $$
 BEGIN
@@ -183,4 +256,7 @@ BEGIN
   RAISE NOTICE '🎯 Added 4-week challenge guide columns';
   RAISE NOTICE '📋 Added applications video/channel columns';
   RAISE NOTICE '🎬 Created video_submissions table';
+  RAISE NOTICE '📝 Created video_review_comments + replies tables';
+  RAISE NOTICE '🔒 Configured RLS policies';
+  RAISE NOTICE '🔄 Synced storage videos to video_submissions';
 END $$;
