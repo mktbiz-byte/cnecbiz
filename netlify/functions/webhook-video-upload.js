@@ -110,6 +110,29 @@ exports.handler = async (event) => {
     const newVideo = record.video_files[newVideoCount - 1];
     const version = newVideo?.version || newVideoCount;
 
+    // ★ 중복 알림 방지: video_submissions 테이블에 레코드가 있으면
+    // webhook-video-submission.js에서 이미 알림을 보내므로 여기서는 스킵
+    try {
+      const { data: existingSubmission } = await supabaseKorea
+        .from('video_submissions')
+        .select('id')
+        .eq('campaign_id', record.campaign_id)
+        .eq('user_id', record.user_id)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSubmission) {
+        console.log('video_submissions에 레코드 존재 → webhook-video-submission.js에서 알림 처리, 스킵');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'Deferred to webhook-video-submission' })
+        };
+      }
+    } catch (dedupeError) {
+      console.log('중복 체크 실패, 알림 계속 진행:', dedupeError.message);
+    }
+
     // 1. 캠페인 정보 조회
     const { data: campaign, error: campaignError } = await supabaseKorea
       .from('campaigns')

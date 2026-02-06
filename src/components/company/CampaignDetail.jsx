@@ -1047,6 +1047,63 @@ export default function CampaignDetail() {
         }
       }
 
+      // US DB에서 영상 데이터 병합
+      if (supabaseUS && region === 'us') {
+        try {
+          console.log('[fetchParticipants] US DB 영상 데이터 병합 시도...')
+          const { data: usApps } = await supabaseUS
+            .from('applications')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url, main_channel')
+            .eq('campaign_id', id)
+
+          if (usApps && usApps.length > 0) {
+            console.log('[fetchParticipants] US DB 참가자:', usApps.length, '명')
+
+            const matchedUsIds = new Set()
+            combinedData = combinedData.map(participant => {
+              const usApp = usApps.find(u => u.user_id && u.user_id === participant.user_id)
+              if (usApp) {
+                matchedUsIds.add(usApp.id)
+                return {
+                  ...participant,
+                  video_file_url: usApp.video_file_url || participant.video_file_url,
+                  video_file_name: usApp.video_file_name || participant.video_file_name,
+                  video_file_size: usApp.video_file_size || participant.video_file_size,
+                  video_uploaded_at: usApp.video_uploaded_at || participant.video_uploaded_at,
+                  clean_video_file_url: usApp.clean_video_file_url || participant.clean_video_file_url,
+                  clean_video_file_name: usApp.clean_video_file_name || participant.clean_video_file_name,
+                  clean_video_uploaded_at: usApp.clean_video_uploaded_at || participant.clean_video_uploaded_at,
+                  clean_video_url: usApp.clean_video_url || usApp.clean_video_file_url || participant.clean_video_url,
+                  ad_code: usApp.ad_code || participant.ad_code,
+                  partnership_code: usApp.partnership_code || participant.partnership_code,
+                  sns_upload_url: usApp.sns_upload_url || participant.sns_upload_url,
+                  main_channel: usApp.main_channel || participant.main_channel,
+                  us_app_status: usApp.status
+                }
+              }
+              return participant
+            })
+
+            // US DB에만 있는 참가자 추가
+            const usOnlyApps = usApps.filter(u =>
+              !matchedUsIds.has(u.id) &&
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(u.status)
+            )
+            if (usOnlyApps.length > 0) {
+              console.log('[fetchParticipants] US DB에만 있는 참가자:', usOnlyApps.length, '명 추가')
+              const usAppsFormatted = usOnlyApps.map(u => ({
+                ...u,
+                creator_name: u.applicant_name,
+                source_db: 'us'
+              }))
+              combinedData = [...combinedData, ...usAppsFormatted]
+            }
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] US DB 영상 병합 실패:', e.message)
+        }
+      }
+
       // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
       if (combinedData.length === 0 && supabaseKorea) {
         console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
@@ -1678,6 +1735,25 @@ export default function CampaignDetail() {
       
       // Generate signed URLs for all video submissions (5 hours validity)
       if (data && data.length > 0) {
+        // 영상 URL의 호스트를 기반으로 적절한 Supabase 클라이언트 결정
+        const getClientForUrl = (videoUrl) => {
+          try {
+            const hostname = new URL(videoUrl).hostname
+            const koreaUrl = import.meta.env.VITE_SUPABASE_KOREA_URL
+            const japanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL
+            const usUrl = import.meta.env.VITE_SUPABASE_US_URL
+            const bizUrl = import.meta.env.VITE_SUPABASE_BIZ_URL
+
+            if (koreaUrl && hostname === new URL(koreaUrl).hostname) return supabaseKorea
+            if (japanUrl && hostname === new URL(japanUrl).hostname) return supabaseJapan
+            if (usUrl && hostname === new URL(usUrl).hostname) return supabaseUS
+            if (bizUrl && hostname === new URL(bizUrl).hostname) return supabaseBiz
+          } catch (e) {
+            // URL 파싱 실패 시 기본 클라이언트 사용
+          }
+          return supabaseKorea || supabaseBiz
+        }
+
         const urlPromises = data.map(async (submission) => {
           if (submission.video_file_url) {
             try {
@@ -1696,6 +1772,7 @@ export default function CampaignDetail() {
 
               if (pathMatch) {
                 const filePath = pathMatch[1]
+                const videoClient = getClientForUrl(submission.video_file_url)
                 const { data: signedData, error: signedError } = await videoClient.storage
                   .from(bucketName)
                   .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
@@ -4023,7 +4100,7 @@ Questions? Contact us.
   // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
   const handleVideoApproval = async (submission, customUploadDeadline = null) => {
     try {
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
 
       // 업로드 기한 입력받기 (customUploadDeadline이 없으면 prompt)
       const inputDeadline = customUploadDeadline || prompt(
@@ -4260,7 +4337,7 @@ Questions? Contact us.
         return
       }
 
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
       const pointAmount = campaign.reward_points || campaign.point || 0
       const confirmedAt = new Date().toISOString()
 
@@ -4745,7 +4822,7 @@ Questions? Contact us.
 
     setSavingAdminSnsEdit(true)
     try {
-      const videoClient = supabaseKorea || supabaseBiz
+      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
 
       // video_submissions 테이블에 SNS URL 및 광고코드 업데이트
       if (adminSnsEditData.submissionId) {
