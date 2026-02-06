@@ -1,12 +1,22 @@
 import { useState } from 'react'
-import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
-import { supabase } from '../../lib/supabaseKorea'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink, Globe, Languages } from 'lucide-react'
+import { getSupabaseClient } from '../../lib/supabaseClients'
 
-export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit }) {
+export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit, region, supabaseClient }) {
   const [activeWeek, setActiveWeek] = useState('week1')
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [viewLanguage, setViewLanguage] = useState(region === 'japan' ? 'ja' : region === 'us' ? 'en' : 'ko')
+
+  // Use provided supabase client or fall back to region-based client
+  const supabase = supabaseClient || getSupabaseClient(region || 'korea')
+
+  // Determine translation suffix based on region
+  const isJapan = region === 'japan'
+  const isUS = region === 'us'
+  const isKorea = !isJapan && !isUS
+  const translationSuffix = isJapan ? '_ja' : isUS ? '_en' : null
 
   // 외부 가이드 정보 가져오기
   const getExternalGuide = (weekKey) => {
@@ -64,19 +74,28 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
         mergedGuides[week] = {
           mission: aiWeekData.mission || oldWeekData.mission || '',
-          // AI 데이터가 비어있으면 원본 사용
           required_dialogues: aiDialogues.length > 0 ? aiDialogues : oldDialogues,
           required_scenes: aiScenes.length > 0 ? aiScenes : oldScenes,
           hashtags: aiWeekData.hashtags || [],
           product_info: aiWeekData.product_info || '',
           cautions: aiWeekData.cautions || oldWeekData.cautions || campaign.product_key_points || '',
-          reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : [])
+          reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : []),
+          // Translated fields (EN/JA)
+          mission_en: aiWeekData.mission_en || '',
+          required_dialogues_en: parseToArray(aiWeekData.required_dialogues_en),
+          required_scenes_en: parseToArray(aiWeekData.required_scenes_en),
+          product_info_en: aiWeekData.product_info_en || '',
+          cautions_en: aiWeekData.cautions_en || '',
+          mission_ja: aiWeekData.mission_ja || '',
+          required_dialogues_ja: parseToArray(aiWeekData.required_dialogues_ja),
+          required_scenes_ja: parseToArray(aiWeekData.required_scenes_ja),
+          product_info_ja: aiWeekData.product_info_ja || '',
+          cautions_ja: aiWeekData.cautions_ja || ''
         }
       } else if (aiWeekData && typeof aiWeekData === 'string') {
-        // AI guide is simple text - prioritize AI text
         mergedGuides[week] = {
-          mission: aiWeekData,  // Use AI guide text as mission
-          ai_description: aiWeekData,  // Also keep as AI description
+          mission: aiWeekData,
+          ai_description: aiWeekData,
           required_dialogues: oldDialogues,
           required_scenes: oldScenes,
           hashtags: [],
@@ -85,7 +104,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
           reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
         }
       } else {
-        // No AI guide, use old data
         mergedGuides[week] = {
           mission: oldWeekData.mission || '',
           required_dialogues: oldDialogues,
@@ -101,53 +119,91 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
     return mergedGuides
   }
 
-  const weeklyGuides = parseWeeklyGuides()
+  // Parse translated guide data (from challenge_guide_data_en / challenge_guide_data_ja)
+  const getTranslatedGuideData = () => {
+    if (isUS && campaign.challenge_guide_data_en) {
+      return campaign.challenge_guide_data_en
+    }
+    if (isJapan && campaign.challenge_guide_data_ja) {
+      return campaign.challenge_guide_data_ja
+    }
+    return null
+  }
 
-  // Get current week data
+  const weeklyGuides = parseWeeklyGuides()
+  const translatedGuideData = getTranslatedGuideData()
+
+  // Get current week data for the selected language
   const getCurrentWeekData = () => {
     if (isEditing && editedData) return editedData
-    
+
     const weekData = weeklyGuides[activeWeek]
-    
-    // If weekData is a string, try to parse it into structured format
+
     if (typeof weekData === 'string') {
-      // Try to extract structured information from text
       const text = weekData
       const lines = text.split(/[.!]/).filter(line => line.trim())
-      
-      // Extract mission (usually the first sentence)
       const mission = lines[0]?.trim() || text
-      
-      // Extract required dialogues (look for quotes)
       const dialogueMatches = text.match(/['\"](.*?)['\"]/g) || []
       const required_dialogues = dialogueMatches.map(d => d.replace(/['\"]/g, ''))
-      
-      // Extract hashtags (look for # or mentions of hashtag)
       const hashtagMatches = text.match(/#\w+/g) || []
       const hashtags = hashtagMatches.map(h => h.replace('#', ''))
-      
-      // If we found structured data, return it
+
       if (required_dialogues.length > 0 || hashtags.length > 0) {
         return {
-          mission: mission,
-          required_dialogues: required_dialogues,
-          required_scenes: [],
-          hashtags: hashtags,
-          product_info: '',
-          cautions: '해당 미션에 맞게 촬영 필수',
-          reference_urls: []
+          mission, required_dialogues, required_scenes: [], hashtags,
+          product_info: '', cautions: '해당 미션에 맞게 촬영 필수', reference_urls: []
         }
       }
-      
-      // Otherwise, return as simple text
+
+      return { guide_text: weekData, is_simple: true }
+    }
+
+    return weekData || null
+  }
+
+  // Get translated version of current week data
+  const getTranslatedWeekData = () => {
+    const weekData = weeklyGuides[activeWeek]
+    if (!weekData) return null
+
+    const suffix = isUS ? '_en' : isJapan ? '_ja' : null
+    if (!suffix) return null
+
+    // First try to get from AI guide's translated fields
+    const hasTrFields = weekData[`mission${suffix}`] ||
+                        (weekData[`required_dialogues${suffix}`] && weekData[`required_dialogues${suffix}`].length > 0) ||
+                        (weekData[`required_scenes${suffix}`] && weekData[`required_scenes${suffix}`].length > 0)
+
+    if (hasTrFields) {
       return {
-        guide_text: weekData,
-        is_simple: true
+        mission: weekData[`mission${suffix}`] || '',
+        required_dialogues: weekData[`required_dialogues${suffix}`] || [],
+        required_scenes: weekData[`required_scenes${suffix}`] || [],
+        product_info: weekData[`product_info${suffix}`] || '',
+        cautions: weekData[`cautions${suffix}`] || ''
       }
     }
-    
-    // If weekData is an object, return as is
-    return weekData || null
+
+    // Fallback to challenge_guide_data_en / challenge_guide_data_ja
+    if (translatedGuideData) {
+      const weekKey = activeWeek
+      const trWeek = translatedGuideData[weekKey]
+      if (trWeek) {
+        return {
+          mission: trWeek.mission || '',
+          required_dialogues: trWeek.required_dialogue
+            ? trWeek.required_dialogue.split('\n').filter(d => d.trim()).map(d => d.trim())
+            : [],
+          required_scenes: trWeek.required_scenes
+            ? trWeek.required_scenes.split('\n').filter(s => s.trim()).map(s => s.trim())
+            : [],
+          product_info: `${translatedGuideData.product_name || ''}: ${trWeek.mission || ''}`,
+          cautions: translatedGuideData.precautions || ''
+        }
+      }
+    }
+
+    return null
   }
 
   const handleEdit = () => {
@@ -162,16 +218,14 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   const handleSave = async () => {
     try {
       setSaving(true)
-      
-      // Update the weekly guides object
+
       const updatedGuides = { ...weeklyGuides }
-      
-      // If it's simple format, save as string; otherwise save as object
+
       if (editedData.is_simple) {
         updatedGuides[activeWeek] = editedData.guide_text
       } else {
-        // Save complete AI guide object
         updatedGuides[activeWeek] = {
+          ...updatedGuides[activeWeek],
           product_info: editedData.product_info || '',
           mission: editedData.mission || '',
           required_dialogues: editedData.required_dialogues || [],
@@ -181,7 +235,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
           reference_urls: editedData.reference_urls || []
         }
       }
-      
+
       const { error } = await supabase
         .from('campaigns')
         .update({ challenge_weekly_guides_ai: updatedGuides })
@@ -212,23 +266,14 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   }
 
   const currentWeekData = getCurrentWeekData()
+  const translatedWeekData = getTranslatedWeekData()
   const currentDeadline = getCurrentDeadline()
   const currentExternalGuide = getExternalGuide(activeWeek)
 
-  // Debug logging
-  console.log('FourWeekGuideViewer Debug:', {
-    activeWeek,
-    currentWeekData,
-    currentExternalGuide,
-    isSimpleFormat: currentWeekData?.is_simple,
-    guideText: currentWeekData?.guide_text
-  })
-
-  // Check if it's simple text format
   const isSimpleFormat = currentWeekData?.is_simple
   const hasExternalGuide = !!currentExternalGuide
 
-  // Extract all fields from JSON (for object format)
+  // Extract fields from current week data (Korean / original)
   const productInfo = currentWeekData?.product_info || ''
   const mission = currentWeekData?.mission || ''
   const requiredDialogues = currentWeekData?.required_dialogues || []
@@ -236,19 +281,136 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   const cautions = currentWeekData?.cautions || ''
   const hashtags = currentWeekData?.hashtags || []
   const referenceUrls = currentWeekData?.reference_urls || []
-
-  // Simple text format
   const guideText = currentWeekData?.guide_text || ''
 
   const hasContent = isSimpleFormat ? !!guideText : (productInfo || mission || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0)
+  const hasTranslation = !!translatedWeekData && (translatedWeekData.mission || translatedWeekData.required_dialogues?.length > 0 || translatedWeekData.required_scenes?.length > 0)
+
+  // Language labels
+  const langLabel = isJapan ? '日本語' : isUS ? 'English' : '한국어'
+  const langLabelKo = '한국어'
+
+  // Render a guide section (Korean or translated)
+  const renderGuideContent = (data, label, colorTheme = 'purple') => {
+    if (!data) return null
+    const m = data.mission || data.guide_text || ''
+    const dl = data.required_dialogues || []
+    const sc = data.required_scenes || []
+    const pi = data.product_info || ''
+    const ca = data.cautions || ''
+
+    if (!m && dl.length === 0 && sc.length === 0 && !pi && !ca) return null
+
+    return (
+      <div className="space-y-4">
+        {pi && (
+          <div className={`bg-gradient-to-r from-${colorTheme}-50 to-blue-50 border border-${colorTheme}-200 rounded-lg p-4`}>
+            <h4 className={`text-sm font-bold text-${colorTheme}-900 mb-2 flex items-center gap-2`}>
+              <span>📦</span> {label === 'ko' ? '제품 정보' : label === 'en' ? 'Product Info' : '商品情報'}
+            </h4>
+            <div className="bg-white rounded-lg p-3 border">
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{pi}</p>
+            </div>
+          </div>
+        )}
+
+        {m && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+              <span>🎯</span> {label === 'ko' ? `${activeWeek.replace('week', '')}주차 미션` : label === 'en' ? `Week ${activeWeek.replace('week', '')} Mission` : `${activeWeek.replace('week', '')}週目 ミッション`}
+            </h4>
+            <div className="bg-white rounded-lg p-3 border border-blue-100">
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{m}</p>
+            </div>
+          </div>
+        )}
+
+        {dl.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+              <span>💬</span> {label === 'ko' ? '필수 대사' : label === 'en' ? 'Required Lines' : '必須セリフ'}
+            </h4>
+            <div className="bg-white rounded-lg p-3 border border-blue-100">
+              <ul className="space-y-1.5">
+                {dl.map((d, idx) => (
+                  <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                    <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {sc.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="text-sm font-bold text-green-900 mb-2 flex items-center gap-2">
+              <span>🎬</span> {label === 'ko' ? '필수 장면' : label === 'en' ? 'Required Scenes' : '必須シーン'}
+            </h4>
+            <div className="bg-white rounded-lg p-3 border border-green-100">
+              <ul className="space-y-1.5">
+                {sc.map((s, idx) => (
+                  <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                    <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {ca && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 className="text-sm font-bold text-red-900 mb-2 flex items-center gap-2">
+              <span>⚠️</span> {label === 'ko' ? '주의사항' : label === 'en' ? 'Cautions' : '注意事項'}
+            </h4>
+            <div className="bg-white rounded-lg p-3 border border-red-100">
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{ca}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
           <h2 className="text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h2>
           <div className="flex items-center gap-2">
+            {/* Language toggle for US/Japan */}
+            {(isUS || isJapan) && hasTranslation && !isEditing && (
+              <div className="flex items-center bg-white border rounded-lg overflow-hidden text-xs">
+                <button
+                  onClick={() => setViewLanguage('ko')}
+                  className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                    viewLanguage === 'ko' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  🇰🇷 한국어
+                </button>
+                <button
+                  onClick={() => setViewLanguage(isJapan ? 'ja' : 'en')}
+                  className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                    viewLanguage !== 'ko' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {isJapan ? '🇯🇵 日本語' : '🇺🇸 English'}
+                </button>
+                <button
+                  onClick={() => setViewLanguage('both')}
+                  className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                    viewLanguage === 'both' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Languages className="w-3 h-3" /> Both
+                </button>
+              </div>
+            )}
             {!isEditing && (
               <button
                 onClick={handleEdit}
@@ -288,16 +450,16 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         {/* 주차 탭 */}
         <div className="flex gap-2 px-6 pt-4 border-b bg-white">
           {[
-            { key: 'week1', label: '1주차' },
-            { key: 'week2', label: '2주차' },
-            { key: 'week3', label: '3주차' },
-            { key: 'week4', label: '4주차' }
+            { key: 'week1', label: '1주차', labelEn: 'Week 1', labelJa: '1週目' },
+            { key: 'week2', label: '2주차', labelEn: 'Week 2', labelJa: '2週目' },
+            { key: 'week3', label: '3주차', labelEn: 'Week 3', labelJa: '3週目' },
+            { key: 'week4', label: '4주차', labelEn: 'Week 4', labelJa: '4週目' }
           ].map((week) => (
             <button
               key={week.key}
               onClick={() => {
                 if (isEditing) {
-                  if (confirm('수정 중인 내용이 있습니다. 주차를 변경하시게습니까?')) {
+                  if (confirm('수정 중인 내용이 있습니다. 주차를 변경하시겠습니까?')) {
                     handleCancel()
                     setActiveWeek(week.key)
                   }
@@ -311,7 +473,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
-              {week.label}
+              {isJapan ? week.labelJa : isUS ? week.labelEn : week.label}
             </button>
           ))}
         </div>
@@ -322,9 +484,9 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
           {currentDeadline && (
             <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
               <div className="flex items-center gap-2">
-                <span className="text-yellow-700 font-semibold">📅 마감일:</span>
+                <span className="text-yellow-700 font-semibold">📅 {isUS ? 'Deadline:' : isJapan ? '締切日:' : '마감일:'}</span>
                 <span className="text-yellow-900 font-bold">
-                  {new Date(currentDeadline).toLocaleDateString('ko-KR', {
+                  {new Date(currentDeadline).toLocaleDateString(isJapan ? 'ja-JP' : isUS ? 'en-US' : 'ko-KR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -362,7 +524,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
                   {currentExternalGuide.type === 'pdf' && currentExternalGuide.fileName && (
                     <p className="text-sm text-gray-500 mb-4">
-                      파일명: {currentExternalGuide.fileName}
+                      {isUS ? 'File:' : isJapan ? 'ファイル:' : '파일명:'} {currentExternalGuide.fileName}
                     </p>
                   )}
 
@@ -377,7 +539,9 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     }`}
                   >
                     <ExternalLink className="w-5 h-5" />
-                    {currentExternalGuide.type === 'pdf' ? 'PDF 열기' : '가이드 열기'}
+                    {currentExternalGuide.type === 'pdf'
+                      ? (isUS ? 'Open PDF' : isJapan ? 'PDFを開く' : 'PDF 열기')
+                      : (isUS ? 'Open Guide' : isJapan ? 'ガイドを開く' : '가이드 열기')}
                   </a>
                 </div>
               </div>
@@ -409,7 +573,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
               ) : isEditing ? (
                 /* Object format - 수정 모드 */
                 <div className="space-y-4">
-                  {/* 제품 정보 수정 */}
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-purple-900 mb-2">📦 제품 정보</h4>
                     <textarea
@@ -420,7 +583,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 미션 수정 */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-blue-900 mb-2">🎯 {activeWeek.replace('week', '')}주차 미션</h4>
                     <textarea
@@ -431,7 +593,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 필수 대사 수정 */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-blue-900 mb-2">💬 필수 대사</h4>
                     <textarea
@@ -442,7 +603,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 필수 장면 수정 */}
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-green-900 mb-2">🎬 필수 장면</h4>
                     <textarea
@@ -453,7 +613,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 주의사항 수정 */}
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-red-900 mb-2">⚠️ 주의사항</h4>
                     <textarea
@@ -464,7 +623,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 해시태그 수정 */}
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-indigo-900 mb-2">📌 필수 해시태그</h4>
                     <input
@@ -476,7 +634,6 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     />
                   </div>
 
-                  {/* 참고 URL 수정 */}
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <h4 className="text-sm font-bold text-orange-900 mb-2">🔗 참고 영상 URL</h4>
                     <textarea
@@ -488,138 +645,148 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                   </div>
                 </div>
               ) : (
-                /* Object format - 보기 모드 */
+                /* Object format - View mode with language toggle */
                 <>
-                  {/* Object format - 제품 정보 */}
-                  {productInfo && (
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
-                        <span>📦</span>
-                        제품 정보
-                      </h4>
-                      <div className="bg-white rounded-lg p-4 border border-purple-100">
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {productInfo}
-                        </p>
+                  {/* Bilingual: Both side by side */}
+                  {viewLanguage === 'both' && hasTranslation ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3 px-2">
+                          <span className="text-lg">🇰🇷</span>
+                          <span className="text-sm font-bold text-gray-700">한국어</span>
+                        </div>
+                        {renderGuideContent(currentWeekData, 'ko')}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-3 px-2">
+                          <span className="text-lg">{isJapan ? '🇯🇵' : '🇺🇸'}</span>
+                          <span className="text-sm font-bold text-gray-700">{langLabel}</span>
+                        </div>
+                        {renderGuideContent(translatedWeekData, isJapan ? 'ja' : 'en')}
                       </div>
                     </div>
-                  )}
-
-                  {/* 미션 */}
-                  {mission && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
-                        <span>🎯</span>
-                        {activeWeek.replace('week', '')}주차 미션
-                      </h4>
-                      <div className="bg-white rounded-lg p-4 border border-blue-100">
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {mission}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 필수 대사 */}
-                  {requiredDialogues.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
-                        <span>💬</span>
-                        필수 대사
-                      </h4>
-                      <div className="bg-white rounded-lg p-4 border border-blue-100">
-                        <ul className="space-y-2">
-                          {requiredDialogues.map((dialogue, idx) => (
-                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                              <span className="text-blue-600 font-semibold">{idx + 1}.</span>
-                              <span>{dialogue}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 필수 장면 */}
-                  {requiredScenes.length > 0 && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
-                        <span>🎬</span>
-                        필수 장면
-                      </h4>
-                      <div className="bg-white rounded-lg p-4 border border-green-100">
-                        <ul className="space-y-2">
-                          {requiredScenes.map((scene, idx) => (
-                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                              <span className="text-green-600 font-semibold">{idx + 1}.</span>
-                              <span>{scene}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 주의사항 */}
-                  {cautions && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
-                        <span>⚠️</span>
-                        주의사항
-                      </h4>
-                      <div className="bg-white rounded-lg p-4 border border-red-100">
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {cautions}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 필수 해시태그 */}
-                  {hashtags.length > 0 && (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                        <span>📌</span>
-                        필수 해시태그
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {hashtags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
-                          >
-                            {tag.startsWith('#') ? tag : `#${tag}`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 참고 영상 URL */}
-                  {referenceUrls.length > 0 && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
-                        <span>🔗</span>
-                        참고 영상
-                      </h4>
-                      <div className="space-y-3">
-                        {referenceUrls.map((url, idx) => (
-                          <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
-                            >
-                              {url}
-                            </a>
+                  ) : viewLanguage !== 'ko' && hasTranslation ? (
+                    /* Translated language only */
+                    renderGuideContent(translatedWeekData, isJapan ? 'ja' : 'en')
+                  ) : (
+                    /* Korean / default view */
+                    <>
+                      {productInfo && (
+                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                            <span>📦</span>
+                            제품 정보
+                          </h4>
+                          <div className="bg-white rounded-lg p-4 border border-purple-100">
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{productInfo}</p>
                           </div>
-                        ))}
-                        <p className="text-xs text-gray-500 mt-3">
-                          💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-                        </p>
-                      </div>
-                    </div>
+                        </div>
+                      )}
+
+                      {mission && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            <span>🎯</span>
+                            {activeWeek.replace('week', '')}주차 미션
+                          </h4>
+                          <div className="bg-white rounded-lg p-4 border border-blue-100">
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{mission}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {requiredDialogues.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            <span>💬</span>
+                            필수 대사
+                          </h4>
+                          <div className="bg-white rounded-lg p-4 border border-blue-100">
+                            <ul className="space-y-2">
+                              {requiredDialogues.map((dialogue, idx) => (
+                                <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                                  <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                                  <span>{dialogue}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+
+                      {requiredScenes.length > 0 && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                            <span>🎬</span>
+                            필수 장면
+                          </h4>
+                          <div className="bg-white rounded-lg p-4 border border-green-100">
+                            <ul className="space-y-2">
+                              {requiredScenes.map((scene, idx) => (
+                                <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                                  <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                                  <span>{scene}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+
+                      {cautions && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                            <span>⚠️</span>
+                            주의사항
+                          </h4>
+                          <div className="bg-white rounded-lg p-4 border border-red-100">
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{cautions}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {hashtags.length > 0 && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                            <span>📌</span>
+                            필수 해시태그
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {hashtags.map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
+                              >
+                                {tag.startsWith('#') ? tag : `#${tag}`}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {referenceUrls.length > 0 && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                          <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                            <span>🔗</span>
+                            참고 영상
+                          </h4>
+                          <div className="space-y-3">
+                            {referenceUrls.map((url, idx) => (
+                              <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                                >
+                                  {url}
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -627,10 +794,14 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <p className="text-gray-500">
-                {activeWeek.replace('week', '')}주차 가이드가 등록되지 않았습니다.
+                {isUS
+                  ? `Week ${activeWeek.replace('week', '')} guide has not been registered.`
+                  : isJapan
+                  ? `${activeWeek.replace('week', '')}週目のガイドが登録されていません。`
+                  : `${activeWeek.replace('week', '')}주차 가이드가 등록되지 않았습니다.`}
               </p>
               <p className="text-sm text-gray-400 mt-2">
-                관리자에게 문의해 주세요.
+                {isUS ? 'Please contact the administrator.' : isJapan ? '管理者にお問い合わせください。' : '관리자에게 문의해 주세요.'}
               </p>
             </div>
           )}
@@ -642,7 +813,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
             onClick={onClose}
             className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
           >
-            닫기
+            {isUS ? 'Close' : isJapan ? '閉じる' : '닫기'}
           </button>
         </div>
       </div>

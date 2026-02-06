@@ -6333,8 +6333,8 @@ Questions? Contact us.
                           </div>
                         )}
 
-                        {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) */}
-                        {(region === 'us' || region === 'japan') && (
+                        {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) - 4week/oliveyoung/megawari는 별도 섹션 사용 */}
+                        {(region === 'us' || region === 'japan') && campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && campaign.campaign_type !== 'oliveyoung_sale' && !(region === 'japan' && campaign.campaign_type === 'megawari') && (
                           <div className="flex items-center gap-1.5">
                             {/* 가이드 전달 버튼 - 모달에서 AI 또는 파일/URL 선택 */}
                             <Button
@@ -12010,14 +12010,18 @@ Questions? Contact us.
                   </>
                 ) : (
                   <>
-                    {/* 올영/4주/PDF 가이드는 수정 버튼 숨김 */}
+                    {/* 올영/4주/메가와리/PDF 가이드는 수정 버튼 숨김 - campaign_type도 체크 */}
                     {(() => {
                       const guide = selectedGuide.personalized_guide
                       const guideType = typeof guide === 'object' ? guide?.type : null
-                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide' || guideType === 'megawari_guide'
                       const isPdfGuide = campaign?.guide_type === 'pdf' && campaign?.guide_pdf_url
+                      // Also check campaign type directly (guide may not have type field)
+                      const is4WeekCampaign = campaign?.campaign_type === '4week_challenge'
+                      const isOYCampaign = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                      const isMegawariCampaign = region === 'japan' && campaign?.campaign_type === 'megawari'
 
-                      if (isOliveYoungOr4Week || isPdfGuide) return null
+                      if (isOliveYoungOr4Week || isPdfGuide || is4WeekCampaign || isOYCampaign || isMegawariCampaign) return null
 
                       return (
                         <>
@@ -13421,6 +13425,9 @@ Questions? Contact us.
         <FourWeekGuideViewer
           campaign={campaign}
           onClose={() => setShow4WeekGuideModal(false)}
+          onUpdate={fetchCampaignDetail}
+          region={region}
+          supabaseClient={supabase}
         />
       )}
 
