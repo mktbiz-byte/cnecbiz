@@ -862,6 +862,46 @@ export default function CampaignDetail() {
     }
   }
 
+  // 4주 챌린지 가이드가 실제 내용이 있는지 체크 (빈 객체 제외)
+  const has4WeekGuideContent = (c) => {
+    if (!c) return false
+    // AI 생성 가이드 체크
+    if (c.challenge_weekly_guides_ai) {
+      try {
+        const parsed = typeof c.challenge_weekly_guides_ai === 'string'
+          ? JSON.parse(c.challenge_weekly_guides_ai) : c.challenge_weekly_guides_ai
+        if (parsed && ['week1','week2','week3','week4'].some(w => {
+          const d = parsed[w]
+          return d && (typeof d === 'string' ? d.trim() : (d.mission?.trim() || (d.required_dialogues?.length > 0) || (d.required_scenes?.length > 0)))
+        })) return true
+      } catch(e) {}
+    }
+    // 원본 가이드 데이터 체크
+    if (c.challenge_guide_data) {
+      const d = c.challenge_guide_data
+      if (['week1','week2','week3','week4'].some(w => d[w]?.mission?.trim())) return true
+    }
+    // 구버전 가이드 체크
+    if (c.challenge_weekly_guides) {
+      const d = c.challenge_weekly_guides
+      if (['week1','week2','week3','week4'].some(w => d[w]?.mission?.trim())) return true
+    }
+    // 번역 가이드 체크 (일본/미국)
+    if (c.challenge_guide_data_ja) {
+      const d = c.challenge_guide_data_ja
+      if (['week1','week2','week3','week4'].some(w => d[w]?.mission?.trim())) return true
+    }
+    if (c.challenge_guide_data_en) {
+      const d = c.challenge_guide_data_en
+      if (['week1','week2','week3','week4'].some(w => d[w]?.mission?.trim())) return true
+    }
+    // 외부 가이드 체크
+    if (['week1','week2','week3','week4'].some(w =>
+      c[`${w}_external_url`] || c[`${w}_external_file_url`]
+    )) return true
+    return false
+  }
+
   const fetchCampaignDetail = async () => {
     try {
       const { data, error } = await supabase
@@ -6393,9 +6433,8 @@ Questions? Contact us.
                           <div className="flex flex-col gap-2">
                             {/* 가이드 보기/설정 버튼 */}
                             <div className="flex items-center gap-1.5">
-                              {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
-                                campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
+                              {/* 4주 챌린지: 실제 가이드 내용이 있을 때만 가이드 보기 버튼 표시 */}
+                              {has4WeekGuideContent(campaign) && (
                                 <Button
                                   size="sm"
                                   onClick={() => {
@@ -6442,9 +6481,8 @@ Questions? Contact us.
                               )}
                             </div>
 
-                            {/* 주차별 발송 버튼 - 캠페인 레벨 가이드가 있으면 표시 */}
-                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
-                              campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en) && (
+                            {/* 주차별 발송 버튼 - 실제 가이드 내용이 있을 때만 표시 */}
+                            {has4WeekGuideContent(campaign) && (
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
@@ -13898,8 +13936,7 @@ Questions? Contact us.
                   if (is4WeekBulk || isOYBulk || isMegawariBulk) {
                     const guideLabel = is4WeekBulk ? '4주 챌린지' : isMegawariBulk ? 'メガ割' : '올영 세일'
                     const hasGuideData = is4WeekBulk
-                      ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
-                         campaign?.challenge_guide_data_ja || campaign?.challenge_guide_data_en)
+                      ? has4WeekGuideContent(campaign)
                       : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
                     return (
