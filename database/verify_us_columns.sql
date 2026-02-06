@@ -405,14 +405,93 @@ BEGIN
     END IF;
   END IF;
 
+  -- ========== 5. video_review_comments 테이블 ==========
+  RAISE NOTICE '';
+  RAISE NOTICE '--- [5] video_review_comments 테이블 ---';
+  IF NOT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='video_review_comments') THEN
+    RAISE NOTICE '  ❌ MISSING TABLE: video_review_comments'; missing_count := missing_count + 1;
+  ELSE
+    RAISE NOTICE '  ✅ video_review_comments 테이블 존재';
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comments' AND column_name='submission_id') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comments.submission_id'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comments' AND column_name='timestamp') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comments.timestamp'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comments' AND column_name='comment') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comments.comment'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comments' AND column_name='box_x') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comments.box_x'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comments' AND column_name='attachment_url') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comments.attachment_url'; missing_count := missing_count + 1;
+    END IF;
+  END IF;
+
+  -- ========== 6. video_review_comment_replies 테이블 ==========
+  RAISE NOTICE '';
+  RAISE NOTICE '--- [6] video_review_comment_replies 테이블 ---';
+  IF NOT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='video_review_comment_replies') THEN
+    RAISE NOTICE '  ❌ MISSING TABLE: video_review_comment_replies'; missing_count := missing_count + 1;
+  ELSE
+    RAISE NOTICE '  ✅ video_review_comment_replies 테이블 존재';
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comment_replies' AND column_name='comment_id') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comment_replies.comment_id'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comment_replies' AND column_name='author_name') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comment_replies.author_name'; missing_count := missing_count + 1;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='video_review_comment_replies' AND column_name='reply') THEN
+      RAISE NOTICE '  ❌ MISSING: video_review_comment_replies.reply'; missing_count := missing_count + 1;
+    END IF;
+  END IF;
+
+  -- ========== 7. RLS 정책 확인 ==========
+  RAISE NOTICE '';
+  RAISE NOTICE '--- [7] RLS 정책 확인 ---';
+  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE tablename='video_submissions') THEN
+    RAISE NOTICE '  ❌ MISSING: video_submissions RLS policy'; missing_count := missing_count + 1;
+  ELSE
+    RAISE NOTICE '  ✅ video_submissions RLS 정책 존재';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE tablename='video_review_comments') THEN
+    RAISE NOTICE '  ❌ MISSING: video_review_comments RLS policy'; missing_count := missing_count + 1;
+  ELSE
+    RAISE NOTICE '  ✅ video_review_comments RLS 정책 존재';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE tablename='video_review_comment_replies') THEN
+    RAISE NOTICE '  ❌ MISSING: video_review_comment_replies RLS policy'; missing_count := missing_count + 1;
+  ELSE
+    RAISE NOTICE '  ✅ video_review_comment_replies RLS 정책 존재';
+  END IF;
+
+  -- ========== 8. 스토리지 동기화 상태 ==========
+  RAISE NOTICE '';
+  RAISE NOTICE '--- [8] 스토리지 동기화 상태 ---';
+  DECLARE
+    storage_count INTEGER;
+    synced_count INTEGER;
+  BEGIN
+    SELECT COUNT(*) INTO storage_count FROM storage.objects WHERE bucket_id = 'campaign-videos' AND name LIKE '%_main.%';
+    SELECT COUNT(*) INTO synced_count FROM video_submissions;
+    RAISE NOTICE '  📦 스토리지 영상 파일: % 개', storage_count;
+    RAISE NOTICE '  📋 video_submissions 레코드: % 개', synced_count;
+    IF storage_count > synced_count THEN
+      RAISE NOTICE '  ⚠️ 동기화 필요: % 개 파일 미등록', storage_count - synced_count;
+    ELSE
+      RAISE NOTICE '  ✅ 스토리지 동기화 완료';
+    END IF;
+  END;
+
   -- ========== 결과 요약 ==========
   RAISE NOTICE '';
   RAISE NOTICE '========================================';
   IF missing_count = 0 THEN
-    RAISE NOTICE '✅ ALL COLUMNS VERIFIED - 누락 없음!';
+    RAISE NOTICE '✅ ALL VERIFIED - 테이블/컬럼/RLS 모두 정상!';
   ELSE
-    RAISE NOTICE '❌ MISSING COLUMNS: % 개', missing_count;
-    RAISE NOTICE '→ 위의 마이그레이션 SQL을 실행하세요';
+    RAISE NOTICE '❌ MISSING ITEMS: % 개', missing_count;
+    RAISE NOTICE '→ us_guide_columns_migration.sql을 실행하세요';
   END IF;
   RAISE NOTICE '========================================';
 END $$;
