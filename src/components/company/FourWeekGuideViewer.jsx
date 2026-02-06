@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink, Globe, Languages } from 'lucide-react'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink, Globe, Languages, PenLine, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { getSupabaseClient } from '../../lib/supabaseClients'
 
 export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit, region, supabaseClient }) {
+  const navigate = useNavigate()
   const [activeWeek, setActiveWeek] = useState('week1')
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
@@ -213,10 +215,20 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
   const handleEdit = () => {
     const currentData = getCurrentWeekData()
-    setEditedData(JSON.parse(JSON.stringify(currentData || {
-      guide_text: '',
-      is_simple: true
-    })))
+    // If no data for this week, initialize with structured format for easy editing
+    if (!currentData || (!currentData.mission && !currentData.guide_text && (currentData.required_dialogues || []).length === 0)) {
+      setEditedData({
+        product_info: campaign.product_name ? `${campaign.product_name}: ${campaign.product_features || ''}` : '',
+        mission: '',
+        required_dialogues: [],
+        required_scenes: [],
+        cautions: campaign.product_key_points || '',
+        hashtags: [],
+        reference_urls: []
+      })
+    } else {
+      setEditedData(JSON.parse(JSON.stringify(currentData)))
+    }
     setIsEditing(true)
   }
 
@@ -463,28 +475,44 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
             { key: 'week2', label: '2주차', labelEn: 'Week 2', labelJa: '2週目' },
             { key: 'week3', label: '3주차', labelEn: 'Week 3', labelJa: '3週目' },
             { key: 'week4', label: '4주차', labelEn: 'Week 4', labelJa: '4週目' }
-          ].map((week) => (
-            <button
-              key={week.key}
-              onClick={() => {
-                if (isEditing) {
-                  if (confirm('수정 중인 내용이 있습니다. 주차를 변경하시겠습니까?')) {
-                    handleCancel()
+          ].map((week) => {
+            // Check if this week has content
+            const wd = weeklyGuides[week.key]
+            const extGuide = getExternalGuide(week.key)
+            const weekHasContent = extGuide || (wd && (
+              wd.mission || wd.guide_text ||
+              (wd.required_dialogues && wd.required_dialogues.length > 0) ||
+              (wd.required_scenes && wd.required_scenes.length > 0) ||
+              wd.product_info || wd.cautions
+            ))
+            return (
+              <button
+                key={week.key}
+                onClick={() => {
+                  if (isEditing) {
+                    if (confirm('수정 중인 내용이 있습니다. 주차를 변경하시겠습니까?')) {
+                      handleCancel()
+                      setActiveWeek(week.key)
+                    }
+                  } else {
                     setActiveWeek(week.key)
                   }
-                } else {
-                  setActiveWeek(week.key)
-                }
-              }}
-              className={`px-6 py-3 font-medium text-sm transition-all ${
-                activeWeek === week.key
-                  ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              {isJapan ? week.labelJa : isUS ? week.labelEn : week.label}
-            </button>
-          ))}
+                }}
+                className={`px-6 py-3 font-medium text-sm transition-all flex items-center gap-1.5 ${
+                  activeWeek === week.key
+                    ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                {isJapan ? week.labelJa : isUS ? week.labelEn : week.label}
+                {weekHasContent ? (
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                )}
+              </button>
+            )
+          })}
         </div>
 
         {/* 가이드 내용 */}
@@ -801,17 +829,43 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
               )}
             </div>
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">
+            <div className="text-center py-10 bg-gradient-to-b from-gray-50 to-white rounded-xl border-2 border-dashed border-gray-300">
+              <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-2xl flex items-center justify-center">
+                <PenLine className="w-8 h-8 text-purple-400" />
+              </div>
+              <p className="text-gray-600 font-medium text-base">
                 {isUS
-                  ? `Week ${activeWeek.replace('week', '')} guide has not been registered.`
+                  ? `Week ${activeWeek.replace('week', '')} guide has not been written yet.`
                   : isJapan
-                  ? `${activeWeek.replace('week', '')}週目のガイドが登録されていません。`
-                  : `${activeWeek.replace('week', '')}주차 가이드가 등록되지 않았습니다.`}
+                  ? `${activeWeek.replace('week', '')}週目のガイドがまだ作成されていません。`
+                  : `${activeWeek.replace('week', '')}주차 가이드가 아직 작성되지 않았습니다.`}
               </p>
-              <p className="text-sm text-gray-400 mt-2">
-                {isUS ? 'Please contact the administrator.' : isJapan ? '管理者にお問い合わせください。' : '관리자에게 문의해 주세요.'}
-              </p>
+              <div className="flex items-center justify-center gap-3 mt-5">
+                <button
+                  onClick={() => {
+                    handleEdit()
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+                >
+                  <Edit className="w-4 h-4" />
+                  {isUS ? 'Write Here' : isJapan ? 'ここで作成' : '여기서 직접 작성'}
+                </button>
+                <button
+                  onClick={() => {
+                    const guidePath = isJapan
+                      ? `/company/campaigns/guide/4week/japan?id=${campaign.id}`
+                      : isUS
+                      ? `/company/campaigns/guide/4week/us?id=${campaign.id}`
+                      : `/company/campaigns/guide/4week?id=${campaign.id}`
+                    onClose()
+                    navigate(guidePath)
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium text-sm"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {isUS ? 'Go to Guide Page' : isJapan ? 'ガイドページへ' : '가이드 작성 페이지로 이동'}
+                </button>
+              </div>
             </div>
           )}
         </div>
