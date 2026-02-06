@@ -306,19 +306,13 @@ JSON 형식으로만 응답해주세요.`
 
     setSavingWeek(weekNum)
     try {
-      // 제품 정보 + 해당 주차 가이드 데이터 저장
-      const updateData = {
+      // 핵심 데이터 (기존 컬럼 - 항상 존재)
+      const coreData = {
         brand: guideData.brand,
         product_name: guideData.product_name,
         product_features: guideData.product_features,
         product_key_points: guideData.precautions,
-        challenge_guide_data: guideData,
-        [`${weekKey}_guide_mode`]: weekGuideModes[weekKey],
-        [`${weekKey}_external_type`]: weekExternalGuides[weekKey].type,
-        [`${weekKey}_external_url`]: weekExternalGuides[weekKey].url,
-        [`${weekKey}_external_file_url`]: weekExternalGuides[weekKey].fileUrl,
-        [`${weekKey}_external_file_name`]: weekExternalGuides[weekKey].fileName,
-        [`${weekKey}_external_title`]: weekExternalGuides[weekKey].title
+        challenge_guide_data: guideData
       }
 
       // AI 모드면 AI 가이드 생성하여 저장
@@ -345,7 +339,7 @@ JSON 형식으로만 응답해주세요.`
           reference_urls: weekData.reference_url ? [weekData.reference_url] : []
         }
 
-        updateData.challenge_weekly_guides_ai = JSON.stringify(existingAI)
+        coreData.challenge_weekly_guides_ai = JSON.stringify(existingAI)
 
         // 기존 weekly guides도 업데이트
         const existingWeekly = campaign?.challenge_weekly_guides || {}
@@ -355,11 +349,27 @@ JSON 형식으로만 응답해주세요.`
           required_scenes: weekData.required_scenes,
           reference: weekData.reference_url
         }
-        updateData.challenge_weekly_guides = existingWeekly
+        coreData.challenge_weekly_guides = existingWeekly
       }
 
-      const { error } = await client.from('campaigns').update(updateData).eq('id', id)
+      // 1단계: 핵심 데이터 먼저 저장
+      const { error } = await client.from('campaigns').update(coreData).eq('id', id)
       if (error) throw error
+
+      // 2단계: 주차별 확장 컬럼 저장 (없을 수 있음 - 실패해도 무시)
+      try {
+        const extData = {
+          [`${weekKey}_guide_mode`]: weekGuideModes[weekKey],
+          [`${weekKey}_external_type`]: weekExternalGuides[weekKey].type,
+          [`${weekKey}_external_url`]: weekExternalGuides[weekKey].url,
+          [`${weekKey}_external_file_url`]: weekExternalGuides[weekKey].fileUrl,
+          [`${weekKey}_external_file_name`]: weekExternalGuides[weekKey].fileName,
+          [`${weekKey}_external_title`]: weekExternalGuides[weekKey].title
+        }
+        await client.from('campaigns').update(extData).eq('id', id)
+      } catch (e) {
+        console.warn('주차별 확장 컬럼 저장 실패 (SQL 마이그레이션 필요):', e)
+      }
 
       setWeekStatus(prev => ({ ...prev, [weekKey]: 'saved' }))
       alert(`✅ ${weekNum}주차 가이드가 저장되었습니다!`)
@@ -387,35 +397,6 @@ JSON 형식으로만 응답해주세요.`
 
     setLoading(true)
     try {
-      // 전체 데이터 저장
-      const updateData = {
-        brand: guideData.brand,
-        product_name: guideData.product_name,
-        product_features: guideData.product_features,
-        product_key_points: guideData.precautions,
-        challenge_guide_data: guideData,
-        challenge_weekly_guides: {
-          week1: { mission: guideData.week1.mission, required_dialogue: guideData.week1.required_dialogue, required_scenes: guideData.week1.required_scenes, reference: guideData.week1.reference_url },
-          week2: { mission: guideData.week2.mission, required_dialogue: guideData.week2.required_dialogue, required_scenes: guideData.week2.required_scenes, reference: guideData.week2.reference_url },
-          week3: { mission: guideData.week3.mission, required_dialogue: guideData.week3.required_dialogue, required_scenes: guideData.week3.required_scenes, reference: guideData.week3.reference_url },
-          week4: { mission: guideData.week4.mission, required_dialogue: guideData.week4.required_dialogue, required_scenes: guideData.week4.required_scenes, reference: guideData.week4.reference_url }
-        },
-        week1_guide_mode: weekGuideModes.week1, week2_guide_mode: weekGuideModes.week2,
-        week3_guide_mode: weekGuideModes.week3, week4_guide_mode: weekGuideModes.week4,
-        week1_external_type: weekExternalGuides.week1.type, week1_external_url: weekExternalGuides.week1.url,
-        week1_external_file_url: weekExternalGuides.week1.fileUrl, week1_external_file_name: weekExternalGuides.week1.fileName,
-        week1_external_title: weekExternalGuides.week1.title,
-        week2_external_type: weekExternalGuides.week2.type, week2_external_url: weekExternalGuides.week2.url,
-        week2_external_file_url: weekExternalGuides.week2.fileUrl, week2_external_file_name: weekExternalGuides.week2.fileName,
-        week2_external_title: weekExternalGuides.week2.title,
-        week3_external_type: weekExternalGuides.week3.type, week3_external_url: weekExternalGuides.week3.url,
-        week3_external_file_url: weekExternalGuides.week3.fileUrl, week3_external_file_name: weekExternalGuides.week3.fileName,
-        week3_external_title: weekExternalGuides.week3.title,
-        week4_external_type: weekExternalGuides.week4.type, week4_external_url: weekExternalGuides.week4.url,
-        week4_external_file_url: weekExternalGuides.week4.fileUrl, week4_external_file_name: weekExternalGuides.week4.fileName,
-        week4_external_title: weekExternalGuides.week4.title
-      }
-
       // AI 모드 주차 수집 & AI 가이드 데이터 생성
       let aiGuides = {}
       try {
@@ -439,11 +420,42 @@ JSON 형식으로만 응답해주세요.`
         }
       }
 
-      updateData.challenge_weekly_guides_ai = JSON.stringify(aiGuides)
-      updateData.guide_generated_at = new Date().toISOString()
+      // 1단계: 핵심 데이터 저장
+      const coreData = {
+        brand: guideData.brand,
+        product_name: guideData.product_name,
+        product_features: guideData.product_features,
+        product_key_points: guideData.precautions,
+        challenge_guide_data: guideData,
+        challenge_weekly_guides: {
+          week1: { mission: guideData.week1.mission, required_dialogue: guideData.week1.required_dialogue, required_scenes: guideData.week1.required_scenes, reference: guideData.week1.reference_url },
+          week2: { mission: guideData.week2.mission, required_dialogue: guideData.week2.required_dialogue, required_scenes: guideData.week2.required_scenes, reference: guideData.week2.reference_url },
+          week3: { mission: guideData.week3.mission, required_dialogue: guideData.week3.required_dialogue, required_scenes: guideData.week3.required_scenes, reference: guideData.week3.reference_url },
+          week4: { mission: guideData.week4.mission, required_dialogue: guideData.week4.required_dialogue, required_scenes: guideData.week4.required_scenes, reference: guideData.week4.reference_url }
+        },
+        challenge_weekly_guides_ai: JSON.stringify(aiGuides),
+        guide_generated_at: new Date().toISOString()
+      }
 
-      const { error } = await client.from('campaigns').update(updateData).eq('id', id)
+      const { error } = await client.from('campaigns').update(coreData).eq('id', id)
       if (error) throw error
+
+      // 2단계: 주차별 확장 컬럼 저장 (없을 수 있음)
+      try {
+        const extData = {}
+        for (let n = 1; n <= 4; n++) {
+          const wk = `week${n}`
+          extData[`${wk}_guide_mode`] = weekGuideModes[wk]
+          extData[`${wk}_external_type`] = weekExternalGuides[wk].type
+          extData[`${wk}_external_url`] = weekExternalGuides[wk].url
+          extData[`${wk}_external_file_url`] = weekExternalGuides[wk].fileUrl
+          extData[`${wk}_external_file_name`] = weekExternalGuides[wk].fileName
+          extData[`${wk}_external_title`] = weekExternalGuides[wk].title
+        }
+        await client.from('campaigns').update(extData).eq('id', id)
+      } catch (e) {
+        console.warn('주차별 확장 컬럼 저장 실패 (SQL 마이그레이션 필요):', e)
+      }
 
       alert('✅ 가이드가 저장되었습니다! 견적서를 확인하세요.')
       navigate(`/company/campaigns/payment?id=${id}`)

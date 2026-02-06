@@ -397,12 +397,12 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+      <div className="bg-white sm:rounded-lg w-full max-w-4xl h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
-          <h2 className="text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h2>
-          <div className="flex items-center gap-2">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
+          <h2 className="text-base sm:text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h2>
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Language toggle for US/Japan */}
             {(isUS || isJapan) && hasTranslation && !isEditing && (
               <div className="flex items-center bg-white border rounded-lg overflow-hidden text-xs">
@@ -469,7 +469,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         </div>
 
         {/* 주차 탭 */}
-        <div className="flex gap-2 px-6 pt-4 border-b bg-white">
+        <div className="flex gap-1 sm:gap-2 px-3 sm:px-6 pt-3 sm:pt-4 border-b bg-white overflow-x-auto">
           {[
             { key: 'week1', label: '1주차', labelEn: 'Week 1', labelJa: '1週目' },
             { key: 'week2', label: '2주차', labelEn: 'Week 2', labelJa: '2週目' },
@@ -498,7 +498,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     setActiveWeek(week.key)
                   }
                 }}
-                className={`px-6 py-3 font-medium text-sm transition-all flex items-center gap-1.5 ${
+                className={`px-3 sm:px-6 py-2 sm:py-3 font-medium text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                   activeWeek === week.key
                     ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -516,7 +516,7 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         </div>
 
         {/* 가이드 내용 */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {/* 마감일 표시 */}
           {currentDeadline && (
             <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
@@ -708,6 +708,27 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                   ) : (
                     /* Korean / default view */
                     <>
+                      {/* 미션 미작성 안내 + 수정 버튼 */}
+                      {!mission && !isEditing && (
+                        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                          <div className="flex-1">
+                            <p className="font-bold text-amber-900 text-sm">
+                              {isUS ? `Week ${activeWeek.replace('week', '')} mission not written` : isJapan ? `${activeWeek.replace('week', '')}週目のミッション未作成` : `${activeWeek.replace('week', '')}주차 미션이 작성되지 않았습니다`}
+                            </p>
+                            <p className="text-xs text-amber-700 mt-0.5">
+                              {isUS ? 'Click edit to add mission, required lines, and scenes.' : isJapan ? '編集をクリックしてミッション等を追加してください。' : '수정하기를 눌러 미션, 필수 대사, 필수 장면을 추가하세요.'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleEdit}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm whitespace-nowrap"
+                          >
+                            <Edit className="w-4 h-4" />
+                            {isUS ? 'Edit' : isJapan ? '編集' : '수정하기'}
+                          </button>
+                        </div>
+                      )}
+
                       {productInfo && (
                         <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
                           <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
@@ -870,11 +891,45 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
           )}
         </div>
 
-        {/* 하단 버튼 */}
-        <div className="px-6 py-4 border-t bg-gray-50">
+        {/* 하단: 미작성 주차 바로가기 + 닫기 */}
+        <div className="px-4 py-3 border-t bg-gray-50 space-y-2">
+          {/* 미작성 주차 가이드 작성 바로가기 */}
+          {(() => {
+            const emptyWeeks = ['week1','week2','week3','week4'].filter(wk => {
+              const wd = weeklyGuides[wk]
+              const ext = getExternalGuide(wk)
+              return !ext && !(wd && (wd.mission || wd.guide_text || (wd.required_dialogues && wd.required_dialogues.length > 0)))
+            })
+            if (emptyWeeks.length === 0) return null
+            return (
+              <div className="flex flex-wrap gap-1.5">
+                {emptyWeeks.map(wk => {
+                  const weekNum = wk.replace('week', '')
+                  return (
+                    <button
+                      key={wk}
+                      onClick={() => {
+                        const guidePath = isJapan
+                          ? `/company/campaigns/guide/4week/japan?id=${campaign.id}`
+                          : isUS
+                          ? `/company/campaigns/guide/4week/us?id=${campaign.id}`
+                          : `/company/campaigns/guide/4week?id=${campaign.id}`
+                        onClose()
+                        navigate(guidePath)
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs font-medium"
+                    >
+                      <PenLine className="w-3 h-3" />
+                      {isUS ? `Write Week ${weekNum}` : isJapan ? `${weekNum}週目を作成` : `${weekNum}주차 작성하기`}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })()}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
           >
             {isUS ? 'Close' : isJapan ? '閉じる' : '닫기'}
           </button>
