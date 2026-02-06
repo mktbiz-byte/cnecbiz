@@ -129,6 +129,25 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS week2_partnership_code TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS week3_partnership_code TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS week4_partnership_code TEXT;
 
+-- =====================================================
+-- campaign_applications 테이블 - 가이드 전달 컬럼들
+-- =====================================================
+
+-- 기획형 가이드 전달
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS google_drive_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS google_slides_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS drive_provided_at TIMESTAMPTZ;
+
+-- 4주 챌린지 주차별 가이드 전달
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week1_guide_drive_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week1_guide_slides_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week2_guide_drive_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week2_guide_slides_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week3_guide_drive_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week3_guide_slides_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week4_guide_drive_url TEXT;
+ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week4_guide_slides_url TEXT;
+
 -- 완료 메시지
 DO $$
 BEGIN
@@ -138,4 +157,5 @@ BEGIN
   RAISE NOTICE '📹 Added shooting scenes checkbox columns';
   RAISE NOTICE '🎯 Added 4-week challenge guide columns';
   RAISE NOTICE '📋 Added applications video/channel columns';
+  RAISE NOTICE '📖 Added campaign_applications guide delivery columns';
 END $$;
