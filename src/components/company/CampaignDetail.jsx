@@ -1708,7 +1708,81 @@ export default function CampaignDetail() {
         }
       }
 
-      // 5. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      // 5. Fallback: video_submissions에 데이터가 없으면 applications 테이블에서 영상 데이터 가져오기
+      // (video_submissions 테이블이 없었을 때 업로드된 영상을 표시하기 위함)
+      if (allVideoSubmissions.length === 0) {
+        console.log('video_submissions 비어있음 → applications 테이블에서 영상 데이터 fallback 조회')
+
+        const fallbackFromApps = async (client, dbName) => {
+          if (!client) return []
+          try {
+            const { data: apps, error: appError } = await client
+              .from('applications')
+              .select('id, campaign_id, user_id, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_url, sns_upload_url, ad_code, partnership_code, final_confirmed_at, main_channel, week1_url, week2_url, week3_url, week4_url')
+              .eq('campaign_id', id)
+              .not('video_file_url', 'is', null)
+
+            if (appError) {
+              console.error(`${dbName} applications fallback error:`, appError)
+              return []
+            }
+            if (apps && apps.length > 0) {
+              console.log(`${dbName} applications fallback: found ${apps.length} records with video`)
+              return apps.map(app => ({
+                id: `app_${app.id}`,
+                campaign_id: app.campaign_id,
+                application_id: app.id,
+                user_id: app.user_id,
+                video_number: 1,
+                week_number: null,
+                version: 1,
+                video_file_url: app.video_file_url,
+                video_file_name: app.video_file_name,
+                video_file_size: app.video_file_size,
+                clean_video_url: app.clean_video_file_url || app.clean_video_url,
+                sns_upload_url: app.sns_upload_url,
+                ad_code: app.ad_code,
+                partnership_code: app.partnership_code,
+                status: app.final_confirmed_at ? 'confirmed' : 'submitted',
+                final_confirmed_at: app.final_confirmed_at,
+                submitted_at: app.video_uploaded_at || new Date().toISOString(),
+                updated_at: app.video_uploaded_at || new Date().toISOString(),
+                created_at: app.video_uploaded_at || new Date().toISOString(),
+                _from_applications: true
+              }))
+            }
+            return []
+          } catch (e) {
+            console.error(`${dbName} applications fallback exception:`, e)
+            return []
+          }
+        }
+
+        // Japan, US, Korea, BIZ 순서로 fallback 조회
+        const [japanApps, usApps, koreaApps, bizApps] = await Promise.all([
+          fallbackFromApps(supabaseJapan, 'Japan'),
+          fallbackFromApps(supabaseUS, 'US'),
+          fallbackFromApps(supabaseKorea, 'Korea'),
+          fallbackFromApps(supabaseBiz, 'BIZ')
+        ])
+
+        // 중복 제외하며 병합
+        const seenUserIds = new Set()
+        ;[japanApps, usApps, koreaApps, bizApps].forEach(apps => {
+          apps.forEach(app => {
+            if (!seenUserIds.has(app.user_id)) {
+              seenUserIds.add(app.user_id)
+              allVideoSubmissions.push(app)
+            }
+          })
+        })
+
+        if (allVideoSubmissions.length > 0) {
+          console.log('Applications fallback total:', allVideoSubmissions.length)
+        }
+      }
+
+      // 6. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
       const videoMap = new Map()
       allVideoSubmissions.forEach(sub => {
         const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
