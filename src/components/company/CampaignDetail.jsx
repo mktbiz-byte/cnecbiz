@@ -13894,7 +13894,7 @@ Questions? Contact us.
                   const isOYBulk = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
                   const isMegawariBulk = region === 'japan' && campaign?.campaign_type === 'megawari'
 
-                  // 4주 챌린지 / 올영 / 메가와리: 캠페인 레벨 가이드 전달 (per-creator AI 생성 아님)
+                  // 4주 챌린지 / 올영 / 메가와리: 캠페인 레벨 가이드
                   if (is4WeekBulk || isOYBulk || isMegawariBulk) {
                     const guideLabel = is4WeekBulk ? '4주 챌린지' : isMegawariBulk ? 'メガ割' : '올영 세일'
                     const hasGuideData = is4WeekBulk
@@ -13903,44 +13903,85 @@ Questions? Contact us.
                       : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
                     return (
-                      <button
-                        onClick={() => {
-                          setShowBulkGuideModal(false)
-                          if (!hasGuideData) {
-                            const guidePath = is4WeekBulk
-                              ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
-                              : isMegawariBulk
-                                ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
-                                : `/company/campaigns/guide/oliveyoung?id=${id}`
-                            if (confirm(`${guideLabel} 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?`)) {
-                              navigate(guidePath)
+                      <>
+                        {/* 4주 챌린지: AI 가이드 생성 페이지로 이동 */}
+                        {is4WeekBulk && (
+                          <button
+                            onClick={() => {
+                              setShowBulkGuideModal(false)
+                              if (!hasGuideData) {
+                                const guidePath = region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`
+                                if (confirm('4주 챌린지 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?')) {
+                                  navigate(guidePath)
+                                }
+                                return
+                              }
+                              navigate(`/company/campaigns/guide/4week/final?id=${id}&region=${region || 'korea'}`)
+                            }}
+                            className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                <Sparkles className="w-6 h-6 text-purple-600" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                                <p className="text-sm text-gray-500">
+                                  {hasGuideData
+                                    ? '주차별로 크리에이터 맞춤 AI 가이드를 생성합니다'
+                                    : '가이드가 아직 설정되지 않았습니다. 클릭하면 설정 페이지로 이동합니다'}
+                                </p>
+                                {hasGuideData && (
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    ※ 가이드 생성 페이지에서 주차별 생성 및 발송 가능
+                                  </p>
+                                )}
+                              </div>
+                              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                            </div>
+                          </button>
+                        )}
+
+                        {/* 가이드 전달 (원본 데이터 직접 전달 - 상태 변경 + 알림 발송) */}
+                        <button
+                          onClick={() => {
+                            setShowBulkGuideModal(false)
+                            if (!hasGuideData) {
+                              const guidePath = is4WeekBulk
+                                ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                                : isMegawariBulk
+                                  ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                                  : `/company/campaigns/guide/oliveyoung?id=${id}`
+                              if (confirm(`${guideLabel} 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?`)) {
+                                navigate(guidePath)
+                              }
+                              return
                             }
-                            return
-                          }
-                          handleDeliverOliveYoung4WeekGuide()
-                        }}
-                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                            <Send className="w-6 h-6 text-purple-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-bold text-gray-900">{guideLabel} 가이드 전달</h3>
-                            <p className="text-sm text-gray-500">
-                              {hasGuideData
-                                ? `선택된 크리에이터에게 ${guideLabel} 가이드를 전달하고 알림을 발송합니다`
-                                : `가이드가 아직 설정되지 않았습니다. 클릭하면 설정 페이지로 이동합니다`}
-                            </p>
-                            {hasGuideData && (
-                              <p className="text-xs text-purple-600 mt-1">
-                                ※ 크리에이터 상태가 '촬영중'으로 변경되고 알림이 발송됩니다
+                            handleDeliverOliveYoung4WeekGuide()
+                          }}
+                          className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                              <Send className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-900">{guideLabel} 가이드 전달</h3>
+                              <p className="text-sm text-gray-500">
+                                {hasGuideData
+                                  ? `선택된 크리에이터에게 ${guideLabel} 가이드를 전달하고 알림을 발송합니다`
+                                  : `가이드가 아직 설정되지 않았습니다. 클릭하면 설정 페이지로 이동합니다`}
                               </p>
-                            )}
+                              {hasGuideData && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  ※ 크리에이터 상태가 '촬영중'으로 변경되고 알림이 발송됩니다
+                                </p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
-                        </div>
-                      </button>
+                        </button>
+                      </>
                     )
                   }
 
