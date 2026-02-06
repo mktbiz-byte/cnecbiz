@@ -23,6 +23,8 @@ export default function CampaignGuide4WeekChallengeUS() {
   const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
   const [isTranslating, setIsTranslating] = useState(false)
   const [translatingWeek, setTranslatingWeek] = useState(null)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [generatingAIWeek, setGeneratingAIWeek] = useState(null)
 
   // 주차별 가이드 전달 완료 상태
   const [weekGuideDelivered, setWeekGuideDelivered] = useState({
@@ -85,9 +87,20 @@ export default function CampaignGuide4WeekChallengeUS() {
       if (error) throw error
       setCampaign(data)
 
-      // 기존 데이터가 있으면 로드
+      // 기존 데이터가 있으면 로드 (week 키가 없을 수 있으므로 기본값 병합)
+      const defaultWeek = { mission: '', required_dialogue: '', required_scenes: '', reference_url: '' }
       if (data.challenge_guide_data) {
-        setGuideData(data.challenge_guide_data)
+        const loaded = data.challenge_guide_data
+        setGuideData({
+          brand: loaded.brand || '',
+          product_name: loaded.product_name || '',
+          product_features: loaded.product_features || '',
+          precautions: loaded.precautions || '',
+          week1: { ...defaultWeek, ...loaded.week1 },
+          week2: { ...defaultWeek, ...loaded.week2 },
+          week3: { ...defaultWeek, ...loaded.week3 },
+          week4: { ...defaultWeek, ...loaded.week4 }
+        })
       } else if (data.challenge_base_guide || data.challenge_weekly_guides) {
         const oldWeeklyGuides = data.challenge_weekly_guides || {}
         setGuideData({
@@ -128,9 +141,20 @@ export default function CampaignGuide4WeekChallengeUS() {
         }))
       }
 
-      // 영어 번역 데이터 로드
+      // 영어 번역 데이터 로드 (week 키 기본값 병합)
+      const defaultWeekEn = { mission: '', required_dialogue: '', required_scenes: '' }
       if (data.challenge_guide_data_en) {
-        setGuideDataEn(data.challenge_guide_data_en)
+        const loadedEn = data.challenge_guide_data_en
+        setGuideDataEn({
+          brand: loadedEn.brand || '',
+          product_name: loadedEn.product_name || '',
+          product_features: loadedEn.product_features || '',
+          precautions: loadedEn.precautions || '',
+          week1: { ...defaultWeekEn, ...loadedEn.week1 },
+          week2: { ...defaultWeekEn, ...loadedEn.week2 },
+          week3: { ...defaultWeekEn, ...loadedEn.week3 },
+          week4: { ...defaultWeekEn, ...loadedEn.week4 }
+        })
       }
 
       // 주차별 가이드 모드 및 외부 가이드 데이터 로드
@@ -288,6 +312,101 @@ ${textToTranslate}`
     } finally {
       setIsTranslating(false)
       setTranslatingWeek(null)
+    }
+  }
+
+  // AI 가이드 자동 생성 (주차별)
+  const handleGenerateAIGuide = async (weekNum) => {
+    if (!guideData.brand && !guideData.product_name) {
+      alert('제품 정보(브랜드명, 제품명)를 먼저 입력해주세요.')
+      return
+    }
+
+    setIsGeneratingAI(true)
+    setGeneratingAIWeek(weekNum)
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다.')
+
+      const weekKey = `week${weekNum}`
+      const existingMission = guideData[weekKey]?.mission || ''
+
+      const prompt = `You are a 4-week challenge campaign guide expert for US beauty/fashion/lifestyle creators.
+
+Based on the product info and Week ${weekNum} mission below, create a complete creator filming guide.
+
+**Product Info:**
+- Brand: ${guideData.brand || 'TBD'}
+- Product Name: ${guideData.product_name || 'TBD'}
+- Product Features: ${guideData.product_features || 'TBD'}
+- Precautions: ${guideData.precautions || 'TBD'}
+
+${existingMission ? `**Week ${weekNum} Mission Outline (expand on this):**\n${existingMission}` : `**Week ${weekNum}:** Generate a suitable week ${weekNum} mission for this product.`}
+
+**Requirements:**
+1. Write a clear mission for Week ${weekNum}
+2. Write 3-5 required dialogues (key phrases the creator MUST say)
+3. Write 3-5 required scenes (scenes that MUST be filmed)
+4. All content in Korean (한국어)
+
+**Response format (JSON only):**
+{
+  "mission": "주차 미션 설명 (한국어)",
+  "required_dialogues": "1. 첫번째 필수 대사\\n2. 두번째 필수 대사\\n3. 세번째 필수 대사",
+  "required_scenes": "1. 첫번째 필수 장면\\n2. 두번째 필수 장면\\n3. 세번째 필수 장면"
+}
+
+Respond with JSON only.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
+              responseMimeType: 'application/json'
+            }
+          })
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`AI 생성 실패: ${errorData.error?.message || response.statusText}`)
+      }
+
+      const result = await response.json()
+      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('AI 응답이 올바르지 않습니다.')
+      }
+
+      const generated = JSON.parse(result.candidates[0].content.parts[0].text)
+
+      // 한국어 가이드 데이터 업데이트
+      setGuideData(prev => ({
+        ...prev,
+        [weekKey]: {
+          ...prev[weekKey],
+          mission: generated.mission || prev[weekKey]?.mission || '',
+          required_dialogue: generated.required_dialogues || generated.required_dialogue || '',
+          required_scenes: generated.required_scenes || generated.required_scene || ''
+        }
+      }))
+
+      alert(`✅ ${weekNum}주차 AI 가이드가 생성되었습니다! 내용을 확인 후 영어 번역을 진행하세요.`)
+    } catch (error) {
+      console.error('AI 가이드 생성 오류:', error)
+      alert('AI 가이드 생성 실패: ' + error.message)
+    } finally {
+      setIsGeneratingAI(false)
+      setGeneratingAIWeek(null)
     }
   }
 
@@ -895,6 +1014,29 @@ ${textToTranslate}`
                               />
                             ) : (
                               <>
+                                {/* AI 가이드 자동 생성 버튼 */}
+                                <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-xs font-bold text-purple-900">🤖 AI 가이드 자동 생성</p>
+                                      <p className="text-[10px] text-purple-600 mt-0.5">제품 정보를 기반으로 미션/필수대사/필수장면을 자동 생성합니다</p>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => handleGenerateAIGuide(weekNum)}
+                                      disabled={isGeneratingAI}
+                                      className="bg-purple-600 hover:bg-purple-700 text-white text-xs h-8"
+                                    >
+                                      {isGeneratingAI && generatingAIWeek === weekNum ? (
+                                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" />생성 중...</>
+                                      ) : (
+                                        <><Sparkles className="w-3 h-3 mr-1" />{weekNum}주차 AI 생성</>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+
                                 <div>
                                   <div className="flex items-center justify-between mb-1">
                                     <label className="text-sm font-semibold">{weekNum}주차 미션 <span className="text-red-500">*</span></label>

@@ -85,9 +85,20 @@ export default function CampaignGuide4WeekChallengeJapan() {
       if (error) throw error
       setCampaign(data)
 
-      // 기존 데이터가 있으면 로드
+      // 기존 데이터가 있으면 로드 (week 키가 없을 수 있으므로 기본값 병합)
+      const defaultWeek = { mission: '', required_dialogue: '', required_scenes: '', reference_url: '' }
       if (data.challenge_guide_data) {
-        setGuideData(data.challenge_guide_data)
+        const loaded = data.challenge_guide_data
+        setGuideData({
+          brand: loaded.brand || '',
+          product_name: loaded.product_name || '',
+          product_features: loaded.product_features || '',
+          precautions: loaded.precautions || '',
+          week1: { ...defaultWeek, ...loaded.week1 },
+          week2: { ...defaultWeek, ...loaded.week2 },
+          week3: { ...defaultWeek, ...loaded.week3 },
+          week4: { ...defaultWeek, ...loaded.week4 }
+        })
       } else if (data.challenge_base_guide || data.challenge_weekly_guides) {
         const oldWeeklyGuides = data.challenge_weekly_guides || {}
         setGuideData({
@@ -128,9 +139,20 @@ export default function CampaignGuide4WeekChallengeJapan() {
         }))
       }
 
-      // 일본어 번역 데이터 로드
+      // 일본어 번역 데이터 로드 (week 키 기본값 병합)
+      const defaultWeekJa = { mission: '', required_dialogue: '', required_scenes: '' }
       if (data.challenge_guide_data_ja) {
-        setGuideDataJa(data.challenge_guide_data_ja)
+        const loadedJa = data.challenge_guide_data_ja
+        setGuideDataJa({
+          brand: loadedJa.brand || '',
+          product_name: loadedJa.product_name || '',
+          product_features: loadedJa.product_features || '',
+          precautions: loadedJa.precautions || '',
+          week1: { ...defaultWeekJa, ...loadedJa.week1 },
+          week2: { ...defaultWeekJa, ...loadedJa.week2 },
+          week3: { ...defaultWeekJa, ...loadedJa.week3 },
+          week4: { ...defaultWeekJa, ...loadedJa.week4 }
+        })
       }
 
       // 주차별 가이드 모드 및 외부 가이드 데이터 로드
