@@ -304,7 +304,10 @@ export default function VideoReview() {
 
       // Get submission data from region-specific client
       const client = getRegionClient()
-      const { data, error } = await client
+
+      // Try with join first, fallback to simple query if FK relationship doesn't exist
+      let data = null
+      const { data: joinData, error: joinError } = await client
         .from('video_submissions')
         .select(`
           *,
@@ -321,15 +324,55 @@ export default function VideoReview() {
         .eq('id', submissionId)
         .single()
 
-      if (error) throw error
+      if (joinError) {
+        console.log('Join query failed, trying simple query:', joinError.message)
+        // Fallback: query without join (for Japan/US where FK may not exist)
+        const { data: simpleData, error: simpleError } = await client
+          .from('video_submissions')
+          .select('*')
+          .eq('id', submissionId)
+          .single()
 
-      // Authorization check removed - handled by RLS policies
-      // Company users can access videos for their campaigns
+        if (simpleError) throw simpleError
+        data = simpleData
+      } else {
+        data = joinData
+      }
 
       setSubmission(data)
 
-      // Use public URL directly since bucket is now public
-      setSignedVideoUrl(data.video_file_url)
+      // Generate signed URL for the video
+      if (data.video_file_url) {
+        try {
+          const url = new URL(data.video_file_url)
+          let pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+          let bucketName = 'campaign-videos'
+
+          if (!pathMatch) {
+            pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/videos\/(.+)$/)
+            bucketName = 'videos'
+          }
+
+          if (pathMatch) {
+            const filePath = pathMatch[1]
+            const { data: signedData, error: signedError } = await client.storage
+              .from(bucketName)
+              .createSignedUrl(filePath, 18000)
+
+            if (!signedError && signedData?.signedUrl) {
+              setSignedVideoUrl(signedData.signedUrl)
+            } else {
+              console.log('Signed URL failed, using public URL:', signedError?.message)
+              setSignedVideoUrl(data.video_file_url)
+            }
+          } else {
+            setSignedVideoUrl(data.video_file_url)
+          }
+        } catch (urlError) {
+          console.log('URL parsing failed, using direct URL')
+          setSignedVideoUrl(data.video_file_url)
+        }
+      }
     } catch (error) {
       console.error('Error loading submission:', error)
       alert('영상을 불러올 수 없습니다.')
@@ -341,31 +384,72 @@ export default function VideoReview() {
   const loadComments = async () => {
     try {
       const client = getRegionClient()
+
+      // Try region DB first, fallback to BIZ DB if table doesn't exist
+      let commentsData = null
       const { data, error } = await client
         .from('video_review_comments')
         .select('*')
         .eq('submission_id', submissionId)
         .order('timestamp', { ascending: true })
 
-      if (error) throw error
-      setComments(data || [])
+      if (error) {
+        // Table might not exist in this region's DB (e.g., Japan)
+        if (error.code === 'PGRST204' || error.code === '42P01' || error.message?.includes('not find the table')) {
+          console.log(`video_review_comments table not found in ${region} DB, trying BIZ DB`)
+          const { data: bizData, error: bizError } = await supabaseBiz
+            .from('video_review_comments')
+            .select('*')
+            .eq('submission_id', submissionId)
+            .order('timestamp', { ascending: true })
+
+          if (bizError) {
+            console.log('BIZ DB video_review_comments also failed:', bizError.message)
+            setComments([])
+            return
+          }
+          commentsData = bizData
+        } else {
+          console.error('Error loading comments:', error)
+          setComments([])
+          return
+        }
+      } else {
+        commentsData = data
+      }
+
+      setComments(commentsData || [])
 
       // Auto-translate comments for Japan/US regions
-      if (data && data.length > 0 && (region === 'japan' || region === 'us')) {
-        translateAllComments(data)
+      if (commentsData && commentsData.length > 0 && (region === 'japan' || region === 'us')) {
+        translateAllComments(commentsData)
       }
 
       // Load replies for all comments
-      if (data && data.length > 0) {
-        const commentIds = data.map(c => c.id)
+      if (commentsData && commentsData.length > 0) {
+        const commentIds = commentsData.map(c => c.id)
+
+        // Try same client that worked for comments, then BIZ fallback
+        let repliesResult = null
         const { data: repliesData, error: repliesError } = await client
           .from('video_review_comment_replies')
           .select('*')
           .in('comment_id', commentIds)
           .order('created_at', { ascending: true })
 
-        if (!repliesError && repliesData) {
-          const repliesByComment = repliesData.reduce((acc, reply) => {
+        if (repliesError) {
+          const { data: bizReplies } = await supabaseBiz
+            .from('video_review_comment_replies')
+            .select('*')
+            .in('comment_id', commentIds)
+            .order('created_at', { ascending: true })
+          repliesResult = bizReplies
+        } else {
+          repliesResult = repliesData
+        }
+
+        if (repliesResult) {
+          const repliesByComment = repliesResult.reduce((acc, reply) => {
             if (!acc[reply.comment_id]) acc[reply.comment_id] = []
             acc[reply.comment_id].push(reply)
             return acc
