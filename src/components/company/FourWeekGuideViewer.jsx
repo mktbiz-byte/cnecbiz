@@ -40,11 +40,16 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
   // Parse and merge challenge_weekly_guides and challenge_weekly_guides_ai
   const parseWeeklyGuides = () => {
-    const aiGuides = campaign.challenge_weekly_guides_ai
-      ? (typeof campaign.challenge_weekly_guides_ai === 'string'
-          ? JSON.parse(campaign.challenge_weekly_guides_ai)
-          : campaign.challenge_weekly_guides_ai)
-      : null
+    let aiGuides = null
+    try {
+      aiGuides = campaign.challenge_weekly_guides_ai
+        ? (typeof campaign.challenge_weekly_guides_ai === 'string'
+            ? JSON.parse(campaign.challenge_weekly_guides_ai)
+            : campaign.challenge_weekly_guides_ai)
+        : null
+    } catch (e) {
+      console.error('[FourWeekGuideViewer] challenge_weekly_guides_ai JSON parse error:', e)
+    }
     const oldGuides = campaign.challenge_weekly_guides || {}
 
     // 원본 데이터를 배열로 변환하는 헬퍼 함수
@@ -236,9 +241,13 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         }
       }
 
+      // challenge_weekly_guides_ai is a TEXT column, so stringify the object
       const { error } = await supabase
         .from('campaigns')
-        .update({ challenge_weekly_guides_ai: updatedGuides })
+        .update({
+          challenge_weekly_guides_ai: JSON.stringify(updatedGuides),
+          challenge_weekly_guides: updatedGuides
+        })
         .eq('id', campaign.id)
 
       if (error) throw error

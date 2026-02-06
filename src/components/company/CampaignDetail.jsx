@@ -5972,29 +5972,33 @@ Questions? Contact us.
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-1" />
-                    가이드 전체 생성
+                    {(campaign?.campaign_type === '4week_challenge' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign?.campaign_type === 'megawari'))
+                      ? '가이드 전달'
+                      : '가이드 전체 생성'}
                   </>
                 )}
               </Button>
-              {/* 가이드 전체 발송 버튼 (생성된 가이드를 선택된 크리에이터에게 이메일 발송) */}
-              <Button
-                onClick={() => handleBulkGuideDelivery('ai')}
-                disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm"
-                size="sm"
-              >
-                {sendingBulkGuideEmail ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    발송 중...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4 mr-1" />
-                    가이드 전체 발송
-                  </>
-                )}
-              </Button>
+              {/* 가이드 전체 발송 버튼 - 기획형에서만 표시 (4주/올영/메가와리는 가이드 전달 버튼에서 통합 처리) */}
+              {campaign?.campaign_type !== '4week_challenge' && campaign?.campaign_type !== 'oliveyoung' && campaign?.campaign_type !== 'oliveyoung_sale' && !(region === 'japan' && campaign?.campaign_type === 'megawari') && (
+                <Button
+                  onClick={() => handleBulkGuideDelivery('ai')}
+                  disabled={sendingBulkGuideEmail || isGeneratingBulkGuides}
+                  className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                  size="sm"
+                >
+                  {sendingBulkGuideEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      발송 중...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-1" />
+                      가이드 전체 발송
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -6444,9 +6448,17 @@ Questions? Contact us.
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
+                                  // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
+                                  let _parsedAiWeek = null
+                                  try {
+                                    const _aiRaw = campaign.challenge_weekly_guides_ai
+                                    _parsedAiWeek = _aiRaw
+                                      ? (typeof _aiRaw === 'string' ? JSON.parse(_aiRaw) : _aiRaw)?.[weekKey]
+                                      : null
+                                  } catch (e) { /* ignore */ }
                                   const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
                                                        campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       _parsedAiWeek ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   const isDelivered = participant[`${weekKey}_guide_delivered`]
@@ -8567,9 +8579,17 @@ Questions? Contact us.
                                 <span className="text-xs text-purple-700 font-medium">주차별:</span>
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
+                                  // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
+                                  let _parsedAiWeek2 = null
+                                  try {
+                                    const _aiRaw2 = campaign.challenge_weekly_guides_ai
+                                    _parsedAiWeek2 = _aiRaw2
+                                      ? (typeof _aiRaw2 === 'string' ? JSON.parse(_aiRaw2) : _aiRaw2)?.[weekKey]
+                                      : null
+                                  } catch (e) { /* ignore */ }
                                   const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
                                                        campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       _parsedAiWeek2 ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   return (
@@ -13869,62 +13889,123 @@ Questions? Contact us.
             <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {/* 방법 선택 */}
               <div className="space-y-3">
-                {/* Option 1: AI 가이드 생성 */}
-                <button
-                  onClick={() => {
-                    setShowBulkGuideModal(false)
-                    handleBulkGuideGeneration()
-                  }}
-                  disabled={isGeneratingBulkGuides}
-                  className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <Sparkles className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
-                      <p className="text-sm text-gray-500">
-                        크리에이터별 맞춤 AI 가이드를 자동 생성합니다
-                      </p>
-                      <p className="text-xs text-purple-600 mt-1">
-                        ※ 생성 완료 후 개별적으로 발송할 수 있습니다
-                      </p>
-                    </div>
-                    {isGeneratingBulkGuides ? (
-                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
-                    )}
-                  </div>
-                </button>
+                {(() => {
+                  const is4WeekBulk = campaign?.campaign_type === '4week_challenge'
+                  const isOYBulk = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+                  const isMegawariBulk = region === 'japan' && campaign?.campaign_type === 'megawari'
 
-                {/* Option 2: AI 가이드 발송 (이미 생성된 가이드) */}
-                <button
-                  onClick={() => handleBulkGuideDelivery('ai')}
-                  disabled={sendingBulkGuideEmail}
-                  className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                      <Mail className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
-                      <p className="text-sm text-gray-500">
-                        이미 생성된 AI 가이드를 크리에이터에게 발송합니다
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        ※ 가이드가 생성된 크리에이터에게만 발송됩니다
-                      </p>
-                    </div>
-                    {sendingBulkGuideEmail ? (
-                      <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
-                    )}
-                  </div>
-                </button>
+                  // 4주 챌린지 / 올영 / 메가와리: 캠페인 레벨 가이드 전달 (per-creator AI 생성 아님)
+                  if (is4WeekBulk || isOYBulk || isMegawariBulk) {
+                    const guideLabel = is4WeekBulk ? '4주 챌린지' : isMegawariBulk ? 'メガ割' : '올영 세일'
+                    const hasGuideData = is4WeekBulk
+                      ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai ||
+                         campaign?.challenge_guide_data_ja || campaign?.challenge_guide_data_en)
+                      : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
+
+                    return (
+                      <button
+                        onClick={() => {
+                          setShowBulkGuideModal(false)
+                          if (!hasGuideData) {
+                            const guidePath = is4WeekBulk
+                              ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                              : isMegawariBulk
+                                ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                                : `/company/campaigns/guide/oliveyoung?id=${id}`
+                            if (confirm(`${guideLabel} 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?`)) {
+                              navigate(guidePath)
+                            }
+                            return
+                          }
+                          handleDeliverOliveYoung4WeekGuide()
+                        }}
+                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                            <Send className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">{guideLabel} 가이드 전달</h3>
+                            <p className="text-sm text-gray-500">
+                              {hasGuideData
+                                ? `선택된 크리에이터에게 ${guideLabel} 가이드를 전달하고 알림을 발송합니다`
+                                : `가이드가 아직 설정되지 않았습니다. 클릭하면 설정 페이지로 이동합니다`}
+                            </p>
+                            {hasGuideData && (
+                              <p className="text-xs text-purple-600 mt-1">
+                                ※ 크리에이터 상태가 '촬영중'으로 변경되고 알림이 발송됩니다
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                        </div>
+                      </button>
+                    )
+                  }
+
+                  // 기획형: AI 가이드 생성 + 발송 분리
+                  return (
+                    <>
+                      {/* Option 1: AI 가이드 생성 */}
+                      <button
+                        onClick={() => {
+                          setShowBulkGuideModal(false)
+                          handleBulkGuideGeneration()
+                        }}
+                        disabled={isGeneratingBulkGuides}
+                        className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                            <Sparkles className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                            <p className="text-sm text-gray-500">
+                              크리에이터별 맞춤 AI 가이드를 자동 생성합니다
+                            </p>
+                            <p className="text-xs text-purple-600 mt-1">
+                              ※ 생성 완료 후 개별적으로 발송할 수 있습니다
+                            </p>
+                          </div>
+                          {isGeneratingBulkGuides ? (
+                            <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Option 2: AI 가이드 발송 (이미 생성된 가이드) */}
+                      <button
+                        onClick={() => handleBulkGuideDelivery('ai')}
+                        disabled={sendingBulkGuideEmail}
+                        className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                            <Mail className="w-6 h-6 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900">AI 가이드 발송</h3>
+                            <p className="text-sm text-gray-500">
+                              이미 생성된 AI 가이드를 크리에이터에게 발송합니다
+                            </p>
+                            <p className="text-xs text-green-600 mt-1">
+                              ※ 가이드가 생성된 크리에이터에게만 발송됩니다
+                            </p>
+                          </div>
+                          {sendingBulkGuideEmail ? (
+                            <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600" />
+                          )}
+                        </div>
+                      </button>
+                    </>
+                  )
+                })()}
 
                 {/* Option 3: 외부 가이드 (PDF/URL) 발송 */}
                 <div className="border-2 border-blue-200 rounded-xl overflow-hidden">

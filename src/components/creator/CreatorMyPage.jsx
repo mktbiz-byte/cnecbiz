@@ -382,7 +382,17 @@ const CreatorMyPage = () => {
         step3: campaignData.oliveyoung_step3_guide || campaignData.oliveyoung_step3_guide_ai
       }
     } else if (campaignData.campaign_type === '4week_challenge') {
-      const weeklyGuides = campaignData.challenge_weekly_guides_ai || campaignData.challenge_weekly_guides
+      // challenge_weekly_guides_ai is TEXT column - needs JSON.parse
+      let weeklyGuides = null
+      try {
+        const rawAi = campaignData.challenge_weekly_guides_ai
+        weeklyGuides = rawAi
+          ? (typeof rawAi === 'string' ? JSON.parse(rawAi) : rawAi)
+          : null
+      } catch (e) {
+        console.error('challenge_weekly_guides_ai parse error:', e)
+      }
+      if (!weeklyGuides) weeklyGuides = campaignData.challenge_weekly_guides
       if (weeklyGuides && typeof weeklyGuides === 'object') {
         return weeklyGuides
       }
