@@ -148,6 +148,31 @@ ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week3_guide_slides_ur
 ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week4_guide_drive_url TEXT;
 ALTER TABLE campaign_applications ADD COLUMN IF NOT EXISTS week4_guide_slides_url TEXT;
 
+-- =====================================================
+-- video_submissions 테이블 생성 (없으면)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS video_submissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  campaign_id UUID REFERENCES campaigns(id),
+  application_id UUID,
+  user_id UUID,
+  video_number INTEGER DEFAULT 1,
+  week_number INTEGER,
+  version INTEGER DEFAULT 1,
+  video_file_url TEXT,
+  video_file_name TEXT,
+  video_file_size BIGINT,
+  clean_video_url TEXT,
+  sns_upload_url TEXT,
+  ad_code TEXT,
+  partnership_code TEXT,
+  status TEXT DEFAULT 'submitted',
+  final_confirmed_at TIMESTAMPTZ,
+  submitted_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 완료 메시지
 DO $$
 BEGIN
@@ -158,4 +183,5 @@ BEGIN
   RAISE NOTICE '🎯 Added 4-week challenge guide columns';
   RAISE NOTICE '📋 Added applications video/channel columns';
   RAISE NOTICE '📖 Added campaign_applications guide delivery columns';
+  RAISE NOTICE '🎬 Created video_submissions table';
 END $$;
