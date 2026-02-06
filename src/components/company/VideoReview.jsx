@@ -601,7 +601,7 @@ export default function VideoReview() {
         `${i + 1}. [${formatTime(c.timestamp)}] ${c.comment}`
       ).join('\n')
 
-      // 3. 일본/미국 리전: send-japan-notification으로 발송
+      // 3. 일본/미국 리전: 각 리전별 알림 함수로 발송
       if (region === 'japan' || region === 'us') {
         // 번역된 피드백 내용 생성
         let translatedFeedback = feedbackText
@@ -624,7 +624,15 @@ export default function VideoReview() {
           console.error('Translation failed, using original:', transErr)
         }
 
-        const notifRes = await fetch('/.netlify/functions/send-japan-notification', {
+        // 리전별 알림 함수 및 URL 선택
+        const notifFunction = region === 'japan'
+          ? 'send-japan-notification'
+          : 'send-us-notification'
+        const reviewUrl = region === 'japan'
+          ? `https://cnec.jp/creator/video-review/${submissionId}`
+          : `https://cnec.us/creator/video-review/${submissionId}`
+
+        const notifRes = await fetch(`/.netlify/functions/${notifFunction}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -638,7 +646,7 @@ export default function VideoReview() {
               feedbackCount: comments.length,
               feedback: translatedFeedback,
               submissionId,
-              reviewUrl: `https://cnec.jp/creator/video-review/${submissionId}`
+              reviewUrl
             }
           })
         })
