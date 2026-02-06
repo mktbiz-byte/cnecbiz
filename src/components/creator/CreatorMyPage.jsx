@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare, Key, Shield, EyeOff, Loader2 } from 'lucide-react'
 import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
@@ -55,7 +55,7 @@ const CreatorMyPage = () => {
   const loadMyCampaigns = async () => {
     try {
       setLoading(true)
-      
+
       // 내가 참여 중인 캠페인 목록 가져오기
       const { data: participants, error: participantsError } = await supabaseKorea
         .from('campaign_participants')
@@ -68,7 +68,45 @@ const CreatorMyPage = () => {
 
       if (participantsError) throw participantsError
 
-      setCampaigns(participants || [])
+      // applications 테이블에서 main_channel(업로드 플랫폼) 가져오기
+      let participantsWithChannel = participants || []
+      try {
+        const campaignIds = participantsWithChannel
+          .map(p => p.campaigns?.id)
+          .filter(Boolean)
+
+        if (campaignIds.length > 0) {
+          // Korea DB applications에서 먼저 조회
+          const { data: apps } = await supabaseKorea
+            .from('applications')
+            .select('campaign_id, main_channel, applicant_email, user_id')
+            .in('campaign_id', campaignIds)
+            .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
+
+          // BIZ DB에서도 조회 (fallback)
+          let bizApps = []
+          if (supabaseBiz) {
+            const { data: bApps } = await supabaseBiz
+              .from('applications')
+              .select('campaign_id, main_channel, applicant_email, user_id')
+              .in('campaign_id', campaignIds)
+              .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
+            bizApps = bApps || []
+          }
+
+          const allApps = [...(apps || []), ...bizApps]
+          if (allApps.length > 0) {
+            participantsWithChannel = participantsWithChannel.map(p => {
+              const app = allApps.find(a => a.campaign_id === p.campaigns?.id && a.main_channel)
+              return app ? { ...p, main_channel: app.main_channel } : p
+            })
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching main_channel:', e)
+      }
+
+      setCampaigns(participantsWithChannel)
     } catch (error) {
       console.error('Error loading campaigns:', error)
     } finally {
@@ -453,9 +491,26 @@ const CreatorMyPage = () => {
                   <div>
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{campaign.campaigns?.title}</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      캠페인 타입: {campaign.campaigns?.campaign_type === 'regular' ? '기획형' : 
+                      캠페인 타입: {campaign.campaigns?.campaign_type === 'regular' ? '기획형' :
                                    campaign.campaigns?.campaign_type === 'oliveyoung' ? '올영세일' : '4주 챌린지'}
                     </p>
+                    {/* 업로드 플랫폼 표시 */}
+                    {campaign.main_channel && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <span className="text-sm text-gray-500">업로드 플랫폼:</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          campaign.main_channel.toLowerCase() === 'instagram'
+                            ? 'bg-pink-100 text-pink-700'
+                            : campaign.main_channel.toLowerCase() === 'youtube'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {campaign.main_channel.toLowerCase() === 'instagram' && '📸 Instagram'}
+                          {campaign.main_channel.toLowerCase() === 'youtube' && '📺 YouTube'}
+                          {campaign.main_channel.toLowerCase() === 'tiktok' && '🎵 TikTok'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {getStatusBadge(campaign.video_status)}
                 </div>
