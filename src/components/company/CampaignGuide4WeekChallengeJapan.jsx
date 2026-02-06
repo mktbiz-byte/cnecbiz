@@ -441,17 +441,12 @@ ${existingWeeks}
 
     setSavingWeek(weekNum)
     try {
-      const updateData = {
+      // Step 1: Core data (must succeed)
+      const coreData = {
         brand: guideData.brand, product_name: guideData.product_name,
         product_features: guideData.product_features, product_key_points: guideData.precautions,
         challenge_guide_data: guideData,
-        challenge_guide_data_ja: guideDataJa,
-        [`${weekKey}_guide_mode`]: weekGuideModes[weekKey],
-        [`${weekKey}_external_type`]: weekExternalGuides[weekKey].type,
-        [`${weekKey}_external_url`]: weekExternalGuides[weekKey].url,
-        [`${weekKey}_external_file_url`]: weekExternalGuides[weekKey].fileUrl,
-        [`${weekKey}_external_file_name`]: weekExternalGuides[weekKey].fileName,
-        [`${weekKey}_external_title`]: weekExternalGuides[weekKey].title
+        challenge_guide_data_ja: guideDataJa
       }
 
       if (weekGuideModes[weekKey] === 'ai') {
@@ -482,18 +477,34 @@ ${existingWeeks}
           cautions_ja: guideDataJa.precautions || ''
         }
 
-        updateData.challenge_weekly_guides_ai = JSON.stringify(existingAI)
+        coreData.challenge_weekly_guides_ai = JSON.stringify(existingAI)
 
         const existingWeekly = campaign?.challenge_weekly_guides || {}
         existingWeekly[weekKey] = {
           mission: wd.mission, required_dialogue: wd.required_dialogue,
           required_scenes: wd.required_scenes, reference: wd.reference_url
         }
-        updateData.challenge_weekly_guides = existingWeekly
+        coreData.challenge_weekly_guides = existingWeekly
       }
 
-      const { error } = await supabase.from('campaigns').update(updateData).eq('id', id)
+      const { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
       if (error) throw error
+
+      // Step 2: Per-week extension columns (may fail silently if columns don't exist yet)
+      try {
+        const extData = {
+          [`${weekKey}_guide_mode`]: weekGuideModes[weekKey],
+          [`${weekKey}_external_type`]: weekExternalGuides[weekKey].type,
+          [`${weekKey}_external_url`]: weekExternalGuides[weekKey].url,
+          [`${weekKey}_external_file_url`]: weekExternalGuides[weekKey].fileUrl,
+          [`${weekKey}_external_file_name`]: weekExternalGuides[weekKey].fileName,
+          [`${weekKey}_external_title`]: weekExternalGuides[weekKey].title
+        }
+        const { error: extError } = await supabase.from('campaigns').update(extData).eq('id', id)
+        if (extError) console.warn('[handleSaveWeek] Per-week columns save skipped (columns may not exist yet):', extError.message)
+      } catch (extErr) {
+        console.warn('[handleSaveWeek] Per-week columns save skipped:', extErr.message)
+      }
 
       setWeekStatus(prev => ({ ...prev, [weekKey]: 'saved' }))
       alert(`${weekNum}주차 가이드가 저장되었습니다!`)
@@ -519,7 +530,8 @@ ${existingWeeks}
 
     setLoading(true)
     try {
-      const updateData = {
+      // Step 1: Core data (must succeed)
+      const coreData = {
         brand: guideData.brand, product_name: guideData.product_name,
         product_features: guideData.product_features, product_key_points: guideData.precautions,
         challenge_guide_data: guideData,
@@ -529,17 +541,7 @@ ${existingWeeks}
           week2: { mission: guideData.week2.mission, required_dialogue: guideData.week2.required_dialogue, required_scenes: guideData.week2.required_scenes, reference: guideData.week2.reference_url },
           week3: { mission: guideData.week3.mission, required_dialogue: guideData.week3.required_dialogue, required_scenes: guideData.week3.required_scenes, reference: guideData.week3.reference_url },
           week4: { mission: guideData.week4.mission, required_dialogue: guideData.week4.required_dialogue, required_scenes: guideData.week4.required_scenes, reference: guideData.week4.reference_url }
-        },
-        week1_guide_mode: weekGuideModes.week1, week2_guide_mode: weekGuideModes.week2,
-        week3_guide_mode: weekGuideModes.week3, week4_guide_mode: weekGuideModes.week4,
-        week1_external_type: weekExternalGuides.week1.type, week1_external_url: weekExternalGuides.week1.url,
-        week1_external_file_url: weekExternalGuides.week1.fileUrl, week1_external_file_name: weekExternalGuides.week1.fileName, week1_external_title: weekExternalGuides.week1.title,
-        week2_external_type: weekExternalGuides.week2.type, week2_external_url: weekExternalGuides.week2.url,
-        week2_external_file_url: weekExternalGuides.week2.fileUrl, week2_external_file_name: weekExternalGuides.week2.fileName, week2_external_title: weekExternalGuides.week2.title,
-        week3_external_type: weekExternalGuides.week3.type, week3_external_url: weekExternalGuides.week3.url,
-        week3_external_file_url: weekExternalGuides.week3.fileUrl, week3_external_file_name: weekExternalGuides.week3.fileName, week3_external_title: weekExternalGuides.week3.title,
-        week4_external_type: weekExternalGuides.week4.type, week4_external_url: weekExternalGuides.week4.url,
-        week4_external_file_url: weekExternalGuides.week4.fileUrl, week4_external_file_name: weekExternalGuides.week4.fileName, week4_external_title: weekExternalGuides.week4.title
+        }
       }
 
       let aiGuides = {}
@@ -569,11 +571,31 @@ ${existingWeeks}
         }
       }
 
-      updateData.challenge_weekly_guides_ai = JSON.stringify(aiGuides)
-      updateData.guide_generated_at = new Date().toISOString()
+      coreData.challenge_weekly_guides_ai = JSON.stringify(aiGuides)
+      coreData.guide_generated_at = new Date().toISOString()
 
-      const { error } = await supabase.from('campaigns').update(updateData).eq('id', id)
+      const { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
       if (error) throw error
+
+      // Step 2: Per-week extension columns (may fail silently if columns don't exist yet)
+      try {
+        const extData = {
+          week1_guide_mode: weekGuideModes.week1, week2_guide_mode: weekGuideModes.week2,
+          week3_guide_mode: weekGuideModes.week3, week4_guide_mode: weekGuideModes.week4,
+          week1_external_type: weekExternalGuides.week1.type, week1_external_url: weekExternalGuides.week1.url,
+          week1_external_file_url: weekExternalGuides.week1.fileUrl, week1_external_file_name: weekExternalGuides.week1.fileName, week1_external_title: weekExternalGuides.week1.title,
+          week2_external_type: weekExternalGuides.week2.type, week2_external_url: weekExternalGuides.week2.url,
+          week2_external_file_url: weekExternalGuides.week2.fileUrl, week2_external_file_name: weekExternalGuides.week2.fileName, week2_external_title: weekExternalGuides.week2.title,
+          week3_external_type: weekExternalGuides.week3.type, week3_external_url: weekExternalGuides.week3.url,
+          week3_external_file_url: weekExternalGuides.week3.fileUrl, week3_external_file_name: weekExternalGuides.week3.fileName, week3_external_title: weekExternalGuides.week3.title,
+          week4_external_type: weekExternalGuides.week4.type, week4_external_url: weekExternalGuides.week4.url,
+          week4_external_file_url: weekExternalGuides.week4.fileUrl, week4_external_file_name: weekExternalGuides.week4.fileName, week4_external_title: weekExternalGuides.week4.title
+        }
+        const { error: extError } = await supabase.from('campaigns').update(extData).eq('id', id)
+        if (extError) console.warn('[handleCompleteAll] Per-week columns save skipped (columns may not exist yet):', extError.message)
+      } catch (extErr) {
+        console.warn('[handleCompleteAll] Per-week columns save skipped:', extErr.message)
+      }
 
       alert('가이드가 저장되었습니다! 결제 페이지로 이동합니다.')
       navigate(`/company/campaigns/payment?id=${id}&region=japan`)
