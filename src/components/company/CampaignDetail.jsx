@@ -6108,6 +6108,23 @@ Questions? Contact us.
               >
                 그룹 지정
               </Button>
+              {/* 가이드 수정 버튼 (올영/4주/메가와리) */}
+              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+                <Button
+                  onClick={() => {
+                    const is4Week = campaign.campaign_type === '4week_challenge'
+                    const guidePath = is4Week
+                      ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                      : (region === 'japan' ? `/company/campaigns/guide/oliveyoung/japan?id=${id}` : `/company/campaigns/guide/oliveyoung?id=${id}`)
+                    navigate(guidePath)
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  size="sm"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  가이드 수정
+                </Button>
+              )}
               {/* 가이드 전체 생성/발송 통합 버튼 → 모달 열기 */}
               <Button
                 onClick={() => setShowBulkGuideModal(true)}
