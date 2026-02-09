@@ -6124,7 +6124,17 @@ Questions? Contact us.
                 </Button>
               )}
               {/* 가이드 수정 버튼 (올영/4주/메가와리) */}
-              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && (
+                <Button
+                  onClick={() => setShowUnifiedGuideModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  size="sm"
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  가이드 수정
+                </Button>
+              )}
+              {(campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
                 <Button
                   onClick={() => {
                     const is4Week = campaign.campaign_type === '4week_challenge'
