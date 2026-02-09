@@ -579,6 +579,7 @@ export default function CampaignDetail() {
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [selectedParticipants, setSelectedParticipants] = useState([])
+  const [guideGroupFilter, setGuideGroupFilter] = useState('all') // 'all' | 'none' | 그룹명
   const [trackingChanges, setTrackingChanges] = useState({}) // {participantId: {tracking_number, shipping_company}}
   const [bulkCourierCompany, setBulkCourierCompany] = useState('')
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
@@ -3989,8 +3990,9 @@ Questions? Contact us.
   const handleDeliverOliveYoung4WeekGuide = async () => {
     const isMegawariType = region === 'japan' && campaign.campaign_type === 'megawari'
     const isOliveyoungType = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const hasGroupGuide = campaign.guide_group_data && Object.keys(campaign.guide_group_data).length > 0
     const hasGuide = (isOliveyoungType || isMegawariType)
-      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
+      ? (hasGroupGuide || campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
       : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
          campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
@@ -4093,6 +4095,37 @@ Questions? Contact us.
     } catch (error) {
       console.error('Error in handleDeliverOliveYoung4WeekGuide:', error)
       alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 선택한 크리에이터에 그룹 지정
+  const handleAssignGroup = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('그룹을 지정할 크리에이터를 선택하세요.')
+      return
+    }
+    // 기존 그룹 목록 표시
+    const existingGroups = [...new Set(participants.map(p => p.guide_group).filter(Boolean))]
+    const groupListText = existingGroups.length > 0 ? `\n기존 그룹: ${existingGroups.join(', ')}` : ''
+    const groupName = prompt(`${selectedParticipants.length}명에게 지정할 그룹명을 입력하세요.${groupListText}\n(빈칸 입력 시 그룹 해제)`)
+    if (groupName === null) return // 취소
+
+    try {
+      const finalGroupName = groupName.trim() || null
+      for (const participantId of selectedParticipants) {
+        await supabase
+          .from('applications')
+          .update({ guide_group: finalGroupName })
+          .eq('id', participantId)
+      }
+      alert(finalGroupName
+        ? `${selectedParticipants.length}명이 "${finalGroupName}" 그룹으로 지정되었습니다.`
+        : `${selectedParticipants.length}명의 그룹이 해제되었습니다.`)
+      setSelectedParticipants([])
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error assigning group:', error)
+      alert('그룹 지정 실패: ' + error.message)
     }
   }
 
@@ -5808,8 +5841,18 @@ Questions? Contact us.
   }
 
   // 크리에이터 테이블 렌더링 함수
-  const renderParticipantsTable = (filteredParticipants) => {
-    if (filteredParticipants.length === 0) {
+  const renderParticipantsTable = (rawFilteredParticipants) => {
+    // 그룹 필터 적용
+    const filteredParticipants = guideGroupFilter === 'all'
+      ? rawFilteredParticipants
+      : guideGroupFilter === 'none'
+        ? rawFilteredParticipants.filter(p => !p.guide_group)
+        : rawFilteredParticipants.filter(p => p.guide_group === guideGroupFilter)
+
+    // 그룹 목록 추출
+    const allGroups = [...new Set(rawFilteredParticipants.map(p => p.guide_group).filter(Boolean))].sort()
+
+    if (rawFilteredParticipants.length === 0) {
       return (
         <div className="text-center py-20">
           <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
@@ -5818,6 +5861,25 @@ Questions? Contact us.
           <p className="text-xl font-semibold text-gray-500 mb-2">선정된 크리에이터가 없습니다</p>
           <p className="text-sm text-gray-400">지원 크리에이터 탭에서 크리에이터를 선정해주세요</p>
         </div>
+      )
+    }
+
+    if (filteredParticipants.length === 0) {
+      return (
+        <>
+          {/* 그룹 필터는 표시 */}
+          {allGroups.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 px-2 flex-wrap">
+              <span className="text-xs text-gray-500 font-medium">그룹:</span>
+              <button onClick={() => { setGuideGroupFilter('all'); setSelectedParticipants([]) }} className={`px-2.5 py-1 rounded-full text-xs font-medium ${guideGroupFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>전체 ({rawFilteredParticipants.length})</button>
+              {allGroups.map(g => (<button key={g} onClick={() => { setGuideGroupFilter(g); setSelectedParticipants([]) }} className={`px-2.5 py-1 rounded-full text-xs font-medium ${guideGroupFilter === g ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>{g} ({rawFilteredParticipants.filter(p => p.guide_group === g).length})</button>))}
+              <button onClick={() => { setGuideGroupFilter('none'); setSelectedParticipants([]) }} className={`px-2.5 py-1 rounded-full text-xs font-medium ${guideGroupFilter === 'none' ? 'bg-yellow-600 text-white' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'}`}>미지정 ({rawFilteredParticipants.filter(p => !p.guide_group).length})</button>
+            </div>
+          )}
+          <div className="text-center py-12 text-gray-500">
+            <p>이 그룹에 해당하는 크리에이터가 없습니다</p>
+          </div>
+        </>
       )
     }
 
@@ -5979,6 +6041,53 @@ Questions? Contact us.
           </div>
         </div>
 
+        {/* 올영 그룹 가이드 안내 (올영 캠페인에서만 표시) */}
+        {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && allGroups.length === 0 && (
+          <div className="mb-3 px-2">
+            <div className="flex items-start gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
+              <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
+              <div>
+                <span className="font-bold">그룹별 가이드 전달</span>
+                <span className="text-purple-600 ml-1">: 체크박스로 크리에이터 선택 → "그룹 지정" → 그룹명 입력 → 그룹 필터로 나눠서 가이드 수정/전달</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 그룹 필터 */}
+        {allGroups.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 px-2 flex-wrap">
+            <span className="text-xs text-gray-500 font-medium">그룹:</span>
+            <button
+              onClick={() => { setGuideGroupFilter('all'); setSelectedParticipants([]) }}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                guideGroupFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              전체 ({rawFilteredParticipants.length})
+            </button>
+            {allGroups.map(g => (
+              <button
+                key={g}
+                onClick={() => { setGuideGroupFilter(g); setSelectedParticipants([]) }}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                  guideGroupFilter === g ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                }`}
+              >
+                {g} ({rawFilteredParticipants.filter(p => p.guide_group === g).length})
+              </button>
+            ))}
+            <button
+              onClick={() => { setGuideGroupFilter('none'); setSelectedParticipants([]) }}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                guideGroupFilter === 'none' ? 'bg-yellow-600 text-white' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+              }`}
+            >
+              미지정 ({rawFilteredParticipants.filter(p => !p.guide_group).length})
+            </button>
+          </div>
+        )}
+
         {/* 전체 선택 헤더 */}
         <div className="flex items-center justify-between mb-4 px-2">
           <label className="flex items-center gap-3 cursor-pointer group">
@@ -6005,6 +6114,43 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
+              {/* 그룹 지정 버튼 (올영/4주/메가와리만) */}
+              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+                <Button
+                  onClick={handleAssignGroup}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
+                  size="sm"
+                >
+                  그룹 지정
+                </Button>
+              )}
+              {/* 가이드 수정 버튼 (올영/4주/메가와리) */}
+              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && (
+                <Button
+                  onClick={() => setShowUnifiedGuideModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  size="sm"
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  가이드 수정
+                </Button>
+              )}
+              {(campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+                <Button
+                  onClick={() => {
+                    const is4Week = campaign.campaign_type === '4week_challenge'
+                    const guidePath = is4Week
+                      ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
+                      : (region === 'japan' ? `/company/campaigns/guide/oliveyoung/japan?id=${id}` : `/company/campaigns/guide/oliveyoung?id=${id}`)
+                    navigate(guidePath)
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  size="sm"
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  가이드 수정
+                </Button>
+              )}
               {/* 가이드 전체 생성/발송 통합 버튼 → 모달 열기 */}
               <Button
                 onClick={() => setShowBulkGuideModal(true)}
@@ -6127,6 +6273,11 @@ Questions? Contact us.
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
+                        {participant.guide_group && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold shrink-0">
+                            {participant.guide_group}
+                          </span>
+                        )}
                         {/* 채널 선택 - 클릭하면 업로드 채널 변경 */}
                         <div className="flex items-center gap-1">
                           {participant.instagram_url && (
@@ -13492,6 +13643,7 @@ Questions? Contact us.
           onClose={() => setShowUnifiedGuideModal(false)}
           onSave={fetchCampaignDetail}
           supabase={supabase}
+          groupName={guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null}
         />
       )}
 
