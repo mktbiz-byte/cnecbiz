@@ -110,29 +110,18 @@ exports.handler = async (event) => {
     const newVideo = record.video_files[newVideoCount - 1];
     const version = newVideo?.version || newVideoCount;
 
-    // ★ 중복 알림 방지: video_submissions 테이블에 레코드가 있으면
-    // webhook-video-submission.js에서 이미 알림을 보내므로 여기서는 스킵
-    try {
-      const { data: existingSubmission } = await supabaseKorea
-        .from('video_submissions')
-        .select('id')
-        .eq('campaign_id', record.campaign_id)
-        .eq('user_id', record.user_id)
-        .limit(1)
-        .maybeSingle();
+    // ★ 중복 알림 완전 방지: 알림톡은 webhook-video-submission.js에서만 발송
+    // 이 웹훅(campaign_participants)과 webhook-video-submission.js(video_submissions)가
+    // 동시에 발동되어 알림이 2~3회 중복 발송되는 문제가 있었음
+    // → 이 웹훅에서는 알림톡/네이버웍스 발송을 하지 않고 로그만 남김
+    console.log('영상 업로드 감지 (campaign_participants) → 알림은 webhook-video-submission.js에서 처리, 여기서는 스킵');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, message: 'Notification deferred to webhook-video-submission to prevent duplicates' })
+    };
 
-      if (existingSubmission) {
-        console.log('video_submissions에 레코드 존재 → webhook-video-submission.js에서 알림 처리, 스킵');
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ success: true, message: 'Deferred to webhook-video-submission' })
-        };
-      }
-    } catch (dedupeError) {
-      console.log('중복 체크 실패, 알림 계속 진행:', dedupeError.message);
-    }
-
+    // 아래 코드는 중복 방지를 위해 비활성화됨
     // 1. 캠페인 정보 조회
     const { data: campaign, error: campaignError } = await supabaseKorea
       .from('campaigns')

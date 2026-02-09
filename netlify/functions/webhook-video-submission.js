@@ -69,16 +69,15 @@ exports.handler = async (event) => {
     const record = body.record;
     const oldRecord = body.old_record;
 
-    // UPDATE인 경우: video_file_url이 새로 추가되었는지 확인
+    // UPDATE인 경우: 재제출(수정본 업로드)은 send-resubmit-notification.js에서 처리
+    // 여기서 알림을 보내면 크리에이터가 수정 완료 알림 전송 시 2~3회 중복 발송됨
     if (body.type === 'UPDATE') {
-      if (oldRecord?.video_file_url && record?.video_file_url === oldRecord?.video_file_url) {
-        console.log('영상 URL 변경 없음, 스킵');
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ success: true, message: 'No video URL change' })
-        };
-      }
+      console.log('영상 재제출(UPDATE) 감지 → 알림은 send-resubmit-notification.js에서 처리, 스킵');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, message: 'Resubmission notification deferred to send-resubmit-notification' })
+      };
     }
 
     // INSERT인 경우: video_file_url이 있어야 함
