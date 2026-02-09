@@ -24,12 +24,12 @@ function extractYouTubeVideoId(url) {
 function getSupabaseClient(region) {
   const configs = {
     japan: {
-      url: process.env.VITE_SUPABASE_URL_JAPAN,
-      key: process.env.VITE_SUPABASE_ANON_KEY_JAPAN
+      url: process.env.VITE_SUPABASE_JAPAN_URL,
+      key: process.env.VITE_SUPABASE_JAPAN_ANON_KEY
     },
     us: {
-      url: process.env.VITE_SUPABASE_URL_US,
-      key: process.env.VITE_SUPABASE_ANON_KEY_US
+      url: process.env.VITE_SUPABASE_US_URL,
+      key: process.env.VITE_SUPABASE_US_ANON_KEY
     }
   }
   

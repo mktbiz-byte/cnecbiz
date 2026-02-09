@@ -124,6 +124,7 @@ import DeadlineCreatorManagement from './components/admin/DeadlineCreatorManagem
 import UnpaidCampaignsManagement from './components/admin/UnpaidCampaignsManagement'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
+import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
@@ -256,6 +257,7 @@ function App() {
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/newsletters" element={<NewsletterShowcaseManagement />} />
+        <Route path="/admin/newsletter-analytics" element={<NewsletterTrafficAnalytics />} />
         <Route path="/admin/update-history" element={<GitUpdateHistory />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />

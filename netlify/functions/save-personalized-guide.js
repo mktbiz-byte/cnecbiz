@@ -44,19 +44,19 @@ export async function handler(event) {
       case 'korea':
         supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
         serviceRoleKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-          || process.env.VITE_SUPABASE_KOREA_SERVICE_KEY
+          || process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
         break
       case 'japan':
         supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
         serviceRoleKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
-          || process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY
-          || process.env.SUPABASE_JAPAN_SERVICE_KEY
+          || process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+          || process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
         break
       case 'us':
         supabaseUrl = process.env.VITE_SUPABASE_US_URL
         serviceRoleKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
-          || process.env.VITE_SUPABASE_US_SERVICE_KEY
-          || process.env.SUPABASE_US_SERVICE_KEY
+          || process.env.SUPABASE_US_SERVICE_ROLE_KEY
+          || process.env.SUPABASE_US_SERVICE_ROLE_KEY
         break
       default:
         return {

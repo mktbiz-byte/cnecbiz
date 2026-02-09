@@ -26,7 +26,7 @@ const { createClient } = require('@supabase/supabase-js');
 // US Supabase
 const getSupabaseUS = () => {
   return createClient(
-    process.env.VITE_SUPABASE_US_URL || process.env.SUPABASE_US_URL,
+    process.env.VITE_SUPABASE_US_URL || process.env.VITE_SUPABASE_US_URL,
     process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 };

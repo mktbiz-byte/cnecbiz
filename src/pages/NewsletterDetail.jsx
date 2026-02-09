@@ -76,7 +76,7 @@ export default function NewsletterDetail() {
     }
   }
 
-  // 조회수 추적 함수 (중복/순유입 구분)
+  // 조회수 추적 함수 (중복/순유입 구분 + 유입경로 추적)
   const trackNewsletterView = async (newsletterId) => {
     try {
       // 브라우저 고유 ID 생성 (localStorage 사용)
@@ -86,12 +86,25 @@ export default function NewsletterDetail() {
         localStorage.setItem('newsletter_visitor_id', visitorId)
       }
 
+      // UTM 파라미터 추출
+      const urlParams = new URLSearchParams(window.location.search)
+      const utm_source = urlParams.get('utm_source') || ''
+      const utm_medium = urlParams.get('utm_medium') || ''
+      const utm_campaign = urlParams.get('utm_campaign') || ''
+      const utm_content = urlParams.get('utm_content') || ''
+
       await fetch('/.netlify/functions/track-newsletter-view', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           newsletterId,
-          visitorId
+          visitorId,
+          referrer: document.referrer || '',
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_content,
+          page_url: window.location.href
         })
       })
     } catch (error) {

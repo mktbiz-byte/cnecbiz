@@ -8,22 +8,22 @@ const getSupabaseClient = (region) => {
   switch (region) {
     case 'korea':
     case 'kr':
-      url = process.env.VITE_SUPABASE_KOREA_URL || process.env.SUPABASE_KOREA_URL
+      url = process.env.VITE_SUPABASE_KOREA_URL || process.env.VITE_SUPABASE_KOREA_URL
       key = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       break
     case 'japan':
     case 'jp':
-      url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL
+      url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL
       key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
       break
     case 'us':
     case 'usa':
-      url = process.env.VITE_SUPABASE_US_URL || process.env.SUPABASE_US_URL
+      url = process.env.VITE_SUPABASE_US_URL || process.env.VITE_SUPABASE_US_URL
       key = process.env.SUPABASE_US_SERVICE_ROLE_KEY
       break
     case 'taiwan':
     case 'tw':
-      url = process.env.VITE_SUPABASE_TAIWAN_URL || process.env.SUPABASE_TAIWAN_URL
+      url = process.env.VITE_SUPABASE_TAIWAN_URL || process.env.VITE_SUPABASE_TAIWAN_URL
       key = process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
       break
     case 'biz':

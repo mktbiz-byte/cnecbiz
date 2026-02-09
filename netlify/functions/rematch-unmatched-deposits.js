@@ -81,7 +81,7 @@ exports.handler = async (event, context) => {
     // Supabase 클라이언트 초기화
     // Netlify Functions에서는 VITE_ 접두사 없이 환경변수 접근
     const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_BIZ_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_SERVICE_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     console.log('📌 환경변수 확인:');
     console.log(`  - VITE_SUPABASE_BIZ_URL: ${supabaseUrl ? '✅' : '❌'}`);

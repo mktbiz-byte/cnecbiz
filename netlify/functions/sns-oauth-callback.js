@@ -184,13 +184,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { platform, code, redirectUri } = JSON.parse(event.body)
+    const { platform, code, redirectUri, region } = JSON.parse(event.body)
 
     if (!platform || !code) {
       throw new Error('platform과 code가 필요합니다.')
     }
 
-    console.log(`[sns-oauth-callback] Processing ${platform} callback...`)
+    console.log(`[sns-oauth-callback] Processing ${platform} callback... region=${region || 'none'}`)
 
     let accountData
 
@@ -208,19 +208,49 @@ exports.handler = async (event) => {
         throw new Error(`지원하지 않는 플랫폼: ${platform}`)
     }
 
-    // 기존 계정 확인 (같은 플랫폼)
-    const { data: existingAccounts } = await supabaseBiz
-      .from('sns_upload_accounts')
-      .select('id')
-      .eq('platform', platform)
-      .eq('is_active', true)
+    // region 정보를 extra_data에 저장
+    if (region) {
+      accountData.extra_data = {
+        ...accountData.extra_data,
+        region: region
+      }
+    }
 
-    // 기존 계정 비활성화
-    if (existingAccounts?.length > 0) {
-      await supabaseBiz
+    // YouTube 멀티계정 지원: region이 있으면 같은 region의 기존 계정만 비활성화
+    // region이 없으면 기존 동작 (같은 플랫폼 전체 비활성화)
+    if (platform === 'youtube' && region) {
+      // 같은 region의 YouTube 계정만 비활성화
+      const { data: existingAccounts } = await supabaseBiz
         .from('sns_upload_accounts')
-        .update({ is_active: false })
+        .select('id, extra_data')
+        .eq('platform', 'youtube')
+        .eq('is_active', true)
+
+      const sameRegionIds = existingAccounts
+        ?.filter(a => a.extra_data?.region === region)
+        ?.map(a => a.id) || []
+
+      if (sameRegionIds.length > 0) {
+        await supabaseBiz
+          .from('sns_upload_accounts')
+          .update({ is_active: false })
+          .in('id', sameRegionIds)
+      }
+    } else {
+      // 기존 계정 확인 (같은 플랫폼)
+      const { data: existingAccounts } = await supabaseBiz
+        .from('sns_upload_accounts')
+        .select('id')
         .eq('platform', platform)
+        .eq('is_active', true)
+
+      // 기존 계정 비활성화
+      if (existingAccounts?.length > 0) {
+        await supabaseBiz
+          .from('sns_upload_accounts')
+          .update({ is_active: false })
+          .eq('platform', platform)
+      }
     }
 
     // 새 계정 저장
@@ -237,7 +267,7 @@ exports.handler = async (event) => {
       throw insertError
     }
 
-    console.log(`[sns-oauth-callback] ${platform} account saved:`, newAccount.id)
+    console.log(`[sns-oauth-callback] ${platform} account saved:`, newAccount.id, 'region:', region)
 
     return {
       statusCode: 200,
@@ -248,7 +278,8 @@ exports.handler = async (event) => {
           id: newAccount.id,
           platform: newAccount.platform,
           account_name: newAccount.account_name,
-          account_id: newAccount.account_id
+          account_id: newAccount.account_id,
+          region: region || null
         }
       })
     }

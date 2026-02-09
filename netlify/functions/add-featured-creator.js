@@ -2,8 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 // cnectotal Supabase 클라이언트
 const supabaseTotal = createClient(
-  process.env.VITE_SUPABASE_TOTAL_URL,
-  process.env.SUPABASE_TOTAL_SERVICE_KEY
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // 자동 점수 계산 함수
