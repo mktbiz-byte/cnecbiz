@@ -41,7 +41,7 @@ exports.handler = async (event) => {
     SUPABASE_KOREA_SERVICE_ROLE_KEY: !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY,
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     VITE_SUPABASE_BIZ_URL: !!process.env.VITE_SUPABASE_BIZ_URL,
-    SUPABASE_SERVICE_ROLE_KEY_BIZ: !!process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
   });
 
   // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
@@ -49,7 +49,7 @@ exports.handler = async (event) => {
   const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
   const koreaKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL_BIZ;
-  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!koreaUrl || !koreaKey) {
     console.error('Korea Supabase 환경변수 누락:', { koreaUrl: !!koreaUrl, koreaKey: !!koreaKey });

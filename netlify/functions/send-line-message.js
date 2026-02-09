@@ -74,7 +74,7 @@ async function translateText(text, targetLanguage = 'ja') {
 // Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
   return createClient(
-    process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL || process.env.SUPABASE_URL,
+    process.env.VITE_SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_URL,
     process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 };

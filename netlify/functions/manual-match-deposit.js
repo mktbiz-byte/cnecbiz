@@ -87,7 +87,7 @@ async function processDeposit(request, transaction) {
     
     // 모든 DB에서 캠페인 찾기
     const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
-    const supabaseGlobalUrl = process.env.VITE_SUPABASE_GLOBAL_URL
+    const supabaseGlobalUrl = process.env.VITE_SUPABASE_BIZ_URL
     
     const supabaseKorea = createClient(supabaseKoreaUrl, supabaseServiceKey)
     const supabaseGlobal = createClient(supabaseGlobalUrl, supabaseServiceKey)
