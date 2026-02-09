@@ -1175,17 +1175,38 @@ export default function SnsAutoUploadPage() {
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div className="text-sm space-y-2">
+                  <div className="text-sm space-y-3">
                     <p className="font-medium text-blue-800">YouTube 채널 연동 방법</p>
                     <ol className="text-blue-700 space-y-1 list-decimal list-inside">
                       <li>"채널 추가" 버튼 클릭</li>
-                      <li>Google 계정 선택 화면에서 <strong>연동할 채널의 Brand Account</strong> 선택</li>
+                      <li>Google 계정 선택 → <strong>연동할 채널의 Brand Account</strong> 선택</li>
                       <li>권한 허용 → 자동 연동 완료</li>
                       <li>다른 채널 추가하려면 다시 "채널 추가" 클릭 후 다른 Brand Account 선택</li>
                     </ol>
-                    <p className="text-blue-600 text-xs">
-                      YouTube Studio에서 관리 권한이 있는 채널은 Google 계정 선택 시 Brand Account로 표시됩니다.
-                    </p>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="font-medium text-amber-800 mb-1">⚠️ 관리자 권한 채널이 안 보이는 경우</p>
+                      <p className="text-amber-700 text-xs leading-relaxed">
+                        YouTube Studio에서 <strong>"관리자"</strong> 권한만 있는 채널은 Brand Account 목록에 표시되지 않습니다.
+                        해당 채널의 <strong>소유자(Owner) Google 계정</strong>으로 로그인해야 합니다.
+                      </p>
+                      <p className="text-amber-700 text-xs mt-1">
+                        예: 채널 소유자가 bizcnec@gmail.com이면 → "다른 계정으로 연동" 클릭 → bizcnec@gmail.com으로 로그인
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 border-amber-300 text-amber-700 hover:bg-amber-100"
+                        onClick={() => {
+                          const youtubeClientId = import.meta.env.VITE_YOUTUBE_CLIENT_ID
+                          const redirectUri = `${window.location.origin}/admin/sns-uploads/callback/youtube`
+                          const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${youtubeClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube')}&access_type=offline&prompt=consent&login_hint=`
+                          window.location.href = authUrl
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        다른 Google 계정으로 연동
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
