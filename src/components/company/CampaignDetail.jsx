@@ -3990,8 +3990,9 @@ Questions? Contact us.
   const handleDeliverOliveYoung4WeekGuide = async () => {
     const isMegawariType = region === 'japan' && campaign.campaign_type === 'megawari'
     const isOliveyoungType = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+    const hasGroupGuide = campaign.guide_group_data && Object.keys(campaign.guide_group_data).length > 0
     const hasGuide = (isOliveyoungType || isMegawariType)
-      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
+      ? (hasGroupGuide || campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
       : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides ||
          campaign.challenge_guide_data_ja || campaign.challenge_guide_data_en)
 
@@ -13642,6 +13643,7 @@ Questions? Contact us.
           onClose={() => setShowUnifiedGuideModal(false)}
           onSave={fetchCampaignDetail}
           supabase={supabase}
+          groupName={guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null}
         />
       )}
 

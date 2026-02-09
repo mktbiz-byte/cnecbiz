@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Plus, X, Loader2 } from 'lucide-react'
 
-export default function OliveYoungGuideModal({ 
-  campaign, 
-  onClose, 
+export default function OliveYoungGuideModal({
+  campaign,
+  onClose,
   onSave,
-  supabase 
+  supabase,
+  groupName // 그룹별 가이드 수정 시 그룹명 전달
 }) {
   const [activeStep, setActiveStep] = useState('step1')
   
@@ -36,66 +37,71 @@ export default function OliveYoungGuideModal({
         product_key_points: campaign.product_key_points || ''
       })
 
+      // 그룹별 가이드가 있으면 우선 로드
+      const groupData = groupName && campaign.guide_group_data?.[groupName]
+
       setStepGuides({
-        step1: { 
-          guide: campaign.oliveyoung_step1_guide || '', 
-          hashtags: [], 
-          reference_urls: [] 
+        step1: {
+          guide: groupData?.step1 || campaign.oliveyoung_step1_guide || '',
+          hashtags: [],
+          reference_urls: []
         },
-        step2: { 
-          guide: campaign.oliveyoung_step2_guide || '', 
-          hashtags: [], 
-          reference_urls: [] 
+        step2: {
+          guide: groupData?.step2 || campaign.oliveyoung_step2_guide || '',
+          hashtags: [],
+          reference_urls: []
         },
-        step3: { 
-          guide: campaign.oliveyoung_step3_guide || '', 
-          hashtags: [], 
-          reference_urls: [] 
+        step3: {
+          guide: groupData?.step3 || campaign.oliveyoung_step3_guide || '',
+          hashtags: [],
+          reference_urls: []
         }
       })
 
-      // Load AI guides if exist
-      if (campaign.oliveyoung_step1_guide_ai) {
-        try {
-          const parsed = JSON.parse(campaign.oliveyoung_step1_guide_ai)
-          setStepGuides(prev => ({
-            ...prev,
-            step1: {
-              ...prev.step1,
-              hashtags: parsed.hashtags || [],
-              reference_urls: parsed.reference_urls || []
-            }
-          }))
-        } catch (e) {}
-      }
-      if (campaign.oliveyoung_step2_guide_ai) {
-        try {
-          const parsed = JSON.parse(campaign.oliveyoung_step2_guide_ai)
-          setStepGuides(prev => ({
-            ...prev,
-            step2: {
-              ...prev.step2,
-              hashtags: parsed.hashtags || [],
-              reference_urls: parsed.reference_urls || []
-            }
-          }))
-        } catch (e) {}
-      }
-      if (campaign.oliveyoung_step3_guide_ai) {
-        try {
-          const parsed = JSON.parse(campaign.oliveyoung_step3_guide_ai)
-          setStepGuides(prev => ({
-            ...prev,
-            step3: {
-              ...prev.step3,
-              hashtags: parsed.hashtags || [],
-              reference_urls: parsed.reference_urls || []
-            }
-          }))
-        } catch (e) {}
+      // Load AI guides if exist (그룹 데이터가 없을 때만)
+      if (!groupData) {
+        if (campaign.oliveyoung_step1_guide_ai) {
+          try {
+            const parsed = JSON.parse(campaign.oliveyoung_step1_guide_ai)
+            setStepGuides(prev => ({
+              ...prev,
+              step1: {
+                ...prev.step1,
+                hashtags: parsed.hashtags || [],
+                reference_urls: parsed.reference_urls || []
+              }
+            }))
+          } catch (e) {}
+        }
+        if (campaign.oliveyoung_step2_guide_ai) {
+          try {
+            const parsed = JSON.parse(campaign.oliveyoung_step2_guide_ai)
+            setStepGuides(prev => ({
+              ...prev,
+              step2: {
+                ...prev.step2,
+                hashtags: parsed.hashtags || [],
+                reference_urls: parsed.reference_urls || []
+              }
+            }))
+          } catch (e) {}
+        }
+        if (campaign.oliveyoung_step3_guide_ai) {
+          try {
+            const parsed = JSON.parse(campaign.oliveyoung_step3_guide_ai)
+            setStepGuides(prev => ({
+              ...prev,
+              step3: {
+                ...prev.step3,
+                hashtags: parsed.hashtags || [],
+                reference_urls: parsed.reference_urls || []
+              }
+            }))
+          } catch (e) {}
+        }
       }
     }
-  }, [campaign])
+  }, [campaign, groupName])
 
   const handleGenerateGuides = async () => {
     if (!stepGuides.step1.guide || !stepGuides.step2.guide || !stepGuides.step3.guide) {
@@ -251,9 +257,24 @@ JSON 형식으로만 응답해주세요.`
   const handleSave = async () => {
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
+      let updateData
+
+      if (groupName) {
+        // 그룹별 가이드 저장
+        const existingGroupData = campaign.guide_group_data || {}
+        updateData = {
+          guide_group_data: {
+            ...existingGroupData,
+            [groupName]: {
+              step1: stepGuides.step1.guide,
+              step2: stepGuides.step2.guide,
+              step3: stepGuides.step3.guide
+            }
+          }
+        }
+      } else {
+        // 전체 가이드 저장 (기존)
+        updateData = {
           brand: commonData.brand,
           product_name: commonData.product_name,
           product_features: commonData.product_features,
@@ -261,12 +282,17 @@ JSON 형식으로만 응답해주세요.`
           oliveyoung_step1_guide: stepGuides.step1.guide,
           oliveyoung_step2_guide: stepGuides.step2.guide,
           oliveyoung_step3_guide: stepGuides.step3.guide
-        })
+        }
+      }
+
+      const { error } = await supabase
+        .from('campaigns')
+        .update(updateData)
         .eq('id', campaign.id)
 
       if (error) throw error
 
-      alert('✅ 가이드가 저장되었습니다!')
+      alert(groupName ? `✅ "${groupName}" 그룹 가이드가 저장되었습니다!` : '✅ 가이드가 저장되었습니다!')
       onSave()
     } catch (error) {
       console.error('Error saving guide:', error)
@@ -320,7 +346,10 @@ JSON 형식으로만 응답해주세요.`
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h3 className="text-2xl font-bold text-gray-900">🎉 올리브영 세일 캠페인 가이드</h3>
+          <h3 className="text-2xl font-bold text-gray-900">
+            🎉 올리브영 세일 캠페인 가이드
+            {groupName && <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">{groupName}</span>}
+          </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
           </button>
