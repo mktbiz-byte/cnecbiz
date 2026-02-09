@@ -6144,8 +6144,8 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
-              {/* 그룹 지정 버튼 (올영/4주/메가와리만) */}
-              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+              {/* 그룹 지정 버튼 (기획형/올영/4주/메가와리) */}
+              {(campaign?.campaign_type === 'planned' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
                 <Button
                   onClick={handleAssignGroup}
                   className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
