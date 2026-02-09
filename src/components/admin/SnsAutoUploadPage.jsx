@@ -1028,6 +1028,95 @@ export default function SnsAutoUploadPage() {
               </div>
             </div>
 
+            {/* 지역 미지정 기존 YouTube 계정 */}
+            {(() => {
+              const legacyAccounts = accounts.filter(a =>
+                a.platform === 'youtube' &&
+                a.is_active &&
+                !a.extra_data?.region
+              )
+              if (legacyAccounts.length === 0) return null
+
+              return (
+                <div className="mb-6">
+                  <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+                    <AlertCircle className="w-5 h-5 text-yellow-500" />
+                    기존 연동 계정 (지역 미지정)
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    이전에 연동한 YouTube 계정입니다. 지역을 지정하면 위의 해당 지역 카드로 이동됩니다.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {legacyAccounts.map(account => (
+                      <Card key={account.id} className="border-yellow-200 bg-yellow-50/30">
+                        <CardContent className="pt-4 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <Youtube className="w-5 h-5 text-red-500" />
+                            <div>
+                              <p className="font-medium">{account.account_name}</p>
+                              <p className="text-xs text-gray-500">{account.account_id || '-'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">지역 지정:</span>
+                            {Object.entries(YOUTUBE_REGIONS).map(([regionKey, regionConfig]) => (
+                              <Button
+                                key={regionKey}
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={async () => {
+                                  if (!confirm(`이 계정을 ${regionConfig.flag} ${regionConfig.name} 지역으로 지정하시겠습니까?`)) return
+                                  try {
+                                    // 같은 지역의 기존 계정 비활성화
+                                    const sameRegionAccounts = accounts.filter(a =>
+                                      a.platform === 'youtube' && a.is_active && a.extra_data?.region === regionKey && a.id !== account.id
+                                    )
+                                    for (const existing of sameRegionAccounts) {
+                                      await supabaseBiz
+                                        .from('sns_upload_accounts')
+                                        .update({ is_active: false })
+                                        .eq('id', existing.id)
+                                    }
+                                    // 현재 계정에 region 지정
+                                    const { error } = await supabaseBiz
+                                      .from('sns_upload_accounts')
+                                      .update({
+                                        extra_data: { ...account.extra_data, region: regionKey }
+                                      })
+                                      .eq('id', account.id)
+                                    if (error) throw error
+                                    alert(`${regionConfig.flag} ${regionConfig.name} 지역으로 지정되었습니다.`)
+                                    fetchAccounts()
+                                  } catch (error) {
+                                    console.error('Error assigning region:', error)
+                                    alert('지역 지정 실패: ' + error.message)
+                                  }
+                                }}
+                              >
+                                {regionConfig.flag} {regionConfig.name}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs text-red-500 hover:text-red-700"
+                              onClick={() => handleDisconnectAccount(account.id)}
+                            >
+                              <Unlink className="w-3 h-3 mr-1" />
+                              연동 해제
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Instagram / TikTok (추후 확장) */}
             <div className="mb-6">
               <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-gray-400">
@@ -1515,10 +1604,39 @@ export default function SnsAutoUploadPage() {
                     </Button>
                   )
                 })}
+                {/* 지역 미지정 기존 계정도 선택 가능 */}
+                {accounts
+                  .filter(a => a.platform === 'youtube' && a.is_active && !a.extra_data?.region)
+                  .map(account => {
+                    const isSelected = uploadSettings.youtubeAccountIds.includes(account.id)
+                    return (
+                      <Button
+                        key={account.id}
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          if (isSelected) {
+                            setUploadSettings({
+                              ...uploadSettings,
+                              youtubeAccountIds: uploadSettings.youtubeAccountIds.filter(id => id !== account.id)
+                            })
+                          } else {
+                            setUploadSettings({
+                              ...uploadSettings,
+                              youtubeAccountIds: [...uploadSettings.youtubeAccountIds, account.id]
+                            })
+                          }
+                        }}
+                      >
+                        <Youtube className={`w-4 h-4 mr-1 ${isSelected ? '' : 'text-yellow-500'}`} />
+                        {account.account_name}
+                      </Button>
+                    )
+                  })}
                 {/* 전체 선택 버튼 */}
                 {(() => {
                   const allYtAccounts = accounts.filter(a =>
-                    a.platform === 'youtube' && a.is_active && a.extra_data?.region
+                    a.platform === 'youtube' && a.is_active
                   )
                   const allSelected = allYtAccounts.length > 0 &&
                     allYtAccounts.every(a => uploadSettings.youtubeAccountIds.includes(a.id))
