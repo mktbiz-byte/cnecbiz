@@ -82,7 +82,8 @@ exports.handler = async (event) => {
       tags,
       privacyStatus = 'public',
       categoryId = '22', // People & Blogs
-      accountId
+      accountId,
+      language         // 지역별 언어 코드 (ko, ja, en)
     } = JSON.parse(event.body)
 
     // 업로드 레코드 조회 또는 계정 정보 직접 조회
@@ -157,12 +158,23 @@ exports.handler = async (event) => {
     // YouTube Resumable Upload API 사용
     console.log('[upload-to-youtube] Starting upload...')
 
+    // 지역별 기본 제목/설명 설정
+    const regionDefaults = {
+      ko: { title: 'CNEC 크리에이터 영상', description: '크넥(CNEC)과 함께하는 크리에이터 영상입니다.\n\n크리에이터 마케팅 플랫폼 크넥\nhttps://cnecbiz.com' },
+      ja: { title: 'CNEC クリエイター動画', description: 'CNEC(クネク)と一緒に制作したクリエイター動画です。\n\nクリエイターマーケティングプラットフォーム CNEC\nhttps://cnecbiz.com' },
+      en: { title: 'CNEC Creator Video', description: 'Creator video produced with CNEC.\n\nCreator Marketing Platform CNEC\nhttps://cnecbiz.com' }
+    }
+
+    const regionLang = language || 'ko'
+    const defaults = regionDefaults[regionLang] || regionDefaults.ko
+
     const metadata = {
       snippet: {
-        title: finalTitle?.substring(0, 100) || 'CNEC 크리에이터 영상',
-        description: finalDescription || '',
+        title: finalTitle?.substring(0, 100) || defaults.title,
+        description: finalDescription || defaults.description,
         tags: finalTags,
-        categoryId: uploadRecord?.sns_upload_templates?.youtube_settings?.category_id || categoryId
+        categoryId: uploadRecord?.sns_upload_templates?.youtube_settings?.category_id || categoryId,
+        defaultLanguage: regionLang === 'ko' ? 'ko' : regionLang === 'ja' ? 'ja' : 'en'
       },
       status: {
         privacyStatus: uploadRecord?.sns_upload_templates?.youtube_settings?.privacy_status || privacyStatus,

@@ -32,6 +32,24 @@ export default function SnsOAuthCallback() {
     const code = searchParams.get('code')
     const error = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')
+    const state = searchParams.get('state')
+
+    // state에서 region 정보 추출 (YouTube 멀티계정용)
+    let region = null
+    if (state) {
+      try {
+        const stateData = JSON.parse(atob(state))
+        region = stateData.region || null
+      } catch {
+        // state가 JSON이 아닌 경우 무시
+      }
+    }
+
+    // localStorage에서도 region 확인 (fallback)
+    if (!region) {
+      region = localStorage.getItem('youtube_oauth_region')
+      localStorage.removeItem('youtube_oauth_region')
+    }
 
     // 에러 체크
     if (error) {
@@ -55,7 +73,8 @@ export default function SnsOAuthCallback() {
         body: JSON.stringify({
           platform,
           code,
-          redirectUri
+          redirectUri,
+          region
         })
       })
 
@@ -64,7 +83,8 @@ export default function SnsOAuthCallback() {
       if (result.success) {
         setStatus('success')
         setAccountInfo(result.data)
-        setMessage(`${PLATFORMS[platform]?.name || platform} 계정이 연동되었습니다.`)
+        const regionLabel = region ? ` (${region === 'kr' ? '한국' : region === 'jp' ? '일본' : region === 'us' ? '미국' : region})` : ''
+        setMessage(`${PLATFORMS[platform]?.name || platform}${regionLabel} 계정이 연동되었습니다.`)
       } else {
         setStatus('error')
         setMessage(result.error || '계정 연동에 실패했습니다.')

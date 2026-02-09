@@ -8,6 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
  * 뉴스레터 조회수 추적 함수
  * - 중복 조회수 (view_count): 모든 조회 수
  * - 순유입 (unique_view_count): 고유 방문자만 카운트 (visitorId 기반)
+ * - 유입경로 추적: referrer, UTM 파라미터 (utm_source, utm_medium, utm_campaign, utm_content)
  */
 exports.handler = async (event) => {
   // CORS 헤더
@@ -31,7 +32,16 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { newsletterId, visitorId } = JSON.parse(event.body || '{}')
+    const {
+      newsletterId,
+      visitorId,
+      referrer,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      page_url
+    } = JSON.parse(event.body || '{}')
 
     if (!newsletterId) {
       return {
@@ -49,6 +59,9 @@ exports.handler = async (event) => {
     const userAgent = event.headers['user-agent'] || ''
     const finalVisitorId = visitorId || `${clientIp}_${hashString(userAgent)}`
 
+    // 유입경로 분류
+    const trafficSource = classifyTrafficSource(referrer, utm_source, utm_medium)
+
     // 1. 먼저 newsletter_views 테이블 존재 확인 및 생성
     await ensureViewsTableExists()
 
@@ -65,16 +78,25 @@ exports.handler = async (event) => {
 
     const isUniqueView = !existingView
 
-    // 3. newsletter_views에 조회 기록 추가
+    // 3. newsletter_views에 조회 기록 추가 (유입경로 포함)
+    const insertData = {
+      newsletter_id: newsletterId,
+      visitor_id: finalVisitorId,
+      ip_address: clientIp,
+      user_agent: userAgent.substring(0, 500),
+      is_unique: isUniqueView,
+      referrer: (referrer || '').substring(0, 1000) || null,
+      utm_source: (utm_source || '').substring(0, 200) || null,
+      utm_medium: (utm_medium || '').substring(0, 200) || null,
+      utm_campaign: (utm_campaign || '').substring(0, 200) || null,
+      utm_content: (utm_content || '').substring(0, 200) || null,
+      traffic_source: trafficSource,
+      page_url: (page_url || '').substring(0, 1000) || null
+    }
+
     const { error: insertError } = await supabase
       .from('newsletter_views')
-      .insert({
-        newsletter_id: newsletterId,
-        visitor_id: finalVisitorId,
-        ip_address: clientIp,
-        user_agent: userAgent.substring(0, 500),
-        is_unique: isUniqueView
-      })
+      .insert(insertData)
 
     if (insertError && !insertError.message?.includes('does not exist')) {
       console.error('[track-newsletter-view] Insert error:', insertError)
@@ -116,7 +138,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         isUniqueView,
-        visitorId: finalVisitorId
+        visitorId: finalVisitorId,
+        trafficSource
       })
     }
   } catch (error) {
@@ -126,6 +149,54 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({ success: false, error: error.message })
     }
+  }
+}
+
+/**
+ * 유입경로 분류 함수
+ * referrer와 UTM 파라미터를 기반으로 트래픽 소스를 분류
+ */
+function classifyTrafficSource(referrer, utmSource, utmMedium) {
+  // UTM 파라미터가 있으면 우선 사용
+  if (utmSource) {
+    const src = utmSource.toLowerCase()
+    if (src === 'newsletter' || src === 'stibee' || src === 'email') return 'newsletter'
+    if (src === 'youtube') return 'youtube'
+    if (src === 'instagram' || src === 'ig') return 'instagram'
+    if (src === 'tiktok') return 'tiktok'
+    if (src === 'facebook' || src === 'fb') return 'facebook'
+    if (src === 'twitter' || src === 'x') return 'twitter'
+    if (src === 'linkedin') return 'linkedin'
+    if (src === 'naver') return 'naver'
+    if (src === 'google') return 'google'
+    if (src === 'kakao') return 'kakao'
+    if (src === 'line') return 'line'
+    return `utm:${src}`
+  }
+
+  // UTM이 없으면 referrer로 분류
+  if (!referrer || referrer === '') return 'direct'
+
+  const ref = referrer.toLowerCase()
+  if (ref.includes('google.com') || ref.includes('google.co.')) return 'google'
+  if (ref.includes('youtube.com') || ref.includes('youtu.be')) return 'youtube'
+  if (ref.includes('instagram.com')) return 'instagram'
+  if (ref.includes('tiktok.com')) return 'tiktok'
+  if (ref.includes('facebook.com') || ref.includes('fb.com')) return 'facebook'
+  if (ref.includes('twitter.com') || ref.includes('x.com') || ref.includes('t.co')) return 'twitter'
+  if (ref.includes('naver.com')) return 'naver'
+  if (ref.includes('daum.net') || ref.includes('kakao.com')) return 'kakao'
+  if (ref.includes('linkedin.com')) return 'linkedin'
+  if (ref.includes('line.me')) return 'line'
+  if (ref.includes('stibee.com')) return 'newsletter'
+  if (ref.includes('cnecbiz.com')) return 'internal'
+
+  // 도메인 추출하여 반환
+  try {
+    const url = new URL(referrer)
+    return `referral:${url.hostname}`
+  } catch {
+    return 'other'
   }
 }
 
