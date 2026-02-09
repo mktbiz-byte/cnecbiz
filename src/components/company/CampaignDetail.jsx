@@ -3869,8 +3869,21 @@ Questions? Contact us.
   // 4주 챌린지 개별 주차 가이드 전달 함수
   // 4주 챌린지 주차별 가이드 발송 (체크박스 선택 또는 전체)
   const handleDeliver4WeekGuideByWeek = async (weekNumber) => {
-    if (!campaign.challenge_weekly_guides_ai && !campaign.challenge_guide_data && !campaign.challenge_weekly_guides) {
-      alert('먼저 가이드를 생성해주세요.')
+    // Validate that this specific week has actual content
+    const weekKey = `week${weekNumber}`
+    let parsedAiWeekCheck = null
+    try {
+      const raw = campaign.challenge_weekly_guides_ai
+      parsedAiWeekCheck = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw)?.[weekKey] : null
+    } catch (e) { /* ignore */ }
+    const aiHasMission = parsedAiWeekCheck && (typeof parsedAiWeekCheck === 'object' ? !!parsedAiWeekCheck.mission : !!parsedAiWeekCheck)
+    const weekHasContent = !!(campaign.challenge_guide_data?.[weekKey]?.mission) ||
+                           !!(campaign.challenge_weekly_guides?.[weekKey]?.mission) ||
+                           aiHasMission ||
+                           campaign[`${weekKey}_external_url`] ||
+                           campaign[`${weekKey}_external_file_url`]
+    if (!weekHasContent) {
+      alert(`${weekNumber}주차 가이드가 아직 작성되지 않았습니다. 먼저 가이드를 작성해주세요.`)
       return
     }
 
@@ -6481,8 +6494,7 @@ Questions? Contact us.
                               )}
                             </div>
 
-                            {/* 주차별 발송 버튼 - 실제 가이드 내용이 있을 때만 표시 */}
-                            {has4WeekGuideContent(campaign) && (
+                            {/* 주차별 발송 버튼 - 각 주차별 독립적으로 표시 */}
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
@@ -6494,9 +6506,13 @@ Questions? Contact us.
                                       ? (typeof _aiRaw === 'string' ? JSON.parse(_aiRaw) : _aiRaw)?.[weekKey]
                                       : null
                                   } catch (e) { /* ignore */ }
-                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       _parsedAiWeek ||
+                                  // Check actual week-level content (mission exists)
+                                  const aiWeekHasMission = _parsedAiWeek && (typeof _parsedAiWeek === 'object' ? !!_parsedAiWeek.mission : !!_parsedAiWeek)
+                                  const guideDataWeekHasMission = !!(campaign.challenge_guide_data?.[weekKey]?.mission)
+                                  const weeklyGuidesWeekHasMission = !!(campaign.challenge_weekly_guides?.[weekKey]?.mission)
+                                  const hasWeekGuide = guideDataWeekHasMission ||
+                                                       weeklyGuidesWeekHasMission ||
+                                                       aiWeekHasMission ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   const isDelivered = participant[`${weekKey}_guide_delivered`]
@@ -6560,7 +6576,6 @@ Questions? Contact us.
                                   )
                                 })}
                               </div>
-                            )}
                           </div>
                         )}
 
@@ -8625,9 +8640,11 @@ Questions? Contact us.
                                       ? (typeof _aiRaw2 === 'string' ? JSON.parse(_aiRaw2) : _aiRaw2)?.[weekKey]
                                       : null
                                   } catch (e) { /* ignore */ }
-                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
-                                                       campaign.challenge_weekly_guides?.[weekKey] ||
-                                                       _parsedAiWeek2 ||
+                                  // Check actual week-level content (mission exists)
+                                  const aiWeekHasMission2 = _parsedAiWeek2 && (typeof _parsedAiWeek2 === 'object' ? !!_parsedAiWeek2.mission : !!_parsedAiWeek2)
+                                  const hasWeekGuide = !!(campaign.challenge_guide_data?.[weekKey]?.mission) ||
+                                                       !!(campaign.challenge_weekly_guides?.[weekKey]?.mission) ||
+                                                       aiWeekHasMission2 ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   return (
@@ -13939,16 +13956,158 @@ Questions? Contact us.
                       ? has4WeekGuideContent(campaign)
                       : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
+                    // For 4-week challenge, check per-week content
+                    if (is4WeekBulk) {
+                      // Parse AI guides once
+                      let parsedAiBulk = null
+                      try {
+                        const rawAi = campaign.challenge_weekly_guides_ai
+                        parsedAiBulk = rawAi ? (typeof rawAi === 'string' ? JSON.parse(rawAi) : rawAi) : null
+                      } catch (e) { /* ignore */ }
+
+                      const weekStatuses = [1, 2, 3, 4].map(wn => {
+                        const wk = `week${wn}`
+                        const aiWk = parsedAiBulk?.[wk]
+                        const aiHas = aiWk && (typeof aiWk === 'object' ? !!aiWk.mission : !!aiWk)
+                        const has = !!(campaign.challenge_guide_data?.[wk]?.mission) ||
+                                    !!(campaign.challenge_weekly_guides?.[wk]?.mission) ||
+                                    aiHas ||
+                                    campaign[`${wk}_external_url`] ||
+                                    campaign[`${wk}_external_file_url`]
+                        return { weekNum: wn, weekKey: wk, hasContent: has }
+                      })
+                      const weeksWithContent = weekStatuses.filter(w => w.hasContent)
+                      const weeksWithoutContent = weekStatuses.filter(w => !w.hasContent)
+
+                      return (
+                        <div className="space-y-3">
+                          {/* Per-week status overview */}
+                          <div className="bg-gray-50 rounded-xl p-4 border">
+                            <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                              <Send className="w-5 h-5 text-purple-600" />
+                              4주 챌린지 주차별 가이드 발송
+                            </h3>
+                            <div className="grid grid-cols-4 gap-2 mb-3">
+                              {weekStatuses.map(({ weekNum, hasContent }) => (
+                                <div key={weekNum} className={`text-center p-2 rounded-lg border ${
+                                  hasContent
+                                    ? 'bg-green-50 border-green-200'
+                                    : 'bg-red-50 border-red-200'
+                                }`}>
+                                  <div className="text-xs font-medium text-gray-600">{weekNum}주차</div>
+                                  <div className={`text-xs mt-0.5 ${hasContent ? 'text-green-600' : 'text-red-500'}`}>
+                                    {hasContent ? '작성됨' : '미작성'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {weeksWithoutContent.length > 0 && (
+                              <p className="text-xs text-red-500 mb-3">
+                                {weeksWithoutContent.map(w => `${w.weekNum}주차`).join(', ')} 가이드가 미작성 상태입니다.
+                                미작성 주차는 발송할 수 없습니다.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Per-week send buttons */}
+                          <div className="space-y-2">
+                            {weekStatuses.map(({ weekNum, hasContent }) => (
+                              <button
+                                key={weekNum}
+                                disabled={!hasContent}
+                                onClick={() => {
+                                  setShowBulkGuideModal(false)
+                                  handleDeliver4WeekGuideByWeek(weekNum)
+                                }}
+                                className={`w-full p-3 border-2 rounded-xl text-left transition-all flex items-center gap-3 ${
+                                  hasContent
+                                    ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50 group'
+                                    : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold ${
+                                  hasContent ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-400'
+                                }`}>
+                                  {weekNum}주
+                                </div>
+                                <div className="flex-1">
+                                  <span className={`font-medium text-sm ${hasContent ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    {weekNum}주차 가이드 발송
+                                  </span>
+                                  <span className={`block text-xs mt-0.5 ${hasContent ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    {hasContent ? `${selectedParticipants.length > 0 ? `선택된 ${selectedParticipants.length}명` : '전체 크리에이터'}에게 발송` : '가이드 미작성'}
+                                  </span>
+                                </div>
+                                {hasContent && <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Send all at once (only works for weeks that have content) */}
+                          {weeksWithContent.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setShowBulkGuideModal(false)
+                                handleDeliverOliveYoung4WeekGuide()
+                              }}
+                              className="w-full p-3 border-2 border-indigo-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                                  <Send className="w-5 h-5 text-indigo-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <span className="font-medium text-sm text-gray-900">전체 가이드 일괄 전달</span>
+                                  <span className="block text-xs text-gray-500 mt-0.5">
+                                    작성된 {weeksWithContent.length}개 주차 한번에 발송 (상태가 '촬영중'으로 변경)
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" />
+                              </div>
+                            </button>
+                          )}
+
+                          {/* Guide creation page link */}
+                          {weeksWithoutContent.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setShowBulkGuideModal(false)
+                                const guidePath = region === 'japan'
+                                  ? `/company/campaigns/guide/4week/japan?id=${id}`
+                                  : region === 'us'
+                                  ? `/company/campaigns/guide/4week/us?id=${id}`
+                                  : `/company/campaigns/guide/4week?id=${id}`
+                                navigate(guidePath)
+                              }}
+                              className="w-full p-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all text-left group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                                  <Sparkles className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <span className="font-medium text-sm text-gray-700">미작성 주차 가이드 작성하기</span>
+                                  <span className="block text-xs text-gray-500 mt-0.5">
+                                    가이드 작성 페이지로 이동합니다
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )
+                    }
+
+                    // Oliveyoung / Megawari: original single button
                     return (
                       <button
                         onClick={() => {
                           setShowBulkGuideModal(false)
                           if (!hasGuideData) {
-                            const guidePath = is4WeekBulk
-                              ? (region === 'japan' ? `/company/campaigns/guide/4week/japan?id=${id}` : region === 'us' ? `/company/campaigns/guide/4week/us?id=${id}` : `/company/campaigns/guide/4week?id=${id}`)
-                              : isMegawariBulk
-                                ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
-                                : `/company/campaigns/guide/oliveyoung?id=${id}`
+                            const guidePath = isMegawariBulk
+                              ? `/company/campaigns/guide/oliveyoung/japan?id=${id}`
+                              : `/company/campaigns/guide/oliveyoung?id=${id}`
                             if (confirm(`${guideLabel} 가이드가 아직 설정되지 않았습니다. 가이드 설정 페이지로 이동하시겠습니까?`)) {
                               navigate(guidePath)
                             }
