@@ -651,6 +651,7 @@ export default function CampaignDetail() {
   const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
   // Bulk guide email sending state
   const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
+  const [deliveringGuideIds, setDeliveringGuideIds] = useState(new Set()) // 가이드 전달 중인 participant ID들
   // Bulk guide delivery modal state (전체 발송 모달)
   const [showBulkGuideModal, setShowBulkGuideModal] = useState(false)
   const [bulkExternalGuideData, setBulkExternalGuideData] = useState({ type: null, url: '', fileUrl: null, fileName: null, title: '' })
@@ -950,7 +951,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status')
+            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status, guide_group')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -1006,7 +1007,8 @@ export default function CampaignDetail() {
                 ...participant,
                 clean_video_url: koreaApp.clean_video_url || participant.clean_video_url,
                 sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
-                partnership_code: koreaApp.partnership_code || participant.partnership_code
+                partnership_code: koreaApp.partnership_code || participant.partnership_code,
+                guide_group: koreaApp.guide_group || participant.guide_group
               }
             }
             return participant
@@ -1037,7 +1039,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Japan DB 영상 데이터 병합 시도...')
           const { data: japanApps } = await supabaseJapan
             .from('applications')
-            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url, guide_group')
             .eq('campaign_id', id)
 
           if (japanApps && japanApps.length > 0) {
@@ -4112,15 +4114,28 @@ Questions? Contact us.
 
     try {
       const finalGroupName = groupName.trim() || null
+      let failCount = 0
       for (const participantId of selectedParticipants) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('applications')
           .update({ guide_group: finalGroupName })
           .eq('id', participantId)
+        if (updateError) {
+          console.error('그룹 지정 실패 (id:', participantId, '):', updateError)
+          failCount++
+        }
       }
-      alert(finalGroupName
-        ? `${selectedParticipants.length}명이 "${finalGroupName}" 그룹으로 지정되었습니다.`
-        : `${selectedParticipants.length}명의 그룹이 해제되었습니다.`)
+      if (failCount > 0) {
+        alert(`${failCount}명의 그룹 지정에 실패했습니다. 다시 시도해주세요.`)
+      } else {
+        alert(finalGroupName
+          ? `${selectedParticipants.length}명이 "${finalGroupName}" 그룹으로 지정되었습니다.`
+          : `${selectedParticipants.length}명의 그룹이 해제되었습니다.`)
+      }
+      // 즉시 로컬 상태 업데이트 (그룹 필터 바로 보이도록)
+      setParticipants(prev => prev.map(p =>
+        selectedParticipants.includes(p.id) ? { ...p, guide_group: finalGroupName } : p
+      ))
       setSelectedParticipants([])
       await fetchParticipants()
     } catch (error) {
@@ -4284,15 +4299,30 @@ Questions? Contact us.
   }
 
   // 가이드 전달 및 알림 발송 함수
-  const handleGuideApproval = async (participantIds) => {
+  const handleGuideApproval = async (participantIds, skipConfirm = false) => {
     if (!participantIds || participantIds.length === 0) {
       alert('승인할 크리에이터를 선택해주세요.')
       return
     }
 
-    if (!confirm(`${participantIds.length}명의 크리에이터에게 가이드를 전달하시겠습니까?`)) {
+    // skipConfirm이 true이면 확인 대화상자 생략 (인라인 버튼에서 이미 확인한 경우)
+    if (!skipConfirm && !confirm(`${participantIds.length}명의 크리에이터에게 가이드를 전달하시겠습니까?`)) {
       return
     }
+
+    // 중복 클릭 방지
+    const alreadyDelivering = participantIds.some(id => deliveringGuideIds.has(id))
+    if (alreadyDelivering) {
+      console.log('이미 전달 중인 참여자가 있습니다.')
+      return
+    }
+
+    // 전달 중 상태 설정
+    setDeliveringGuideIds(prev => {
+      const next = new Set(prev)
+      participantIds.forEach(id => next.add(id))
+      return next
+    })
 
     try {
       let successCount = 0
@@ -4323,13 +4353,13 @@ Questions? Contact us.
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
           }
-          
+
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
             .update(updatePayload)
             .eq('id', participantId)
             .select()
-          
+
           if (updateError) {
             console.error('[ERROR] Failed to update application status:')
             console.error('Error code:', updateError.code)
@@ -4340,6 +4370,13 @@ Questions? Contact us.
             throw updateError
           }
           console.log('[DEBUG] Successfully updated application status:', updateData)
+
+          // ★ 즉시 로컬 상태 업데이트 (fetchParticipants 지연 문제 방지)
+          if (updatePayload.status === 'filming') {
+            setParticipants(prev => prev.map(p =>
+              p.id === participantId ? { ...p, status: 'filming' } : p
+            ))
+          }
 
           // 크리에이터에게 알림 발송 (enriched data 사용 - user_profiles 재조회 불필요)
           // 캠페인 타입별 마감일 처리
@@ -4391,9 +4428,16 @@ Questions? Contact us.
     } catch (error) {
       console.error('Error in bulk guide approval:', error)
       alert('가이드 전달에 실패했습니다.')
+    } finally {
+      // 전달 중 상태 해제
+      setDeliveringGuideIds(prev => {
+        const next = new Set(prev)
+        participantIds.forEach(id => next.delete(id))
+        return next
+      })
     }
   }
-  
+
   // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
   const handleVideoApproval = async (submission, customUploadDeadline = null) => {
     try {
@@ -6042,7 +6086,7 @@ Questions? Contact us.
         </div>
 
         {/* 올영 그룹 가이드 안내 (올영 캠페인에서만 표시) */}
-        {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && allGroups.length === 0 && (
+        {(campaign?.campaign_type === 'planned' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && allGroups.length === 0 && (
           <div className="mb-3 px-2">
             <div className="flex items-start gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
               <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
@@ -6114,8 +6158,8 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
-              {/* 그룹 지정 버튼 (올영/4주/메가와리만) */}
-              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+              {/* 그룹 지정 버튼 (기획형/올영/4주/메가와리) */}
+              {(campaign?.campaign_type === 'planned' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
                 <Button
                   onClick={handleAssignGroup}
                   className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
@@ -6482,14 +6526,19 @@ Questions? Contact us.
                                     <Button
                                       size="sm"
                                       variant="outline"
+                                      disabled={deliveringGuideIds.has(participant.id)}
                                       onClick={async () => {
                                         if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                        await handleGuideApproval([participant.id])
+                                        await handleGuideApproval([participant.id], true)
                                       }}
                                       className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                     >
-                                      <Send className="w-3 h-3 mr-1" />
-                                      전달하기
+                                      {deliveringGuideIds.has(participant.id) ? (
+                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                      ) : (
+                                        <Send className="w-3 h-3 mr-1" />
+                                      )}
+                                      {deliveringGuideIds.has(participant.id) ? '전달중...' : '전달하기'}
                                     </Button>
                                     <Button
                                       size="sm"
@@ -6544,19 +6593,21 @@ Questions? Contact us.
                         {/* US/Japan 캠페인: 가이드 전달 (모달에서 AI/파일 선택) - 4week/oliveyoung/megawari는 별도 섹션 사용 */}
                         {(region === 'us' || region === 'japan') && campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && campaign.campaign_type !== 'oliveyoung_sale' && !(region === 'japan' && campaign.campaign_type === 'megawari') && (
                           <div className="flex items-center gap-1.5">
-                            {/* 가이드 전달 버튼 - 모달에서 AI 또는 파일/URL 선택 */}
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedParticipantForGuide(participant)
-                                setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                setShowGuideSelectModal(true)
-                              }}
-                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
-                            >
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              가이드 전달
-                            </Button>
+                            {/* 가이드 전달 버튼 - 전달 완료(filming) 이후 상태에서는 숨김 */}
+                            {!['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                가이드 전달
+                              </Button>
+                            )}
                             {participant.personalized_guide && (
                               <Button
                                 size="sm"
@@ -6572,21 +6623,23 @@ Questions? Contact us.
                               </Button>
                             )}
                             {/* 가이드 발송됨 상태 */}
-                            {participant.status === 'filming' && (
+                            {['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
                               <>
                                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                   <CheckCircle className="w-3 h-3" />
                                   전달완료
                                 </span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                >
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                  재설정
-                                </Button>
+                                {participant.status === 'filming' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                    className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    재설정
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>
@@ -6611,36 +6664,40 @@ Questions? Contact us.
                                   가이드 보기
                                 </Button>
                               )}
-                              {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedParticipantForGuide(participant)
-                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                  setShowGuideSelectModal(true)
-                                }}
-                                className="text-purple-600 border-purple-300 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
-                              >
-                                <Send className="w-3 h-3 mr-1" />
-                                선택 후 발송
-                              </Button>
-                              {/* 가이드 발송됨 상태이면 재설정 버튼 표시 */}
-                              {participant.status === 'filming' && (
+                              {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) - 전달 완료 후 숨김 */}
+                              {!['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedParticipantForGuide(participant)
+                                    setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                    setShowGuideSelectModal(true)
+                                  }}
+                                  className="text-purple-600 border-purple-300 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                                >
+                                  <Send className="w-3 h-3 mr-1" />
+                                  선택 후 발송
+                                </Button>
+                              )}
+                              {/* 가이드 발송됨 상태이면 전달완료 + 재설정 버튼 표시 */}
+                              {['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
                                 <>
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
                                     전달완료
                                   </span>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                    className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                  >
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    재설정
-                                  </Button>
+                                  {participant.status === 'filming' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -6747,35 +6804,39 @@ Questions? Contact us.
                                 가이드 보기
                               </Button>
                             )}
-                            {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedParticipantForGuide(participant)
-                                setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                setShowGuideSelectModal(true)
-                              }}
-                              className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                            >
-                              <Send className="w-3 h-3 mr-1" />
-                              선택 후 발송
-                            </Button>
-                            {participant.status === 'filming' && (
+                            {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) - 전달 완료 후 숨김 */}
+                            {!['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                선택 후 발송
+                              </Button>
+                            )}
+                            {['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status) && (
                               <>
                                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                   <CheckCircle className="w-3 h-3" />
                                   전달완료
                                 </span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                >
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                  재설정
-                                </Button>
+                                {participant.status === 'filming' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                    className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    재설정
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>
