@@ -1671,14 +1671,14 @@ export default function SnsAutoUploadPage() {
             <div>
               <Label className="mb-2 block">템플릿 (수동 선택)</Label>
               <Select
-                value={uploadSettings.templateId || ''}
-                onValueChange={(value) => setUploadSettings({ ...uploadSettings, templateId: value })}
+                value={uploadSettings.templateId || 'none'}
+                onValueChange={(value) => setUploadSettings({ ...uploadSettings, templateId: value === 'none' ? null : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="템플릿 선택 (선택사항)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">템플릿 없음</SelectItem>
+                  <SelectItem value="none">템플릿 없음</SelectItem>
                   {templates.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name} {t.is_default && '(기본값)'}
