@@ -951,7 +951,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status')
+            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status, guide_group')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -1007,7 +1007,8 @@ export default function CampaignDetail() {
                 ...participant,
                 clean_video_url: koreaApp.clean_video_url || participant.clean_video_url,
                 sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
-                partnership_code: koreaApp.partnership_code || participant.partnership_code
+                partnership_code: koreaApp.partnership_code || participant.partnership_code,
+                guide_group: koreaApp.guide_group || participant.guide_group
               }
             }
             return participant
@@ -1038,7 +1039,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Japan DB 영상 데이터 병합 시도...')
           const { data: japanApps } = await supabaseJapan
             .from('applications')
-            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url')
+            .select('id, user_id, applicant_name, status, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_file_name, clean_video_uploaded_at, clean_video_url, ad_code, partnership_code, sns_upload_url, guide_group')
             .eq('campaign_id', id)
 
           if (japanApps && japanApps.length > 0) {
@@ -4113,15 +4114,28 @@ Questions? Contact us.
 
     try {
       const finalGroupName = groupName.trim() || null
+      let failCount = 0
       for (const participantId of selectedParticipants) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('applications')
           .update({ guide_group: finalGroupName })
           .eq('id', participantId)
+        if (updateError) {
+          console.error('그룹 지정 실패 (id:', participantId, '):', updateError)
+          failCount++
+        }
       }
-      alert(finalGroupName
-        ? `${selectedParticipants.length}명이 "${finalGroupName}" 그룹으로 지정되었습니다.`
-        : `${selectedParticipants.length}명의 그룹이 해제되었습니다.`)
+      if (failCount > 0) {
+        alert(`${failCount}명의 그룹 지정에 실패했습니다. 다시 시도해주세요.`)
+      } else {
+        alert(finalGroupName
+          ? `${selectedParticipants.length}명이 "${finalGroupName}" 그룹으로 지정되었습니다.`
+          : `${selectedParticipants.length}명의 그룹이 해제되었습니다.`)
+      }
+      // 즉시 로컬 상태 업데이트 (그룹 필터 바로 보이도록)
+      setParticipants(prev => prev.map(p =>
+        selectedParticipants.includes(p.id) ? { ...p, guide_group: finalGroupName } : p
+      ))
       setSelectedParticipants([])
       await fetchParticipants()
     } catch (error) {
@@ -6072,7 +6086,7 @@ Questions? Contact us.
         </div>
 
         {/* 올영 그룹 가이드 안내 (올영 캠페인에서만 표시) */}
-        {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && allGroups.length === 0 && (
+        {(campaign?.campaign_type === 'planned' || campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && allGroups.length === 0 && (
           <div className="mb-3 px-2">
             <div className="flex items-start gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
               <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
