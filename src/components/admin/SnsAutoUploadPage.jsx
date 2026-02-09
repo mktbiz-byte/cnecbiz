@@ -39,7 +39,7 @@ import {
 import {
   Youtube, Instagram, Music2, Upload, Settings, Link2, Unlink,
   RefreshCw, Check, X, AlertCircle, Play, ExternalLink, Loader2,
-  FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus, Sparkles
+  FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus, Sparkles, Save, RotateCcw
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -117,6 +117,13 @@ export default function SnsAutoUploadPage() {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
 
+  // 리전별 SEO 기본설정
+  const [regionSeoDefaults, setRegionSeoDefaults] = useState({
+    kr: { title_template: '', description_template: '', hashtags: '' },
+    jp: { title_template: '', description_template: '', hashtags: '' },
+    us: { title_template: '', description_template: '', hashtags: '' }
+  })
+
   // 업로드 상태
   const [uploads, setUploads] = useState([])
   const [pendingVideos, setPendingVideos] = useState([])
@@ -143,6 +150,7 @@ export default function SnsAutoUploadPage() {
   useEffect(() => {
     if (activeTab === 'accounts') {
       fetchAccounts()
+      fetchRegionSeoDefaults()
     } else if (activeTab === 'templates') {
       fetchTemplates()
     } else if (activeTab === 'uploads') {
@@ -690,6 +698,65 @@ export default function SnsAutoUploadPage() {
     }
   }
 
+  // 리전별 SEO 기본설정 조회
+  const fetchRegionSeoDefaults = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('sns_region_seo_defaults')
+        .select('*')
+      if (error) throw error
+      if (data && data.length > 0) {
+        const defaults = { kr: { title_template: '', description_template: '', hashtags: '' }, jp: { title_template: '', description_template: '', hashtags: '' }, us: { title_template: '', description_template: '', hashtags: '' } }
+        data.forEach(row => {
+          if (defaults[row.region]) {
+            defaults[row.region] = {
+              title_template: row.title_template || '',
+              description_template: row.description_template || '',
+              hashtags: row.hashtags || ''
+            }
+          }
+        })
+        setRegionSeoDefaults(defaults)
+      }
+    } catch (error) {
+      console.error('Region SEO defaults fetch error:', error)
+    }
+  }
+
+  // 리전별 SEO 기본설정 저장
+  const handleSaveRegionSeo = async (region) => {
+    try {
+      const seoData = regionSeoDefaults[region]
+      const { error } = await supabaseBiz
+        .from('sns_region_seo_defaults')
+        .upsert({
+          region,
+          title_template: seoData.title_template,
+          description_template: seoData.description_template,
+          hashtags: seoData.hashtags,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'region' })
+      if (error) throw error
+      alert(`${YOUTUBE_REGIONS[region]?.flag} ${YOUTUBE_REGIONS[region]?.name} SEO 설정 저장 완료`)
+    } catch (error) {
+      alert('저장 실패: ' + error.message)
+    }
+  }
+
+  // 비활성 YouTube 계정 재활성화
+  const handleReactivateAccount = async (accountId) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('sns_upload_accounts')
+        .update({ is_active: true })
+        .eq('id', accountId)
+      if (error) throw error
+      fetchAccounts()
+    } catch (error) {
+      alert('재활성화 실패: ' + error.message)
+    }
+  }
+
   // 템플릿 저장
   const handleSaveTemplate = async () => {
     try {
@@ -1120,6 +1187,136 @@ export default function SnsAutoUploadPage() {
                       YouTube Studio에서 관리 권한이 있는 채널은 Google 계정 선택 시 Brand Account로 표시됩니다.
                     </p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 비활성 YouTube 계정 (재활성화 가능) */}
+            {accounts.filter(a => a.platform === 'youtube' && !a.is_active).length > 0 && (
+              <Card className="mb-6 border-dashed border-gray-300">
+                <CardHeader>
+                  <CardTitle className="text-sm text-gray-500 flex items-center gap-2">
+                    <Youtube className="w-4 h-4" />
+                    비활성 YouTube 채널 ({accounts.filter(a => a.platform === 'youtube' && !a.is_active).length}개)
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    이전에 연동했다가 해제된 채널입니다. 재활성화하거나 다시 OAuth 연동할 수 있습니다.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {accounts
+                      .filter(a => a.platform === 'youtube' && !a.is_active)
+                      .map(account => (
+                        <div key={account.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Youtube className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <span className="font-medium text-gray-600">{account.account_name}</span>
+                              <span className="text-xs text-gray-400 ml-2">{account.account_id}</span>
+                            </div>
+                            {account.extra_data?.region && YOUTUBE_REGIONS[account.extra_data.region] && (
+                              <Badge variant="outline" className="text-xs">
+                                {YOUTUBE_REGIONS[account.extra_data.region].flag} {YOUTUBE_REGIONS[account.extra_data.region].name}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleReactivateAccount(account.id)}
+                            >
+                              <RotateCcw className="w-3 h-3 mr-1" />
+                              재활성화
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-500"
+                              onClick={async () => {
+                                if (!confirm('이 계정을 완전히 삭제하시겠습니까?')) return
+                                await supabaseBiz.from('sns_upload_accounts').delete().eq('id', account.id)
+                                fetchAccounts()
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 리전별 SEO 기본설정 */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  리전별 SEO 기본설정
+                </CardTitle>
+                <CardDescription>
+                  각 지역 채널에 업로드 시 자동으로 적용되는 제목, 설명, 해시태그 기본값
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  {Object.entries(YOUTUBE_REGIONS).map(([regionKey, regionConfig]) => (
+                    <div key={regionKey} className={`p-4 rounded-lg border-2 ${regionConfig.borderColor} ${regionConfig.bgColor}`}>
+                      <h3 className="font-bold mb-3 flex items-center gap-2">
+                        {regionConfig.flag} {regionConfig.name} SEO
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs mb-1 block">제목 기본값</Label>
+                          <Input
+                            placeholder="예: {creator} K-Beauty Review"
+                            value={regionSeoDefaults[regionKey]?.title_template || ''}
+                            onChange={(e) => setRegionSeoDefaults({
+                              ...regionSeoDefaults,
+                              [regionKey]: { ...regionSeoDefaults[regionKey], title_template: e.target.value }
+                            })}
+                            className="bg-white text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1 block">설명 기본값</Label>
+                          <Textarea
+                            placeholder="기본 설명..."
+                            rows={3}
+                            value={regionSeoDefaults[regionKey]?.description_template || ''}
+                            onChange={(e) => setRegionSeoDefaults({
+                              ...regionSeoDefaults,
+                              [regionKey]: { ...regionSeoDefaults[regionKey], description_template: e.target.value }
+                            })}
+                            className="bg-white text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1 block">해시태그</Label>
+                          <Input
+                            placeholder="쉼표로 구분"
+                            value={regionSeoDefaults[regionKey]?.hashtags || ''}
+                            onChange={(e) => setRegionSeoDefaults({
+                              ...regionSeoDefaults,
+                              [regionKey]: { ...regionSeoDefaults[regionKey], hashtags: e.target.value }
+                            })}
+                            className="bg-white text-sm"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveRegionSeo(regionKey)}
+                          className="w-full"
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          {regionConfig.flag} 저장
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -1595,6 +1792,39 @@ export default function SnsAutoUploadPage() {
                 )
               })()}
             </div>
+
+            {/* 리전 SEO 자동 적용 */}
+            {(() => {
+              const selectedAccounts = accounts.filter(a => uploadSettings.youtubeAccountIds.includes(a.id))
+              const regions = [...new Set(selectedAccounts.map(a => a.extra_data?.region).filter(Boolean))]
+              if (regions.length === 0) return null
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {regions.map(r => {
+                    const rc = YOUTUBE_REGIONS[r]
+                    const seo = regionSeoDefaults[r]
+                    if (!rc || (!seo?.title_template && !seo?.description_template && !seo?.hashtags)) return null
+                    return (
+                      <Button
+                        key={r}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUploadSettings({
+                            ...uploadSettings,
+                            customTitle: seo.title_template || uploadSettings.customTitle,
+                            customDescription: seo.description_template || uploadSettings.customDescription,
+                            customHashtags: seo.hashtags || uploadSettings.customHashtags
+                          })
+                        }}
+                      >
+                        {rc.flag} {rc.name} SEO 적용
+                      </Button>
+                    )
+                  })}
+                </div>
+              )
+            })()}
 
             {/* AI SEO 최적화 생성 */}
             <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
