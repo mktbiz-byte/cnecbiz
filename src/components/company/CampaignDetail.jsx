@@ -6136,7 +6136,7 @@ Questions? Contact us.
                   className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
                   size="sm"
                 >
-                  <Edit className="w-4 h-4 mr-1" />
+                  <Edit2 className="w-4 h-4 mr-1" />
                   가이드 수정
                 </Button>
               )}
