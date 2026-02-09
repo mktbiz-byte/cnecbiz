@@ -6040,6 +6040,19 @@ Questions? Contact us.
           </div>
         </div>
 
+        {/* 올영 그룹 가이드 안내 (올영 캠페인에서만 표시) */}
+        {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale') && allGroups.length === 0 && (
+          <div className="mb-3 px-2">
+            <div className="flex items-start gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
+              <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
+              <div>
+                <span className="font-bold">그룹별 가이드 전달</span>
+                <span className="text-purple-600 ml-1">: 체크박스로 크리에이터 선택 → "그룹 지정" → 그룹명 입력 → 그룹 필터로 나눠서 가이드 수정/전달</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 그룹 필터 */}
         {allGroups.length > 0 && (
           <div className="flex items-center gap-2 mb-3 px-2 flex-wrap">
@@ -6100,14 +6113,16 @@ Questions? Contact us.
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                 {selectedParticipants.length}명 선택됨
               </span>
-              {/* 그룹 지정 버튼 */}
-              <Button
-                onClick={handleAssignGroup}
-                className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
-                size="sm"
-              >
-                그룹 지정
-              </Button>
+              {/* 그룹 지정 버튼 (올영/4주/메가와리만) */}
+              {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
+                <Button
+                  onClick={handleAssignGroup}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
+                  size="sm"
+                >
+                  그룹 지정
+                </Button>
+              )}
               {/* 가이드 수정 버튼 (올영/4주/메가와리) */}
               {(campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale' || campaign?.campaign_type === '4week_challenge' || (region === 'japan' && campaign?.campaign_type === 'megawari')) && (
                 <Button
