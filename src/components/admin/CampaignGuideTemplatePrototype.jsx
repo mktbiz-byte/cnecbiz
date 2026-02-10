@@ -92,6 +92,7 @@ export default function CampaignGuideTemplatePrototype() {
   const [similarityPercent, setSimilarityPercent] = useState(80)
   const [ytRequiredDialogues, setYtRequiredDialogues] = useState(['', '', ''])
   const [ytAdditionalNotes, setYtAdditionalNotes] = useState('')
+  const [ytManualTranscript, setYtManualTranscript] = useState('')
   const [isAnalyzingYT, setIsAnalyzingYT] = useState(false)
   const [ytResult, setYtResult] = useState(null)
 
@@ -113,7 +114,8 @@ export default function CampaignGuideTemplatePrototype() {
           youtubeUrl: youtubeUrl.trim(),
           similarityPercent,
           requiredDialogues: ytRequiredDialogues.filter(d => d.trim()),
-          additionalNotes: ytAdditionalNotes.trim()
+          additionalNotes: ytAdditionalNotes.trim(),
+          manualTranscript: ytManualTranscript.trim()
         })
       })
 
@@ -548,6 +550,29 @@ export default function CampaignGuideTemplatePrototype() {
               />
             </div>
 
+            {/* 자막 직접 입력 (자동 추출 실패 시 사용) */}
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+              <Label className="text-sm font-medium mb-2 block text-amber-800">
+                자막 직접 입력 (자동 추출 실패 시 사용)
+              </Label>
+              <p className="text-xs text-amber-600 mb-2">
+                자동 자막 추출이 실패할 경우 아래에 영상 자막을 직접 붙여넣으세요.
+                YouTube 영상 → 더보기(⋯) → "스크립트 표시" → 텍스트 복사 후 붙여넣기
+              </p>
+              <Textarea
+                placeholder={`[0:00] 안녕하세요 여러분\n[0:03] 오늘은 이 제품을 리뷰해볼게요\n[0:07] 먼저 패키지부터 볼까요?\n\n또는 타임스탬프 없이 대사만 입력해도 됩니다:\n안녕하세요 여러분\n오늘은 이 제품을 리뷰해볼게요\n먼저 패키지부터 볼까요?`}
+                value={ytManualTranscript}
+                onChange={(e) => setYtManualTranscript(e.target.value)}
+                rows={5}
+                className="bg-white"
+              />
+              {ytManualTranscript.trim() && (
+                <p className="text-xs text-green-600 mt-1">
+                  자막이 입력되었습니다 ({ytManualTranscript.trim().split('\n').filter(l => l.trim()).length}줄). 이 자막이 자동 추출보다 우선 사용됩니다.
+                </p>
+              )}
+            </div>
+
             {/* 분석 버튼 */}
             <Button
               onClick={analyzeYouTubeShorts}
@@ -590,8 +615,12 @@ export default function CampaignGuideTemplatePrototype() {
                         <span className="text-blue-600 font-semibold">자막 추출:</span>
                         <p className={`font-medium mt-0.5 ${ytResult.videoData?.hasTranscript ? 'text-green-700' : 'text-red-600'}`}>
                           {ytResult.videoData?.hasTranscript
-                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간, 언어: ${ytResult.videoData.captionLang || '자동'}, 방법: ${ytResult.videoData.captionMethod || '-'})`
-                            : '실패 — 자막 없음 (메타데이터만으로 분석)'}
+                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간, ${
+                                ytResult.videoData.captionMethod?.startsWith('manual')
+                                  ? '직접 입력'
+                                  : `언어: ${ytResult.videoData.captionLang || '자동'}, 방법: ${ytResult.videoData.captionMethod || '-'}`
+                              })`
+                            : '실패 — 자막 없음 (위의 자막 직접 입력을 사용해보세요)'}
                         </p>
                       </div>
                       <div>
