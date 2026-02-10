@@ -87,6 +87,63 @@ export default function CampaignGuideTemplatePrototype() {
   const [showAIGuideModal, setShowAIGuideModal] = useState(false)
   const [aiGenerationError, setAiGenerationError] = useState(null)
 
+  // YouTube Shorts 분석 상태
+  const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [similarityPercent, setSimilarityPercent] = useState(80)
+  const [ytRequiredDialogues, setYtRequiredDialogues] = useState(['', '', ''])
+  const [ytAdditionalNotes, setYtAdditionalNotes] = useState('')
+  const [isAnalyzingYT, setIsAnalyzingYT] = useState(false)
+  const [ytResult, setYtResult] = useState(null)
+
+  // YouTube Shorts 분석 실행
+  const analyzeYouTubeShorts = async () => {
+    if (!youtubeUrl.trim()) {
+      alert('YouTube URL을 입력해주세요.')
+      return
+    }
+
+    setIsAnalyzingYT(true)
+    setYtResult(null)
+
+    try {
+      const response = await fetch('/.netlify/functions/analyze-youtube-shorts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          youtubeUrl: youtubeUrl.trim(),
+          similarityPercent,
+          requiredDialogues: ytRequiredDialogues.filter(d => d.trim()),
+          additionalNotes: ytAdditionalNotes.trim()
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '영상 분석에 실패했습니다.')
+      }
+
+      setYtResult(result)
+    } catch (error) {
+      console.error('YouTube 분석 오류:', error)
+      alert(`분석 실패: ${error.message}`)
+    } finally {
+      setIsAnalyzingYT(false)
+    }
+  }
+
+  // YouTube 분석 결과 복사
+  const copyYtGuideToClipboard = async () => {
+    if (!ytResult?.guideData?.guide) return
+    const guide = ytResult.guideData.guide
+    const text = `## ${guide.title}\n\n**컨셉:** ${guide.concept}\n\n### 촬영 장면\n${guide.scenes?.map((s, i) => `${i + 1}. [${s.duration}] ${s.name}\n   ${s.description}\n   카메라: ${s.camera}\n   대사: "${s.dialogue}"`).join('\n\n')}\n\n### 필수 대사\n${guide.required_dialogues?.map((d, i) => `${i + 1}. "${d}"`).join('\n')}\n\n### 해시태그\n${guide.hashtags?.map(h => `#${h}`).join(' ')}\n\n### 촬영 팁\n${guide.filming_tips?.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n### 주의사항\n${guide.cautions}`
+    try {
+      await navigator.clipboard.writeText(text)
+      alert('가이드가 클립보드에 복사되었습니다!')
+    } catch (err) {
+      console.error('복사 실패:', err)
+    }
+  }
+
   // AI 가이드 생성 함수
   const generateAIGuide = async () => {
     if (!selectedTemplate || !productName) {
@@ -400,6 +457,250 @@ export default function CampaignGuideTemplatePrototype() {
             </CardContent>
           </Card>
         </div>
+
+        {/* YouTube Shorts 영상 분석 → 가이드 생성 */}
+        <Card className="mb-6 border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-orange-50">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Video className="w-5 h-5 text-red-500" />
+              YouTube Shorts 영상 분석 → 촬영 가이드 생성
+            </CardTitle>
+            <CardDescription>
+              유튜브 쇼츠 링크를 넣으면 AI가 영상을 분석하여 유사한 형태의 촬영 가이드를 자동 생성합니다
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* YouTube URL 입력 */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">YouTube Shorts URL *</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/..."
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  className="flex-1"
+                />
+                {youtubeUrl && (
+                  <Button variant="ghost" size="sm" onClick={() => setYoutubeUrl('')}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 유사도 슬라이더 */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                영상 유사도: <span className="text-red-600 font-bold text-base">{similarityPercent}%</span>
+              </Label>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="5"
+                value={similarityPercent}
+                onChange={(e) => setSimilarityPercent(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>10% 영감만</span>
+                <span>50% 참고</span>
+                <span>80% 유사</span>
+                <span>100% 동일</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {similarityPercent >= 90 ? '원본과 거의 동일한 구조·스타일로 가이드를 생성합니다.'
+                  : similarityPercent >= 70 ? '핵심 구조와 흐름을 유지하되 제품에 맞게 조정합니다.'
+                  : similarityPercent >= 50 ? '컨셉과 톤만 참고하고 내용은 자유롭게 구성합니다.'
+                  : '분위기만 참고하고 대부분 새롭게 기획합니다.'}
+              </p>
+            </div>
+
+            {/* 필수 대사 3개 */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">필수 포함 대사 (최대 3개)</Label>
+              <div className="space-y-2">
+                {ytRequiredDialogues.map((dialogue, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-red-500 w-5">{idx + 1}.</span>
+                    <Input
+                      placeholder={`필수 대사 ${idx + 1} (예: "이거 진짜 좋아요")`}
+                      value={dialogue}
+                      onChange={(e) => {
+                        const newArr = [...ytRequiredDialogues]
+                        newArr[idx] = e.target.value
+                        setYtRequiredDialogues(newArr)
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 추가 요청사항 */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">추가 요청사항 (선택)</Label>
+              <Textarea
+                placeholder="예: 제품 클로즈업 장면을 꼭 넣어주세요, 밝은 톤으로 해주세요..."
+                value={ytAdditionalNotes}
+                onChange={(e) => setYtAdditionalNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {/* 분석 버튼 */}
+            <Button
+              onClick={analyzeYouTubeShorts}
+              disabled={!youtubeUrl.trim() || isAnalyzingYT}
+              className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white py-3 text-base"
+            >
+              {isAnalyzingYT ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  AI 영상 분석 중... (15~30초)
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  영상 분석 & 가이드 생성
+                </>
+              )}
+            </Button>
+
+            {/* 분석 결과 */}
+            {ytResult && ytResult.guideData && (
+              <div className="mt-6 space-y-4">
+                {/* 영상 분석 요약 */}
+                {ytResult.guideData.video_analysis && (
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      원본 영상 분석
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">영상 제목:</span>
+                        <p className="font-medium">{ytResult.videoData?.title || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">스타일:</span>
+                        <p className="font-medium">{ytResult.guideData.video_analysis.style}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">톤앤매너:</span>
+                        <p className="font-medium">{ytResult.guideData.video_analysis.tone}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">자막 추출:</span>
+                        <p className="font-medium">{ytResult.videoData?.hasTranscript ? '성공' : '없음 (메타데이터 기반 분석)'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">분석 요약:</span>
+                        <p className="font-medium">{ytResult.guideData.video_analysis.summary}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 생성된 가이드 */}
+                {ytResult.guideData.guide && (
+                  <div className="p-4 bg-white rounded-xl border-2 border-purple-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-purple-800 text-lg flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-500" />
+                        {ytResult.guideData.guide.title}
+                      </h4>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={copyYtGuideToClipboard}>
+                          <Copy className="w-4 h-4 mr-1" />
+                          복사
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-gray-600 bg-purple-50 p-3 rounded-lg">{ytResult.guideData.guide.concept}</p>
+
+                    {/* 촬영 장면 */}
+                    <div>
+                      <h5 className="font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                        <Camera className="w-4 h-4" />
+                        촬영 장면 ({ytResult.guideData.guide.scenes?.length || 0}개)
+                      </h5>
+                      <div className="space-y-3">
+                        {ytResult.guideData.guide.scenes?.map((scene, idx) => (
+                          <div key={idx} className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className="bg-blue-600 text-white text-xs">{scene.order || idx + 1}</Badge>
+                              <span className="font-semibold text-blue-800">{scene.name}</span>
+                              <span className="text-xs text-blue-500 ml-auto">{scene.duration}</span>
+                            </div>
+                            <p className="text-sm text-gray-700 mb-1">{scene.description}</p>
+                            <div className="flex flex-wrap gap-x-4 text-xs text-gray-500">
+                              <span>📹 {scene.camera}</span>
+                              {scene.dialogue && <span>💬 "{scene.dialogue}"</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 필수 대사 */}
+                    {ytResult.guideData.guide.required_dialogues?.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-gray-800 mb-2">💬 필수 대사</h5>
+                        <div className="space-y-1">
+                          {ytResult.guideData.guide.required_dialogues.map((d, i) => (
+                            <div key={i} className="p-2 bg-orange-50 rounded-lg border border-orange-200 text-sm">
+                              <span className="font-bold text-orange-600 mr-2">{i + 1}.</span>
+                              <span className="text-orange-800">"{d}"</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 해시태그 */}
+                    {ytResult.guideData.guide.hashtags?.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-gray-800 mb-2">#️⃣ 추천 해시태그</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {ytResult.guideData.guide.hashtags.map((tag, i) => (
+                            <Badge key={i} variant="secondary" className="text-sm">
+                              #{tag.replace(/^#/, '')}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 촬영 팁 */}
+                    {ytResult.guideData.guide.filming_tips?.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-gray-800 mb-2">💡 촬영 팁</h5>
+                        <ul className="space-y-1">
+                          {ytResult.guideData.guide.filming_tips.map((tip, i) => (
+                            <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                              <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                              {tip}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 주의사항 */}
+                    {ytResult.guideData.guide.cautions && (
+                      <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                        <h5 className="font-semibold text-red-800 mb-1">⚠️ 주의사항</h5>
+                        <p className="text-sm text-red-700">{ytResult.guideData.guide.cautions}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 상단: 국가 선택 & 제품 카테고리 */}
         <Card className="mb-6">
