@@ -13697,8 +13697,8 @@ Questions? Contact us.
         </div>
       )}
 
-      {/* Olive Young Guide Modal */}
-      {showUnifiedGuideModal && campaign.campaign_type === 'oliveyoung' && (
+      {/* Olive Young Guide Modal (그룹별 가이드 수정 지원) */}
+      {showUnifiedGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
         <OliveYoungGuideModal
           campaign={campaign}
           onClose={() => setShowUnifiedGuideModal(false)}
@@ -13719,13 +13719,14 @@ Questions? Contact us.
         />
       )}
 
-      {/* Oliveyoung/Megawari Guide Modal */}
+      {/* Oliveyoung/Megawari Guide Modal (가이드 보기/수정) */}
       {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
         <OliveyoungGuideModal
           campaign={campaign}
           onClose={() => setShowOliveyoungGuideModal(false)}
           onUpdate={fetchCampaignDetail}
           supabase={supabase}
+          groupName={guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null}
         />
       )}
 
