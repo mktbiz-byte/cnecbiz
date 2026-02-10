@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
 
-export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supabase }) {
+export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supabase, groupName }) {
   const [activeStep, setActiveStep] = useState('step1')
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
@@ -22,9 +22,12 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
     }
   }
 
-  // AI 가이드 또는 일반 가이드 둘 다 확인
-  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
-  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
+  // 그룹별 가이드 데이터 우선 확인
+  const groupData = groupName && campaign.guide_group_data?.[groupName]
+
+  // AI 가이드 또는 일반 가이드 둘 다 확인 (그룹 데이터 우선)
+  const step1Data = (groupData?.step1_ai ? parseGuideData(groupData.step1_ai) : null) || parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
+  const step2Data = (groupData?.step2_ai ? parseGuideData(groupData.step2_ai) : null) || parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
 
   console.log('[OliveyoungGuideModal] Raw campaign.oliveyoung_step1_guide_ai:', campaign.oliveyoung_step1_guide_ai)
   console.log('[OliveyoungGuideModal] Parsed step1Data:', step1Data)
@@ -174,11 +177,31 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
         reference_urls: editedData?.reference_urls || []
       }
 
-      console.log('[OliveyoungGuideModal] 저장 데이터:', { fieldName, dataToSave, campaignId: campaign.id })
+      let updateData
+      if (groupName) {
+        // 그룹별 가이드 저장 → guide_group_data에 저장
+        const existingGroupData = campaign.guide_group_data || {}
+        const existingGroup = existingGroupData[groupName] || {}
+        const stepKey = activeStep // 'step1' or 'step2'
+        updateData = {
+          guide_group_data: {
+            ...existingGroupData,
+            [groupName]: {
+              ...existingGroup,
+              [`${stepKey}_ai`]: JSON.stringify(dataToSave)
+            }
+          }
+        }
+        console.log('[OliveyoungGuideModal] 그룹별 저장:', { groupName, stepKey, campaignId: campaign.id })
+      } else {
+        // 전체 가이드 저장 (기존)
+        updateData = { [fieldName]: JSON.stringify(dataToSave) }
+        console.log('[OliveyoungGuideModal] 전체 저장:', { fieldName, campaignId: campaign.id })
+      }
 
       const { data, error } = await supabase
         .from('campaigns')
-        .update({ [fieldName]: JSON.stringify(dataToSave) })
+        .update(updateData)
         .eq('id', campaign.id)
         .select()
 
@@ -188,7 +211,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
       }
 
       console.log('[OliveyoungGuideModal] 저장 성공:', data)
-      alert('수정이 저장되었습니다!')
+      alert(groupName ? `✅ "${groupName}" 그룹 가이드가 저장되었습니다!` : '수정이 저장되었습니다!')
       setIsEditing(false)
       if (onUpdate) onUpdate()
     } catch (error) {
@@ -272,7 +295,10 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
       <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
-          <h3 className="text-xl font-bold text-gray-900">📸 올리브영 촬영 가이드</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            📸 올리브영 촬영 가이드
+            {groupName && <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">{groupName}</span>}
+          </h3>
           <div className="flex items-center gap-2">
             {activeStep !== 'step3' && !isEditing && (
               <button
