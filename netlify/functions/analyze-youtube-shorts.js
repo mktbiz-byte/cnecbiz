@@ -70,36 +70,53 @@ async function fetchYouTubeData(videoId) {
   const html = await response.text()
   console.log('[yt-shorts] HTML length:', html.length)
 
-  // 제목 추출 — videoDetails에서 우선 추출 (다른 "title" 필드와 혼동 방지)
+  // 메타데이터 추출 — videoDetails 블록에서 indexOf로 안전하게 추출
   let title = ''
-  const vdTitleMatch = html.match(/"videoDetails":\{[^}]*?"title":"(.*?)"/)
-  if (vdTitleMatch) {
-    title = vdTitleMatch[1]
-    try { title = JSON.parse(`"${title}"`) } catch (e) {}
+  let description = ''
+  let duration = 0
+
+  const vdIdx = html.indexOf('"videoDetails"')
+  if (vdIdx !== -1) {
+    // videoDetails 이후 1000자 내에서 검색
+    const vdChunk = html.substring(vdIdx, vdIdx + 2000)
+    const titleM = vdChunk.match(/"title"\s*:\s*"(.*?)"/)
+    if (titleM) {
+      title = titleM[1]
+      try { title = JSON.parse(`"${title}"`) } catch (e) {}
+    }
+    const descM = vdChunk.match(/"shortDescription"\s*:\s*"(.*?)"/)
+    if (descM) {
+      try { description = JSON.parse(`"${descM[1]}"`).substring(0, 1500) } catch (e) {
+        description = descM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').substring(0, 1500)
+      }
+    }
+    const durM = vdChunk.match(/"lengthSeconds"\s*:\s*"(\d+)"/)
+    if (durM) duration = parseInt(durM[1])
   }
+  // fallback 제목
   if (!title) {
-    const fallbackTitle = html.match(/<meta name="title" content="(.*?)"/) ||
-                          html.match(/<title>(.+?)<\/title>/)
-    if (fallbackTitle) {
-      title = fallbackTitle[1].replace(' - YouTube', '').trim()
+    const fbTitle = html.match(/<meta name="title" content="(.*?)"/) ||
+                    html.match(/<title>(.+?)<\/title>/)
+    if (fbTitle) {
+      title = fbTitle[1].replace(' - YouTube', '').trim()
       try { title = JSON.parse(`"${title}"`) } catch (e) {}
     }
   }
-
-  // 설명 추출
-  let description = ''
-  const descMatch = html.match(/"shortDescription":"(.*?)"/)
-  if (descMatch) {
-    try {
-      description = JSON.parse(`"${descMatch[1]}"`).substring(0, 1500)
-    } catch (e) {
-      description = descMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').substring(0, 1500)
+  // fallback 설명
+  if (!description) {
+    const descMatch = html.match(/"shortDescription":"(.*?)"/)
+    if (descMatch) {
+      try { description = JSON.parse(`"${descMatch[1]}"`).substring(0, 1500) } catch (e) {
+        description = descMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').substring(0, 1500)
+      }
     }
   }
-
-  // 영상 길이 추출
-  const durationMatch = html.match(/"lengthSeconds":"(\d+)"/)
-  let duration = durationMatch ? parseInt(durationMatch[1]) : 0
+  // fallback 길이
+  if (!duration) {
+    const durMatch = html.match(/"lengthSeconds":"(\d+)"/)
+    if (durMatch) duration = parseInt(durMatch[1])
+  }
+  console.log('[yt-shorts] Parsed — title:', title?.substring(0, 50), ', duration:', duration, ', desc:', description?.substring(0, 50))
 
   let transcript = ''
   let timestampedTranscript = []
@@ -272,66 +289,103 @@ async function fetchYouTubeData(videoId) {
     }
   }
 
-  // ===== 오디오 fallback: Piped API (YouTube 프록시) =====
-  if (!audioStreamUrl) {
-    const pipedInstances = [
-      'https://pipedapi.kavin.rocks',
-      'https://pipedapi.adminforge.de',
-      'https://api.piped.yt'
+  // ===== 오디오 fallback: Piped + Invidious API (YouTube 프록시) =====
+  if (!audioStreamUrl || !transcript) {
+    // 프록시 인스턴스 목록 (Piped + Invidious)
+    const proxyApis = [
+      { type: 'piped', url: 'https://pipedapi.kavin.rocks/streams/' },
+      { type: 'piped', url: 'https://pipedapi.r4fo.com/streams/' },
+      { type: 'piped', url: 'https://pipedapi.darkness.services/streams/' },
+      { type: 'invidious', url: 'https://inv.nadeko.net/api/v1/videos/' },
+      { type: 'invidious', url: 'https://invidious.fdn.fr/api/v1/videos/' },
+      { type: 'invidious', url: 'https://vid.puffyan.us/api/v1/videos/' }
     ]
-    for (const instance of pipedInstances) {
+
+    for (const api of proxyApis) {
       try {
-        console.log(`[yt-shorts] Trying Piped API: ${instance}`)
-        const pipedResponse = await fetch(`${instance}/streams/${videoId}`, {
+        const apiUrl = `${api.url}${videoId}`
+        console.log(`[yt-shorts] Trying ${api.type}: ${api.url}...`)
+        const proxyResponse = await fetch(apiUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(10000)
         })
-        if (pipedResponse.ok) {
-          const pipedData = await pipedResponse.json()
+        console.log(`[yt-shorts] ${api.type} response: ${proxyResponse.status}`)
+        if (!proxyResponse.ok) continue
 
-          // 메타데이터 보강
-          if (!title && pipedData.title) title = pipedData.title
-          if (!description && pipedData.description) description = pipedData.description.substring(0, 1500)
-          if (!duration && pipedData.duration) duration = pipedData.duration
+        const data = await proxyResponse.json()
 
-          // 자막 추출 (Piped도 자막 제공)
-          if (!transcript && pipedData.subtitles?.length) {
-            console.log(`[yt-shorts] Piped: found ${pipedData.subtitles.length} subtitle tracks`)
-            const sub = pipedData.subtitles.find(s => s.code === 'ko') ||
-                        pipedData.subtitles.find(s => s.code === 'en') ||
-                        pipedData.subtitles[0]
+        if (api.type === 'piped') {
+          // Piped 응답 처리
+          if (!title && data.title) title = data.title
+          if (!description && data.description) description = data.description.substring(0, 1500)
+          if (!duration && data.duration) duration = data.duration
+
+          // 자막
+          if (!transcript && data.subtitles?.length) {
+            console.log(`[yt-shorts] Piped: ${data.subtitles.length} subtitle tracks`)
+            const sub = data.subtitles.find(s => s.code === 'ko') ||
+                        data.subtitles.find(s => s.code === 'en') || data.subtitles[0]
             if (sub?.url) {
               try {
                 captionLang = sub.code || ''
-                // Piped 자막 URL에 format=json3 추가
                 const subUrl = sub.url.includes('fmt=') ? sub.url : sub.url + (sub.url.includes('?') ? '&' : '?') + 'fmt=srv3'
-                const subResponse = await fetch(subUrl)
-                const subText = await subResponse.text()
-                timestampedTranscript = parseCaptionXml(subText)
+                const subResp = await fetch(subUrl, { signal: AbortSignal.timeout(5000) })
+                timestampedTranscript = parseCaptionXml(await subResp.text())
                 transcript = timestampedTranscript.map(t => t.text).join(' ')
-                if (timestampedTranscript.length > 0) captionMethod = 'piped_subtitles'
-                console.log(`[yt-shorts] Piped subtitles:`, timestampedTranscript.length, 'segments')
-              } catch (subErr) {
-                console.log(`[yt-shorts] Piped subtitle fetch error:`, subErr.message)
-              }
+                if (timestampedTranscript.length > 0) captionMethod = 'piped_sub'
+              } catch (e) { console.log('[yt-shorts] Piped sub error:', e.message) }
             }
           }
 
-          // 오디오 스트림 URL (Piped는 프록시된 직접 URL 제공)
-          const audioStreams = pipedData.audioStreams || []
-          if (audioStreams.length > 0) {
-            // 가장 작은 포맷 선택
-            audioStreams.sort((a, b) => (a.contentLength || Infinity) - (b.contentLength || Infinity))
-            audioStreamUrl = audioStreams[0].url
-            audioMimeType = (audioStreams[0].mimeType || audioStreams[0].format || 'audio/mp4').split(';')[0]
+          // 오디오
+          if (!audioStreamUrl && data.audioStreams?.length) {
+            data.audioStreams.sort((a, b) => (a.contentLength || Infinity) - (b.contentLength || Infinity))
+            audioStreamUrl = data.audioStreams[0].url
+            audioMimeType = (data.audioStreams[0].mimeType || 'audio/mp4').split(';')[0]
             if (!audioMimeType.startsWith('audio/')) audioMimeType = 'audio/mp4'
-            console.log(`[yt-shorts] Piped audio found: ${audioMimeType}, ${audioStreams[0].contentLength || '?'} bytes`)
+            console.log(`[yt-shorts] Piped audio: ${audioMimeType}, ${data.audioStreams[0].contentLength || '?'} bytes`)
+          }
+        } else {
+          // Invidious 응답 처리
+          if (!title && data.title) title = data.title
+          if (!description && data.description) description = data.description.substring(0, 1500)
+          if (!duration && data.lengthSeconds) duration = data.lengthSeconds
+
+          // 자막
+          if (!transcript && data.captions?.length) {
+            console.log(`[yt-shorts] Invidious: ${data.captions.length} caption tracks`)
+            const cap = data.captions.find(c => c.language_code === 'ko') ||
+                        data.captions.find(c => c.language_code === 'en') || data.captions[0]
+            if (cap?.url) {
+              try {
+                captionLang = cap.language_code || ''
+                const capResp = await fetch(`https://${new URL(api.url).host}${cap.url}`, { signal: AbortSignal.timeout(5000) })
+                timestampedTranscript = parseCaptionXml(await capResp.text())
+                transcript = timestampedTranscript.map(t => t.text).join(' ')
+                if (timestampedTranscript.length > 0) captionMethod = 'invidious_cap'
+              } catch (e) { console.log('[yt-shorts] Invidious cap error:', e.message) }
+            }
           }
 
-          if (audioStreamUrl || transcript) break
+          // 오디오 (Invidious의 adaptiveFormats)
+          if (!audioStreamUrl && data.adaptiveFormats?.length) {
+            const audioFmts = data.adaptiveFormats.filter(f => f.type?.startsWith('audio/') && f.url)
+            if (audioFmts.length > 0) {
+              audioFmts.sort((a, b) => (a.clen || Infinity) - (b.clen || Infinity))
+              audioStreamUrl = audioFmts[0].url
+              audioMimeType = audioFmts[0].type.split(';')[0]
+              console.log(`[yt-shorts] Invidious audio: ${audioMimeType}`)
+            }
+          }
+        }
+
+        // 오디오 또는 자막 확보되면 중단
+        if (audioStreamUrl || transcript) {
+          console.log(`[yt-shorts] ${api.type} success! audio: ${!!audioStreamUrl}, transcript: ${transcript.length} chars`)
+          break
         }
       } catch (e) {
-        console.log(`[yt-shorts] Piped (${instance}) error:`, e.message)
+        console.log(`[yt-shorts] ${api.type} error:`, e.message)
       }
     }
   }
