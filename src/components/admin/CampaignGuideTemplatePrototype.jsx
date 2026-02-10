@@ -570,18 +570,77 @@ export default function CampaignGuideTemplatePrototype() {
             {/* 분석 결과 */}
             {ytResult && ytResult.guideData && (
               <div className="mt-6 space-y-4">
-                {/* 영상 분석 요약 */}
+                {/* 원본 데이터 확인 (자막 + 설명) */}
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <h4 className="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    원본 데이터 확인 (YouTube에서 추출한 데이터)
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-blue-600 font-semibold">영상 제목:</span>
+                        <p className="font-medium text-gray-800 mt-0.5">{ytResult.videoData?.title || '(추출 실패)'}</p>
+                      </div>
+                      <div>
+                        <span className="text-blue-600 font-semibold">영상 길이:</span>
+                        <p className="font-medium text-gray-800 mt-0.5">{ytResult.videoData?.duration ? `${ytResult.videoData.duration}초` : '(알 수 없음)'}</p>
+                      </div>
+                      <div>
+                        <span className="text-blue-600 font-semibold">자막 추출:</span>
+                        <p className={`font-medium mt-0.5 ${ytResult.videoData?.hasTranscript ? 'text-green-700' : 'text-red-600'}`}>
+                          {ytResult.videoData?.hasTranscript
+                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간, 언어: ${ytResult.videoData.captionLang || '자동'}, 방법: ${ytResult.videoData.captionMethod || '-'})`
+                            : '실패 — 자막 없음 (메타데이터만으로 분석)'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-600 font-semibold">Video ID:</span>
+                        <p className="font-medium text-gray-800 mt-0.5 font-mono">{ytResult.videoData?.videoId || '-'}</p>
+                      </div>
+                    </div>
+
+                    {/* 영상 설명 */}
+                    {ytResult.videoData?.description && (
+                      <div>
+                        <span className="text-blue-600 font-semibold">영상 설명:</span>
+                        <div className="mt-1 p-2 bg-white rounded-lg border border-blue-100 max-h-24 overflow-y-auto">
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans">{ytResult.videoData.description}</pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 타임스탬프 자막 */}
+                    {ytResult.videoData?.timeline ? (
+                      <div>
+                        <span className="text-blue-600 font-semibold">추출된 자막 (타임스탬프):</span>
+                        <div className="mt-1 p-2 bg-white rounded-lg border border-blue-100 max-h-48 overflow-y-auto">
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{ytResult.videoData.timeline}</pre>
+                        </div>
+                      </div>
+                    ) : ytResult.videoData?.transcript ? (
+                      <div>
+                        <span className="text-blue-600 font-semibold">추출된 자막 (텍스트):</span>
+                        <div className="mt-1 p-2 bg-white rounded-lg border border-blue-100 max-h-48 overflow-y-auto">
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans">{ytResult.videoData.transcript}</pre>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-red-50 rounded-lg border border-red-200">
+                        <p className="text-xs text-red-700 font-semibold">자막을 추출하지 못했습니다. 영상 제목과 설명만으로 분석합니다.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI 분석 요약 */}
                 {ytResult.guideData.video_analysis && (
                   <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
                       <Eye className="w-4 h-4" />
-                      원본 영상 분석
+                      AI 분석 결과
                     </h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-gray-500">영상 제목:</span>
-                        <p className="font-medium">{ytResult.videoData?.title || '-'}</p>
-                      </div>
                       <div>
                         <span className="text-gray-500">스타일:</span>
                         <p className="font-medium">{ytResult.guideData.video_analysis.style}</p>
@@ -591,12 +650,12 @@ export default function CampaignGuideTemplatePrototype() {
                         <p className="font-medium">{ytResult.guideData.video_analysis.tone}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">자막 추출:</span>
-                        <p className="font-medium">
-                          {ytResult.videoData?.hasTranscript
-                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간${ytResult.videoData.captionLang ? `, ${ytResult.videoData.captionLang}` : ''})`
-                            : '없음 (메타데이터 기반 분석)'}
-                        </p>
+                        <span className="text-gray-500">구조:</span>
+                        <p className="font-medium">{ytResult.guideData.video_analysis.structure}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">길이:</span>
+                        <p className="font-medium">{ytResult.guideData.video_analysis.estimated_duration}</p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-gray-500">분석 요약:</span>
