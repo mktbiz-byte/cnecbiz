@@ -347,20 +347,60 @@ ${additionalNotes ? `\n## 📝 추가 요청\n${additionalNotes}` : ''}
         temperature: 0.4,
         topK: 40,
         topP: 0.9,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json'
       }
     })
 
-    const responseText = result.response.candidates[0].content.parts[0].text
-    console.log('[analyze-youtube-shorts] Response length:', responseText.length)
+    // Gemini 응답 안전 체크
+    const candidates = result?.response?.candidates
+    if (!candidates || candidates.length === 0) {
+      const blockReason = result?.response?.promptFeedback?.blockReason
+      throw new Error(blockReason ? `Gemini가 요청을 차단했습니다: ${blockReason}` : 'Gemini 응답이 비어있습니다. 다시 시도해주세요.')
+    }
+
+    const finishReason = candidates[0].finishReason
+    const responseText = candidates[0]?.content?.parts?.[0]?.text || ''
+    console.log('[analyze-youtube-shorts] Response length:', responseText.length, 'finishReason:', finishReason)
+
+    if (!responseText) {
+      throw new Error('Gemini가 빈 응답을 반환했습니다. 다시 시도해주세요.')
+    }
 
     let guideData
     try {
       guideData = JSON.parse(responseText)
     } catch (parseError) {
-      const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      guideData = JSON.parse(cleaned)
+      // 코드블록 제거 후 재시도
+      let cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      try {
+        guideData = JSON.parse(cleaned)
+      } catch (parseError2) {
+        // 잘린 JSON 복구 시도 — 닫히지 않은 브래킷/브레이스 추가
+        console.log('[analyze-youtube-shorts] JSON parse failed, attempting repair. Last 100 chars:', cleaned.slice(-100))
+        let openBraces = 0, openBrackets = 0
+        let inStr = false
+        for (let i = 0; i < cleaned.length; i++) {
+          const c = cleaned[i]
+          if (inStr) { if (c === '\\') { i++; continue }; if (c === '"') inStr = false; continue }
+          if (c === '"') { inStr = true; continue }
+          if (c === '{') openBraces++
+          else if (c === '}') openBraces--
+          else if (c === '[') openBrackets++
+          else if (c === ']') openBrackets--
+        }
+        // 잘린 문자열 닫기
+        if (inStr) cleaned += '"'
+        // 열려있는 배열/객체 닫기
+        for (let i = 0; i < openBrackets; i++) cleaned += ']'
+        for (let i = 0; i < openBraces; i++) cleaned += '}'
+        try {
+          guideData = JSON.parse(cleaned)
+          console.log('[analyze-youtube-shorts] JSON repair succeeded')
+        } catch (parseError3) {
+          throw new Error(`AI 응답 JSON 파싱 실패 (finishReason: ${finishReason}). 다시 시도해주세요.`)
+        }
+      }
     }
 
     return {
