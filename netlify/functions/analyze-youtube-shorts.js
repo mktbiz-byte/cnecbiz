@@ -154,8 +154,10 @@ async function fetchYouTubeData(videoId) {
     console.log('[analyze-youtube-shorts] Method 1 (captionTracks) error:', e.message)
   }
 
-  // ===== 방법 2: innertube player API로 자막 URL 가져오기 =====
-  if (!transcript) {
+  // ===== 방법 2: innertube player API로 자막 URL + 오디오 스트림 URL 가져오기 =====
+  let audioStreamUrl = null
+  let audioMimeType = null
+  {
     try {
       console.log('[analyze-youtube-shorts] Trying method 2: innertube player API...')
       const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player', {
@@ -175,27 +177,44 @@ async function fetchYouTubeData(videoId) {
       })
       if (playerResponse.ok) {
         const playerData = await playerResponse.json()
-        const captions = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks
-        if (captions?.length) {
-          console.log('[analyze-youtube-shorts] Player API found', captions.length, 'caption tracks')
 
-          const track = captions.find(t => t.languageCode === 'ko' && t.kind !== 'asr') ||
-                        captions.find(t => t.languageCode === 'ko') ||
-                        captions.find(t => t.languageCode === 'en' && t.kind !== 'asr') ||
-                        captions.find(t => t.languageCode === 'en') ||
-                        captions.find(t => t.kind !== 'asr') ||
-                        captions[0]
+        // 자막 추출 시도
+        if (!transcript) {
+          const captions = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+          if (captions?.length) {
+            console.log('[analyze-youtube-shorts] Player API found', captions.length, 'caption tracks')
 
-          if (track?.baseUrl) {
-            captionLang = track.languageCode || ''
-            const captionUrl = track.baseUrl.replace(/&amp;/g, '&')
-            const captionResponse = await fetch(captionUrl)
-            const captionXml = await captionResponse.text()
-            timestampedTranscript = parseCaptionXml(captionXml)
-            transcript = timestampedTranscript.map(t => t.text).join(' ')
-            if (timestampedTranscript.length > 0) captionMethod = 'innertube_player'
-            console.log('[analyze-youtube-shorts] Method 2 (player API):', timestampedTranscript.length, 'segments')
+            const track = captions.find(t => t.languageCode === 'ko' && t.kind !== 'asr') ||
+                          captions.find(t => t.languageCode === 'ko') ||
+                          captions.find(t => t.languageCode === 'en' && t.kind !== 'asr') ||
+                          captions.find(t => t.languageCode === 'en') ||
+                          captions.find(t => t.kind !== 'asr') ||
+                          captions[0]
+
+            if (track?.baseUrl) {
+              captionLang = track.languageCode || ''
+              const captionUrl = track.baseUrl.replace(/&amp;/g, '&')
+              const captionResponse = await fetch(captionUrl)
+              const captionXml = await captionResponse.text()
+              timestampedTranscript = parseCaptionXml(captionXml)
+              transcript = timestampedTranscript.map(t => t.text).join(' ')
+              if (timestampedTranscript.length > 0) captionMethod = 'innertube_player'
+              console.log('[analyze-youtube-shorts] Method 2 (player API):', timestampedTranscript.length, 'segments')
+            }
           }
+        }
+
+        // 오디오 스트림 URL 추출 (자막 없을 때 음성인식용)
+        const adaptiveFormats = playerData?.streamingData?.adaptiveFormats || []
+        const audioFormats = adaptiveFormats.filter(f => f.mimeType?.startsWith('audio/') && f.url)
+        if (audioFormats.length > 0) {
+          // 가장 작은 오디오 포맷 선택
+          audioFormats.sort((a, b) => parseInt(a.contentLength || '999999999') - parseInt(b.contentLength || '999999999'))
+          audioStreamUrl = audioFormats[0].url
+          audioMimeType = audioFormats[0].mimeType.split(';')[0]
+          console.log('[analyze-youtube-shorts] Audio stream found:', audioMimeType, audioFormats[0].contentLength, 'bytes')
+        } else {
+          console.log('[analyze-youtube-shorts] No direct audio stream URLs (may need signature decoding)')
         }
 
         // player API에서 제목/설명/길이도 보강
@@ -257,9 +276,9 @@ async function fetchYouTubeData(videoId) {
     }
   }
 
-  console.log('[analyze-youtube-shorts] Final result — title:', title, ', transcript:', transcript.length, 'chars, method:', captionMethod || 'none')
+  console.log('[analyze-youtube-shorts] Final result — title:', title, ', transcript:', transcript.length, 'chars, method:', captionMethod || 'none', ', audioStream:', !!audioStreamUrl)
 
-  return { title, description, duration, transcript, timestampedTranscript, videoId, captionLang, captionMethod }
+  return { title, description, duration, transcript, timestampedTranscript, videoId, captionLang, captionMethod, audioStreamUrl, audioMimeType }
 }
 
 // 타임스탬프 자막을 타임라인 텍스트로 변환
@@ -318,13 +337,84 @@ exports.handler = async (event) => {
     console.log('[analyze-youtube-shorts] Timestamped segments:', videoData.timestampedTranscript.length)
     console.log('[analyze-youtube-shorts] Duration:', videoData.duration, 'sec')
 
-    // 2. Gemini로 분석 + 가이드 생성
+    // 2. Gemini 설정
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.')
 
     const genai = new GoogleGenerativeAI(apiKey)
-    // 영상 분석은 품질이 중요 → gemini-2.5-flash 사용
     const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+    // 3. 자막이 없으면 → Gemini 음성 인식으로 자막 생성
+    if (videoData.transcript.length <= 10 && videoData.audioStreamUrl) {
+      try {
+        console.log('[analyze-youtube-shorts] Method 4: Downloading audio for Gemini speech recognition...')
+        const audioResponse = await fetch(videoData.audioStreamUrl)
+        if (audioResponse.ok) {
+          const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+          console.log('[analyze-youtube-shorts] Audio downloaded:', audioBuffer.length, 'bytes')
+
+          // 10MB 미만인 경우만 Gemini에 전송 (인라인 데이터 제한)
+          if (audioBuffer.length < 10 * 1024 * 1024) {
+            const audioBase64 = audioBuffer.toString('base64')
+            const audioMime = videoData.audioMimeType || 'audio/webm'
+
+            const transcribeResult = await model.generateContent({
+              contents: [{
+                parts: [
+                  { text: `이 오디오를 듣고 말하는 내용을 정확히 받아적어주세요.
+반드시 아래 형식으로 작성하세요:
+[M:SS] 대사 내용
+
+예시:
+[0:00] 안녕하세요 여러분
+[0:03] 오늘은 이 제품을 소개할게요
+[0:07] 먼저 텍스처를 보여드릴게요
+
+규칙:
+- 모든 대사를 빠짐없이 적어주세요
+- 타임스탬프는 [분:초] 형식
+- 배경음악이나 효과음은 무시하세요
+- 실제로 말하는 내용만 적어주세요` },
+                  { inlineData: { mimeType: audioMime, data: audioBase64 } }
+                ]
+              }],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 2048
+              }
+            })
+
+            const transcription = transcribeResult?.response?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+            console.log('[analyze-youtube-shorts] Gemini transcription length:', transcription.length)
+            console.log('[analyze-youtube-shorts] Gemini transcription preview:', transcription.substring(0, 300))
+
+            // 타임스탬프 형식 파싱
+            const lines = [...transcription.matchAll(/\[(\d+):(\d+)\]\s*(.+)/g)]
+            if (lines.length > 0) {
+              videoData.timestampedTranscript = lines.map(m => ({
+                start: parseInt(m[1]) * 60 + parseInt(m[2]),
+                end: parseInt(m[1]) * 60 + parseInt(m[2]) + 3,
+                text: m[3].trim()
+              }))
+              videoData.transcript = videoData.timestampedTranscript.map(t => t.text).join(' ')
+              videoData.captionMethod = 'gemini_audio'
+              videoData.captionLang = 'ko'
+              console.log('[analyze-youtube-shorts] Method 4 (Gemini audio): extracted', videoData.timestampedTranscript.length, 'segments')
+            } else if (transcription.length > 20) {
+              // 타임스탬프 없이 텍스트만 있는 경우
+              videoData.transcript = transcription.trim()
+              videoData.captionMethod = 'gemini_audio_plain'
+              videoData.captionLang = 'ko'
+              console.log('[analyze-youtube-shorts] Method 4 (Gemini audio): got plain text,', transcription.length, 'chars')
+            }
+          } else {
+            console.log('[analyze-youtube-shorts] Audio too large for inline:', audioBuffer.length, 'bytes')
+          }
+        }
+      } catch (e) {
+        console.log('[analyze-youtube-shorts] Method 4 (Gemini audio) error:', e.message)
+      }
+    }
 
     // 타임라인 텍스트 생성
     const timeline = formatTimeline(videoData.timestampedTranscript, videoData.duration)
