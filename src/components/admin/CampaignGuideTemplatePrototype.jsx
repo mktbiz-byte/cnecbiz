@@ -592,7 +592,11 @@ export default function CampaignGuideTemplatePrototype() {
                       </div>
                       <div>
                         <span className="text-gray-500">자막 추출:</span>
-                        <p className="font-medium">{ytResult.videoData?.hasTranscript ? '성공' : '없음 (메타데이터 기반 분석)'}</p>
+                        <p className="font-medium">
+                          {ytResult.videoData?.hasTranscript
+                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간${ytResult.videoData.captionLang ? `, ${ytResult.videoData.captionLang}` : ''})`
+                            : '없음 (메타데이터 기반 분석)'}
+                        </p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-gray-500">분석 요약:</span>
