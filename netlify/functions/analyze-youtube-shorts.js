@@ -64,9 +64,55 @@ async function fetchYouTubeData(videoId) {
   let timestampedTranscript = []
   let captionLang = ''
   try {
-    const captionMatch = html.match(/"captionTracks":(\[.*?\])/)
-    if (captionMatch) {
-      const captionData = JSON.parse(captionMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'))
+    // captionTracks JSON 배열을 bracket counting으로 정확히 추출
+    const captionStart = html.indexOf('"captionTracks":')
+    let captionData = null
+    if (captionStart !== -1) {
+      const arrStart = html.indexOf('[', captionStart)
+      if (arrStart !== -1) {
+        let depth = 0
+        let arrEnd = -1
+        let inString = false
+        for (let i = arrStart; i < html.length && i < arrStart + 50000; i++) {
+          const ch = html[i]
+          if (inString) {
+            if (ch === '\\') { i++; continue } // skip escaped char
+            if (ch === '"') inString = false
+            continue
+          }
+          if (ch === '"') { inString = true; continue }
+          if (ch === '[') depth++
+          else if (ch === ']') {
+            depth--
+            if (depth === 0) { arrEnd = i; break }
+          }
+        }
+        if (arrEnd !== -1) {
+          const rawJson = html.substring(arrStart, arrEnd + 1)
+          // YouTube HTML 내 JSON은 이미 이스케이프된 상태 → 그대로 파싱 시도
+          try {
+            captionData = JSON.parse(rawJson)
+          } catch (e1) {
+            // \\u0026 같은 이스케이프가 이중으로 되어 있을 수 있음
+            try {
+              captionData = JSON.parse(rawJson.replace(/\\\\u0026/g, '\\u0026'))
+            } catch (e2) {
+              // JSON.parse가 안되면 baseUrl만 regex로 추출
+              console.log('[analyze-youtube-shorts] JSON parse failed, extracting baseUrl via regex')
+              const urlMatches = [...rawJson.matchAll(/"baseUrl"\s*:\s*"(.*?)"/g)]
+              const langMatches = [...rawJson.matchAll(/"languageCode"\s*:\s*"(.*?)"/g)]
+              if (urlMatches.length > 0) {
+                captionData = urlMatches.map((m, i) => ({
+                  baseUrl: m[1],
+                  languageCode: langMatches[i]?.[1] || 'unknown'
+                }))
+              }
+            }
+          }
+        }
+      }
+    }
+    if (captionData && captionData.length > 0) {
 
       console.log('[analyze-youtube-shorts] Found caption tracks:', captionData.length)
 
@@ -107,7 +153,7 @@ async function fetchYouTubeData(videoId) {
         console.log('[analyze-youtube-shorts] Extracted', timestampedTranscript.length, 'caption segments')
       }
     } else {
-      console.log('[analyze-youtube-shorts] No captionTracks found in page')
+      console.log('[analyze-youtube-shorts] No captionTracks found or parsing failed')
     }
   } catch (e) {
     console.log('[analyze-youtube-shorts] Caption extraction error:', e.message)
