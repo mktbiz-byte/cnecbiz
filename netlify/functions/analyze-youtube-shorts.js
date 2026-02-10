@@ -70,12 +70,20 @@ async function fetchYouTubeData(videoId) {
   const html = await response.text()
   console.log('[yt-shorts] HTML length:', html.length)
 
-  // 제목 추출
+  // 제목 추출 — videoDetails에서 우선 추출 (다른 "title" 필드와 혼동 방지)
   let title = ''
-  const titleMatch = html.match(/"title":"(.*?)"/) || html.match(/<title>(.+?)<\/title>/)
-  if (titleMatch) {
-    title = titleMatch[1].replace(' - YouTube', '').trim()
+  const vdTitleMatch = html.match(/"videoDetails":\{[^}]*?"title":"(.*?)"/)
+  if (vdTitleMatch) {
+    title = vdTitleMatch[1]
     try { title = JSON.parse(`"${title}"`) } catch (e) {}
+  }
+  if (!title) {
+    const fallbackTitle = html.match(/<meta name="title" content="(.*?)"/) ||
+                          html.match(/<title>(.+?)<\/title>/)
+    if (fallbackTitle) {
+      title = fallbackTitle[1].replace(' - YouTube', '').trim()
+      try { title = JSON.parse(`"${title}"`) } catch (e) {}
+    }
   }
 
   // 설명 추출
@@ -261,6 +269,70 @@ async function fetchYouTubeData(videoId) {
       }
     } catch (e) {
       console.log('[yt-shorts] get_transcript error:', e.message)
+    }
+  }
+
+  // ===== 오디오 fallback: Piped API (YouTube 프록시) =====
+  if (!audioStreamUrl) {
+    const pipedInstances = [
+      'https://pipedapi.kavin.rocks',
+      'https://pipedapi.adminforge.de',
+      'https://api.piped.yt'
+    ]
+    for (const instance of pipedInstances) {
+      try {
+        console.log(`[yt-shorts] Trying Piped API: ${instance}`)
+        const pipedResponse = await fetch(`${instance}/streams/${videoId}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          signal: AbortSignal.timeout(8000)
+        })
+        if (pipedResponse.ok) {
+          const pipedData = await pipedResponse.json()
+
+          // 메타데이터 보강
+          if (!title && pipedData.title) title = pipedData.title
+          if (!description && pipedData.description) description = pipedData.description.substring(0, 1500)
+          if (!duration && pipedData.duration) duration = pipedData.duration
+
+          // 자막 추출 (Piped도 자막 제공)
+          if (!transcript && pipedData.subtitles?.length) {
+            console.log(`[yt-shorts] Piped: found ${pipedData.subtitles.length} subtitle tracks`)
+            const sub = pipedData.subtitles.find(s => s.code === 'ko') ||
+                        pipedData.subtitles.find(s => s.code === 'en') ||
+                        pipedData.subtitles[0]
+            if (sub?.url) {
+              try {
+                captionLang = sub.code || ''
+                // Piped 자막 URL에 format=json3 추가
+                const subUrl = sub.url.includes('fmt=') ? sub.url : sub.url + (sub.url.includes('?') ? '&' : '?') + 'fmt=srv3'
+                const subResponse = await fetch(subUrl)
+                const subText = await subResponse.text()
+                timestampedTranscript = parseCaptionXml(subText)
+                transcript = timestampedTranscript.map(t => t.text).join(' ')
+                if (timestampedTranscript.length > 0) captionMethod = 'piped_subtitles'
+                console.log(`[yt-shorts] Piped subtitles:`, timestampedTranscript.length, 'segments')
+              } catch (subErr) {
+                console.log(`[yt-shorts] Piped subtitle fetch error:`, subErr.message)
+              }
+            }
+          }
+
+          // 오디오 스트림 URL (Piped는 프록시된 직접 URL 제공)
+          const audioStreams = pipedData.audioStreams || []
+          if (audioStreams.length > 0) {
+            // 가장 작은 포맷 선택
+            audioStreams.sort((a, b) => (a.contentLength || Infinity) - (b.contentLength || Infinity))
+            audioStreamUrl = audioStreams[0].url
+            audioMimeType = (audioStreams[0].mimeType || audioStreams[0].format || 'audio/mp4').split(';')[0]
+            if (!audioMimeType.startsWith('audio/')) audioMimeType = 'audio/mp4'
+            console.log(`[yt-shorts] Piped audio found: ${audioMimeType}, ${audioStreams[0].contentLength || '?'} bytes`)
+          }
+
+          if (audioStreamUrl || transcript) break
+        }
+      } catch (e) {
+        console.log(`[yt-shorts] Piped (${instance}) error:`, e.message)
+      }
     }
   }
 
