@@ -230,7 +230,7 @@ export default function RevenueManagementNew() {
         if (companyIds.length > 0) {
           const { data: companies } = await supabaseBiz
             .from('companies')
-            .select('user_id, company_name, email, voucher_contract_amount, voucher_contract_date')
+            .select('*')
             .in('user_id', companyIds)
 
           if (companies) {
