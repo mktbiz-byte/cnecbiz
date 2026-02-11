@@ -7336,7 +7336,7 @@ Questions? Contact us.
                 <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">영상 확인</span>
                 <span className="sm:hidden">영상</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size}명</span>
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
@@ -9122,7 +9122,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'all' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
                       onClick={() => setVideoReviewFilter('all')}
                     >
-                      전체 ({new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size})
+                      전체 ({new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size})
                     </Button>
                     <Button
                       size="sm"
@@ -9138,7 +9138,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-300 text-green-700 hover:bg-green-50'}
                       onClick={() => setVideoReviewFilter('approved')}
                     >
-                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status)).map(v => v.user_id)).size})
+                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status)).map(v => v.user_id)).size})
                     </Button>
                     <Button
                       size="sm"
@@ -9531,17 +9531,16 @@ Questions? Contact us.
                   const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
                   const isMultiStepCampaign = is4WeekChallenge || isOliveyoung || isMegawari
 
-                  // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
-                  // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  let filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+                  // 전체 보기에서는 rejected만 제외 (completed도 표시)
+                  let filteredSubmissions = videoSubmissions.filter(v => v.status !== 'rejected')
 
                   // 필터에 따라 추가 필터링
                   if (videoReviewFilter === 'pending') {
                     // 검수 미완료: pending, submitted, revision_requested 상태
                     filteredSubmissions = filteredSubmissions.filter(v => ['pending', 'submitted', 'revision_requested'].includes(v.status))
                   } else if (videoReviewFilter === 'approved') {
-                    // 검수 완료: approved, sns_uploaded, final_confirmed 상태
-                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                    // 검수 완료: approved, sns_uploaded, final_confirmed, completed, confirmed 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status))
                   }
 
                   // user_id로만 그룹화

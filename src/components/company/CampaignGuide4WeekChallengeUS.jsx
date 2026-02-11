@@ -487,10 +487,29 @@ ${existingWeeks}
         coreData.challenge_weekly_guides = existingWeekly
       }
 
-      const { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
-      if (error) throw error
+      // Resilient save: try full save, then fallback progressively
+      let { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
 
-      // Step 2: Per-week extension columns (may fail silently if columns don't exist yet)
+      if (error) {
+        console.warn('[handleSaveWeek] Full save failed, trying JSONB only:', error.message)
+        const { brand, product_name, product_features, product_key_points, ...jsonbOnly } = coreData
+        let { error: err2 } = await supabase.from('campaigns').update(jsonbOnly).eq('id', id)
+
+        if (err2) {
+          console.warn('[handleSaveWeek] JSONB save failed, trying without translation:', err2.message)
+          const { challenge_guide_data_en, ...minimal } = jsonbOnly
+          let { error: err3 } = await supabase.from('campaigns').update(
+            Object.keys(minimal).length > 0 ? minimal : { challenge_guide_data: guideData }
+          ).eq('id', id)
+          if (err3) throw new Error(`DB columns missing. Please run US DB migration.\n(database/us_guide_columns_migration.sql)\n\n${err3.message}`)
+        }
+
+        // Best-effort: save basic columns individually
+        try { await supabase.from('campaigns').update({ product_name: guideData.product_name }).eq('id', id) } catch (e) {}
+        try { await supabase.from('campaigns').update({ product_key_points: guideData.precautions }).eq('id', id) } catch (e) {}
+      }
+
+      // Per-week extension columns (may fail silently if columns don't exist yet)
       try {
         const extData = {
           [`${weekKey}_guide_mode`]: weekGuideModes[weekKey],
@@ -501,7 +520,7 @@ ${existingWeeks}
           [`${weekKey}_external_title`]: weekExternalGuides[weekKey].title
         }
         const { error: extError } = await supabase.from('campaigns').update(extData).eq('id', id)
-        if (extError) console.warn('[handleSaveWeek] Per-week columns save skipped (columns may not exist yet):', extError.message)
+        if (extError) console.warn('[handleSaveWeek] Per-week columns save skipped:', extError.message)
       } catch (extErr) {
         console.warn('[handleSaveWeek] Per-week columns save skipped:', extErr.message)
       }
@@ -574,10 +593,27 @@ ${existingWeeks}
       coreData.challenge_weekly_guides_ai = JSON.stringify(aiGuides)
       coreData.guide_generated_at = new Date().toISOString()
 
-      const { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
-      if (error) throw error
+      // Resilient save: try full save, then fallback progressively
+      let { error } = await supabase.from('campaigns').update(coreData).eq('id', id)
 
-      // Step 2: Per-week extension columns (may fail silently if columns don't exist yet)
+      if (error) {
+        console.warn('[handleCompleteAll] Full save failed, trying JSONB only:', error.message)
+        const { brand, product_name, product_features, product_key_points, ...jsonbOnly } = coreData
+        let { error: err2 } = await supabase.from('campaigns').update(jsonbOnly).eq('id', id)
+
+        if (err2) {
+          console.warn('[handleCompleteAll] JSONB save failed, trying without translation:', err2.message)
+          const { challenge_guide_data_en, ...minimal } = jsonbOnly
+          let { error: err3 } = await supabase.from('campaigns').update(
+            Object.keys(minimal).length > 0 ? minimal : { challenge_guide_data: guideData }
+          ).eq('id', id)
+          if (err3) throw new Error(`DB columns missing. Please run US DB migration.\n\n${err3.message}`)
+        }
+
+        try { await supabase.from('campaigns').update({ product_name: guideData.product_name }).eq('id', id) } catch (e) {}
+      }
+
+      // Per-week extension columns (may fail silently if columns don't exist yet)
       try {
         const extData = {
           week1_guide_mode: weekGuideModes.week1, week2_guide_mode: weekGuideModes.week2,
@@ -592,7 +628,7 @@ ${existingWeeks}
           week4_external_file_url: weekExternalGuides.week4.fileUrl, week4_external_file_name: weekExternalGuides.week4.fileName, week4_external_title: weekExternalGuides.week4.title
         }
         const { error: extError } = await supabase.from('campaigns').update(extData).eq('id', id)
-        if (extError) console.warn('[handleCompleteAll] Per-week columns save skipped (columns may not exist yet):', extError.message)
+        if (extError) console.warn('[handleCompleteAll] Per-week columns save skipped:', extError.message)
       } catch (extErr) {
         console.warn('[handleCompleteAll] Per-week columns save skipped:', extErr.message)
       }
@@ -619,14 +655,22 @@ ${existingWeeks}
       } catch (e) {}
       delete aiGuides[weekKey]
 
-      const { error } = await supabase.from('campaigns').update({
+      // Try reset with all columns, fallback to just AI guides
+      const resetData = {
         challenge_weekly_guides_ai: Object.keys(aiGuides).length > 0 ? JSON.stringify(aiGuides) : null,
         [`${weekKey}_guide_mode`]: null,
         [`${weekKey}_external_type`]: null, [`${weekKey}_external_url`]: null,
         [`${weekKey}_external_file_url`]: null, [`${weekKey}_external_file_name`]: null,
         [`${weekKey}_external_title`]: null
-      }).eq('id', id)
-      if (error) throw error
+      }
+      let { error } = await supabase.from('campaigns').update(resetData).eq('id', id)
+      if (error) {
+        console.warn('[handleResetWeek] Full reset failed, trying minimal:', error.message)
+        const { error: err2 } = await supabase.from('campaigns').update({
+          challenge_weekly_guides_ai: resetData.challenge_weekly_guides_ai
+        }).eq('id', id)
+        if (err2) throw err2
+      }
 
       setWeekStatus(prev => ({ ...prev, [weekKey]: 'empty' }))
       setGuideData(prev => ({ ...prev, [weekKey]: { ...defaultWeek } }))
