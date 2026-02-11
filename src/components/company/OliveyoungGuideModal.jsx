@@ -26,8 +26,9 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate, supa
   const groupData = groupName && campaign.guide_group_data?.[groupName]
 
   // AI 가이드 또는 일반 가이드 둘 다 확인 (그룹 데이터 우선)
-  const step1Data = (groupData?.step1_ai ? parseGuideData(groupData.step1_ai) : null) || parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
-  const step2Data = (groupData?.step2_ai ? parseGuideData(groupData.step2_ai) : null) || parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
+  // 그룹: step1_ai (AI 가이드) → step1 (텍스트 가이드) → 글로벌 fallback
+  const step1Data = (groupData?.step1_ai ? parseGuideData(groupData.step1_ai) : null) || (groupData?.step1 ? parseGuideData(groupData.step1) : null) || parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
+  const step2Data = (groupData?.step2_ai ? parseGuideData(groupData.step2_ai) : null) || (groupData?.step2 ? parseGuideData(groupData.step2) : null) || parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
 
   console.log('[OliveyoungGuideModal] Raw campaign.oliveyoung_step1_guide_ai:', campaign.oliveyoung_step1_guide_ai)
   console.log('[OliveyoungGuideModal] Parsed step1Data:', step1Data)

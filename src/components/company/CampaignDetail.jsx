@@ -626,6 +626,7 @@ export default function CampaignDetail() {
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
+  const [viewingGuideGroup, setViewingGuideGroup] = useState(null) // 가이드 보기 시 크리에이터의 그룹명
   const [showCampaignGuidePopup, setShowCampaignGuidePopup] = useState(false) // 캠페인 등록 정보 팝업
   const [showDeleteModal, setShowDeleteModal] = useState(false) // 캠페인 삭제 모달
   const [isDeleting, setIsDeleting] = useState(false)
@@ -6906,11 +6907,12 @@ Questions? Contact us.
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
                           <div className="flex items-center gap-1.5">
                             {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) && (
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide || (campaign.guide_group_data && Object.keys(campaign.guide_group_data).length > 0)) && (
                               <Button
                                 size="sm"
                                 onClick={() => {
-                                  // 캠페인 레벨 가이드 모달 열기
+                                  // 크리에이터의 그룹명으로 가이드 모달 열기
+                                  setViewingGuideGroup(participant.guide_group || null)
                                   setShowOliveyoungGuideModal(true)
                                 }}
                                 className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
@@ -13837,10 +13839,10 @@ Questions? Contact us.
       {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
         <OliveyoungGuideModal
           campaign={campaign}
-          onClose={() => setShowOliveyoungGuideModal(false)}
+          onClose={() => { setShowOliveyoungGuideModal(false); setViewingGuideGroup(null) }}
           onUpdate={fetchCampaignDetail}
           supabase={supabase}
-          groupName={guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null}
+          groupName={viewingGuideGroup || (guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null)}
         />
       )}
 

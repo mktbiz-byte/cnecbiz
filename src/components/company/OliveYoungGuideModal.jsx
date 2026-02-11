@@ -40,66 +40,57 @@ export default function OliveYoungGuideModal({
       // 그룹별 가이드가 있으면 우선 로드
       const groupData = groupName && campaign.guide_group_data?.[groupName]
 
+      // 그룹 AI 가이드에서 텍스트 추출
+      const getGroupGuideText = (stepKey) => {
+        if (!groupData) return null
+        if (groupData[`${stepKey}_ai`]) {
+          try {
+            const parsed = JSON.parse(groupData[`${stepKey}_ai`])
+            return parsed.text_guide || groupData[stepKey] || null
+          } catch { return groupData[stepKey] || null }
+        }
+        return groupData[stepKey] || null
+      }
+
       setStepGuides({
         step1: {
-          guide: groupData?.step1 || campaign.oliveyoung_step1_guide || '',
+          guide: getGroupGuideText('step1') || campaign.oliveyoung_step1_guide || '',
           hashtags: [],
           reference_urls: []
         },
         step2: {
-          guide: groupData?.step2 || campaign.oliveyoung_step2_guide || '',
+          guide: getGroupGuideText('step2') || campaign.oliveyoung_step2_guide || '',
           hashtags: [],
           reference_urls: []
         },
         step3: {
-          guide: groupData?.step3 || campaign.oliveyoung_step3_guide || '',
+          guide: getGroupGuideText('step3') || campaign.oliveyoung_step3_guide || '',
           hashtags: [],
           reference_urls: []
         }
       })
 
-      // Load AI guides if exist (그룹 데이터가 없을 때만)
-      if (!groupData) {
-        if (campaign.oliveyoung_step1_guide_ai) {
+      // Load AI guide hashtags/reference_urls (그룹 → 글로벌 순서)
+      const loadAiExtras = (stepKey, globalField) => {
+        const source = groupData?.[`${stepKey}_ai`] || campaign[globalField]
+        if (source) {
           try {
-            const parsed = JSON.parse(campaign.oliveyoung_step1_guide_ai)
+            const parsed = JSON.parse(source)
             setStepGuides(prev => ({
               ...prev,
-              step1: {
-                ...prev.step1,
-                hashtags: parsed.hashtags || [],
-                reference_urls: parsed.reference_urls || []
-              }
-            }))
-          } catch (e) {}
-        }
-        if (campaign.oliveyoung_step2_guide_ai) {
-          try {
-            const parsed = JSON.parse(campaign.oliveyoung_step2_guide_ai)
-            setStepGuides(prev => ({
-              ...prev,
-              step2: {
-                ...prev.step2,
-                hashtags: parsed.hashtags || [],
-                reference_urls: parsed.reference_urls || []
-              }
-            }))
-          } catch (e) {}
-        }
-        if (campaign.oliveyoung_step3_guide_ai) {
-          try {
-            const parsed = JSON.parse(campaign.oliveyoung_step3_guide_ai)
-            setStepGuides(prev => ({
-              ...prev,
-              step3: {
-                ...prev.step3,
-                hashtags: parsed.hashtags || [],
-                reference_urls: parsed.reference_urls || []
+              [stepKey]: {
+                ...prev[stepKey],
+                hashtags: parsed.hashtags || prev[stepKey].hashtags,
+                reference_urls: parsed.reference_urls || prev[stepKey].reference_urls
               }
             }))
           } catch (e) {}
         }
       }
+
+      loadAiExtras('step1', 'oliveyoung_step1_guide_ai')
+      loadAiExtras('step2', 'oliveyoung_step2_guide_ai')
+      loadAiExtras('step3', 'oliveyoung_step3_guide_ai')
     }
   }, [campaign, groupName])
 
@@ -266,6 +257,7 @@ JSON 형식으로만 응답해주세요.`
           guide_group_data: {
             ...existingGroupData,
             [groupName]: {
+              ...(existingGroupData[groupName] || {}),
               step1: stepGuides.step1.guide,
               step2: stepGuides.step2.guide,
               step3: stepGuides.step3.guide

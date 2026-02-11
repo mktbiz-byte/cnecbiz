@@ -79,7 +79,7 @@ const CreatorMyPage = () => {
           // Korea DB applications에서 먼저 조회
           const { data: apps } = await supabaseKorea
             .from('applications')
-            .select('campaign_id, main_channel, applicant_email, user_id')
+            .select('campaign_id, main_channel, guide_group, applicant_email, user_id')
             .in('campaign_id', campaignIds)
             .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
 
@@ -88,7 +88,7 @@ const CreatorMyPage = () => {
           if (supabaseBiz) {
             const { data: bApps } = await supabaseBiz
               .from('applications')
-              .select('campaign_id, main_channel, applicant_email, user_id')
+              .select('campaign_id, main_channel, guide_group, applicant_email, user_id')
               .in('campaign_id', campaignIds)
               .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
             bizApps = bApps || []
@@ -97,8 +97,8 @@ const CreatorMyPage = () => {
           const allApps = [...(apps || []), ...bizApps]
           if (allApps.length > 0) {
             participantsWithChannel = participantsWithChannel.map(p => {
-              const app = allApps.find(a => a.campaign_id === p.campaigns?.id && a.main_channel)
-              return app ? { ...p, main_channel: app.main_channel } : p
+              const app = allApps.find(a => a.campaign_id === p.campaigns?.id)
+              return app ? { ...p, main_channel: app.main_channel || p.main_channel, guide_group: app.guide_group } : p
             })
           }
         }
@@ -407,17 +407,29 @@ const CreatorMyPage = () => {
 
   const getCampaignGuide = (campaign) => {
     if (!campaign.campaigns) return null
-    
+
     const campaignData = campaign.campaigns
-    
+    const guideGroup = campaign.guide_group
+    const groupData = guideGroup && campaignData.guide_group_data?.[guideGroup]
+
+    // 그룹 가이드에서 텍스트 추출 헬퍼
+    const getGroupGuide = (stepKey, globalField, globalAiField) => {
+      if (groupData) {
+        // 그룹 AI 가이드 → 그룹 텍스트 가이드 → 글로벌 순서
+        if (groupData[`${stepKey}_ai`]) return groupData[`${stepKey}_ai`]
+        if (groupData[stepKey]) return groupData[stepKey]
+      }
+      return campaignData[globalField] || campaignData[globalAiField]
+    }
+
     // 캠페인 타입별 가이드 반환
     if (campaignData.campaign_type === 'regular') {
       return campaign.personalized_guide || campaignData.ai_generated_guide || campaignData.ai_guide || '가이드가 아직 생성되지 않았습니다.'
-    } else if (campaignData.campaign_type === 'oliveyoung') {
+    } else if (campaignData.campaign_type === 'oliveyoung' || campaignData.campaign_type === 'oliveyoung_sale') {
       return {
-        step1: campaignData.oliveyoung_step1_guide || campaignData.oliveyoung_step1_guide_ai,
-        step2: campaignData.oliveyoung_step2_guide || campaignData.oliveyoung_step2_guide_ai,
-        step3: campaignData.oliveyoung_step3_guide || campaignData.oliveyoung_step3_guide_ai
+        step1: getGroupGuide('step1', 'oliveyoung_step1_guide', 'oliveyoung_step1_guide_ai'),
+        step2: getGroupGuide('step2', 'oliveyoung_step2_guide', 'oliveyoung_step2_guide_ai'),
+        step3: getGroupGuide('step3', 'oliveyoung_step3_guide', 'oliveyoung_step3_guide_ai')
       }
     } else if (campaignData.campaign_type === '4week_challenge') {
       // challenge_weekly_guides_ai is TEXT column - needs JSON.parse
