@@ -483,40 +483,53 @@ export default function LandingPage() {
       </section>
 
       {/* 포트폴리오 바로가기 배너 */}
-      <section className="py-10 sm:py-14 lg:py-16 bg-gray-900" id="showcase">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">Portfolio</h2>
-            <p className="text-gray-400 text-sm sm:text-base">국가별 크리에이터 숏폼 포트폴리오</p>
+      <section className="py-12 sm:py-16 lg:py-20 bg-gray-950" id="showcase">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 sm:mb-12">
+            <p className="text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed">
+              단순한 영상을 넘어, 각 국가의 문화적 맥락을 관통하는 <span className="text-white font-semibold">최상위 퀄리티의 숏폼</span>을 제안합니다.
+            </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
             {[
-              { key: 'korea', flag: '🇰🇷', label: 'Korea', name: 'CNEC Korea', desc: 'K-뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@bizcnec/shorts', from: 'from-blue-600', to: 'to-indigo-700', accent: 'text-blue-200', shadow: 'hover:shadow-blue-500/20', ring: 'ring-blue-400/30' },
-              { key: 'japan', flag: '🇯🇵', label: 'Japan', name: 'CNEC Japan', desc: 'J-뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@CNEC_JP/shorts', from: 'from-rose-500', to: 'to-pink-600', accent: 'text-rose-200', shadow: 'hover:shadow-rose-500/20', ring: 'ring-rose-400/30' },
-              { key: 'usa', flag: '🇺🇸', label: 'USA', name: 'CNEC USA', desc: 'US 뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@CNEC_USA/shorts', from: 'from-violet-500', to: 'to-purple-700', accent: 'text-violet-200', shadow: 'hover:shadow-violet-500/20', ring: 'ring-violet-400/30' }
+              { key: 'korea', code: 'KOR', region: 'SOUTH KOREA', name: 'CNEC Korea', desc: '트렌디한 K-뷰티 감성을 담은 숏폼 콘텐츠 솔루션', url: 'https://www.youtube.com/@bizcnec/shorts', dotColor: 'bg-blue-500', accentColor: 'text-purple-400' },
+              { key: 'japan', code: 'JPN', region: 'JAPAN', name: 'CNEC Japan', desc: '미니멀리즘과 정교함을 결합한 J-뷰티 숏폼 마케팅', url: 'https://www.youtube.com/@CNEC_JP/shorts', dotColor: 'bg-rose-500', accentColor: 'text-rose-400' },
+              { key: 'usa', code: 'USA', region: 'UNITED STATES', name: 'CNEC USA', desc: '글로벌 스탠다드에 맞춘 볼드하고 감각적인 영상미', url: 'https://www.youtube.com/@CNEC_USA/shorts', dotColor: 'bg-blue-400', accentColor: 'text-violet-400' }
             ].map(ch => (
               <div key={ch.key} className="flex flex-col gap-3">
                 <a
                   href={ch.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${ch.from} ${ch.to} p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl ${ch.shadow}`}
+                  className="group flex flex-col justify-between rounded-2xl bg-gray-900 border border-gray-800 p-5 sm:p-6 min-h-[220px] transition-all duration-300 hover:border-gray-600 hover:bg-gray-800/80"
                 >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">{ch.flag}</span>
-                      <span className="text-white/60 text-xs font-medium tracking-wider uppercase">{ch.label}</span>
+                  {/* 상단: Region + 화살표 */}
+                  <div>
+                    <div className="flex items-start justify-between mb-6 sm:mb-8">
+                      <div>
+                        <p className="text-gray-500 text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase mb-1">Region</p>
+                        <p className="text-gray-300 text-xs sm:text-sm font-medium tracking-wide">{ch.code} / {ch.region}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center group-hover:border-gray-500 transition-colors">
+                        <ArrowRight className="w-3.5 h-3.5 text-gray-500 -rotate-45 group-hover:text-white transition-colors" />
+                      </div>
                     </div>
-                    <h3 className="text-white font-bold text-lg sm:text-xl mb-1">{ch.name}</h3>
-                    <p className={`${ch.accent} text-xs sm:text-sm mb-4`}>{ch.desc}</p>
-                    <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
-                      <Play className="w-3.5 h-3.5" />
-                      <span>YouTube에서 보기</span>
-                      <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                    {/* 중앙: 이름 + 설명 */}
+                    <h3 className="text-white font-bold text-xl sm:text-2xl mb-2.5">{ch.name}</h3>
+                    <p className={`${ch.accentColor} text-xs sm:text-sm leading-relaxed`}>{ch.desc}</p>
+                  </div>
+
+                  {/* 하단: YouTube 링크 */}
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
+                    <div className="flex items-center gap-2 text-gray-500 group-hover:text-gray-300 transition-colors">
+                      <Video className="w-4 h-4" />
+                      <span className="text-xs font-medium tracking-wider uppercase">Watch on YouTube</span>
                     </div>
+                    <div className={`w-2.5 h-2.5 rounded-full ${ch.dotColor}`} />
                   </div>
                 </a>
+
                 {/* 최근 숏폼 썸네일 */}
                 {portfolioShorts[ch.key]?.length > 0 && (
                   <div className="grid grid-cols-5 gap-1.5">
@@ -526,7 +539,7 @@ export default function LandingPage() {
                         href={`https://www.youtube.com/shorts/${short.video_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`group/thumb relative aspect-[9/16] rounded-lg overflow-hidden ring-1 ${ch.ring} hover:ring-2 transition-all hover:scale-105`}
+                        className="group/thumb relative aspect-[9/16] rounded-lg overflow-hidden ring-1 ring-gray-800 hover:ring-gray-600 transition-all hover:scale-105"
                         title={short.title}
                       >
                         <img
@@ -538,8 +551,8 @@ export default function LandingPage() {
                         <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition-colors flex items-center justify-center">
                           <Play className="w-5 h-5 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-lg" />
                         </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-1">
-                          <span className="text-white text-[9px] leading-tight line-clamp-1">{(short.view_count || 0).toLocaleString()}회</span>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                          <span className="text-white/80 text-[9px] leading-tight line-clamp-1">{(short.view_count || 0).toLocaleString()}회</span>
                         </div>
                       </a>
                     ))}
