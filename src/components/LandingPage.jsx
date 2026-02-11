@@ -494,9 +494,9 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
             {[
-              { key: 'korea', code: 'KOR', region: 'SOUTH KOREA', name: 'CNEC Korea', desc: '트렌디한 K-뷰티 감성을 담은 숏폼 콘텐츠 솔루션', url: 'https://www.youtube.com/@bizcnec/shorts', dotColor: 'bg-blue-500', accentColor: 'text-purple-400' },
-              { key: 'japan', code: 'JPN', region: 'JAPAN', name: 'CNEC Japan', desc: '미니멀리즘과 정교함을 결합한 J-뷰티 숏폼 마케팅', url: 'https://www.youtube.com/@CNEC_JP/shorts', dotColor: 'bg-rose-500', accentColor: 'text-rose-400' },
-              { key: 'usa', code: 'USA', region: 'UNITED STATES', name: 'CNEC USA', desc: '글로벌 스탠다드에 맞춘 볼드하고 감각적인 영상미', url: 'https://www.youtube.com/@CNEC_USA/shorts', dotColor: 'bg-blue-400', accentColor: 'text-violet-400' }
+              { key: 'korea', code: 'KOR', region: 'SOUTH KOREA', name: 'CNEC Korea', desc: 'K-뷰티 트렌드의 중심, 국내 2,000명 이상의 뷰티 크리에이터 네트워크', url: 'https://www.youtube.com/@bizcnec/shorts', dotColor: 'bg-blue-500', accentColor: 'text-purple-400' },
+              { key: 'japan', code: 'JPN', region: 'JAPAN', name: 'CNEC Japan', desc: '일본 현지 크리에이터가 직접 제작하는 J-뷰티 숏폼 마케팅', url: 'https://www.youtube.com/@CNEC_JP/shorts', dotColor: 'bg-rose-500', accentColor: 'text-rose-400' },
+              { key: 'usa', code: 'USA', region: 'UNITED STATES', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 크리에이터 콘텐츠', url: 'https://www.youtube.com/@CNEC_USA/shorts', dotColor: 'bg-blue-400', accentColor: 'text-violet-400' }
             ].map(ch => (
               <div key={ch.key} className="flex flex-col gap-3">
                 <a
