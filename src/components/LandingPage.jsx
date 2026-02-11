@@ -494,7 +494,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
             {[
-              { key: 'korea', code: 'KOR', region: 'SOUTH KOREA', name: 'CNEC Korea', desc: 'K-뷰티 트렌드의 중심, 국내 2,000명 이상의 뷰티 크리에이터 네트워크', url: 'https://www.youtube.com/@bizcnec/shorts', dotColor: 'bg-blue-500', accentColor: 'text-purple-400' },
+              { key: 'korea', code: 'KOR', region: 'SOUTH KOREA', name: 'CNEC Korea', desc: 'K-뷰티 트렌드의 중심, 국내 20만 뷰티 크리에이터 네트워크', url: 'https://www.youtube.com/@bizcnec/shorts', dotColor: 'bg-blue-500', accentColor: 'text-purple-400' },
               { key: 'japan', code: 'JPN', region: 'JAPAN', name: 'CNEC Japan', desc: '일본 현지 크리에이터가 직접 제작하는 J-뷰티 숏폼 마케팅', url: 'https://www.youtube.com/@CNEC_JP/shorts', dotColor: 'bg-rose-500', accentColor: 'text-rose-400' },
               { key: 'usa', code: 'USA', region: 'UNITED STATES', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 크리에이터 콘텐츠', url: 'https://www.youtube.com/@CNEC_USA/shorts', dotColor: 'bg-blue-400', accentColor: 'text-violet-400' }
             ].map(ch => (
