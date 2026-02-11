@@ -119,6 +119,16 @@ export default function CampaignGuideTemplatePrototype() {
         })
       })
 
+      // 응답이 JSON이 아닌 경우 (게이트웨이 타임아웃 등) 처리
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await response.text()
+        if (response.status === 502 || response.status === 504 || text.includes('<HTML') || text.includes('<!DOCTYPE')) {
+          throw new Error('AI 영상 분석에 시간이 오래 걸려 타임아웃이 발생했습니다.\n\n해결 방법: 위의 "자막 직접 입력" 영역에 YouTube 영상의 자막을 붙여넣으면 빠르게 분석됩니다.\n\n(YouTube 영상 → 더보기 ⋯ → 스크립트 표시 → 복사)')
+        }
+        throw new Error(`서버 응답 오류 (${response.status})`)
+      }
+
       const result = await response.json()
       if (!response.ok || !result.success) {
         throw new Error(result.error || '영상 분석에 실패했습니다.')
