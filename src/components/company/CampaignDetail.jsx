@@ -4455,16 +4455,33 @@ Questions? Contact us.
       }
 
       // 1. video_submissions 상태 업데이트 (approved로 변경)
-      const { error: videoError } = await supabase
+      const now = new Date().toISOString()
+      let { error: videoError } = await supabase
         .from('video_submissions')
         .update({
           status: 'approved',
-          approved_at: new Date().toISOString(),
-          reviewed_at: new Date().toISOString()
+          approved_at: now,
+          reviewed_at: now
         })
         .eq('id', submission.id)
 
-      if (videoError) throw videoError
+      // approved_at/reviewed_at 컬럼이 없는 리전(Japan 등)에서는 status만 업데이트
+      if (videoError) {
+        console.warn('[handleVideoApproval] Full update failed, trying status only:', videoError.message)
+        const { error: fallbackError } = await supabase
+          .from('video_submissions')
+          .update({ status: 'approved', updated_at: now })
+          .eq('id', submission.id)
+
+        if (fallbackError) {
+          // updated_at도 없을 수 있음
+          const { error: minimalError } = await supabase
+            .from('video_submissions')
+            .update({ status: 'approved' })
+            .eq('id', submission.id)
+          if (minimalError) throw minimalError
+        }
+      }
 
       // 다중 영상 캠페인 타입 체크 (리전별)
       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
