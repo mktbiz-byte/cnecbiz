@@ -4741,7 +4741,7 @@ Questions? Contact us.
         let profileMatchField = 'id'
         const { data: profileById } = await supabase
           .from('user_profiles')
-          .select('points, phone, email')
+          .select('points, phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
         if (profileById) {
@@ -4750,7 +4750,7 @@ Questions? Contact us.
         } else {
           const { data: profileByUserId } = await supabase
             .from('user_profiles')
-            .select('points, phone, email')
+            .select('points, phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId
@@ -4784,8 +4784,8 @@ Questions? Contact us.
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
-          if (profile.phone) {
+          // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
+          if (region === 'korea' && profile.phone) {
             try {
               const completedDate = new Date().toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
@@ -4810,8 +4810,58 @@ Questions? Contact us.
             }
           }
 
-          // 크리에이터에게 이메일 발송
-          if (profile.email) {
+          // 일본: LINE + SMS + 이메일 알림 발송 (포인트 지급)
+          if (region === 'japan') {
+            try {
+              const lineUserId = profile.line_user_id ||
+                participants.find(p => p.user_id === userId)?.line_user_id ||
+                enrichedApplications.find(a => a.user_id === userId)?.line_user_id
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  lineUserId: lineUserId,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'キャンペーン',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 일본 포인트 지급 알림 발송 성공 (LINE + SMS + Email)')
+            } catch (japanError) {
+              console.error('일본 포인트 지급 알림 발송 실패:', japanError)
+            }
+          }
+
+          // 미국: 이메일 + SMS 알림 (포인트 지급)
+          if (region === 'us') {
+            try {
+              await fetch('/.netlify/functions/send-us-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'Campaign',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 미국 포인트 지급 알림 발송 성공 (SMS + Email)')
+            } catch (usError) {
+              console.error('미국 포인트 지급 알림 발송 실패:', usError)
+            }
+          }
+
+          // 한국: 이메일 발송
+          if (region === 'korea' && profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
@@ -4911,7 +4961,7 @@ Questions? Contact us.
         let profileMatchField2 = 'id'
         const { data: profileById2 } = await supabase
           .from('user_profiles')
-          .select('points, phone, email')
+          .select('points, phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
         if (profileById2) {
@@ -4920,7 +4970,7 @@ Questions? Contact us.
         } else {
           const { data: profileByUserId2 } = await supabase
             .from('user_profiles')
-            .select('points, phone, email')
+            .select('points, phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId2
@@ -4954,8 +5004,8 @@ Questions? Contact us.
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
-          if (profile.phone) {
+          // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
+          if (region === 'korea' && profile.phone) {
             try {
               const completedDate = new Date().toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
@@ -4979,8 +5029,56 @@ Questions? Contact us.
             }
           }
 
-          // 크리에이터에게 이메일 발송
-          if (profile.email) {
+          // 일본: LINE + SMS + 이메일 알림 발송 (포인트 지급)
+          if (region === 'japan') {
+            try {
+              const lineUserId = profile.line_user_id || participant.line_user_id
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  lineUserId: lineUserId,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'キャンペーン',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 일본 포인트 지급 알림 발송 성공 (LINE + SMS + Email)')
+            } catch (japanError) {
+              console.error('일본 포인트 지급 알림 발송 실패:', japanError)
+            }
+          }
+
+          // 미국: 이메일 + SMS 알림 (포인트 지급)
+          if (region === 'us') {
+            try {
+              await fetch('/.netlify/functions/send-us-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'Campaign',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 미국 포인트 지급 알림 발송 성공 (SMS + Email)')
+            } catch (usError) {
+              console.error('미국 포인트 지급 알림 발송 실패:', usError)
+            }
+          }
+
+          // 한국: 이메일 발송
+          if (region === 'korea' && profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
