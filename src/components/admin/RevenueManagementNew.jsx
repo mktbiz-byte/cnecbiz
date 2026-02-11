@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
-  Plus, Trash2, Edit2, Building2, FileSpreadsheet,
+  Plus, Trash2, Edit2, Building2, FileSpreadsheet, Upload,
   Receipt, RefreshCw, ExternalLink, Database,
   Zap, Users, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   PieChart, BarChart3, Wallet, CreditCard, DollarSign
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import {
@@ -98,6 +99,7 @@ export default function RevenueManagementNew() {
   const [voucherTransactions, setVoucherTransactions] = useState([])
   const [voucherSummary, setVoucherSummary] = useState([])
   const [contractAmounts, setContractAmounts] = useState({}) // { company_id: amount }
+  const [contractDates, setContractDates] = useState({}) // { company_id: date_string }
   const [voucherManualEntries, setVoucherManualEntries] = useState([])
   const [showVoucherModal, setShowVoucherModal] = useState(false)
   const [showVoucherBulkModal, setShowVoucherBulkModal] = useState(false)
@@ -106,9 +108,11 @@ export default function RevenueManagementNew() {
     company_name: '',
     contract_date: new Date().toISOString().split('T')[0],
     contract_amount: '',
+    entry_type: 'voucher',
     description: ''
   })
-  const [bulkVoucherText, setBulkVoucherText] = useState('')
+  const [bulkVoucherType, setBulkVoucherType] = useState('voucher')
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState('all') // all, voucher, point
 
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -226,11 +230,12 @@ export default function RevenueManagementNew() {
         if (companyIds.length > 0) {
           const { data: companies } = await supabaseBiz
             .from('companies')
-            .select('user_id, company_name, email, voucher_contract_amount')
+            .select('user_id, company_name, email, voucher_contract_amount, voucher_contract_date')
             .in('user_id', companyIds)
 
           if (companies) {
             const amounts = {}
+            const dates = {}
             for (const company of companies) {
               if (companyMap[company.user_id]) {
                 companyMap[company.user_id].company_name = company.company_name || company.email || '알 수 없음'
@@ -238,8 +243,12 @@ export default function RevenueManagementNew() {
               if (company.voucher_contract_amount) {
                 amounts[company.user_id] = company.voucher_contract_amount
               }
+              if (company.voucher_contract_date) {
+                dates[company.user_id] = company.voucher_contract_date
+              }
             }
             setContractAmounts(prev => ({ ...prev, ...amounts }))
+            setContractDates(prev => ({ ...prev, ...dates }))
           }
         }
 
@@ -782,6 +791,21 @@ export default function RevenueManagementNew() {
     })
   }
 
+  // 바우처 계약일 저장
+  const handleSaveContractDate = async (companyId, date) => {
+    try {
+      setContractDates(prev => ({ ...prev, [companyId]: date }))
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ voucher_contract_date: date || null })
+        .eq('user_id', companyId)
+      if (error) throw error
+    } catch (error) {
+      console.error('계약일 저장 오류:', error)
+      alert('계약일 저장 실패: ' + error.message)
+    }
+  }
+
   // 바우처 계약금액 저장
   const handleSaveContractAmount = async (companyId, amount) => {
     try {
@@ -864,6 +888,7 @@ export default function RevenueManagementNew() {
       company_name: '',
       contract_date: new Date().toISOString().split('T')[0],
       contract_amount: '',
+      entry_type: 'voucher',
       description: ''
     })
   }
@@ -879,6 +904,7 @@ export default function RevenueManagementNew() {
         company_name: voucherForm.company_name.trim(),
         contract_date: voucherForm.contract_date,
         contract_amount: amount,
+        entry_type: voucherForm.entry_type || 'voucher',
         description: voucherForm.description.trim() || null
       }
 
@@ -910,78 +936,121 @@ export default function RevenueManagementNew() {
     }
   }
 
-  const handleBulkVoucherImport = async () => {
-    if (!bulkVoucherText.trim()) { alert('데이터를 입력해주세요.'); return }
-
-    const lines = bulkVoucherText.trim().split('\n').filter(l => l.trim())
-    const entries = []
-    const errors = []
-
-    for (let i = 0; i < lines.length; i++) {
-      const cols = lines[i].split('\t').map(c => c.trim())
-      if (cols.length < 3) {
-        // 탭이 없으면 쉼표로 시도
-        const commaCols = lines[i].split(',').map(c => c.trim())
-        if (commaCols.length >= 3) {
-          cols.length = 0
-          cols.push(...commaCols)
-        } else {
-          errors.push(`${i + 1}행: 최소 3개 컬럼 필요 (기업명, 계약일, 금액)`)
-          continue
-        }
-      }
-
-      const companyName = cols[0]
-      const contractDate = cols[1]
-      const amount = parseInt(String(cols[2]).replace(/[^0-9]/g, '')) || 0
-      const description = cols[3] || ''
-
-      // 날짜 포맷 검증 (YYYY-MM-DD or YYYY/MM/DD or YYYYMMDD)
-      let formattedDate = contractDate.replace(/\//g, '-')
-      if (/^\d{8}$/.test(formattedDate)) {
-        formattedDate = `${formattedDate.slice(0, 4)}-${formattedDate.slice(4, 6)}-${formattedDate.slice(6, 8)}`
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
-        errors.push(`${i + 1}행: 날짜 형식 오류 (${contractDate})`)
-        continue
-      }
-
-      if (!companyName || !amount) {
-        errors.push(`${i + 1}행: 기업명 또는 금액 누락`)
-        continue
-      }
-
-      entries.push({
-        company_name: companyName,
-        contract_date: formattedDate,
-        contract_amount: amount,
-        description: description || null
-      })
-    }
-
-    if (errors.length > 0) {
-      alert(`오류가 있는 행:\n${errors.join('\n')}\n\n오류 없는 ${entries.length}건을 등록합니다.`)
-    }
-
-    if (entries.length === 0) {
-      alert('등록할 데이터가 없습니다.')
-      return
-    }
-
-    if (!confirm(`${entries.length}건을 등록하시겠습니까?`)) return
+  const handleExcelFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
     try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data)
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+      if (rows.length === 0) {
+        alert('엑셀 파일에 데이터가 없습니다.')
+        return
+      }
+
+      // 첫 행이 헤더인지 자동 판별 (첫 번째 셀이 숫자가 아니면 헤더로 간주)
+      const startRow = (typeof rows[0][0] === 'string' && isNaN(parseInt(String(rows[0][0]).replace(/[^0-9]/g, '')))) ? 1 : 0
+
+      const entries = []
+      const errors = []
+
+      for (let i = startRow; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length < 3) {
+          if (row && row.some(cell => cell)) errors.push(`${i + 1}행: 최소 3개 컬럼 필요 (기업명, 계약일, 금액)`)
+          continue
+        }
+
+        const companyName = String(row[0] || '').trim()
+        let contractDate = String(row[1] || '').trim()
+        const amount = parseInt(String(row[2] || '').replace(/[^0-9]/g, '')) || 0
+        const description = String(row[3] || '').trim()
+
+        // 엑셀 날짜 시리얼 넘버 처리
+        if (typeof row[1] === 'number' && row[1] > 30000 && row[1] < 60000) {
+          const excelDate = new Date((row[1] - 25569) * 86400 * 1000)
+          contractDate = excelDate.toISOString().split('T')[0]
+        }
+
+        // 날짜 포맷 정규화
+        contractDate = contractDate.replace(/\//g, '-').replace(/\./g, '-')
+        if (/^\d{8}$/.test(contractDate)) {
+          contractDate = `${contractDate.slice(0, 4)}-${contractDate.slice(4, 6)}-${contractDate.slice(6, 8)}`
+        }
+        // YYYY-M-D → YYYY-MM-DD
+        const dateParts = contractDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+        if (dateParts) {
+          contractDate = `${dateParts[1]}-${String(dateParts[2]).padStart(2, '0')}-${String(dateParts[3]).padStart(2, '0')}`
+        }
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(contractDate)) {
+          errors.push(`${i + 1}행: 날짜 형식 오류 (${row[1]})`)
+          continue
+        }
+
+        if (!companyName || !amount) {
+          errors.push(`${i + 1}행: 기업명 또는 금액 누락`)
+          continue
+        }
+
+        entries.push({
+          company_name: companyName,
+          contract_date: contractDate,
+          contract_amount: amount,
+          entry_type: bulkVoucherType || 'voucher',
+          description: description || null
+        })
+      }
+
+      if (errors.length > 0) {
+        alert(`오류가 있는 행:\n${errors.join('\n')}\n\n오류 없는 ${entries.length}건을 등록합니다.`)
+      }
+
+      if (entries.length === 0) {
+        alert('등록할 데이터가 없습니다.')
+        return
+      }
+
+      if (!confirm(`${entries.length}건을 등록하시겠습니까?\n\n${entries.slice(0, 3).map(e => `${e.company_name} / ${e.contract_date} / ${e.contract_amount.toLocaleString()}원`).join('\n')}${entries.length > 3 ? `\n... 외 ${entries.length - 3}건` : ''}`)) return
+
       const { error } = await supabaseBiz.from('voucher_manual_entries').insert(entries)
       if (error) throw error
       alert(`${entries.length}건이 등록되었습니다.`)
       setShowVoucherBulkModal(false)
-      setBulkVoucherText('')
       fetchAllData()
     } catch (error) {
-      console.error('일괄 등록 오류:', error)
-      alert('일괄 등록 실패: ' + error.message)
+      console.error('엑셀 업로드 오류:', error)
+      alert('엑셀 업로드 실패: ' + error.message)
     }
+
+    // 파일 input 초기화
+    e.target.value = ''
   }
+
+  // 수출바우처 통계
+  const voucherStats = useMemo(() => {
+    const vouchers = voucherManualEntries.filter(e => e.entry_type !== 'point')
+    const points = voucherManualEntries.filter(e => e.entry_type === 'point')
+    return {
+      totalCount: voucherManualEntries.length,
+      totalAmount: voucherManualEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      voucherCount: vouchers.length,
+      voucherAmount: vouchers.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      pointCount: points.length,
+      pointAmount: points.reduce((sum, e) => sum + (e.contract_amount || 0), 0)
+    }
+  }, [voucherManualEntries])
+
+  // 필터링된 수동 입력 목록
+  const filteredVoucherEntries = useMemo(() => {
+    if (voucherTypeFilter === 'all') return voucherManualEntries
+    return voucherManualEntries.filter(e =>
+      voucherTypeFilter === 'point' ? e.entry_type === 'point' : e.entry_type !== 'point'
+    )
+  }, [voucherManualEntries, voucherTypeFilter])
 
   // 수출바우처 월간 통계
   const voucherMonthlySummary = useMemo(() => {
@@ -989,9 +1058,15 @@ export default function RevenueManagementNew() {
     for (const entry of voucherManualEntries) {
       const month = entry.contract_date?.substring(0, 7) // YYYY-MM
       if (!month) continue
-      if (!monthly[month]) monthly[month] = { month, count: 0, total: 0 }
-      monthly[month].count++
-      monthly[month].total += entry.contract_amount || 0
+      const type = entry.entry_type === 'point' ? 'point' : 'voucher'
+      if (!monthly[month]) monthly[month] = { month, voucherCount: 0, voucherTotal: 0, pointCount: 0, pointTotal: 0 }
+      if (type === 'voucher') {
+        monthly[month].voucherCount++
+        monthly[month].voucherTotal += entry.contract_amount || 0
+      } else {
+        monthly[month].pointCount++
+        monthly[month].pointTotal += entry.contract_amount || 0
+      }
     }
     return Object.values(monthly).sort((a, b) => b.month.localeCompare(a.month))
   }, [voucherManualEntries])
@@ -1734,26 +1809,63 @@ export default function RevenueManagementNew() {
           {/* 수출바우처 탭 */}
           <TabsContent value="voucher">
             <div className="space-y-6">
+              {/* 통계 카드 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-indigo-100 text-sm">전체</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.totalCount}건</p>
+                        <p className="text-indigo-200 text-sm mt-1">{formatNumber(voucherStats.totalAmount)}</p>
+                      </div>
+                      <FileSpreadsheet className="w-10 h-10 text-indigo-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-100 text-sm">수출바우처</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.voucherCount}건</p>
+                        <p className="text-blue-200 text-sm mt-1">{formatNumber(voucherStats.voucherAmount)}</p>
+                      </div>
+                      <Zap className="w-10 h-10 text-blue-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-emerald-100 text-sm">포인트 지급</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.pointCount}건</p>
+                        <p className="text-emerald-200 text-sm mt-1">{formatNumber(voucherStats.pointAmount)}</p>
+                      </div>
+                      <CreditCard className="w-10 h-10 text-emerald-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
               {/* 수출바우처 수동 입력 */}
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
                       <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
-                      수출바우처 계약 관리
+                      계약 관리
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                        onClick={() => {
-                          setBulkVoucherText('')
-                          setShowVoucherBulkModal(true)
-                        }}
+                        onClick={() => setShowVoucherBulkModal(true)}
                       >
-                        <FileSpreadsheet className="w-4 h-4 mr-1" />
-                        엑셀 붙여넣기
+                        <Upload className="w-4 h-4 mr-1" />
+                        엑셀 업로드
                       </Button>
                       <Button
                         size="sm"
@@ -1771,17 +1883,39 @@ export default function RevenueManagementNew() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {voucherManualEntries.length === 0 ? (
+                  {/* 타입 필터 */}
+                  <div className="flex gap-2 mb-4">
+                    {[
+                      { key: 'all', label: '전체' },
+                      { key: 'voucher', label: '수출바우처' },
+                      { key: 'point', label: '포인트 지급' }
+                    ].map(f => (
+                      <Button
+                        key={f.key}
+                        size="sm"
+                        variant={voucherTypeFilter === f.key ? 'default' : 'outline'}
+                        className={voucherTypeFilter === f.key
+                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          : 'text-slate-600 border-slate-200 hover:bg-slate-50'}
+                        onClick={() => setVoucherTypeFilter(f.key)}
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {filteredVoucherEntries.length === 0 ? (
                     <div className="text-center py-8 text-slate-400">
                       <Receipt className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p>수동 입력된 수출바우처 내역이 없습니다.</p>
-                      <p className="text-xs mt-1">위 버튼으로 직접 입력하거나 엑셀에서 붙여넣기 하세요.</p>
+                      <p>수동 입력된 내역이 없습니다.</p>
+                      <p className="text-xs mt-1">위 버튼으로 직접 입력하거나 엑셀 파일로 업로드하세요.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
                           <tr className="border-b border-slate-200">
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">구분</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">계약일</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업명</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-indigo-600">계약금액</th>
@@ -1790,8 +1924,17 @@ export default function RevenueManagementNew() {
                           </tr>
                         </thead>
                         <tbody>
-                          {voucherManualEntries.map((entry) => (
+                          {filteredVoucherEntries.map((entry) => (
                             <tr key={entry.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  entry.entry_type === 'point'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {entry.entry_type === 'point' ? '포인트' : '바우처'}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-sm text-slate-600">{entry.contract_date}</td>
                               <td className="px-4 py-3 font-medium text-slate-700">{entry.company_name}</td>
                               <td className="px-4 py-3 text-right font-semibold text-indigo-600">{formatNumber(entry.contract_amount)}</td>
@@ -1808,6 +1951,7 @@ export default function RevenueManagementNew() {
                                         company_name: entry.company_name,
                                         contract_date: entry.contract_date,
                                         contract_amount: String(entry.contract_amount),
+                                        entry_type: entry.entry_type || 'voucher',
                                         description: entry.description || ''
                                       })
                                       setShowVoucherModal(true)
@@ -1830,9 +1974,9 @@ export default function RevenueManagementNew() {
                         </tbody>
                         <tfoot>
                           <tr className="bg-indigo-50 font-bold">
-                            <td className="px-4 py-3 text-indigo-700" colSpan={2}>합계 ({voucherManualEntries.length}건)</td>
+                            <td className="px-4 py-3 text-indigo-700" colSpan={3}>합계 ({filteredVoucherEntries.length}건)</td>
                             <td className="px-4 py-3 text-right text-indigo-700">
-                              {formatNumber(voucherManualEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0))}
+                              {formatNumber(filteredVoucherEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0))}
                             </td>
                             <td colSpan={2}></td>
                           </tr>
@@ -1858,8 +2002,11 @@ export default function RevenueManagementNew() {
                         <thead>
                           <tr className="border-b border-slate-200">
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">월</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">계약 건수</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-violet-600">계약금액 합계</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600">바우처 건수</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-blue-600">바우처 금액</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-emerald-600">포인트 건수</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">포인트 금액</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-violet-600">합계</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1867,22 +2014,42 @@ export default function RevenueManagementNew() {
                             <tr key={ms.month} className="border-b border-slate-100 hover:bg-slate-50/50">
                               <td className="px-4 py-3 font-medium text-slate-700">{ms.month}</td>
                               <td className="px-4 py-3 text-center">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700">
-                                  {ms.count}건
-                                </span>
+                                {ms.voucherCount > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
+                                    {ms.voucherCount}건
+                                  </span>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-violet-600">{formatNumber(ms.total)}</td>
+                              <td className="px-4 py-3 text-right text-sm text-blue-600">{ms.voucherTotal > 0 ? formatNumber(ms.voucherTotal) : '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                {ms.pointCount > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+                                    {ms.pointCount}건
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-sm text-emerald-600">{ms.pointTotal > 0 ? formatNumber(ms.pointTotal) : '-'}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-violet-600">{formatNumber(ms.voucherTotal + ms.pointTotal)}</td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr className="bg-violet-50 font-bold">
                             <td className="px-4 py-3 text-violet-700">총합계</td>
-                            <td className="px-4 py-3 text-center text-violet-700">
-                              {voucherMonthlySummary.reduce((sum, ms) => sum + ms.count, 0)}건
+                            <td className="px-4 py-3 text-center text-blue-700">
+                              {voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherCount, 0)}건
+                            </td>
+                            <td className="px-4 py-3 text-right text-blue-700">
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherTotal, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-center text-emerald-700">
+                              {voucherMonthlySummary.reduce((sum, ms) => sum + ms.pointCount, 0)}건
+                            </td>
+                            <td className="px-4 py-3 text-right text-emerald-700">
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.pointTotal, 0))}
                             </td>
                             <td className="px-4 py-3 text-right text-violet-700">
-                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.total, 0))}
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherTotal + ms.pointTotal, 0))}
                             </td>
                           </tr>
                         </tfoot>
@@ -1912,6 +2079,7 @@ export default function RevenueManagementNew() {
                         <thead>
                           <tr className="border-b border-slate-200">
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">계약일</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-purple-600">계약금액</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">지급금 (충전)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-rose-600">사용금 (차감)</th>
@@ -1925,6 +2093,15 @@ export default function RevenueManagementNew() {
                             <tr key={summary.company_id} className="border-b border-slate-100 hover:bg-slate-50/50">
                               <td className="px-4 py-3">
                                 <div className="font-medium text-slate-700">{summary.company_name || '알 수 없음'}</div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Input
+                                  type="date"
+                                  className="w-36 text-sm"
+                                  value={contractDates[summary.company_id] || ''}
+                                  onChange={(e) => setContractDates(prev => ({ ...prev, [summary.company_id]: e.target.value }))}
+                                  onBlur={(e) => handleSaveContractDate(summary.company_id, e.target.value)}
+                                />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <Input
@@ -1981,6 +2158,7 @@ export default function RevenueManagementNew() {
                         <tfoot>
                           <tr className="bg-purple-50 font-bold">
                             <td className="px-4 py-3 text-purple-700">합계</td>
+                            <td></td>
                             <td className="px-4 py-3 text-right text-purple-700">
                               {formatNumber(voucherSummary.reduce((sum, s) => sum + (contractAmounts[s.company_id] || 0), 0))}
                             </td>
@@ -2210,6 +2388,16 @@ export default function RevenueManagementNew() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>구분 *</Label>
+              <Select value={voucherForm.entry_type} onValueChange={(v) => setVoucherForm({...voucherForm, entry_type: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="voucher">수출바우처</SelectItem>
+                  <SelectItem value="point">포인트 지급</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>기업명 *</Label>
               <Input
                 value={voucherForm.company_name}
@@ -2254,38 +2442,41 @@ export default function RevenueManagementNew() {
         </DialogContent>
       </Dialog>
 
-      {/* 수출바우처 엑셀 붙여넣기 모달 */}
+      {/* 수출바우처 엑셀 업로드 모달 */}
       <Dialog open={showVoucherBulkModal} onOpenChange={setShowVoucherBulkModal}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>수출바우처 엑셀 붙여넣기</DialogTitle>
+            <DialogTitle>엑셀 파일 업로드</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-indigo-50 rounded-lg p-4 text-sm text-indigo-700">
-              <p className="font-medium mb-2">엑셀에서 복사하여 아래에 붙여넣기 하세요.</p>
-              <p className="text-xs">형식: <strong>기업명 [Tab] 계약일(YYYY-MM-DD) [Tab] 금액 [Tab] 비고(선택)</strong></p>
-              <p className="text-xs mt-1">예시:</p>
-              <pre className="bg-white/60 rounded p-2 mt-1 text-xs">
-{`(주)닥터메인유\t2026-02-06\t5000000\t수출바우처 계약
-ABC코퍼레이션\t2026-01-15\t3000000
-XYZ상사\t2025-12-01\t8000000\t연간 계약`}
-              </pre>
+              <p className="font-medium mb-2">엑셀 파일(.xlsx, .xls)을 업로드하세요.</p>
+              <p className="text-xs">컬럼 순서: <strong>기업명 | 계약일 | 금액 | 비고(선택)</strong></p>
+              <p className="text-xs mt-1">첫 행이 헤더인 경우 자동 건너뜁니다.</p>
             </div>
-            <Textarea
-              value={bulkVoucherText}
-              onChange={(e) => setBulkVoucherText(e.target.value)}
-              placeholder="엑셀에서 복사한 데이터를 여기에 붙여넣기..."
-              className="min-h-[200px] font-mono text-sm"
-            />
-            {bulkVoucherText.trim() && (
-              <div className="text-sm text-slate-500">
-                {bulkVoucherText.trim().split('\n').filter(l => l.trim()).length}행 감지됨
-              </div>
-            )}
+            <div>
+              <Label>구분</Label>
+              <Select value={bulkVoucherType} onValueChange={setBulkVoucherType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="voucher">수출바우처</SelectItem>
+                  <SelectItem value="point">포인트 지급</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="border-2 border-dashed border-indigo-200 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors">
+              <Upload className="w-10 h-10 mx-auto mb-3 text-indigo-400" />
+              <p className="text-sm text-slate-600 mb-3">클릭하여 엑셀 파일을 선택하세요</p>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleExcelFileUpload}
+                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowVoucherBulkModal(false)}>취소</Button>
-            <Button onClick={handleBulkVoucherImport} className="bg-indigo-600 hover:bg-indigo-700">일괄 등록</Button>
+            <Button variant="outline" onClick={() => setShowVoucherBulkModal(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
