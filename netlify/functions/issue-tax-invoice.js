@@ -173,8 +173,29 @@ exports.handler = async (event) => {
     console.log('   - 회사명:', request.companies.company_name);
     console.log('   - 금액:', request.supply_cost_total.toLocaleString(), '원');
 
-    // 3. 팝빌 세금계산서 객체 생성
-    console.log('🔍 [STEP 2] 팝빌 세금계산서 객체 생성...');
+    // 3. 팝빌에서 공급자 사업자 정보 조회
+    console.log('🔍 [STEP 2] 팝빌 등록 사업자 정보 조회...');
+
+    let corpInfo = null;
+    try {
+      corpInfo = await new Promise((resolve, reject) => {
+        taxinvoiceService.getCorpInfo(POPBILL_CORP_NUM,
+          (result) => {
+            console.log('✅ 팝빌 사업자 정보 조회 성공:', JSON.stringify(result));
+            resolve(result);
+          },
+          (error) => {
+            console.warn('⚠️ 팝빌 사업자 정보 조회 실패:', error.message);
+            reject(error);
+          }
+        );
+      });
+    } catch (e) {
+      console.warn('⚠️ 팝빌 사업자 정보 조회 실패, 기본값 사용');
+    }
+
+    // 4. 팝빌 세금계산서 객체 생성
+    console.log('🔍 [STEP 3] 팝빌 세금계산서 객체 생성...');
 
     // MgtKey(문서번호) 생성: 날짜 + 랜덤 문자열 (최대 24자, 중복 불가)
     const generateMgtKey = () => {
@@ -188,6 +209,16 @@ exports.handler = async (event) => {
     const mgtKey = generateMgtKey()
     console.log('   - 문서번호(MgtKey):', mgtKey)
 
+    // 공급자 정보: 팝빌 등록 정보 > 기본값 순서로 적용
+    const invoicerCorpName = corpInfo?.corpName || '주식회사 하우파파';
+    const invoicerCEOName = corpInfo?.ceoname || '박현용';
+    const invoicerAddr = corpInfo?.addr || '';
+    const invoicerBizClass = corpInfo?.bizClass || '';
+    const invoicerBizType = corpInfo?.bizType || '';
+
+    console.log('   - 공급자 상호:', invoicerCorpName);
+    console.log('   - 공급자 대표자:', invoicerCEOName);
+
     const taxinvoice = {
       // 문서번호 (필수) - 공급자 측 고유 문서번호
       invoicerMgtKey: mgtKey,
@@ -199,13 +230,13 @@ exports.handler = async (event) => {
       purposeType: request.purpose_type || '영수',
       taxType: request.tax_type || '과세',
 
-      // 공급자 정보 (하우파파)
+      // 공급자 정보 (팝빌 등록 정보 기반)
       invoicerCorpNum: POPBILL_CORP_NUM,
-      invoicerCorpName: '주식회사 하우파파',
-      invoicerCEOName: '박현용',
-      invoicerAddr: '서울특별시 중구 퇴계로36길 2, 1009호(필동2가, 동국대학교 충무로 영상센터)',
-      invoicerBizClass: '정보통신업',
-      invoicerBizType: '전자상거래 소매 중개업',
+      invoicerCorpName: invoicerCorpName,
+      invoicerCEOName: invoicerCEOName,
+      invoicerAddr: invoicerAddr,
+      invoicerBizClass: invoicerBizClass,
+      invoicerBizType: invoicerBizType,
       invoicerContactName: '관리자',
       invoicerEmail: 'mkt@howlab.co.kr',
       invoicerTEL: '1833-6025',

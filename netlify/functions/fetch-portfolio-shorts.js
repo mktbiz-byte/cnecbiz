@@ -40,9 +40,9 @@ async function fetchChannelShorts(handle, apiKey) {
 
   const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads
 
-  // 2. 최근 업로드 영상 가져오기 (15개 가져와서 Shorts만 필터)
+  // 2. 최근 업로드 영상 가져오기 (25개 가져와서 Shorts만 필터 → 10개)
   const playlistRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=15&key=${apiKey}`
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=25&key=${apiKey}`
   )
   const playlistData = await playlistRes.json()
 
@@ -67,7 +67,7 @@ async function fetchChannelShorts(handle, apiKey) {
     return totalSeconds <= 60
   })
 
-  return shorts.slice(0, 5).map(video => ({
+  return shorts.slice(0, 10).map(video => ({
     video_id: video.id,
     title: video.snippet.title,
     thumbnail: video.snippet.thumbnails?.medium?.url || video.snippet.thumbnails?.default?.url,

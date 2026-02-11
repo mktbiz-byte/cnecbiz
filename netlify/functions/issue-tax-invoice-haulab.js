@@ -108,8 +108,29 @@ exports.handler = async (event) => {
     console.log('   - 공급가액:', supplyCostTotal.toLocaleString(), '원');
     console.log('   - 세액:', taxTotal.toLocaleString(), '원');
 
-    // 3. 팝빌 세금계산서 객체 생성
-    console.log('🔍 [STEP 2] 팝빌 세금계산서 객체 생성...');
+    // 3. 팝빌에서 공급자(하우랩) 사업자 정보 조회
+    console.log('🔍 [STEP 2] 팝빌 등록 사업자 정보 조회...');
+
+    let corpInfo = null;
+    try {
+      corpInfo = await new Promise((resolve, reject) => {
+        taxinvoiceService.getCorpInfo(HAULAB_CORP_NUM,
+          (result) => {
+            console.log('✅ 팝빌 사업자 정보 조회 성공:', JSON.stringify(result));
+            resolve(result);
+          },
+          (error) => {
+            console.warn('⚠️ 팝빌 사업자 정보 조회 실패:', error.message);
+            reject(error);
+          }
+        );
+      });
+    } catch (e) {
+      console.warn('⚠️ 팝빌 사업자 정보 조회 실패, 환경변수/기본값 사용');
+    }
+
+    // 4. 팝빌 세금계산서 객체 생성
+    console.log('🔍 [STEP 3] 팝빌 세금계산서 객체 생성...');
 
     // MgtKey(문서번호) 생성: L=하우랩 구분용
     const generateMgtKey = () => {
@@ -123,6 +144,19 @@ exports.handler = async (event) => {
     const mgtKey = generateMgtKey()
     console.log('   - 문서번호(MgtKey):', mgtKey)
 
+    // 공급자 정보: 팝빌 등록 정보 > 환경변수 > 기본값 순서로 적용
+    const invoicerCorpName = corpInfo?.corpName || process.env.POPBILL_HAULAB_CORP_NAME || '주식회사 하우랩';
+    const invoicerCEOName = corpInfo?.ceoname || process.env.POPBILL_HAULAB_CEO_NAME || '박현용';
+    const invoicerAddr = corpInfo?.addr || process.env.POPBILL_HAULAB_ADDR || '';
+    const invoicerBizClass = corpInfo?.bizClass || process.env.POPBILL_HAULAB_BIZ_CLASS || '';
+    const invoicerBizType = corpInfo?.bizType || process.env.POPBILL_HAULAB_BIZ_TYPE || '';
+    const invoicerEmail = process.env.POPBILL_HAULAB_EMAIL || 'mkt@howlab.co.kr';
+    const invoicerTEL = process.env.POPBILL_HAULAB_TEL || '1833-6025';
+
+    console.log('   - 공급자 상호:', invoicerCorpName);
+    console.log('   - 공급자 대표자:', invoicerCEOName);
+    console.log('   - 공급자 주소:', invoicerAddr);
+
     const taxinvoice = {
       // 문서번호 (필수)
       invoicerMgtKey: mgtKey,
@@ -134,16 +168,16 @@ exports.handler = async (event) => {
       purposeType: '영수',
       taxType: '과세',
 
-      // 공급자 정보 (하우랩)
+      // 공급자 정보 (팝빌 등록 정보 기반)
       invoicerCorpNum: HAULAB_CORP_NUM,
-      invoicerCorpName: process.env.POPBILL_HAULAB_CORP_NAME || '주식회사 하우랩',
-      invoicerCEOName: process.env.POPBILL_HAULAB_CEO_NAME || '박현용',
-      invoicerAddr: process.env.POPBILL_HAULAB_ADDR || '서울특별시 중구 퇴계로36길 2, 1009호(필동2가, 동국대학교 충무로 영상센터)',
-      invoicerBizClass: process.env.POPBILL_HAULAB_BIZ_CLASS || '정보통신업',
-      invoicerBizType: process.env.POPBILL_HAULAB_BIZ_TYPE || '소프트웨어 개발 및 공급업',
+      invoicerCorpName: invoicerCorpName,
+      invoicerCEOName: invoicerCEOName,
+      invoicerAddr: invoicerAddr,
+      invoicerBizClass: invoicerBizClass,
+      invoicerBizType: invoicerBizType,
       invoicerContactName: '관리자',
-      invoicerEmail: process.env.POPBILL_HAULAB_EMAIL || 'mkt@howlab.co.kr',
-      invoicerTEL: process.env.POPBILL_HAULAB_TEL || '1833-6025',
+      invoicerEmail: invoicerEmail,
+      invoicerTEL: invoicerTEL,
 
       // 공급받는자 정보
       invoiceeCorpNum: invoiceData.businessNumber.replace(/-/g, ''),
@@ -183,10 +217,10 @@ exports.handler = async (event) => {
       remark3: ''
     };
 
-    console.log('✅ [STEP 2] 팝빌 세금계산서 객체 생성 완료');
+    console.log('✅ [STEP 3] 팝빌 세금계산서 객체 생성 완료');
 
-    // 4. 팝빌 API 호출 - 즉시 발행 (RegistIssue)
-    console.log('🔍 [STEP 3] 팝빌 API 호출 - 즉시 발행...');
+    // 5. 팝빌 API 호출 - 즉시 발행 (RegistIssue)
+    console.log('🔍 [STEP 4] 팝빌 API 호출 - 즉시 발행...');
     console.log('   - 공급자 사업자번호:', HAULAB_CORP_NUM);
     console.log('   - 공급받는자:', taxinvoice.invoiceeCorpName);
     console.log('   - 합계:', taxinvoice.totalAmount, '원');
@@ -202,12 +236,12 @@ exports.handler = async (event) => {
         '세금계산서가 발행되었습니다',  // 이메일 제목
         'howlab_biz',   // UserID - 하우랩 회원 ID
         (result) => {
-          console.log('✅ [STEP 3] 팝빌 API 호출 성공!');
+          console.log('✅ [STEP 4] 팝빌 API 호출 성공!');
           console.log('   - 국세청 승인번호:', result.ntsConfirmNum);
           resolve(result);
         },
         (error) => {
-          console.error('❌ [STEP 3] 팝빌 API 호출 실패:', {
+          console.error('❌ [STEP 4] 팝빌 API 호출 실패:', {
             code: error.code,
             message: error.message
           });
