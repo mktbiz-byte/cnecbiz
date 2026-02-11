@@ -1962,10 +1962,10 @@ export default function CampaignDetail() {
         }
       }
 
-      // 6. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      // 6. 클린본 URL 병합 (같은 user_id, video_number, version의 다른 레코드에서)
       const videoMap = new Map()
       allVideoSubmissions.forEach(sub => {
-        const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
+        const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}_${sub.version || 1}`
         const existing = videoMap.get(key)
         if (!existing) {
           videoMap.set(key, sub)
