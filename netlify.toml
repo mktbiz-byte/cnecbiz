@@ -25,6 +25,9 @@
 [functions."generate-campaign-guide"]
   timeout = 60
 
+[functions."analyze-youtube-shorts"]
+  timeout = 60
+
 [functions."generate-capi-profile"]
   timeout = 60
 
