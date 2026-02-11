@@ -390,10 +390,21 @@ export default function RevenueManagementNew() {
 
   // 동기화 함수들
   const syncTaxInvoicesToRevenue = async () => {
-    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?')) return
+    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?\n\n하우파파(자동+수동) + 하우랩(수동) 모두 포함됩니다.')) return
 
     setLoading(true)
     try {
+      // 기존 동기화된 레코드 조회 (중복 방지)
+      const { data: existingRevenues } = await supabaseBiz
+        .from('revenue_records')
+        .select('source_id, source_type')
+        .in('source_type', ['tax_invoice', 'manual_tax_invoice'])
+
+      const existingIds = new Set((existingRevenues || []).map(r => `${r.source_type}_${r.source_id}`))
+
+      let syncCount = 0
+
+      // 1. 하우파파 자동 발행 (points_charge_requests)
       const { data: chargeRequests, error: fetchError } = await supabaseBiz
         .from('points_charge_requests')
         .select('id, amount, tax_invoice_issued, tax_invoice_info, created_at, company_id')
@@ -402,22 +413,13 @@ export default function RevenueManagementNew() {
 
       if (fetchError) throw fetchError
 
-      const { data: existingRevenues } = await supabaseBiz
-        .from('revenue_records')
-        .select('source_id')
-        .eq('source_type', 'tax_invoice')
-
-      const existingIds = new Set((existingRevenues || []).map(r => r.source_id))
-
-      let syncCount = 0
       for (const request of (chargeRequests || [])) {
-        if (existingIds.has(request.id)) continue
+        if (existingIds.has(`tax_invoice_${request.id}`)) continue
 
         const createdDate = new Date(request.created_at)
         const yearMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`
         const taxInfo = request.tax_invoice_info || {}
         const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
-
         const recordDate = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}-${String(createdDate.getDate()).padStart(2, '0')}`
 
         const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
@@ -429,11 +431,55 @@ export default function RevenueManagementNew() {
           source_type: 'tax_invoice',
           source_id: request.id,
           tax_invoice_number: taxInfo.nts_confirm_num || taxInfo.mgt_key || '',
-          description: `세금계산서 발행: ${companyName}`
+          description: `[하우파파] 세금계산서: ${companyName}`
         })
 
         if (insertError) {
           console.error('매출 레코드 삽입 오류:', insertError)
+          continue
+        }
+        syncCount++
+      }
+
+      // 2. 수동 발행 (manual_tax_invoices) - 하우파파 + 하우랩
+      const { data: manualInvoices, error: manualError } = await supabaseBiz
+        .from('manual_tax_invoices')
+        .select('*')
+        .eq('status', 'issued')
+        .order('issued_at', { ascending: false })
+
+      if (manualError) {
+        console.error('수동 세금계산서 조회 오류:', manualError)
+      }
+
+      for (const invoice of (manualInvoices || [])) {
+        if (existingIds.has(`manual_tax_invoice_${invoice.id}`)) continue
+
+        // mgt_key가 'L'로 시작하면 하우랩, 'M'으로 시작하면 하우파파
+        const isHaulab = (invoice.mgt_key || '').startsWith('L') || invoice.issuer === 'haulab'
+        const corpId = isHaulab ? 'haulab' : 'haupapa'
+        const corpLabel = isHaulab ? '하우랩' : '하우파파'
+
+        const issuedDate = new Date(invoice.issued_at || invoice.write_date || invoice.created_at)
+        const yearMonth = invoice.write_date
+          ? invoice.write_date.substring(0, 7)
+          : `${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}`
+        const recordDate = invoice.write_date || `${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}-${String(issuedDate.getDate()).padStart(2, '0')}`
+
+        const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
+          corporation_id: corpId,
+          year_month: yearMonth,
+          record_date: recordDate,
+          type: 'revenue',
+          amount: invoice.total_amount,
+          source_type: 'manual_tax_invoice',
+          source_id: invoice.id,
+          tax_invoice_number: invoice.nts_confirm_num || invoice.mgt_key || '',
+          description: `[${corpLabel}] 세금계산서: ${invoice.company_name || '-'}`
+        })
+
+        if (insertError) {
+          console.error('수동 매출 레코드 삽입 오류:', insertError)
           continue
         }
         syncCount++
