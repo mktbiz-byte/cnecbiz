@@ -13,6 +13,9 @@
  * 7. 메타데이터 기반 가이드 생성 (fallback)
  */
 const { GoogleGenerativeAI } = require('@google/generative-ai')
+const { GoogleAIFileManager } = require('@google/generative-ai/server')
+const fs = require('fs')
+const path = require('path')
 
 exports.config = {
   maxDuration: 60
@@ -597,69 +600,6 @@ exports.handler = async (event) => {
     const genai = new GoogleGenerativeAI(apiKey)
     const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    // 4. 자막 없고 오디오 URL 있으면 → Gemini 음성 인식
-    if (videoData.transcript.length <= 10 && videoData.audioStreamUrl) {
-      try {
-        console.log('[yt-shorts] Downloading audio for Gemini STT...')
-        const audioResponse = await fetch(videoData.audioStreamUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
-            'Range': 'bytes=0-5242880'
-          },
-          signal: AbortSignal.timeout(15000)
-        })
-        if (audioResponse.ok || audioResponse.status === 206) {
-          const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
-          console.log('[yt-shorts] Audio downloaded:', audioBuffer.length, 'bytes')
-
-          if (audioBuffer.length > 1000 && audioBuffer.length < 10 * 1024 * 1024) {
-            const audioBase64 = audioBuffer.toString('base64')
-            const audioMime = videoData.audioMimeType || 'audio/mp4'
-
-            const transcribeResult = await model.generateContent({
-              contents: [{
-                parts: [
-                  { text: `이 오디오의 음성을 정확히 받아적어주세요.
-
-형식:
-[M:SS] 대사내용
-
-규칙:
-- 모든 대사를 빠짐없이 받아적으세요
-- 타임스탬프는 [분:초] 형식으로
-- 배경음악, 효과음은 무시
-- 말하는 내용만 정확히 적어주세요` },
-                  { inlineData: { mimeType: audioMime, data: audioBase64 } }
-                ]
-              }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
-            })
-
-            const transcription = transcribeResult?.response?.candidates?.[0]?.content?.parts?.[0]?.text || ''
-            console.log('[yt-shorts] Gemini STT:', transcription.substring(0, 300))
-
-            const lines = [...transcription.matchAll(/\[(\d+):(\d+)\]\s*(.+)/g)]
-            if (lines.length > 0) {
-              videoData.timestampedTranscript = lines.map(m => ({
-                start: parseInt(m[1]) * 60 + parseInt(m[2]),
-                end: parseInt(m[1]) * 60 + parseInt(m[2]) + 3,
-                text: m[3].trim()
-              }))
-              videoData.transcript = videoData.timestampedTranscript.map(t => t.text).join(' ')
-              videoData.captionMethod = 'gemini_stt'
-              videoData.captionLang = 'ko'
-            } else if (transcription.length > 20) {
-              videoData.transcript = transcription.replace(/```/g, '').trim()
-              videoData.captionMethod = 'gemini_stt_plain'
-              videoData.captionLang = 'ko'
-            }
-          }
-        }
-      } catch (e) {
-        console.log('[yt-shorts] Gemini STT error:', e.message)
-      }
-    }
-
     // 타임라인 텍스트 생성
     const timeline = formatTimeline(videoData.timestampedTranscript)
 
@@ -671,7 +611,224 @@ exports.handler = async (event) => {
 
     const hasTranscript = videoData.transcript.length > 10
 
-    const prompt = `# 미션: YouTube 영상을 분석하고 **거의 동일한 촬영 가이드** 작성
+    // ===== 핵심: Gemini에 YouTube 영상 직접 분석 요청 =====
+    // 자막이 있으면 텍스트 기반, 없으면 Gemini가 영상을 직접 보고 분석
+    const useDirectVideo = !hasTranscript
+    console.log('[yt-shorts] Analysis mode:', useDirectVideo ? 'DIRECT_VIDEO (Gemini watches YouTube)' : 'TEXT_BASED (transcript available)')
+
+    const guideJsonSchema = `{
+  "video_analysis": {
+    "summary": "원본 영상의 내용과 흐름 요약 (3-4문장, 구체적으로)",
+    "style": "영상 스타일 (GRWM, 리뷰, 언박싱, 튜토리얼, 먹방, 브이로그, 일상, 챌린지 등)",
+    "tone": "톤앤매너 (친근, 전문적, 유머러스, 감성적, 에너지틱 등)",
+    "structure": "영상 전체 구조 (예: 후킹 → 제품소개 → 사용장면 → 결과 → 추천멘트)",
+    "estimated_duration": "${videoData.duration || '60'}초"
+  },
+  "guide": {
+    "title": "촬영 가이드 제목",
+    "concept": "이 영상의 핵심 컨셉과 촬영 방향 (2-3문장)",
+    "scenes": [
+      {
+        "order": 1,
+        "name": "장면 이름",
+        "duration": "이 장면의 예상 시간 (예: 0:00~0:05, 5초)",
+        "description": "이 장면에서 무엇을 하는지 구체적으로 설명",
+        "camera": "카메라 앵글/움직임",
+        "dialogue": "이 장면에서 말할 대사 (원본 영상에서 실제로 말한 대사)"
+      }
+    ],
+    "required_dialogues": ["필수 대사1", "필수 대사2"],
+    "hashtags": ["해시태그1", "해시태그2", "해시태그3"],
+    "filming_tips": ["촬영 팁 1", "촬영 팁 2", "촬영 팁 3"],
+    "cautions": "주의사항"
+  }
+}`
+
+    let result
+    let geminiVideoUsed = false
+
+    if (useDirectVideo) {
+      const videoPrompt = `# 미션: 이 영상/오디오를 보고(듣고) **동일한 촬영 가이드** 작성
+
+당신은 숏폼 영상 기획 전문가입니다. 제공된 영상/오디오를 직접 시청하고, 음성을 듣고, **이 영상을 그대로 따라 찍을 수 있는 촬영 가이드**를 작성하세요.
+
+## 핵심 작업
+1. **영상의 모든 음성/대사를 정확히 받아적으세요** (이것이 가장 중요합니다!)
+2. 영상의 시각적 장면 전환을 파악하세요
+3. 각 장면에서 말하는 대사, 카메라 움직임, 행동을 기록하세요
+4. 이 정보로 촬영 가이드를 작성하세요
+
+## 영상 메타데이터
+- **제목**: ${videoData.title || '(알 수 없음)'}
+- **길이**: ${videoData.duration ? `${videoData.duration}초` : '알 수 없음'}
+
+## 규칙
+- 영상에서 **실제로 말하는 대사**를 정확히 가이드에 반영하세요
+- 장면 순서, 대사 흐름, 카메라 전환을 원본과 **${similarityPercent}% 유사하게** 재현합니다
+- 원본에서 말한 내용을 임의로 바꾸거나 새로 만들지 마세요
+- ${similarityPercent >= 80 ? '장면 구성, 대사, 톤 모두 원본과 거의 동일하게 작성합니다.' : similarityPercent >= 60 ? '핵심 구조와 대사 흐름은 유지하되 일부 조정 가능합니다.' : '전체적인 컨셉과 톤을 참고하되 내용은 유연하게 변경 가능합니다.'}
+${requiredDialoguesSection}
+${additionalNotes ? `\n## 추가 요청\n${additionalNotes}` : ''}
+
+## 출력 형식 (JSON)
+${guideJsonSchema}
+
+중요:
+- scenes의 각 dialogue는 영상에서 **실제로 들리는 대사**를 적으세요
+- scenes 개수는 영상의 장면 전환 횟수에 맞추세요 (숏폼은 보통 4~8개)
+- JSON만 반환. 마크다운 코드블록 없이 순수 JSON만.`
+
+      // ===== 방법 A-1: Gemini에 YouTube URL을 fileData로 직접 전달 =====
+      console.log('[yt-shorts] Trying Gemini direct YouTube URL analysis...')
+      try {
+        result = await model.generateContent({
+          contents: [{
+            parts: [
+              { text: videoPrompt },
+              { fileData: { fileUri: `https://www.youtube.com/watch?v=${videoId}`, mimeType: 'video/mp4' } }
+            ]
+          }],
+          generationConfig: { temperature: 0.4, topK: 40, topP: 0.9, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+        })
+        videoData.captionMethod = 'gemini_direct_url'
+        console.log('[yt-shorts] Gemini direct URL analysis succeeded!')
+      } catch (urlError) {
+        console.log('[yt-shorts] Gemini direct URL failed:', urlError.message)
+      }
+
+      // ===== 방법 A-2: Cobalt로 오디오 다운로드 → Gemini File API 업로드 → 분석 =====
+      if (!result) {
+        console.log('[yt-shorts] Trying Cobalt download + Gemini File API approach...')
+        const cobaltInstances = [
+          'https://api.cobalt.tools',
+          'https://cobalt-api.kwiatekmiki.com',
+        ]
+        let audioDownloadUrl = null
+
+        for (const instance of cobaltInstances) {
+          try {
+            console.log(`[yt-shorts] Cobalt ${instance}...`)
+            const cobaltResp = await fetch(`${instance}/`, {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}`, downloadMode: 'audio', audioFormat: 'mp3' }),
+              signal: AbortSignal.timeout(15000)
+            })
+            console.log(`[yt-shorts] Cobalt response: ${cobaltResp.status}`)
+            if (!cobaltResp.ok) continue
+            const cobaltData = await cobaltResp.json()
+            if (cobaltData.url) {
+              audioDownloadUrl = cobaltData.url
+              console.log('[yt-shorts] Cobalt audio URL obtained!')
+              break
+            } else {
+              console.log('[yt-shorts] Cobalt:', cobaltData.status, cobaltData.error?.code || cobaltData.text || '')
+            }
+          } catch (e) {
+            console.log(`[yt-shorts] Cobalt error:`, e.message)
+          }
+        }
+
+        // innertube에서 얻은 오디오 URL도 시도
+        if (!audioDownloadUrl && videoData.audioStreamUrl) {
+          audioDownloadUrl = videoData.audioStreamUrl
+          console.log('[yt-shorts] Using innertube audio URL')
+        }
+
+        if (audioDownloadUrl) {
+          try {
+            console.log('[yt-shorts] Downloading audio...')
+            const audioResp = await fetch(audioDownloadUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Range': 'bytes=0-10485760' },
+              signal: AbortSignal.timeout(20000)
+            })
+            if (audioResp.ok || audioResp.status === 206) {
+              const audioBuffer = Buffer.from(await audioResp.arrayBuffer())
+              console.log('[yt-shorts] Audio downloaded:', audioBuffer.length, 'bytes')
+
+              if (audioBuffer.length > 5000) {
+                // /tmp/에 파일 저장 후 File API로 업로드
+                const tmpPath = path.join('/tmp', `yt-audio-${videoId}.mp3`)
+                fs.writeFileSync(tmpPath, audioBuffer)
+
+                const fileManager = new GoogleAIFileManager(apiKey)
+                console.log('[yt-shorts] Uploading audio to Gemini File API...')
+                const uploadResult = await fileManager.uploadFile(tmpPath, {
+                  mimeType: 'audio/mpeg',
+                  displayName: `YouTube Shorts ${videoId}`
+                })
+
+                console.log('[yt-shorts] Upload complete, URI:', uploadResult.file.uri, ', state:', uploadResult.file.state)
+
+                // 파일 처리 대기 (ACTIVE 상태가 될 때까지)
+                let fileState = uploadResult.file.state
+                let retries = 0
+                while (fileState === 'PROCESSING' && retries < 10) {
+                  await new Promise(r => setTimeout(r, 2000))
+                  const fileInfo = await fileManager.getFile(uploadResult.file.name)
+                  fileState = fileInfo.state
+                  retries++
+                  console.log(`[yt-shorts] File state: ${fileState} (retry ${retries})`)
+                }
+
+                if (fileState === 'ACTIVE') {
+                  result = await model.generateContent({
+                    contents: [{
+                      parts: [
+                        { text: videoPrompt },
+                        { fileData: { fileUri: uploadResult.file.uri, mimeType: uploadResult.file.mimeType } }
+                      ]
+                    }],
+                    generationConfig: { temperature: 0.4, topK: 40, topP: 0.9, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+                  })
+                  videoData.captionMethod = 'gemini_file_api'
+                  console.log('[yt-shorts] Gemini File API analysis succeeded!')
+                }
+
+                // 임시 파일 정리
+                try { fs.unlinkSync(tmpPath) } catch (e) {}
+                try { await fileManager.deleteFile(uploadResult.file.name) } catch (e) {}
+              }
+            }
+          } catch (e) {
+            console.log('[yt-shorts] File API approach error:', e.message)
+          }
+        }
+      }
+
+      // ===== 방법 A-3: 오디오 인라인 데이터로 직접 전달 (작은 파일용) =====
+      if (!result && videoData.audioStreamUrl) {
+        try {
+          console.log('[yt-shorts] Trying inline audio data approach...')
+          const audioResp = await fetch(videoData.audioStreamUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Range': 'bytes=0-5242880' },
+            signal: AbortSignal.timeout(15000)
+          })
+          if (audioResp.ok || audioResp.status === 206) {
+            const buf = Buffer.from(await audioResp.arrayBuffer())
+            if (buf.length > 5000 && buf.length < 10 * 1024 * 1024) {
+              result = await model.generateContent({
+                contents: [{
+                  parts: [
+                    { text: videoPrompt },
+                    { inlineData: { mimeType: videoData.audioMimeType || 'audio/mp4', data: buf.toString('base64') } }
+                  ]
+                }],
+                generationConfig: { temperature: 0.4, topK: 40, topP: 0.9, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+              })
+              videoData.captionMethod = 'gemini_inline_audio'
+              console.log('[yt-shorts] Gemini inline audio analysis succeeded!')
+            }
+          }
+        } catch (e) {
+          console.log('[yt-shorts] Inline audio error:', e.message)
+        }
+      }
+    }
+
+    // ===== 방법 B: 텍스트 기반 분석 (자막 있거나, 직접 분석 실패 시) =====
+    if (!result) {
+      const textPrompt = `# 미션: YouTube 영상을 분석하고 **거의 동일한 촬영 가이드** 작성
 
 당신은 숏폼 영상 기획 전문가입니다. 아래 YouTube 영상을 분석한 뒤, **이 영상을 따라 찍을 수 있는 촬영 가이드**를 작성하세요.
 
@@ -703,51 +860,26 @@ ${requiredDialoguesSection}
 ${additionalNotes ? `\n## 추가 요청\n${additionalNotes}` : ''}
 
 ## 출력 형식 (JSON)
-{
-  "video_analysis": {
-    "summary": "원본 영상의 내용과 흐름 요약 (3-4문장, 구체적으로)",
-    "style": "영상 스타일 (GRWM, 리뷰, 언박싱, 튜토리얼, 먹방, 브이로그, 일상, 챌린지 등)",
-    "tone": "톤앤매너 (친근, 전문적, 유머러스, 감성적, 에너지틱 등)",
-    "structure": "영상 전체 구조 (예: 후킹 → 제품소개 → 사용장면 → 결과 → 추천멘트)",
-    "estimated_duration": "${videoData.duration || '60'}초"
-  },
-  "guide": {
-    "title": "촬영 가이드 제목",
-    "concept": "이 영상의 핵심 컨셉과 촬영 방향 (2-3문장)",
-    "scenes": [
-      {
-        "order": 1,
-        "name": "장면 이름",
-        "duration": "이 장면의 예상 시간 (예: 0:00~0:05, 5초)",
-        "description": "이 장면에서 무엇을 하는지 구체적으로 설명",
-        "camera": "카메라 앵글/움직임",
-        "dialogue": "이 장면에서 말할 대사 (원본 자막 기반)"
-      }
-    ],
-    "required_dialogues": ["필수 대사1", "필수 대사2"],
-    "hashtags": ["해시태그1", "해시태그2", "해시태그3"],
-    "filming_tips": ["촬영 팁 1", "촬영 팁 2", "촬영 팁 3"],
-    "cautions": "주의사항"
-  }
-}
+${guideJsonSchema}
 
 중요:
 - scenes의 각 dialogue는 원본 자막의 실제 대사를 기반으로 작성하세요.
 - scenes 개수는 원본 영상의 장면 전환 횟수에 맞추세요 (숏폼은 보통 4~8개 장면).
 - JSON만 반환하세요. 마크다운 코드블록 없이 순수 JSON만.`
 
-    console.log('[yt-shorts] Sending to Gemini for guide generation...')
+      console.log('[yt-shorts] Sending text-based prompt to Gemini...')
 
-    const result = await model.generateContent({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.4,
-        topK: 40,
-        topP: 0.9,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json'
-      }
-    })
+      result = await model.generateContent({
+        contents: [{ parts: [{ text: textPrompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          topK: 40,
+          topP: 0.9,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json'
+        }
+      })
+    }
 
     // Gemini 응답 안전 체크
     const candidates = result?.response?.candidates
@@ -792,6 +924,10 @@ ${additionalNotes ? `\n## 추가 요청\n${additionalNotes}` : ''}
       }
     }
 
+    // Gemini 직접 분석 사용 시 hasTranscript 업데이트
+    const geminiDirectMethods = ['gemini_direct_url', 'gemini_file_api', 'gemini_inline_audio']
+    const usedGeminiDirect = geminiDirectMethods.includes(videoData.captionMethod)
+
     return {
       statusCode: 200,
       headers,
@@ -802,11 +938,11 @@ ${additionalNotes ? `\n## 추가 요청\n${additionalNotes}` : ''}
           title: videoData.title,
           description: videoData.description,
           duration: videoData.duration,
-          hasTranscript: hasTranscript,
+          hasTranscript: hasTranscript || usedGeminiDirect,
           transcriptSegments: videoData.timestampedTranscript.length,
-          captionLang: videoData.captionLang,
+          captionLang: videoData.captionLang || (usedGeminiDirect ? 'auto' : ''),
           captionMethod: videoData.captionMethod || '',
-          transcript: videoData.transcript,
+          transcript: videoData.transcript || (usedGeminiDirect ? '(Gemini 영상 직접 분석)' : ''),
           timeline: timeline || ''
         },
         guideData

@@ -612,15 +612,18 @@ export default function CampaignGuideTemplatePrototype() {
                         <p className="font-medium text-gray-800 mt-0.5">{ytResult.videoData?.duration ? `${ytResult.videoData.duration}초` : '(알 수 없음)'}</p>
                       </div>
                       <div>
-                        <span className="text-blue-600 font-semibold">자막 추출:</span>
+                        <span className="text-blue-600 font-semibold">분석 방법:</span>
                         <p className={`font-medium mt-0.5 ${ytResult.videoData?.hasTranscript ? 'text-green-700' : 'text-red-600'}`}>
-                          {ytResult.videoData?.hasTranscript
-                            ? `성공 (${ytResult.videoData.transcriptSegments || 0}개 구간, ${
-                                ytResult.videoData.captionMethod?.startsWith('manual')
-                                  ? '직접 입력'
-                                  : `언어: ${ytResult.videoData.captionLang || '자동'}, 방법: ${ytResult.videoData.captionMethod || '-'}`
-                              })`
-                            : '실패 — 자막 없음 (위의 자막 직접 입력을 사용해보세요)'}
+                          {(() => {
+                            const method = ytResult.videoData?.captionMethod || ''
+                            if (method.startsWith('gemini_direct') || method === 'gemini_file_api' || method === 'gemini_inline_audio')
+                              return `Gemini AI 영상 직접 분석 (${method === 'gemini_direct_url' ? 'YouTube URL' : method === 'gemini_file_api' ? 'File API' : '오디오 분석'})`
+                            if (method.startsWith('manual'))
+                              return '직접 입력 자막 사용'
+                            if (ytResult.videoData?.hasTranscript)
+                              return `자막 추출 성공 (${ytResult.videoData.transcriptSegments || 0}개 구간, 언어: ${ytResult.videoData.captionLang || '자동'}, 방법: ${method || '-'})`
+                            return '실패 — 자막 없음 (위의 자막 직접 입력을 사용해보세요)'
+                          })()}
                         </p>
                       </div>
                       <div>
