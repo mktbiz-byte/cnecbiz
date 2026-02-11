@@ -908,12 +908,25 @@ export default function RevenueManagementNew() {
         description: voucherForm.description.trim() || null
       }
 
+      let error
       if (editingVoucherEntry) {
-        const { error } = await supabaseBiz.from('voucher_manual_entries').update(data).eq('id', editingVoucherEntry.id)
-        if (error) throw error
+        ({ error } = await supabaseBiz.from('voucher_manual_entries').update(data).eq('id', editingVoucherEntry.id))
       } else {
-        const { error } = await supabaseBiz.from('voucher_manual_entries').insert(data)
-        if (error) throw error
+        ({ error } = await supabaseBiz.from('voucher_manual_entries').insert(data))
+      }
+
+      // entry_type 컬럼이 없으면 제거 후 재시도
+      if (error && error.message?.includes('entry_type')) {
+        const { entry_type, ...dataWithout } = data
+        if (editingVoucherEntry) {
+          const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').update(dataWithout).eq('id', editingVoucherEntry.id)
+          if (err2) throw err2
+        } else {
+          const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').insert(dataWithout)
+          if (err2) throw err2
+        }
+      } else if (error) {
+        throw error
       }
 
       setShowVoucherModal(false)
@@ -1016,8 +1029,15 @@ export default function RevenueManagementNew() {
 
       if (!confirm(`${entries.length}건을 등록하시겠습니까?\n\n${entries.slice(0, 3).map(e => `${e.company_name} / ${e.contract_date} / ${e.contract_amount.toLocaleString()}원`).join('\n')}${entries.length > 3 ? `\n... 외 ${entries.length - 3}건` : ''}`)) return
 
-      const { error } = await supabaseBiz.from('voucher_manual_entries').insert(entries)
-      if (error) throw error
+      let { error } = await supabaseBiz.from('voucher_manual_entries').insert(entries)
+      // entry_type 컬럼이 없으면 제거 후 재시도
+      if (error && error.message?.includes('entry_type')) {
+        const entriesWithout = entries.map(({ entry_type, ...rest }) => rest)
+        const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').insert(entriesWithout)
+        if (err2) throw err2
+      } else if (error) {
+        throw error
+      }
       alert(`${entries.length}건이 등록되었습니다.`)
       setShowVoucherBulkModal(false)
       fetchAllData()
