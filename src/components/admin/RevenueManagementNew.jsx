@@ -1054,15 +1054,24 @@ export default function RevenueManagementNew() {
   const voucherStats = useMemo(() => {
     const vouchers = voucherManualEntries.filter(e => e.entry_type !== 'point')
     const points = voucherManualEntries.filter(e => e.entry_type === 'point')
+    // 포인트 기반 기업별 잔액 합계 (계약금액 - 지급금)
+    const totalContractAmount = voucherSummary.reduce((sum, s) => sum + (contractAmounts[s.company_id] || 0), 0)
+    const totalCharged = voucherSummary.reduce((sum, s) => sum + s.total_charged, 0)
+    const totalSpent = voucherSummary.reduce((sum, s) => sum + s.total_spent, 0)
+    const totalBalance = totalContractAmount - totalCharged // 계약금액 - 지급금 = 미수금(잔액)
     return {
       totalCount: voucherManualEntries.length,
       totalAmount: voucherManualEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
       voucherCount: vouchers.length,
       voucherAmount: vouchers.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
       pointCount: points.length,
-      pointAmount: points.reduce((sum, e) => sum + (e.contract_amount || 0), 0)
+      pointAmount: points.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      totalContractAmount,
+      totalCharged,
+      totalSpent,
+      totalBalance
     }
-  }, [voucherManualEntries])
+  }, [voucherManualEntries, voucherSummary, contractAmounts])
 
   // 필터링된 수동 입력 목록
   const filteredVoucherEntries = useMemo(() => {
@@ -1830,12 +1839,12 @@ export default function RevenueManagementNew() {
           <TabsContent value="voucher">
             <div className="space-y-6">
               {/* 통계 카드 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-indigo-100 text-sm">전체</p>
+                        <p className="text-indigo-100 text-sm">전체 계약</p>
                         <p className="text-2xl font-bold mt-1">{voucherStats.totalCount}건</p>
                         <p className="text-indigo-200 text-sm mt-1">{formatNumber(voucherStats.totalAmount)}</p>
                       </div>
@@ -1867,7 +1876,62 @@ export default function RevenueManagementNew() {
                     </div>
                   </CardContent>
                 </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-amber-100 text-sm">미수금 (잔액)</p>
+                        <p className="text-2xl font-bold mt-1">{formatNumber(voucherStats.totalBalance)}</p>
+                        <p className="text-amber-200 text-xs mt-1">
+                          계약 {formatNumber(voucherStats.totalContractAmount)} - 지급 {formatNumber(voucherStats.totalCharged)}
+                        </p>
+                      </div>
+                      <Wallet className="w-10 h-10 text-amber-200" />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+
+              {/* 월간 계약 현황 차트 */}
+              {voucherMonthlySummary.length > 0 && (
+                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-indigo-500" />
+                      월간 계약 현황
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[...voucherMonthlySummary].sort((a, b) => a.month.localeCompare(b.month))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={(v) => {
+                            const parts = v.split('-')
+                            return `${parts[0].slice(2)}.${parts[1]}`
+                          }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => {
+                            if (v >= 100000000) return `${(v / 100000000).toFixed(0)}억`
+                            if (v >= 10000000) return `${(v / 10000000).toFixed(0)}천만`
+                            if (v >= 10000) return `${(v / 10000).toFixed(0)}만`
+                            return v.toLocaleString()
+                          }} />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${value.toLocaleString()}원`,
+                              name === 'voucherTotal' ? '수출바우처' : '포인트 지급'
+                            ]}
+                            labelFormatter={(label) => `${label}`}
+                          />
+                          <Legend formatter={(value) => value === 'voucherTotal' ? '수출바우처' : '포인트 지급'} />
+                          <Bar dataKey="voucherTotal" fill="#3B82F6" radius={[4, 4, 0, 0]} name="voucherTotal" />
+                          <Bar dataKey="pointTotal" fill="#10B981" radius={[4, 4, 0, 0]} name="pointTotal" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 수출바우처 수동 입력 */}
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
