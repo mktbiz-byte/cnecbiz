@@ -112,10 +112,12 @@ async function fetchTimedText(videoId) {
       const resp = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8'
+          'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
+          'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQxMjE2LjA1X3AxGgJrbSADGgYIgOmyvAY'
         },
         signal: AbortSignal.timeout(8000)
       })
+      console.log(`[yt-shorts] timedtext ${lang}${kind ? '/asr' : ''}: status=${resp.status}`)
       if (!resp.ok) continue
       const text = await resp.text()
       if (!text || text.length < 10) continue
@@ -206,17 +208,22 @@ async function fetchYouTubeData(videoId) {
   // ===== 3단계: YouTube HTML 페이지 파싱 (메타데이터 + 자막 보강) =====
   let html = ''
   try {
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=ko&gl=KR&has_verified=1`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Cookie': 'CONSENT=YES+cb.20240101-00-p0.en+FX+999'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQxMjE2LjA1X3AxGgJrbSADGgYIgOmyvAY; CONSENT=PENDING+999; GPS=1'
       },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow'
     })
     html = await response.text()
-    console.log('[yt-shorts] HTML length:', html.length, ', has videoDetails:', html.includes('videoDetails'))
+    const hasVD = html.includes('videoDetails')
+    const hasPlayerResp = html.includes('ytInitialPlayerResponse')
+    const hasCaptionTracks = html.includes('captionTracks')
+    const hasConsentForm = html.includes('consent.youtube.com') || html.includes('CONSENT')
+    console.log('[yt-shorts] HTML length:', html.length, ', videoDetails:', hasVD, ', playerResponse:', hasPlayerResp, ', captions:', hasCaptionTracks, ', consentPage:', hasConsentForm)
 
     // videoDetails에서 메타데이터 추출
     const vdIdx = html.indexOf('"videoDetails"')
@@ -302,6 +309,77 @@ async function fetchYouTubeData(videoId) {
     console.log('[yt-shorts] HTML fetch error:', e.message)
   }
 
+  // ===== 3.5단계: YouTube embed 페이지에서 추가 데이터 추출 =====
+  if (!title || !duration) {
+    try {
+      const embedResp = await fetch(`https://www.youtube.com/embed/${videoId}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+        },
+        signal: AbortSignal.timeout(8000)
+      })
+      const embedHtml = await embedResp.text()
+      if (!title) {
+        const embedTitle = embedHtml.match(/"title":"(.*?)"/) || embedHtml.match(/<title>(.*?)<\/title>/)
+        if (embedTitle) {
+          try { title = JSON.parse(`"${embedTitle[1]}"`) } catch (e) { title = embedTitle[1].replace(' - YouTube', '').trim() }
+        }
+      }
+      if (!duration) {
+        const embedDur = embedHtml.match(/"lengthSeconds":"(\d+)"/) || embedHtml.match(/"length_seconds":\s*"?(\d+)"?/)
+        if (embedDur) duration = parseInt(embedDur[1])
+      }
+      // embed 페이지에도 captionTracks가 있을 수 있음
+      if (!transcript && embedHtml.includes('captionTracks')) {
+        console.log('[yt-shorts] Embed page has captionTracks! Extracting...')
+        const cStart = embedHtml.indexOf('"captionTracks":')
+        const cArrStart = embedHtml.indexOf('[', cStart)
+        if (cArrStart !== -1) {
+          let depth = 0, cArrEnd = -1, inStr = false
+          for (let i = cArrStart; i < embedHtml.length && i < cArrStart + 50000; i++) {
+            const ch = embedHtml[i]
+            if (inStr) { if (ch === '\\') { i++; continue }; if (ch === '"') inStr = false; continue }
+            if (ch === '"') { inStr = true; continue }
+            if (ch === '[') depth++
+            else if (ch === ']') { depth--; if (depth === 0) { cArrEnd = i; break } }
+          }
+          if (cArrEnd !== -1) {
+            try {
+              const rawJson = embedHtml.substring(cArrStart, cArrEnd + 1)
+              const captionData = JSON.parse(rawJson.replace(/\\u0026/g, '&'))
+              const track = captionData.find(t => t.languageCode === 'ko') || captionData.find(t => t.languageCode === 'en') || captionData[0]
+              if (track?.baseUrl) {
+                const captionResp = await fetch(track.baseUrl.replace(/\\u0026/g, '&').replace(/&amp;/g, '&'), { signal: AbortSignal.timeout(5000) })
+                timestampedTranscript = parseCaptionXml(await captionResp.text())
+                transcript = timestampedTranscript.map(t => t.text).join(' ')
+                captionLang = track.languageCode || ''
+                if (timestampedTranscript.length > 0) captionMethod = 'embed_captionTracks'
+                console.log('[yt-shorts] Embed captions:', timestampedTranscript.length, 'segments')
+              }
+            } catch (e) {
+              console.log('[yt-shorts] Embed caption parse error:', e.message)
+            }
+          }
+        }
+      }
+      console.log('[yt-shorts] Embed — title:', title?.substring(0, 50), ', duration:', duration)
+    } catch (e) {
+      console.log('[yt-shorts] Embed fetch error:', e.message)
+    }
+  }
+
+  // noembed fallback for metadata
+  if (!title) {
+    try {
+      const noembedResp = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`, { signal: AbortSignal.timeout(5000) })
+      if (noembedResp.ok) {
+        const noembedData = await noembedResp.json()
+        if (noembedData.title) title = noembedData.title
+        console.log('[yt-shorts] noembed title:', title)
+      }
+    } catch (e) {}
+  }
+
   console.log('[yt-shorts] After HTML — title:', title?.substring(0, 50), ', duration:', duration, ', desc:', !!description, ', transcript:', transcript.length, 'chars')
 
   // ===== 4단계: innertube player API (자막 + 오디오) =====
@@ -314,7 +392,12 @@ async function fetchYouTubeData(videoId) {
     for (const { name, config } of clientConfigs) {
       try {
         const playerData = await callPlayerApi(videoId, config)
-        if (!playerData) continue
+        if (!playerData) { console.log(`[yt-shorts] ${name}: no response`); continue }
+
+        const playStatus = playerData?.playabilityStatus?.status
+        const captionCount = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length || 0
+        const audioFormats = [...(playerData?.streamingData?.adaptiveFormats || []), ...(playerData?.streamingData?.formats || [])].filter(f => f.mimeType?.startsWith('audio/')).length
+        console.log(`[yt-shorts] ${name}: status=${playStatus}, captions=${captionCount}, audioFormats=${audioFormats}, title=${playerData?.videoDetails?.title?.substring(0, 30)}`)
 
         if (!title && playerData?.videoDetails?.title) title = playerData.videoDetails.title
         if (!description && playerData?.videoDetails?.shortDescription) description = playerData.videoDetails.shortDescription.substring(0, 1500)
