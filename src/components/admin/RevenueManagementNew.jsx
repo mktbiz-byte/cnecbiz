@@ -712,6 +712,66 @@ export default function RevenueManagementNew() {
     })
   }
 
+  // 특정 기업의 포인트 데이터 리셋
+  const handleResetCompanyPoints = async (companyId) => {
+    // 먼저 dry run으로 영향 범위 확인
+    try {
+      // company_id(auth.users.id)로 companies 테이블에서 email 조회
+      const { data: company } = await supabaseBiz
+        .from('companies')
+        .select('email, company_name')
+        .eq('user_id', companyId)
+        .single()
+
+      if (!company) {
+        alert('기업 정보를 찾을 수 없습니다.')
+        return
+      }
+
+      const dryRes = await fetch('/.netlify/functions/reset-company-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyEmail: company.email, dryRun: true })
+      })
+      const dryResult = await dryRes.json()
+
+      if (!dryResult.success) {
+        alert(`조회 실패: ${dryResult.error}`)
+        return
+      }
+
+      const r = dryResult.report.affected
+      const msg = `[${company.company_name}] 포인트 데이터를 리셋합니다.\n\n` +
+        `삭제 대상:\n` +
+        `- 포인트 거래내역: ${r.points_transactions?.count || 0}건\n` +
+        `- 충전 요청: ${r.points_charge_requests?.count || 0}건\n` +
+        `- 미수금: ${r.receivables?.count || 0}건\n` +
+        `- 결제 내역: ${r.payments?.count || 0}건\n` +
+        `- 포인트 잔액: 0으로 리셋\n\n` +
+        `정말 삭제하시겠습니까?`
+
+      if (!confirm(msg)) return
+
+      // 실제 삭제 실행
+      const execRes = await fetch('/.netlify/functions/reset-company-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyEmail: company.email, dryRun: false })
+      })
+      const execResult = await execRes.json()
+
+      if (execResult.success) {
+        alert(`${company.company_name}의 포인트 데이터가 리셋되었습니다.`)
+        fetchAllData() // 데이터 새로고침
+      } else {
+        alert(`리셋 실패: ${execResult.error}`)
+      }
+    } catch (error) {
+      console.error('포인트 리셋 오류:', error)
+      alert(`오류: ${error.message}`)
+    }
+  }
+
   const formatNumber = (num) => {
     if (num === undefined || num === null) return '-'
     if (num === 0) return '₩0'
@@ -1404,6 +1464,7 @@ export default function RevenueManagementNew() {
                             <th className="px-4 py-3 text-right text-sm font-semibold text-rose-600">사용금 (차감)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-slate-600">잔액</th>
                             <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">거래 건수</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">관리</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1434,6 +1495,17 @@ export default function RevenueManagementNew() {
                                   {summary.transactions.length}건
                                 </span>
                               </td>
+                              <td className="px-4 py-3 text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
+                                  onClick={() => handleResetCompanyPoints(summary.company_id)}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  리셋
+                                </Button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1452,6 +1524,7 @@ export default function RevenueManagementNew() {
                             <td className="px-4 py-3 text-center text-purple-700">
                               {voucherTransactions.length}건
                             </td>
+                            <td></td>
                           </tr>
                         </tfoot>
                       </table>
