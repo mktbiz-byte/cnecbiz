@@ -97,6 +97,7 @@ export default function RevenueManagementNew() {
   const [withdrawalData, setWithdrawalData] = useState([])
   const [voucherTransactions, setVoucherTransactions] = useState([])
   const [voucherSummary, setVoucherSummary] = useState([])
+  const [contractAmounts, setContractAmounts] = useState({}) // { company_id: amount }
 
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -207,15 +208,20 @@ export default function RevenueManagementNew() {
         if (companyIds.length > 0) {
           const { data: companies } = await supabaseBiz
             .from('companies')
-            .select('user_id, company_name, email')
+            .select('user_id, company_name, email, voucher_contract_amount')
             .in('user_id', companyIds)
 
           if (companies) {
+            const amounts = {}
             for (const company of companies) {
               if (companyMap[company.user_id]) {
                 companyMap[company.user_id].company_name = company.company_name || company.email || '알 수 없음'
               }
+              if (company.voucher_contract_amount) {
+                amounts[company.user_id] = company.voucher_contract_amount
+              }
             }
+            setContractAmounts(prev => ({ ...prev, ...amounts }))
           }
         }
 
@@ -710,6 +716,22 @@ export default function RevenueManagementNew() {
       description: '',
       due_date: ''
     })
+  }
+
+  // 바우처 계약금액 저장
+  const handleSaveContractAmount = async (companyId, amount) => {
+    try {
+      const numAmount = parseInt(amount) || 0
+      setContractAmounts(prev => ({ ...prev, [companyId]: numAmount }))
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ voucher_contract_amount: numAmount })
+        .eq('user_id', companyId)
+      if (error) throw error
+    } catch (error) {
+      console.error('계약금액 저장 오류:', error)
+      alert('계약금액 저장 실패: ' + error.message)
+    }
   }
 
   // 특정 기업의 포인트 데이터 리셋
@@ -1460,6 +1482,7 @@ export default function RevenueManagementNew() {
                         <thead>
                           <tr className="border-b border-slate-200">
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-purple-600">계약금액</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">지급금 (충전)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-rose-600">사용금 (차감)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-slate-600">잔액</th>
@@ -1472,6 +1495,22 @@ export default function RevenueManagementNew() {
                             <tr key={summary.company_id} className="border-b border-slate-100 hover:bg-slate-50/50">
                               <td className="px-4 py-3">
                                 <div className="font-medium text-slate-700">{summary.company_name || '알 수 없음'}</div>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <Input
+                                  type="text"
+                                  className="w-32 text-right text-sm ml-auto"
+                                  placeholder="0"
+                                  value={contractAmounts[summary.company_id] != null ? formatNumber(contractAmounts[summary.company_id]) : ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                                    setContractAmounts(prev => ({ ...prev, [summary.company_id]: raw ? parseInt(raw) : '' }))
+                                  }}
+                                  onBlur={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                                    handleSaveContractAmount(summary.company_id, raw)
+                                  }}
+                                />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <span className="font-semibold text-emerald-600">
@@ -1512,6 +1551,9 @@ export default function RevenueManagementNew() {
                         <tfoot>
                           <tr className="bg-purple-50 font-bold">
                             <td className="px-4 py-3 text-purple-700">합계</td>
+                            <td className="px-4 py-3 text-right text-purple-700">
+                              {formatNumber(voucherSummary.reduce((sum, s) => sum + (contractAmounts[s.company_id] || 0), 0))}
+                            </td>
                             <td className="px-4 py-3 text-right text-emerald-700">
                               +{formatNumber(voucherSummary.reduce((sum, s) => sum + s.total_charged, 0))}
                             </td>
