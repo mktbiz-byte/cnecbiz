@@ -375,10 +375,15 @@ const TaxInvoiceRequestsTab = () => {
     }
   };
 
-  const filteredRequests = requests.filter(req =>
-    req.companies.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.companies.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRequests = requests.filter(req => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      (req.companies?.company_name || '').toLowerCase().includes(search) ||
+      (req.companies?.email || '').toLowerCase().includes(search) ||
+      (req.companies?.business_registration_number || '').toLowerCase().includes(search)
+    );
+  });
 
   const stats = {
     total: requests.length,
@@ -551,8 +556,15 @@ const TaxInvoiceRequestsTab = () => {
                       {new Date(request.created_at).toLocaleString('ko-KR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {request.companies.company_name}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {request.companies.company_name}
+                        </span>
+                        {request.is_manual && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                            수동
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-500">
                         {request.companies.email}
@@ -562,7 +574,11 @@ const TaxInvoiceRequestsTab = () => {
                       {request.amount.toLocaleString()}원
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {request.is_deposit_confirmed ? (
+                      {request.is_manual ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          수동발행
+                        </span>
+                      ) : request.is_deposit_confirmed ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           확인됨
@@ -788,7 +804,7 @@ const TaxInvoiceRequestsTab = () => {
                   {isIssuing ? '발행 중...' : '발행하기 (팝빌)'}
                 </button>
               )}
-              {selectedRequest.status === 'issued' && (
+              {selectedRequest.status === 'issued' && !selectedRequest.is_manual && (
                 <>
                   <button
                     onClick={() => handleIssueInvoice(true)}
