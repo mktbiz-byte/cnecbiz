@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
@@ -468,8 +468,88 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 포트폴리오 바로가기 배너 */}
+      <section className="py-10 sm:py-14 lg:py-16 bg-gray-900" id="showcase">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">Portfolio</h2>
+            <p className="text-gray-400 text-sm sm:text-base">국가별 크리에이터 숏폼 포트폴리오</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            {/* 한국 */}
+            <a
+              href="https://www.youtube.com/@bizcnec/shorts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-blue-500/20"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🇰🇷</span>
+                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">Korea</span>
+                </div>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC Korea</h3>
+                <p className="text-blue-200 text-xs sm:text-sm mb-4">K-뷰티 크리에이터 숏폼</p>
+                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
+                  <Play className="w-3.5 h-3.5" />
+                  <span>YouTube에서 보기</span>
+                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </a>
+
+            {/* 일본 */}
+            <a
+              href="https://www.youtube.com/@CNEC_JP/shorts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-rose-500/20"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🇯🇵</span>
+                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">Japan</span>
+                </div>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC Japan</h3>
+                <p className="text-rose-200 text-xs sm:text-sm mb-4">J-뷰티 크리에이터 숏폼</p>
+                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
+                  <Play className="w-3.5 h-3.5" />
+                  <span>YouTube에서 보기</span>
+                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </a>
+
+            {/* 미국 */}
+            <a
+              href="https://www.youtube.com/@CNEC_USA/shorts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-violet-500/20"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🇺🇸</span>
+                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">USA</span>
+                </div>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC USA</h3>
+                <p className="text-violet-200 text-xs sm:text-sm mb-4">US 뷰티 크리에이터 숏폼</p>
+                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
+                  <Play className="w-3.5 h-3.5" />
+                  <span>YouTube에서 보기</span>
+                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Video Portfolio Sections - 카테고리별 (DB 영상 사용) */}
-      <section id="showcase">
+      <section>
         {videoCategories.map((category, index) => (
           <VideoCategorySection
             key={category.id}
