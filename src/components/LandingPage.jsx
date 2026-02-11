@@ -135,6 +135,7 @@ export default function LandingPage() {
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
   const [featuredNewsletters, setFeaturedNewsletters] = useState([])
+  const [portfolioShorts, setPortfolioShorts] = useState({ korea: [], japan: [], usa: [] })
   const [pageContent, setPageContent] = useState({
     hero_title: 'K-뷰티를 세계로,',
     hero_subtitle: '14일 만에 완성하는 숏폼',
@@ -177,6 +178,7 @@ export default function LandingPage() {
     fetchFaqs()
     fetchPageContent()
     fetchFeaturedNewsletters()
+    fetchPortfolioShorts()
   }, [])
 
   // 추천 뉴스레터 또는 최신 뉴스레터 가져오기
@@ -208,6 +210,18 @@ export default function LandingPage() {
       }
     } catch (error) {
       console.error('뉴스레터 조회 오류:', error)
+    }
+  }
+
+  const fetchPortfolioShorts = async () => {
+    try {
+      const res = await fetch('/.netlify/functions/fetch-portfolio-shorts')
+      const result = await res.json()
+      if (result.success && result.data) {
+        setPortfolioShorts(result.data)
+      }
+    } catch (error) {
+      console.error('포트폴리오 숏폼 조회 오류:', error)
     }
   }
 
@@ -476,74 +490,63 @@ export default function LandingPage() {
             <p className="text-gray-400 text-sm sm:text-base">국가별 크리에이터 숏폼 포트폴리오</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            {/* 한국 */}
-            <a
-              href="https://www.youtube.com/@bizcnec/shorts"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-blue-500/20"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-2xl">🇰🇷</span>
-                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">Korea</span>
-                </div>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC Korea</h3>
-                <p className="text-blue-200 text-xs sm:text-sm mb-4">K-뷰티 크리에이터 숏폼</p>
-                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
-                  <Play className="w-3.5 h-3.5" />
-                  <span>YouTube에서 보기</span>
-                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
+            {[
+              { key: 'korea', flag: '🇰🇷', label: 'Korea', name: 'CNEC Korea', desc: 'K-뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@bizcnec/shorts', from: 'from-blue-600', to: 'to-indigo-700', accent: 'text-blue-200', shadow: 'hover:shadow-blue-500/20', ring: 'ring-blue-400/30' },
+              { key: 'japan', flag: '🇯🇵', label: 'Japan', name: 'CNEC Japan', desc: 'J-뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@CNEC_JP/shorts', from: 'from-rose-500', to: 'to-pink-600', accent: 'text-rose-200', shadow: 'hover:shadow-rose-500/20', ring: 'ring-rose-400/30' },
+              { key: 'usa', flag: '🇺🇸', label: 'USA', name: 'CNEC USA', desc: 'US 뷰티 크리에이터 숏폼', url: 'https://www.youtube.com/@CNEC_USA/shorts', from: 'from-violet-500', to: 'to-purple-700', accent: 'text-violet-200', shadow: 'hover:shadow-violet-500/20', ring: 'ring-violet-400/30' }
+            ].map(ch => (
+              <div key={ch.key} className="flex flex-col gap-3">
+                <a
+                  href={ch.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${ch.from} ${ch.to} p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl ${ch.shadow}`}
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">{ch.flag}</span>
+                      <span className="text-white/60 text-xs font-medium tracking-wider uppercase">{ch.label}</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg sm:text-xl mb-1">{ch.name}</h3>
+                    <p className={`${ch.accent} text-xs sm:text-sm mb-4`}>{ch.desc}</p>
+                    <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
+                      <Play className="w-3.5 h-3.5" />
+                      <span>YouTube에서 보기</span>
+                      <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                </a>
+                {/* 최근 숏폼 썸네일 */}
+                {portfolioShorts[ch.key]?.length > 0 && (
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {portfolioShorts[ch.key].map(short => (
+                      <a
+                        key={short.video_id}
+                        href={`https://www.youtube.com/shorts/${short.video_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`group/thumb relative aspect-[9/16] rounded-lg overflow-hidden ring-1 ${ch.ring} hover:ring-2 transition-all hover:scale-105`}
+                        title={short.title}
+                      >
+                        <img
+                          src={short.thumbnail}
+                          alt={short.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition-colors flex items-center justify-center">
+                          <Play className="w-5 h-5 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-lg" />
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-1">
+                          <span className="text-white text-[9px] leading-tight line-clamp-1">{(short.view_count || 0).toLocaleString()}회</span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
-            </a>
-
-            {/* 일본 */}
-            <a
-              href="https://www.youtube.com/@CNEC_JP/shorts"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-rose-500/20"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-2xl">🇯🇵</span>
-                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">Japan</span>
-                </div>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC Japan</h3>
-                <p className="text-rose-200 text-xs sm:text-sm mb-4">J-뷰티 크리에이터 숏폼</p>
-                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
-                  <Play className="w-3.5 h-3.5" />
-                  <span>YouTube에서 보기</span>
-                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-            </a>
-
-            {/* 미국 */}
-            <a
-              href="https://www.youtube.com/@CNEC_USA/shorts"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 p-5 sm:p-6 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-violet-500/20"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-2xl">🇺🇸</span>
-                  <span className="text-white/60 text-xs font-medium tracking-wider uppercase">USA</span>
-                </div>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">CNEC USA</h3>
-                <p className="text-violet-200 text-xs sm:text-sm mb-4">US 뷰티 크리에이터 숏폼</p>
-                <div className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm group-hover:text-white transition-colors">
-                  <Play className="w-3.5 h-3.5" />
-                  <span>YouTube에서 보기</span>
-                  <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-            </a>
+            ))}
           </div>
         </div>
       </section>
