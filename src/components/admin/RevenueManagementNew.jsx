@@ -1392,14 +1392,83 @@ export default function RevenueManagementNew() {
 
           {/* 매출 내역 탭 */}
           <TabsContent value="revenue">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">매출 내역</CardTitle>
-                <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
-                  <Plus className="w-4 h-4 mr-1" /> 매출 추가
-                </Button>
-              </CardHeader>
+            <div className="space-y-6">
+              {/* 법인별 월별 매출 요약 테이블 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 요약 (법인별)</CardTitle>
+                  <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
+                    <Plus className="w-4 h-4 mr-1" /> 매출 추가
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">법인</th>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
+                          ))}
+                          <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* 하우파파 */}
+                        <tr className="border-b border-slate-100 hover:bg-blue-50/30">
+                          <td className="px-3 py-2 font-medium text-blue-700 sticky left-0 bg-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                            하우파파
+                          </td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-2 text-right text-slate-600">
+                              {m.haupapaRevenue !== 0 ? formatCompact(m.haupapaRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right font-semibold text-blue-700 bg-slate-50">
+                            {formatCompact(yearlyTotals.haupapaRevenue)}
+                          </td>
+                        </tr>
+                        {/* 하우랩 */}
+                        <tr className="border-b border-slate-100 hover:bg-emerald-50/30">
+                          <td className="px-3 py-2 font-medium text-emerald-700 sticky left-0 bg-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            하우랩
+                          </td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-2 text-right text-slate-600">
+                              {m.haulabRevenue !== 0 ? formatCompact(m.haulabRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700 bg-slate-50">
+                            {formatCompact(yearlyTotals.haulabRevenue)}
+                          </td>
+                        </tr>
+                        {/* 합계 */}
+                        <tr className="bg-violet-50 font-bold">
+                          <td className="px-3 py-3 text-violet-700 sticky left-0 bg-violet-50">합계</td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-3 text-right text-violet-600">
+                              {m.totalRevenue !== 0 ? formatCompact(m.totalRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-3 text-right text-violet-700 bg-violet-100">
+                            {formatCompact(yearlyTotals.totalRevenue)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 매출 개별 내역 리스트 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 내역 (개별 항목)</CardTitle>
+                  <span className="text-sm text-slate-500">총 {revenueData.length}건</span>
+                </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {revenueData.length === 0 ? (
@@ -1456,7 +1525,8 @@ export default function RevenueManagementNew() {
                   )}
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* 수출바우처 탭 */}
