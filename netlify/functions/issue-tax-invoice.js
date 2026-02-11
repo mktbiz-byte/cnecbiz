@@ -269,7 +269,7 @@ exports.handler = async (event) => {
         forceIssue,  // 지연발행 가능여부
         null,   // 거래명세서 문서번호
         '세금계산서가 발행되었습니다',  // 이메일 제목
-        null,   // UserID
+        'cnecbiz',   // UserID - 하우파파 회원 ID
         (result) => {
           console.log('✅ [STEP 3] 팝빌 API 호출 성공!');
           console.log('   - 전체 응답:', JSON.stringify(result, null, 2));
