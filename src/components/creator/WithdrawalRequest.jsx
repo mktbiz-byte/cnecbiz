@@ -147,12 +147,15 @@ export default function WithdrawalRequest() {
 
   const validateForm = () => {
     const newErrors = {}
+    const requestedPoints = parseInt(formData.requested_points) || 0
 
-    if (!formData.requested_points || formData.requested_points <= 0) {
+    if (!requestedPoints || requestedPoints <= 0) {
       newErrors.requested_points = '출금할 포인트를 입력해주세요.'
+    } else if (requestedPoints < 10000) {
+      newErrors.requested_points = '최소 출금 금액은 10,000포인트입니다.'
     }
 
-    if (formData.requested_points > availableBalance) {
+    if (requestedPoints > availableBalance) {
       newErrors.requested_points = `출금 가능 포인트(${availableBalance.toLocaleString()}P)보다 많이 출금할 수 없습니다.`
     }
 
@@ -377,9 +380,13 @@ export default function WithdrawalRequest() {
                 <Label htmlFor="requested_points">출금 포인트 *</Label>
                 <Input
                   id="requested_points"
-                  type="number"
-                  value={formData.requested_points}
-                  onChange={(e) => setFormData({ ...formData, requested_points: e.target.value })}
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.requested_points ? Number(formData.requested_points).toLocaleString() : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                    setFormData({ ...formData, requested_points: raw })
+                  }}
                   placeholder="출금할 포인트를 입력하세요"
                 />
                 {errors.requested_points && (
@@ -581,7 +588,7 @@ export default function WithdrawalRequest() {
                           onClick={() => {
                             // 거절된 신청의 정보를 폼에 채워넣기
                             setFormData({
-                              requested_points: withdrawal.requested_points,
+                              requested_points: String(withdrawal.requested_points),
                               bank_name: withdrawal.bank_name || '',
                               account_number: withdrawal.account_number || '',
                               account_holder: withdrawal.account_holder || '',
