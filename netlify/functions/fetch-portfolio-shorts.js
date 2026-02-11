@@ -18,6 +18,12 @@ const CHANNELS = [
 
 const CACHE_HOURS = 6
 
+function parseCache(value) {
+  if (!value) return null
+  if (typeof value === 'object') return value
+  try { return JSON.parse(value) } catch { return null }
+}
+
 async function fetchChannelShorts(handle, apiKey) {
   const fetch = (await import('node-fetch')).default
 
@@ -32,7 +38,6 @@ async function fetchChannelShorts(handle, apiKey) {
     return []
   }
 
-  const channelId = channelData.items[0].id
   const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads
 
   // 2. 최근 업로드 영상 가져오기 (15개 가져와서 Shorts만 필터)
@@ -89,16 +94,19 @@ exports.handler = async (event) => {
       .from('site_settings')
       .select('value, updated_at')
       .eq('key', 'portfolio_shorts_cache')
-      .single()
+      .maybeSingle()
 
     if (cache && cache.value) {
-      const updatedAt = new Date(cache.updated_at)
-      const hoursSince = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60)
-      if (hoursSince < CACHE_HOURS) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ success: true, data: cache.value, cached: true })
+      const parsed = parseCache(cache.value)
+      if (parsed) {
+        const updatedAt = new Date(cache.updated_at)
+        const hoursSince = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60)
+        if (hoursSince < CACHE_HOURS) {
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, data: parsed, cached: true })
+          }
         }
       }
     }
@@ -107,11 +115,12 @@ exports.handler = async (event) => {
     const apiKey = process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY_1 || process.env.VITE_YOUTUBE_API_KEY
     if (!apiKey) {
       // 캐시가 있으면 만료되어도 반환
-      if (cache && cache.value) {
+      const staleData = cache && cache.value ? parseCache(cache.value) : null
+      if (staleData) {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, data: cache.value, cached: true, stale: true })
+          body: JSON.stringify({ success: true, data: staleData, cached: true, stale: true })
         }
       }
       return {
@@ -132,12 +141,12 @@ exports.handler = async (event) => {
       }
     }
 
-    // 캐시 저장 (upsert)
+    // 캐시 저장 (upsert) - value는 text 타입이므로 JSON.stringify
     await supabase
       .from('site_settings')
       .upsert({
         key: 'portfolio_shorts_cache',
-        value: result,
+        value: JSON.stringify(result),
         updated_at: new Date().toISOString()
       }, { onConflict: 'key' })
 

@@ -485,8 +485,10 @@ export default function LandingPage() {
       {/* 포트폴리오 바로가기 배너 */}
       <section className="py-12 sm:py-16 lg:py-20 bg-gray-950" id="showcase">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8 sm:mb-12">
-            <p className="text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed">
+          <div className="text-center mb-8 sm:mb-12">
+            <p className="text-gray-500 text-xs sm:text-sm font-medium tracking-[0.2em] uppercase mb-3">Portfolio</p>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-3">국가별 숏폼 포트폴리오</h2>
+            <p className="text-gray-400 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
               단순한 영상을 넘어, 각 국가의 문화적 맥락을 관통하는 <span className="text-white font-semibold">최상위 퀄리티의 숏폼</span>을 제안합니다.
             </p>
           </div>
