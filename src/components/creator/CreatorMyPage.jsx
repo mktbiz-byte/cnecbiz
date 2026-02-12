@@ -66,10 +66,34 @@ const CreatorMyPage = () => {
         .eq('creator_email', user.email)
         .eq('selection_status', 'selected')
 
-      if (participantsError) throw participantsError
+      if (participantsError) {
+        console.error('campaign_participants 조회 실패:', participantsError.message)
+      }
+
+      // Korea DB에서 결과가 없으면 BIZ DB에서도 시도
+      let allParticipants = participants || []
+      if (allParticipants.length === 0 && supabaseBiz) {
+        try {
+          const { data: bizParticipants, error: bizError } = await supabaseBiz
+            .from('campaign_participants')
+            .select(`
+              *,
+              campaigns (*)
+            `)
+            .eq('creator_email', user.email)
+            .eq('selection_status', 'selected')
+
+          if (!bizError && bizParticipants && bizParticipants.length > 0) {
+            console.log('BIZ DB에서 campaign_participants 발견:', bizParticipants.length, '건')
+            allParticipants = bizParticipants
+          }
+        } catch (e) {
+          console.log('BIZ DB campaign_participants 조회 스킵:', e.message)
+        }
+      }
 
       // applications 테이블에서 main_channel(업로드 플랫폼) 가져오기
-      let participantsWithChannel = participants || []
+      let participantsWithChannel = allParticipants
       try {
         const campaignIds = participantsWithChannel
           .map(p => p.campaigns?.id)
@@ -118,14 +142,37 @@ const CreatorMyPage = () => {
     try {
       setUploading(true)
 
-      // 기존 video_files 조회하여 버전 계산
-      const { data: existingData } = await supabaseKorea
-        .from('campaign_participants')
-        .select('video_files')
-        .eq('id', participantId)
-        .single()
+      // 파일 크기 검증 (200MB 제한)
+      const MAX_FILE_SIZE = 200 * 1024 * 1024
+      for (const file of files) {
+        if (file.size > MAX_FILE_SIZE) {
+          alert(`파일 "${file.name}"의 크기가 너무 큽니다 (${(file.size / 1024 / 1024).toFixed(1)}MB). 200MB 이하의 파일만 업로드 가능합니다.`)
+          setUploading(false)
+          return
+        }
+      }
 
-      const existingFiles = existingData?.video_files || []
+      // 기존 video_files 조회하여 버전 계산 (Netlify Function으로 RLS 우회)
+      let existingFiles = []
+      try {
+        const getRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_video_files', participantId })
+        })
+        const getResult = await getRes.json()
+        if (getResult.success) {
+          existingFiles = getResult.videoFiles || []
+        }
+      } catch (e) {
+        // Fallback: 직접 조회
+        const { data: existingData } = await supabaseKorea
+          .from('campaign_participants')
+          .select('video_files')
+          .eq('id', participantId)
+          .single()
+        existingFiles = existingData?.video_files || []
+      }
 
       // 현재 최대 버전 번호 계산
       let maxVersion = 0
@@ -143,15 +190,46 @@ const CreatorMyPage = () => {
         const fileExt = file.name.split('.').pop()
         const fileName = `${participantId}/${Date.now()}.${fileExt}`
 
+        // 프론트엔드에서 직접 스토리지 업로드 시도
+        let publicUrl = null
         const { data, error } = await supabaseKorea.storage
           .from('campaign-videos')
           .upload(fileName, file)
 
-        if (error) throw error
+        if (error) {
+          console.error('프론트엔드 스토리지 업로드 실패:', error.message, '→ Netlify Function으로 재시도')
 
-        const { data: { publicUrl } } = supabaseKorea.storage
-          .from('campaign-videos')
-          .getPublicUrl(fileName)
+          // Netlify Function으로 service role key 업로드 재시도 (50MB 이하만)
+          if (file.size <= 50 * 1024 * 1024) {
+            try {
+              const base64 = await fileToBase64(file)
+              const uploadRes = await fetch('/.netlify/functions/save-video-upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'storage_upload',
+                  fileName,
+                  fileBase64: base64,
+                  fileMimeType: file.type
+                })
+              })
+              const uploadResult = await uploadRes.json()
+              if (!uploadResult.success) {
+                throw new Error(uploadResult.error || '서버 업로드 실패')
+              }
+              publicUrl = uploadResult.publicUrl
+            } catch (retryError) {
+              throw new Error(`영상 업로드 실패: ${error.message} (재시도도 실패: ${retryError.message})`)
+            }
+          } else {
+            throw new Error(`영상 업로드 실패: ${error.message}. 파일 크기가 커서 서버 재시도 불가. 잠시 후 다시 시도해주세요.`)
+          }
+        } else {
+          const { data: { publicUrl: url } } = supabaseKorea.storage
+            .from('campaign-videos')
+            .getPublicUrl(fileName)
+          publicUrl = url
+        }
 
         // 새 버전 번호 할당
         maxVersion++
@@ -167,16 +245,31 @@ const CreatorMyPage = () => {
       // 기존 파일 + 새 파일을 합쳐서 저장 (버전 히스토리 유지)
       const allFiles = [...existingFiles, ...uploadedFiles]
 
-      // 업로드된 파일 정보를 DB에 저장
-      const { error: updateError } = await supabaseKorea
-        .from('campaign_participants')
-        .update({
-          video_files: allFiles,
-          video_status: 'uploaded'
+      // Netlify Function으로 DB 업데이트 (service role key로 RLS 우회)
+      const saveRes = await fetch('/.netlify/functions/save-video-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_participant',
+          participantId,
+          videoFiles: allFiles,
+          videoStatus: 'uploaded'
         })
-        .eq('id', participantId)
+      })
+      const saveResult = await saveRes.json()
 
-      if (updateError) throw updateError
+      if (!saveResult.success) {
+        // Fallback: 직접 DB 업데이트
+        console.error('Netlify Function DB 업데이트 실패:', saveResult.error, '→ 직접 업데이트 시도')
+        const { error: updateError } = await supabaseKorea
+          .from('campaign_participants')
+          .update({
+            video_files: allFiles,
+            video_status: 'uploaded'
+          })
+          .eq('id', participantId)
+        if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
+      }
 
       // 기업에게 알림톡 및 네이버 웍스 알림 발송
       try {
@@ -248,10 +341,23 @@ const CreatorMyPage = () => {
       loadMyCampaigns()
     } catch (error) {
       console.error('Error uploading video:', error)
-      alert('영상 업로드에 실패했습니다.')
+      alert(`영상 업로드에 실패했습니다.\n\n원인: ${error.message}\n\n문제가 지속되면 관리자에게 문의해주세요.`)
     } finally {
       setUploading(false)
     }
+  }
+
+  // 파일을 base64로 변환하는 헬퍼 함수
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = (error) => reject(error)
+    })
   }
 
   const handlePartnershipCodeSubmit = async (participantId, code) => {

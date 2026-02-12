@@ -4867,52 +4867,46 @@ Questions? Contact us.
       // 4. 포인트 지급 (skipPointPayment가 false일 때만)
       const userId = applicationData?.user_id || submission.user_id
       if (pointAmount > 0 && userId && !skipPointPayment) {
-        // user_profiles 조회 (id 또는 user_id로 시도 - JP/US 호환)
+        // Netlify 함수를 통해 포인트 지급 (service role key 사용 - RLS 우회)
+        const pointResponse = await fetch('/.netlify/functions/award-campaign-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            region,
+            userId,
+            pointAmount,
+            campaignId: campaign.id,
+            campaignTitle: campaign.title
+          })
+        })
+
+        const pointResult = await pointResponse.json()
+
+        if (!pointResult.success) {
+          console.error('포인트 지급 실패:', pointResult.error)
+          throw new Error(`포인트 지급 실패: ${pointResult.error}`)
+        }
+
+        console.log('포인트 지급 완료:', pointResult)
+
+        // 알림 발송을 위해 user_profiles 조회
         let profile = null
-        let profileMatchField = 'id'
         const { data: profileById } = await supabase
           .from('user_profiles')
-          .select('points, phone, email, line_user_id')
+          .select('phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
-        if (profileById) {
-          profile = profileById
-          profileMatchField = 'id'
-        } else {
+        profile = profileById
+        if (!profile) {
           const { data: profileByUserId } = await supabase
             .from('user_profiles')
-            .select('points, phone, email, line_user_id')
+            .select('phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId
-          profileMatchField = 'user_id'
         }
 
         if (profile) {
-          const newPoints = (profile.points || 0) + pointAmount
-          await supabase
-            .from('user_profiles')
-            .update({ points: newPoints, updated_at: new Date().toISOString() })
-            .eq(profileMatchField, userId)
-
-          // 포인트 이력 저장 (point_transactions 테이블)
-          const { error: txError } = await supabase
-            .from('point_transactions')
-            .insert([{
-              user_id: userId,
-              amount: pointAmount,
-              transaction_type: 'campaign_payment',
-              description: `캠페인 완료: ${campaign.title}`,
-              related_campaign_id: campaign.id,
-              created_at: new Date().toISOString()
-            }])
-
-          if (txError) {
-            console.log('point_transactions 저장 실패:', txError.message)
-          } else {
-            console.log('point_transactions에 저장 완료')
-          }
-
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
           // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
@@ -5085,54 +5079,47 @@ Questions? Contact us.
         })
         .eq('id', participant.id)
 
-      // 3. 포인트 지급
+      // 3. 포인트 지급 (Netlify 함수 사용 - service role key로 RLS 우회)
       if (pointAmount > 0 && userId) {
-        // user_profiles 조회 (id 또는 user_id로 시도 - JP/US 호환)
+        const pointResponse = await fetch('/.netlify/functions/award-campaign-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            region,
+            userId,
+            pointAmount,
+            campaignId: campaign.id,
+            campaignTitle: campaign.title
+          })
+        })
+
+        const pointResult = await pointResponse.json()
+
+        if (!pointResult.success) {
+          console.error('포인트 지급 실패:', pointResult.error)
+          throw new Error(`포인트 지급 실패: ${pointResult.error}`)
+        }
+
+        console.log('포인트 지급 완료:', pointResult)
+
+        // 알림 발송을 위해 user_profiles 조회
         let profile = null
-        let profileMatchField2 = 'id'
         const { data: profileById2 } = await supabase
           .from('user_profiles')
-          .select('points, phone, email, line_user_id')
+          .select('phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
-        if (profileById2) {
-          profile = profileById2
-          profileMatchField2 = 'id'
-        } else {
+        profile = profileById2
+        if (!profile) {
           const { data: profileByUserId2 } = await supabase
             .from('user_profiles')
-            .select('points, phone, email, line_user_id')
+            .select('phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId2
-          profileMatchField2 = 'user_id'
         }
 
         if (profile) {
-          const newPoints = (profile.points || 0) + pointAmount
-          await supabase
-            .from('user_profiles')
-            .update({ points: newPoints, updated_at: new Date().toISOString() })
-            .eq(profileMatchField2, userId)
-
-          // 포인트 이력 저장 (point_transactions 테이블)
-          const { error: txError2 } = await supabase
-            .from('point_transactions')
-            .insert([{
-              user_id: userId,
-              amount: pointAmount,
-              transaction_type: 'campaign_payment',
-              description: `캠페인 완료: ${campaign.title}`,
-              related_campaign_id: campaign.id,
-              created_at: new Date().toISOString()
-            }])
-
-          if (txError2) {
-            console.log('point_transactions 저장 실패:', txError2.message)
-          } else {
-            console.log('point_transactions에 저장 완료')
-          }
-
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
           // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)

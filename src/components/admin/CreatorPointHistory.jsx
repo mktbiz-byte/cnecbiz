@@ -239,7 +239,7 @@ export default function CreatorPointHistory() {
         console.log('BIZ DB creator_points 조회 스킵 (테이블 없을 수 있음)')
       }
 
-      // 완료된 캠페인 신청에서 포인트 지급 내역 조회 (point_history에 저장되지 않은 경우 대비)
+      // 완료된 캠페인 신청에서 미지급 건 표시 (point_transactions에 기록이 없는 경우)
       if (supabaseKorea) {
         try {
           // 먼저 completed 상태의 applications 조회
@@ -296,9 +296,10 @@ export default function CreatorPointHistory() {
               }
             }
 
+            // point_transactions에 기록이 없는 completed applications = 미지급 건
             const appTransactions = completedApps
               .filter(app => {
-                // 중복 체크
+                // 중복 체크: point_transactions에 이미 기록이 있는 건은 제외
                 const key = `${app.campaign_id}_${app.user_id}`
                 return !existingKeys.has(key)
               })
@@ -310,8 +311,8 @@ export default function CreatorPointHistory() {
                   id: `app_${app.id}`,
                   user_id: app.user_id,
                   amount: pointAmount,
-                  transaction_type: 'campaign_reward',
-                  description: `캠페인 완료: ${campaign?.title || ''}`,
+                  transaction_type: 'unpaid',
+                  description: `[미지급] 캠페인 완료되었으나 포인트 미지급: ${campaign?.title || ''}`,
                   related_campaign_id: app.campaign_id,
                   created_at: app.updated_at || app.created_at,
                   creator_name: profile?.name || profile?.channel_name || app.user_id?.substring(0, 8) + '...',
@@ -323,7 +324,7 @@ export default function CreatorPointHistory() {
               })
               .filter(t => t.amount > 0) // 포인트가 있는 것만
 
-            console.log('캠페인 완료 포인트 지급 (applications 기반):', appTransactions.length, '건')
+            console.log('캠페인 완료 미지급 건 (applications 기반):', appTransactions.length, '건')
             allTransactions = [...allTransactions, ...appTransactions]
           }
         } catch (appError) {
@@ -352,9 +353,9 @@ export default function CreatorPointHistory() {
     transactions.forEach(t => {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
-        // 환불(refund)은 총 지급 포인트에서 제외
-        if (t.transaction_type === 'refund') {
-          return // skip refunds from totalPaid
+        // 환불(refund)과 미지급(unpaid)은 총 지급 포인트에서 제외
+        if (t.transaction_type === 'refund' || t.transaction_type === 'unpaid') {
+          return // skip refunds and unpaid from totalPaid
         }
         totalPaid += amount
         // 캠페인 보상: campaign_reward, campaign_complete, campaign_payment, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
@@ -430,13 +431,18 @@ export default function CreatorPointHistory() {
       'earn': { color: 'bg-emerald-100 text-emerald-700', label: '포인트 적립' },
       'bonus': { color: 'bg-purple-100 text-purple-700', label: '보너스' },
       'refund': { color: 'bg-orange-100 text-orange-700', label: '환불' },
+      'unpaid': { color: 'bg-red-100 text-red-700', label: '미지급' },
     }
 
     const badge = types[type] || { color: 'bg-gray-100 text-gray-700', label: type }
 
     return (
       <Badge className={badge.color}>
-        <ArrowUpCircle className="w-3 h-3 mr-1" />
+        {type === 'unpaid' ? (
+          <AlertTriangle className="w-3 h-3 mr-1" />
+        ) : (
+          <ArrowUpCircle className="w-3 h-3 mr-1" />
+        )}
         {badge.label}
       </Badge>
     )
@@ -883,8 +889,12 @@ export default function CreatorPointHistory() {
 
                       {/* 포인트 */}
                       <div className="col-span-2 flex items-center justify-end">
-                        <span className={`text-lg font-bold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()}P
+                        <span className={`text-lg font-bold ${
+                          transaction.transaction_type === 'unpaid' ? 'text-yellow-600' :
+                          transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {transaction.transaction_type === 'unpaid' ? '' : transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()}P
+                          {transaction.transaction_type === 'unpaid' && <span className="text-xs ml-1">(미지급)</span>}
                         </span>
                       </div>
 
