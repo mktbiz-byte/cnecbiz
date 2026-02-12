@@ -4,6 +4,42 @@ import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, 
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
+// 국기 SVG 컴포넌트 (크로스 브라우저 호환)
+const FlagKR = ({ className = "w-5 h-3.5" }) => (
+  <svg viewBox="0 0 900 600" className={className}>
+    <rect width="900" height="600" fill="white"/>
+    <circle cx="450" cy="300" r="150" fill="#C60C30"/>
+    <path d="M450,150 A150,150 0 0,1 450,300 A75,75 0 0,0 450,450 A150,150 0 0,1 450,150" fill="#003478"/>
+    <path d="M450,150 A150,150 0 0,0 450,300 A75,75 0 0,1 450,450 A150,150 0 0,0 450,150" fill="#C60C30"/>
+  </svg>
+)
+
+const FlagJP = ({ className = "w-5 h-3.5" }) => (
+  <svg viewBox="0 0 900 600" className={className}>
+    <rect width="900" height="600" fill="white"/>
+    <circle cx="450" cy="300" r="180" fill="#BC002D"/>
+  </svg>
+)
+
+const FlagUS = ({ className = "w-5 h-3.5" }) => (
+  <svg viewBox="0 0 1235 650" className={className}>
+    <rect width="1235" height="650" fill="#B22234"/>
+    <rect y="50" width="1235" height="50" fill="white"/>
+    <rect y="150" width="1235" height="50" fill="white"/>
+    <rect y="250" width="1235" height="50" fill="white"/>
+    <rect y="350" width="1235" height="50" fill="white"/>
+    <rect y="450" width="1235" height="50" fill="white"/>
+    <rect y="550" width="1235" height="50" fill="white"/>
+    <rect width="494" height="350" fill="#3C3B6E"/>
+  </svg>
+)
+
+const FLAGS = {
+  korea: FlagKR,
+  japan: FlagJP,
+  usa: FlagUS,
+}
+
 // YouTube URL에서 Video ID 추출
 const getYouTubeVideoId = (url) => {
   if (!url) return null
@@ -504,19 +540,21 @@ export default function LandingPage() {
                 { key: 'korea', label: 'KR' },
                 { key: 'japan', label: 'JP' },
                 { key: 'usa', label: 'US' }
-              ].map(tab => (
+              ].map(tab => {
+                const FlagIcon = FLAGS[tab.key]
+                return (
                 <button
                   key={tab.key}
                   onClick={() => { setSelectedRegion(tab.key); setPlayingVideoId(null) }}
-                  className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
                     selectedRegion === tab.key
                       ? 'bg-white text-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  {tab.label}
+                  <FlagIcon className="w-5 h-3.5 rounded-[2px] overflow-hidden shadow-sm" /> {tab.label}
                 </button>
-              ))}
+              )})}
             </div>
           </div>
 
@@ -541,9 +579,9 @@ export default function LandingPage() {
                 <div className="bg-gray-900/60 border border-gray-800/80 rounded-2xl p-6 sm:p-8 flex flex-col justify-between min-h-[320px] lg:min-h-[400px]">
                   <div>
                     <p className="text-gray-500 text-[10px] font-medium tracking-[0.2em] uppercase mb-1">Selected Region</p>
-                    <div className="flex items-center gap-2 mb-6">
+                    <div className="flex items-center gap-2.5 mb-6">
+                      {(() => { const FlagIcon = FLAGS[selectedRegion]; return <FlagIcon className="w-7 h-5 rounded-[2px] shadow-sm" /> })()}
                       <p className="text-white text-base font-medium">{ch.region}</p>
-                      <Globe className="w-4 h-4 text-gray-500" />
                     </div>
                     <h3 className="text-white font-black text-3xl sm:text-4xl mb-4 italic">{ch.name}</h3>
                     <p className="text-gray-400 text-sm leading-relaxed">{ch.desc}</p>
@@ -604,7 +642,6 @@ export default function LandingPage() {
                             <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                               <Play className="w-3 h-3 text-white ml-0.5" fill="white" />
                             </div>
-                            <span className="text-white text-sm font-semibold drop-shadow-lg">{formatViews(short.view_count)}</span>
                           </div>
                         </>
                       )}
