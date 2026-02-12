@@ -1352,14 +1352,22 @@ export default function AllCreatorsPage() {
       const currentPoints = pointGrantCreator.points || 0
       const newPoints = currentPoints + amount
 
-      // 포인트 업데이트 (지역별 DB)
-      const { error: updateError } = await regionClient
+      // 포인트 업데이트 (지역별 DB - updated_at 컬럼이 없는 리전 대응)
+      let updateError = null
+      const { error: fullUpdateError } = await regionClient
         .from('user_profiles')
-        .update({
-          points: newPoints,
-          updated_at: new Date().toISOString()
-        })
+        .update({ points: newPoints, updated_at: new Date().toISOString() })
         .eq('id', pointGrantCreator.id)
+
+      if (fullUpdateError) {
+        // updated_at 컬럼이 없는 리전(일본/미국 등)에서는 points만 업데이트
+        console.warn('user_profiles full update failed, retrying without updated_at:', fullUpdateError.message)
+        const { error: pointsOnlyError } = await regionClient
+          .from('user_profiles')
+          .update({ points: newPoints })
+          .eq('id', pointGrantCreator.id)
+        updateError = pointsOnlyError
+      }
 
       if (updateError) throw updateError
 

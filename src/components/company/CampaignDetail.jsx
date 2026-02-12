@@ -4900,17 +4900,26 @@ Questions? Contact us.
             throw new Error(`포인트 업데이트 실패: ${pointUpdateError.message}`)
           }
 
-          // 포인트 이력 저장 (point_transactions 테이블)
+          // 포인트 이력 저장 (point_transactions 테이블 - 지역별 컬럼 구조 대응)
+          const txData = {
+            user_id: userId,
+            amount: pointAmount,
+            transaction_type: 'campaign_payment',
+            description: `캠페인 완료: ${campaign.title}`,
+            related_campaign_id: campaign.id,
+            created_at: new Date().toISOString()
+          }
+          // 일본 DB: region 컬럼 사용 / 한국·미국 DB: platform_region + country_code 사용
+          if (region === 'japan') {
+            txData.region = 'jp'
+          } else {
+            txData.platform_region = region === 'us' ? 'us' : 'kr'
+            txData.country_code = region === 'us' ? 'US' : 'KR'
+          }
+
           const { error: txError } = await supabase
             .from('point_transactions')
-            .insert([{
-              user_id: userId,
-              amount: pointAmount,
-              transaction_type: 'campaign_payment',
-              description: `캠페인 완료: ${campaign.title}`,
-              related_campaign_id: campaign.id,
-              created_at: new Date().toISOString()
-            }])
+            .insert([txData])
 
           if (txError) {
             console.error('point_transactions 저장 실패:', txError.message)
@@ -5125,17 +5134,26 @@ Questions? Contact us.
             throw new Error(`포인트 업데이트 실패: ${pointUpdateError2.message}`)
           }
 
-          // 포인트 이력 저장 (point_transactions 테이블)
+          // 포인트 이력 저장 (point_transactions 테이블 - 지역별 컬럼 구조 대응)
+          const txData2 = {
+            user_id: userId,
+            amount: pointAmount,
+            transaction_type: 'campaign_payment',
+            description: `캠페인 완료: ${campaign.title}`,
+            related_campaign_id: campaign.id,
+            created_at: new Date().toISOString()
+          }
+          // 일본 DB: region 컬럼 사용 / 한국·미국 DB: platform_region + country_code 사용
+          if (region === 'japan') {
+            txData2.region = 'jp'
+          } else {
+            txData2.platform_region = region === 'us' ? 'us' : 'kr'
+            txData2.country_code = region === 'us' ? 'US' : 'KR'
+          }
+
           const { error: txError2 } = await supabase
             .from('point_transactions')
-            .insert([{
-              user_id: userId,
-              amount: pointAmount,
-              transaction_type: 'campaign_payment',
-              description: `캠페인 완료: ${campaign.title}`,
-              related_campaign_id: campaign.id,
-              created_at: new Date().toISOString()
-            }])
+            .insert([txData2])
 
           if (txError2) {
             console.error('point_transactions 저장 실패:', txError2.message)
