@@ -782,8 +782,10 @@ export default function CampaignDetail() {
     if (campaign) {
       fetchAIRecommendations()
       fetchCnecPlusRecommendations()
-      // 한국 캠페인인 경우에만 MUSE 크리에이터 로드
-      if (region === 'korea') {
+      // 한국 캠페인인 경우에만 MUSE 크리에이터 로드 (베이직/주니어 200,000원 패키지는 제외)
+      const isBasicPackage = ['basic', 'junior'].includes(campaign.package_type?.toLowerCase()) ||
+        (campaign.package_type?.toLowerCase() === 'standard' && campaign.campaign_type === 'planned' && getPackagePrice(campaign.package_type, campaign.campaign_type) <= 200000)
+      if (region === 'korea' && !isBasicPackage) {
         fetchMuseCreators()
         fetchAiCreatorRecs()
       }
@@ -7573,6 +7575,32 @@ Questions? Contact us.
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
+            {/* 베이직 패키지 안내 (AI 추천 & MUSE 추천 미제공) */}
+            {region === 'korea' && (['basic', 'junior'].includes(campaign?.package_type?.toLowerCase())) && (
+              <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800 text-sm mb-1">
+                        AI 추천 크리에이터 & MUSE 추천 크리에이터
+                      </h4>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        더 높은 퀄리티의 크리에이터 매칭을 원하시나요?
+                        <br />
+                        <span className="text-indigo-600 font-medium">스탠다드(30만원) 이상 패키지</span>부터 AI가 분석한 맞춤 추천 크리에이터와 최상위 MUSE 크리에이터를 만나보실 수 있습니다.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        패키지 업그레이드는 새 캠페인 등록 시 선택하실 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) */}
             {region === 'korea' && museCreators.length > 0 && (
               <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
@@ -7766,9 +7794,25 @@ Questions? Contact us.
                               size="sm"
                               variant="ghost"
                               className="w-full text-[10px] h-6"
-                              onClick={() => {
-                                setSelectedParticipant(creator)
-                                setShowProfileModal(true)
+                              onClick={async () => {
+                                try {
+                                  // user_profiles에서 최신 전체 프로필 조회
+                                  let profile = null
+                                  const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', creator.id).maybeSingle()
+                                  if (p1) {
+                                    profile = p1
+                                  } else if (creator.user_id) {
+                                    const { data: p2 } = await supabaseKorea.from('user_profiles').select('*').eq('user_id', creator.user_id).maybeSingle()
+                                    profile = p2
+                                  }
+                                  const photoUrl = creator.profile_photo_url || profile?.profile_photo_url
+                                  setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error fetching profile:', error)
+                                  setSelectedParticipant(creator)
+                                  setShowProfileModal(true)
+                                }
                               }}
                             >
                               프로필 보기
@@ -8011,9 +8055,26 @@ Questions? Contact us.
                                 size="sm"
                                 variant="ghost"
                                 className="w-full text-[10px] h-6"
-                                onClick={() => {
-                                  setSelectedParticipant(creator)
-                                  setShowProfileModal(true)
+                                onClick={async () => {
+                                  try {
+                                    // user_profiles에서 최신 전체 프로필 조회
+                                    let profile = null
+                                    const creatorId = creator.id || rec.creator_id
+                                    const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', creatorId).maybeSingle()
+                                    if (p1) {
+                                      profile = p1
+                                    } else if (creator.user_id) {
+                                      const { data: p2 } = await supabaseKorea.from('user_profiles').select('*').eq('user_id', creator.user_id).maybeSingle()
+                                      profile = p2
+                                    }
+                                    const photoUrl = creator.profile_photo_url || profile?.profile_photo_url
+                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
+                                    setShowProfileModal(true)
+                                  } catch (error) {
+                                    console.error('Error fetching profile:', error)
+                                    setSelectedParticipant(creator)
+                                    setShowProfileModal(true)
+                                  }
                                 }}
                               >
                                 프로필 보기
@@ -8151,10 +8212,7 @@ Questions? Contact us.
                     </Button>
                   </div>
 
-                  <div className="mt-3 space-y-1.5">
-                    <p className="text-xs text-gray-400 text-center">
-                      상담 신청서는 네이버 웍스를 통해 담당자에게 전송됩니다
-                    </p>
+                  <div className="mt-3">
                     <p className="text-xs text-orange-500 font-medium text-center flex items-center justify-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       초대장 발송을 위해 카카오채널 등록을 꼭 완료해주세요!
