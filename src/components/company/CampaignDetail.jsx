@@ -594,6 +594,7 @@ export default function CampaignDetail() {
   const [bulkCourierCompany, setBulkCourierCompany] = useState('')
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [user, setUser] = useState(null)
   const [selectedGuide, setSelectedGuide] = useState(null)
   const [showGuideModal, setShowGuideModal] = useState(false)
@@ -601,6 +602,10 @@ export default function CampaignDetail() {
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
+  // 슈퍼관리자 영상 업로드 (JP/US)
+  const [showAdminVideoUploadModal, setShowAdminVideoUploadModal] = useState(false)
+  const [adminVideoUploadTarget, setAdminVideoUploadTarget] = useState(null)
+  const [adminVideoUploading, setAdminVideoUploading] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
   const [uploadDeadline, setUploadDeadline] = useState('승인 완료 후 1일 이내')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
@@ -926,6 +931,7 @@ export default function CampaignDetail() {
         .maybeSingle()
 
       setIsAdmin(!!adminData)
+      setIsSuperAdmin(adminData?.role === 'super_admin')
     } catch (error) {
       console.error('Error checking admin status:', error)
     }
@@ -5978,6 +5984,90 @@ Questions? Contact us.
   }
 
 
+  // 슈퍼관리자 영상 업로드 핸들러 (JP/US 전용)
+  const handleAdminVideoUpload = async (file) => {
+    if (!adminVideoUploadTarget || !file) return
+    setAdminVideoUploading(true)
+
+    try {
+      const { participant, videoSlot, version } = adminVideoUploadTarget
+      const client = getSupabaseClient(region === 'japan' ? 'japan' : 'us')
+      if (!client) throw new Error('Supabase client not found')
+
+      const ext = file.name.split('.').pop()
+      const timestamp = Date.now()
+      const userId = participant.user_id || participant.id
+      const filePath = `${id}/${userId}/${videoSlot}_v${version}_${timestamp}.${ext}`
+
+      // Supabase Storage 업로드
+      const { error: uploadError } = await client.storage
+        .from('campaign-videos')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = client.storage.from('campaign-videos').getPublicUrl(filePath)
+      const videoUrl = urlData?.publicUrl
+      if (!videoUrl) throw new Error('Failed to get public URL')
+
+      // video_submissions 테이블 insert (없을 수 있으므로 에러 무시)
+      try {
+        await client.from('video_submissions').insert([{
+          campaign_id: id, user_id: userId,
+          video_number: videoSlot, version,
+          video_file_url: videoUrl, video_file_name: file.name,
+          video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+          status: 'submitted', submitted_at: new Date().toISOString(),
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+        }])
+      } catch (e) {
+        console.warn('video_submissions insert skipped:', e.message)
+      }
+
+      // applications 테이블 업데이트 - 상태를 video_submitted로 변경
+      const appUpdateData = {
+        video_file_url: videoUrl, video_file_name: file.name,
+        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+        status: 'video_submitted', updated_at: new Date().toISOString()
+      }
+      const campaignType = campaign?.campaign_type || ''
+      if (campaignType === '4week_challenge' || campaignType === '4week') {
+        if (videoSlot >= 1 && videoSlot <= 4) {
+          appUpdateData[`week${videoSlot}_url`] = videoUrl
+        }
+      }
+
+      const { error: appError } = await client
+        .from('applications')
+        .update(appUpdateData)
+        .eq('campaign_id', id)
+        .eq('user_id', userId)
+      if (appError) throw appError
+
+      alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
+      setShowAdminVideoUploadModal(false)
+      setAdminVideoUploadTarget(null)
+      fetchParticipants()
+    } catch (error) {
+      console.error('Admin video upload error:', error)
+      alert('영상 업로드 실패: ' + error.message)
+    } finally {
+      setAdminVideoUploading(false)
+    }
+  }
+
+  // 캠페인 타입별 영상 슬롯
+  const getAdminVideoSlots = () => {
+    if (!campaign) return []
+    const type = campaign.campaign_type || ''
+    if (type === '4week_challenge' || type === '4week') {
+      return [{ slot: 1, label: '1주차' }, { slot: 2, label: '2주차' }, { slot: 3, label: '3주차' }, { slot: 4, label: '4주차' }]
+    }
+    if (type === 'megawari' || type === 'mega-warri') {
+      return [{ slot: 1, label: '영상 1' }, { slot: 2, label: '영상 2' }]
+    }
+    return [{ slot: 1, label: '영상' }]
+  }
+
   const handleSendDeadlineReminder = async () => {
     if (participants.length === 0) {
       alert('참여자가 없습니다.')
@@ -6993,6 +7083,37 @@ Questions? Contact us.
                                 )}
                               </>
                             )}
+                          </div>
+                        )}
+
+                        {/* 슈퍼관리자 영상 업로드 (JP/US 전용) */}
+                        {isSuperAdmin && (region === 'japan' || region === 'us') && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {getAdminVideoSlots().map(({ slot, label }) => {
+                              const type = campaign?.campaign_type || ''
+                              const hasVideo = (type === '4week_challenge' || type === '4week')
+                                ? !!participant[`week${slot}_url`]
+                                : !!participant.video_file_url
+                              return (
+                                <Button
+                                  key={slot}
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setAdminVideoUploadTarget({ participant, videoSlot: slot, version: 1 })
+                                    setShowAdminVideoUploadModal(true)
+                                  }}
+                                  className={`text-xs px-2 py-1 h-auto ${
+                                    hasVideo
+                                      ? 'text-green-600 border-green-300 hover:bg-green-50'
+                                      : 'text-blue-600 border-blue-300 hover:bg-blue-50'
+                                  }`}
+                                >
+                                  <Upload className="w-3 h-3 mr-1" />
+                                  {hasVideo ? `${label} ✓` : `${label} 업로드`}
+                                </Button>
+                              )
+                            })}
                           </div>
                         )}
 
@@ -16030,6 +16151,51 @@ Questions? Contact us.
                 }}
               >
                 저장
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 슈퍼관리자 영상 업로드 모달 (JP/US) */}
+      {showAdminVideoUploadModal && adminVideoUploadTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-1">영상 업로드</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {adminVideoUploadTarget.participant.creator_name || adminVideoUploadTarget.participant.applicant_name || '크리에이터'}
+              {' - '}
+              {getAdminVideoSlots().find(s => s.slot === adminVideoUploadTarget.videoSlot)?.label || '영상'}
+            </p>
+            <p className="text-xs text-gray-500 mb-4">
+              업로드 시 크리에이터가 직접 업로드한 것으로 처리되며, 상태가 '영상 제출'로 변경됩니다.
+            </p>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleAdminVideoUpload(file)
+              }}
+              disabled={adminVideoUploading}
+              className="w-full text-sm border border-gray-200 rounded-lg p-2 mb-4"
+            />
+            {adminVideoUploading && (
+              <div className="flex items-center gap-2 text-blue-600 text-sm mb-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                업로드 중...
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAdminVideoUploadModal(false)
+                  setAdminVideoUploadTarget(null)
+                }}
+                disabled={adminVideoUploading}
+              >
+                닫기
               </Button>
             </div>
           </div>
