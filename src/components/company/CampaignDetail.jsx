@@ -7834,6 +7834,10 @@ Questions? Contact us.
                             진행 건수, 등급, 프로필을 종합 분석하여 추천된 크리에이터입니다.
                             <br />마음에 드는 크리에이터에게 초대장을 발송해보세요!
                           </p>
+                          <p className="text-[11px] text-orange-600 font-semibold mt-1.5 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            초대장 발송 전 카카오채널 등록을 꼭 완료해주세요! (알림톡 수신 필수)
+                          </p>
                         </div>
                         <div className="flex-shrink-0">
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full">
@@ -8147,9 +8151,15 @@ Questions? Contact us.
                     </Button>
                   </div>
 
-                  <p className="text-xs text-gray-400 mt-3 text-center">
-                    상담 신청서는 네이버 웍스를 통해 담당자에게 전송됩니다
-                  </p>
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-xs text-gray-400 text-center">
+                      상담 신청서는 네이버 웍스를 통해 담당자에게 전송됩니다
+                    </p>
+                    <p className="text-xs text-orange-500 font-medium text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      초대장 발송을 위해 카카오채널 등록을 꼭 완료해주세요!
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

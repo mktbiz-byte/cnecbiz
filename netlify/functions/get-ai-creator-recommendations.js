@@ -49,23 +49,37 @@ exports.handler = async (event) => {
     }
 
     // 1. 기존 추천 결과 확인 (캐싱 - 한번 보여주면 고정)
-    const { data: existingRecs, error: existingError } = await supabaseBiz
-      .from('ai_creator_recommendations')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .order('rank', { ascending: true })
+    let tableExists = true
+    try {
+      const { data: existingRecs, error: existingError } = await supabaseBiz
+        .from('ai_creator_recommendations')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('rank', { ascending: true })
 
-    if (!existingError && existingRecs && existingRecs.length > 0) {
-      console.log(`[AI Rec] Using cached recommendations for campaign ${campaignId}: ${existingRecs.length} creators`)
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          recommendations: existingRecs,
-          cached: true
-        })
+      if (existingError) {
+        // 테이블이 없는 경우 (relation does not exist)
+        if (existingError.message?.includes('does not exist') || existingError.code === '42P01') {
+          console.warn('[AI Rec] Table ai_creator_recommendations does not exist yet. Skipping cache.')
+          tableExists = false
+        } else {
+          console.warn('[AI Rec] Cache query error:', existingError.message)
+        }
+      } else if (existingRecs && existingRecs.length > 0) {
+        console.log(`[AI Rec] Using cached recommendations for campaign ${campaignId}: ${existingRecs.length} creators`)
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            recommendations: existingRecs,
+            cached: true
+          })
+        }
       }
+    } catch (cacheErr) {
+      console.warn('[AI Rec] Cache check failed:', cacheErr.message)
+      tableExists = false
     }
 
     // 2. 캠페인 정보 조회
@@ -224,16 +238,24 @@ exports.handler = async (event) => {
       created_at: new Date().toISOString()
     }))
 
-    const { error: insertError } = await supabaseBiz
-      .from('ai_creator_recommendations')
-      .insert(recsToSave)
+    // DB에 저장 시도 (테이블이 없어도 추천 결과는 반환)
+    if (tableExists) {
+      try {
+        const { error: insertError } = await supabaseBiz
+          .from('ai_creator_recommendations')
+          .insert(recsToSave)
 
-    if (insertError) {
-      console.error('[AI Rec] Error saving recommendations:', insertError)
-      // 저장 실패해도 결과는 반환
+        if (insertError) {
+          console.error('[AI Rec] Error saving recommendations:', insertError)
+        } else {
+          console.log(`[AI Rec] Saved ${recsToSave.length} recommendations for campaign ${campaignId}`)
+        }
+      } catch (saveErr) {
+        console.warn('[AI Rec] Save failed (table may not exist):', saveErr.message)
+      }
+    } else {
+      console.log(`[AI Rec] Skipping save (table not available). Returning ${recsToSave.length} recommendations.`)
     }
-
-    console.log(`[AI Rec] Saved ${recsToSave.length} recommendations for campaign ${campaignId}`)
 
     return {
       statusCode: 200,

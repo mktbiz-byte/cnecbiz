@@ -192,7 +192,8 @@ exports.handler = async (event) => {
     const clientId = process.env.NAVER_WORKS_CLIENT_ID
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
     const botId = process.env.NAVER_WORKS_BOT_ID
-    const channelId = process.env.NAVER_WORKS_CONSULTATION_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID
+    // 크리에이터 매칭 상담 전용 채널
+    const channelId = process.env.NAVER_WORKS_CONSULTATION_CHANNEL_ID || 'b9387420-7c8d-e703-0f96-dbfc72565bb5'
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr'
 
     let naverWorksSent = false
