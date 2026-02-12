@@ -124,12 +124,40 @@ export async function handler(event) {
       }
     }
 
+    // campaign_participants 테이블에도 동기화 (크리에이터 마이페이지 표시용)
+    const app = data[0]
+    if (app.campaign_id && (app.user_id || app.email || app.applicant_email)) {
+      try {
+        // user_id로 먼저 시도
+        if (app.user_id) {
+          await supabase
+            .from('campaign_participants')
+            .update({ personalized_guide: guide })
+            .eq('campaign_id', app.campaign_id)
+            .eq('user_id', app.user_id)
+        }
+        // email로도 시도 (user_id가 없거나 매칭 안 될 수 있음)
+        const creatorEmail = app.email || app.applicant_email || app.creator_email
+        if (creatorEmail) {
+          await supabase
+            .from('campaign_participants')
+            .update({ personalized_guide: guide })
+            .eq('campaign_id', app.campaign_id)
+            .eq('creator_email', creatorEmail)
+        }
+        console.log('[save-personalized-guide] campaign_participants 동기화 완료')
+      } catch (syncError) {
+        // campaign_participants 동기화 실패해도 본 작업은 성공으로 처리
+        console.log('[save-personalized-guide] campaign_participants 동기화 실패 (무시):', syncError.message)
+      }
+    }
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        data: data[0]
+        data: app
       })
     }
 

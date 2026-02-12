@@ -2763,14 +2763,28 @@ JSON만 출력.`
               fileName: bulkExternalGuideData.fileName || null,
               title: bulkExternalGuideData.title || ''
             }
+            const guideString = JSON.stringify(guidePayload)
             await supabase
               .from('applications')
               .update({
-                personalized_guide: JSON.stringify(guidePayload),
+                personalized_guide: guideString,
                 status: 'filming',
                 updated_at: new Date().toISOString()
               })
               .eq('id', participant.id)
+
+            // campaign_participants에도 동기화 (크리에이터 마이페이지 표시용)
+            try {
+              const pEmail = participant.email || participant.creator_email || participant.applicant_email
+              if (participant.user_id) {
+                await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('user_id', participant.user_id)
+              }
+              if (pEmail) {
+                await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('creator_email', pEmail)
+              }
+            } catch (syncErr) {
+              console.log('[Guide Sync] campaign_participants 동기화 실패 (무시):', syncErr.message)
+            }
           }
 
           // 2. 이메일 발송
