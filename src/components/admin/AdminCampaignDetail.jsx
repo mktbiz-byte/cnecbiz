@@ -198,15 +198,51 @@ export default function AdminCampaignDetail() {
         // 데이터 병합
         const enrichedData = appsData.map(application => {
           const userProfile = userProfiles.find(up => up.id === application.user_id)
-          
+
           return {
             ...application,
+            // 닉네임 우선 표시 (일본 등), 없으면 이름
+            display_name: userProfile?.nickname || userProfile?.name || application.applicant_name || '-',
             applicant_name: userProfile?.name || application.applicant_name || '-',
+            nickname: userProfile?.nickname || '',
             age: userProfile?.age || application.age || '-',
+            gender: userProfile?.gender || application.gender || '-',
+            bio: userProfile?.bio || '',
+            profile_image: userProfile?.profile_image || '',
+            phone: userProfile?.phone || application.phone_number || application.phone || '',
+            // 피부/뷰티 프로필
             skin_type: userProfile?.skin_type || application.skin_type || '-',
+            skin_shade: userProfile?.skin_shade || '',
+            personal_color: userProfile?.personal_color || '',
+            hair_type: userProfile?.hair_type || '',
+            primary_interest: userProfile?.primary_interest || '',
+            skin_concerns: userProfile?.skin_concerns || [],
+            // SNS
             instagram_url: userProfile?.instagram_url || application.instagram_url || '',
             tiktok_url: userProfile?.tiktok_url || application.tiktok_url || '',
             youtube_url: userProfile?.youtube_url || application.youtube_url || '',
+            blog_url: userProfile?.blog_url || '',
+            // 팔로워 수
+            instagram_followers: userProfile?.instagram_followers || null,
+            tiktok_followers: userProfile?.tiktok_followers || null,
+            youtube_subscribers: userProfile?.youtube_subscribers || null,
+            // 주소 (일본: postcode/prefecture/address/detail_address)
+            postcode: userProfile?.postcode || application.postal_code || '',
+            prefecture: userProfile?.prefecture || '',
+            address: userProfile?.address || application.address || '',
+            detail_address: userProfile?.detail_address || application.detail_address || '',
+            // 은행 정보 (일본)
+            bank_name: userProfile?.bank_name || '',
+            branch_code: userProfile?.branch_code || '',
+            account_type: userProfile?.account_type || '',
+            account_number: userProfile?.account_number || '',
+            account_holder: userProfile?.account_holder || '',
+            // 콘텐츠 정보
+            editing_level: userProfile?.editing_level || '',
+            shooting_level: userProfile?.shooting_level || '',
+            follower_range: userProfile?.follower_range || '',
+            upload_frequency: userProfile?.upload_frequency || '',
+            // 전체 프로필 (관리자용)
             user_profiles: userProfile
           }
         })
@@ -932,6 +968,14 @@ export default function AdminCampaignDetail() {
   )
 }
 
+// 팔로워 수 포맷
+function formatFollowers(count) {
+  if (!count) return null
+  if (count >= 10000) return `${(count / 10000).toFixed(1)}만`
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
+  return count.toLocaleString()
+}
+
 // 크리에이터 목록 컴포넌트
 function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, region, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
   const navigate = useNavigate()
@@ -948,6 +992,7 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
 
   // US/Japan 캠페인 여부
   const isUSorJapan = region === 'us' || region === 'japan'
+  const isJapan = region === 'japan'
 
   return (
     <div className="space-y-4">
@@ -956,10 +1001,30 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <h4 className="font-semibold text-lg">
-                  {app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
-                </h4>
+                {/* 프로필 이미지 */}
+                {app.profile_image && (
+                  <img src={app.profile_image} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                )}
+                <div>
+                  <h4 className="font-semibold text-lg">
+                    {app.display_name || app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
+                  </h4>
+                  {/* 닉네임과 실명이 다를 경우 실명도 표시 */}
+                  {app.nickname && app.applicant_name && app.nickname !== app.applicant_name && (
+                    <span className="text-xs text-gray-500">({app.applicant_name})</span>
+                  )}
+                </div>
                 {getStatusBadge(app.status)}
+
+                {/* 나이/성별 뱃지 */}
+                {(app.age && app.age !== '-') && (
+                  <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full">{app.age}세</span>
+                )}
+                {(app.gender && app.gender !== '-') && (
+                  <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full">
+                    {app.gender === 'male' ? '남성' : app.gender === 'female' ? '여성' : app.gender}
+                  </span>
+                )}
 
                 {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
                 {isUSorJapan && (
@@ -1032,27 +1097,49 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                 <div>
                   <span className="font-medium">지원일:</span>{' '}
-                  {app.created_at 
+                  {app.created_at
                     ? new Date(app.created_at).toLocaleDateString('ko-KR')
                     : '-'
                   }
                 </div>
-                <div>
-                  <span className="font-medium">인스타그램:</span>{' '}
-                  {app.instagram_url ? (
-                    <a 
-                      href={app.instagram_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      링크
-                    </a>
-                  ) : '-'}
-                </div>
+                {/* SNS + 팔로워 수 */}
+                {app.instagram_url && (
+                  <div>
+                    <span className="font-medium">Instagram:</span>{' '}
+                    <a href={app.instagram_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">링크</a>
+                    {app.instagram_followers && (
+                      <span className="ml-1 text-xs text-pink-600 font-medium">({formatFollowers(app.instagram_followers)})</span>
+                    )}
+                  </div>
+                )}
+                {app.tiktok_url && (
+                  <div>
+                    <span className="font-medium">TikTok:</span>{' '}
+                    <a href={app.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">링크</a>
+                    {app.tiktok_followers && (
+                      <span className="ml-1 text-xs text-gray-800 font-medium">({formatFollowers(app.tiktok_followers)})</span>
+                    )}
+                  </div>
+                )}
+                {app.youtube_url && (
+                  <div>
+                    <span className="font-medium">YouTube:</span>{' '}
+                    <a href={app.youtube_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">링크</a>
+                    {app.youtube_subscribers && (
+                      <span className="ml-1 text-xs text-red-600 font-medium">({formatFollowers(app.youtube_subscribers)})</span>
+                    )}
+                  </div>
+                )}
+                {/* 피부 타입 (있으면 표시) */}
+                {app.skin_type && app.skin_type !== '-' && (
+                  <div>
+                    <span className="font-medium">피부:</span>{' '}
+                    <span>{app.skin_type}</span>
+                  </div>
+                )}
               </div>
             </div>
             <Button
@@ -1071,6 +1158,61 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
   )
 }
 
+// 일본 도도부현 라벨
+const PREFECTURE_LABELS = {
+  hokkaido: '北海道', aomori: '青森県', iwate: '岩手県',
+  miyagi: '宮城県', akita: '秋田県', yamagata: '山形県',
+  fukushima: '福島県', ibaraki: '茨城県', tochigi: '栃木県',
+  gunma: '群馬県', saitama: '埼玉県', chiba: '千葉県',
+  tokyo: '東京都', kanagawa: '神奈川県', niigata: '新潟県',
+  toyama: '富山県', ishikawa: '石川県', fukui: '福井県',
+  yamanashi: '山梨県', nagano: '長野県', gifu: '岐阜県',
+  shizuoka: '静岡県', aichi: '愛知県', mie: '三重県',
+  shiga: '滋賀県', kyoto: '京都府', osaka: '大阪府',
+  hyogo: '兵庫県', nara: '奈良県', wakayama: '和歌山県',
+  tottori: '鳥取県', shimane: '島根県', okayama: '岡山県',
+  hiroshima: '広島県', yamaguchi: '山口県', tokushima: '徳島県',
+  kagawa: '香川県', ehime: '愛媛県', kochi: '高知県',
+  fukuoka: '福岡県', saga: '佐賀県', nagasaki: '長崎県',
+  kumamoto: '熊本県', oita: '大分県', miyazaki: '宮崎県',
+  kagoshima: '鹿児島県', okinawa: '沖縄県',
+}
+
+// 일본 은행 라벨
+const JP_BANK_LABELS = {
+  yucho: 'ゆうちょ銀行',
+  mufg: '三菱UFJ銀行',
+  smbc: '三井住友銀行',
+  mizuho: 'みずほ銀行',
+  resona: 'りそな銀行',
+  rakuten: '楽天銀行',
+  paypay: 'PayPay銀行',
+  sbi: '住信SBIネット銀行',
+  aeon: 'イオン銀行',
+  sony: 'ソニー銀行',
+  au_jibun: 'auじぶん銀行',
+  seven: 'セブン銀行',
+  other: 'その他',
+}
+
+const JP_ACCOUNT_TYPE_LABELS = {
+  futsu: '普通',
+  touza: '当座',
+}
+
+function formatJPAddress(profile) {
+  if (!profile?.postcode && !profile?.prefecture) return null
+  const pref = PREFECTURE_LABELS[profile.prefecture] || profile.prefecture || ''
+  return `〒${profile.postcode || ''} ${pref}${profile.address || ''} ${profile.detail_address || ''}`
+}
+
+function formatJPBankInfo(profile) {
+  if (!profile?.bank_name) return null
+  const bankLabel = JP_BANK_LABELS[profile.bank_name] || profile.bank_name
+  const typeLabel = JP_ACCOUNT_TYPE_LABELS[profile.account_type] || profile.account_type || ''
+  return `${bankLabel} (支店: ${profile.branch_code || '-'}) ${typeLabel} ${profile.account_number || '-'} ${profile.account_holder || '-'}`
+}
+
 // 지원서 상세보기 모달
 function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
   const searchParams = new URLSearchParams(window.location.search)
@@ -1084,7 +1226,7 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
     guide_url: application.guide_url || '',
     // Creator address fields
     phone_number: application.phone_number || application.phone || '',
-    postal_code: application.postal_code || '',
+    postal_code: application.postal_code || application.postcode || '',
     address: application.address || '',
     detail_address: application.detail_address || ''
   })
@@ -1157,11 +1299,19 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">
-              {application.applicant_name || application.creator_name || '크리에이터'}
-            </h2>
-            <div className="mt-2">{getStatusBadge(application.status)}</div>
+          <div className="flex items-center gap-3">
+            {application.profile_image && (
+              <img src={application.profile_image} alt="" className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+            )}
+            <div>
+              <h2 className="text-2xl font-bold">
+                {application.display_name || application.applicant_name || application.creator_name || '크리에이터'}
+              </h2>
+              {application.nickname && application.applicant_name && application.nickname !== application.applicant_name && (
+                <p className="text-sm text-gray-500">({application.applicant_name})</p>
+              )}
+              <div className="mt-1">{getStatusBadge(application.status)}</div>
+            </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-5 h-5" />
@@ -1193,7 +1343,7 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
                       setFormData({
                         ...formData,
                         phone_number: application.phone_number || application.phone || '',
-                        postal_code: application.postal_code || '',
+                        postal_code: application.postal_code || application.postcode || '',
                         address: application.address || '',
                         detail_address: application.detail_address || ''
                       })
@@ -1213,119 +1363,288 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* 닉네임 (일본) */}
+              {application.nickname && (
+                <div>
+                  <span className="text-gray-500">닉네임:</span>
+                  <span className="ml-2 font-medium">{application.nickname}</span>
+                </div>
+              )}
               <div>
-                <span className="text-gray-500">이름:</span>
+                <span className="text-gray-500">{region === 'japan' ? '実名:' : '이름:'}</span>
                 <span className="ml-2 font-medium">
                   {application.applicant_name || application.creator_name || '-'}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">나이:</span>
+                <span className="text-gray-500">{region === 'japan' ? '年齢:' : '나이:'}</span>
                 <span className="ml-2 font-medium">{application.age || '-'}</span>
               </div>
               <div>
-                <span className="text-gray-500">전화번호:</span>
+                <span className="text-gray-500">{region === 'japan' ? '性別:' : '성별:'}</span>
+                <span className="ml-2 font-medium">
+                  {application.gender === 'male' ? (region === 'japan' ? '男性' : '남성') :
+                   application.gender === 'female' ? (region === 'japan' ? '女性' : '여성') :
+                   application.gender || '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">{region === 'japan' ? '電話番号:' : '전화번호:'}</span>
                 {editingAddress ? (
                   <input
                     type="text"
                     value={formData.phone_number}
                     onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
-                    placeholder="전화번호 입력 (예: +1 123 456 7890)"
+                    placeholder={region === 'japan' ? '電話番号 (例: 090-1234-5678)' : '전화번호 입력'}
                     className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
                   />
                 ) : (
-                  <span className="ml-2 font-medium">{application.phone_number || application.phone || '-'}</span>
+                  <span className="ml-2 font-medium">{application.phone || application.phone_number || '-'}</span>
                 )}
               </div>
-              <div>
-                <span className="text-gray-500">피부 타입:</span>
-                <span className="ml-2 font-medium">{application.skin_type || '-'}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500">우편번호:</span>
-                {editingAddress ? (
-                  <input
-                    type="text"
-                    value={formData.postal_code}
-                    onChange={(e) => setFormData({...formData, postal_code: e.target.value})}
-                    placeholder="우편번호 입력 (예: 92081)"
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
-                  />
-                ) : (
-                  <span className="ml-2 font-medium">{application.postal_code || '-'}</span>
+              {(application.skin_type && application.skin_type !== '-') && (
+                <div>
+                  <span className="text-gray-500">{region === 'japan' ? '肌タイプ:' : '피부 타입:'}</span>
+                  <span className="ml-2 font-medium">{application.skin_type}</span>
+                </div>
+              )}
+              {/* 주소 - 일본 형식 */}
+              {region === 'japan' ? (
+                <>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">住所:</span>
+                    {editingAddress ? (
+                      <div className="ml-2 mt-1 space-y-2">
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs text-gray-400 w-12">〒</span>
+                          <input
+                            type="text"
+                            value={formData.postal_code}
+                            onChange={(e) => setFormData({...formData, postal_code: e.target.value})}
+                            placeholder="郵便番号 (例: 1500001)"
+                            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                          />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs text-gray-400 w-12">住所</span>
+                          <input
+                            type="text"
+                            value={formData.address}
+                            onChange={(e) => setFormData({...formData, address: e.target.value})}
+                            placeholder="市区町村・番地"
+                            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                          />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs text-gray-400 w-12">建物</span>
+                          <input
+                            type="text"
+                            value={formData.detail_address}
+                            onChange={(e) => setFormData({...formData, detail_address: e.target.value})}
+                            placeholder="建物名・部屋番号"
+                            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="ml-2 font-medium">
+                        {formatJPAddress(application) || formatJPAddress(application.user_profiles) || '-'}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">우편번호:</span>
+                    {editingAddress ? (
+                      <input
+                        type="text"
+                        value={formData.postal_code}
+                        onChange={(e) => setFormData({...formData, postal_code: e.target.value})}
+                        placeholder="우편번호 입력 (예: 92081)"
+                        className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                      />
+                    ) : (
+                      <span className="ml-2 font-medium">{application.postal_code || application.postcode || '-'}</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">주소:</span>
+                    {editingAddress ? (
+                      <input
+                        type="text"
+                        value={formData.address}
+                        onChange={(e) => setFormData({...formData, address: e.target.value})}
+                        placeholder="주소 입력"
+                        className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md"
+                      />
+                    ) : (
+                      <span className="ml-2 font-medium">{application.address || '-'}</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">상세주소:</span>
+                    {editingAddress ? (
+                      <input
+                        type="text"
+                        value={formData.detail_address}
+                        onChange={(e) => setFormData({...formData, detail_address: e.target.value})}
+                        placeholder="상세주소 입력 (예: Apt 4B)"
+                        className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                      />
+                    ) : (
+                      <span className="ml-2 font-medium">{application.detail_address || '-'}</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* 뷰티 프로필 (일본 캠페인, user_profiles에 데이터가 있는 경우) */}
+          {region === 'japan' && application.user_profiles && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">ビューティープロフィール</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                {application.skin_type && application.skin_type !== '-' && (
+                  <div className="p-2 bg-pink-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">肌タイプ</span>
+                    <div className="font-medium">{application.skin_type}</div>
+                  </div>
                 )}
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500">주소:</span>
-                {editingAddress ? (
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    placeholder="주소 입력 (예: 2027 Jewell Ridge, Vista, CA)"
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md"
-                  />
-                ) : (
-                  <span className="ml-2 font-medium">{application.address || '-'}</span>
+                {application.skin_shade && (
+                  <div className="p-2 bg-pink-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">肌の明るさ</span>
+                    <div className="font-medium">{application.skin_shade}</div>
+                  </div>
                 )}
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500">상세주소:</span>
-                {editingAddress ? (
-                  <input
-                    type="text"
-                    value={formData.detail_address}
-                    onChange={(e) => setFormData({...formData, detail_address: e.target.value})}
-                    placeholder="상세주소 입력 (예: Apt 4B)"
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                  />
-                ) : (
-                  <span className="ml-2 font-medium">{application.detail_address || '-'}</span>
+                {application.personal_color && (
+                  <div className="p-2 bg-pink-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">パーソナルカラー</span>
+                    <div className="font-medium">{application.personal_color}</div>
+                  </div>
+                )}
+                {application.hair_type && (
+                  <div className="p-2 bg-pink-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">髪タイプ</span>
+                    <div className="font-medium">{application.hair_type}</div>
+                  </div>
+                )}
+                {application.primary_interest && (
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">主要コンテンツ</span>
+                    <div className="font-medium">{application.primary_interest}</div>
+                  </div>
+                )}
+                {application.follower_range && (
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">フォロワー規模</span>
+                    <div className="font-medium">{application.follower_range}</div>
+                  </div>
+                )}
+                {application.editing_level && (
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">編集レベル</span>
+                    <div className="font-medium">{application.editing_level}</div>
+                  </div>
+                )}
+                {application.shooting_level && (
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 text-xs">撮影レベル</span>
+                    <div className="font-medium">{application.shooting_level}</div>
+                  </div>
+                )}
+                {Array.isArray(application.skin_concerns) && application.skin_concerns.length > 0 && (
+                  <div className="p-2 bg-pink-50 rounded-lg col-span-2">
+                    <span className="text-gray-500 text-xs">肌悩み</span>
+                    <div className="font-medium">{application.skin_concerns.join(', ')}</div>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* 은행 정보 (일본, 선정 완료된 크리에이터만) */}
+          {region === 'japan' && isSelected && application.bank_name && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">口座情報</h3>
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
+                <div className="font-medium text-green-800">
+                  {formatJPBankInfo(application) || formatJPBankInfo(application.user_profiles) || '未登録'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* SNS 정보 */}
           <div>
             <h3 className="text-lg font-semibold mb-3">SNS 정보</h3>
             <div className="space-y-2 text-sm">
               {application.instagram_url && (
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-gray-500">Instagram:</span>
-                  <a 
-                    href={application.instagram_url} 
-                    target="_blank" 
+                  <a
+                    href={application.instagram_url}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-blue-600 hover:underline"
+                    className="text-blue-600 hover:underline"
                   >
                     {application.instagram_url}
                   </a>
+                  {application.instagram_followers && (
+                    <span className="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">
+                      {formatFollowers(application.instagram_followers)} followers
+                    </span>
+                  )}
                 </div>
               )}
               {application.youtube_url && (
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-gray-500">YouTube:</span>
-                  <a 
-                    href={application.youtube_url} 
-                    target="_blank" 
+                  <a
+                    href={application.youtube_url}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-blue-600 hover:underline"
+                    className="text-blue-600 hover:underline"
                   >
                     {application.youtube_url}
                   </a>
+                  {application.youtube_subscribers && (
+                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+                      {formatFollowers(application.youtube_subscribers)} subscribers
+                    </span>
+                  )}
                 </div>
               )}
               {application.tiktok_url && (
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-gray-500">TikTok:</span>
-                  <a 
-                    href={application.tiktok_url} 
-                    target="_blank" 
+                  <a
+                    href={application.tiktok_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {application.tiktok_url}
+                  </a>
+                  {application.tiktok_followers && (
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
+                      {formatFollowers(application.tiktok_followers)} followers
+                    </span>
+                  )}
+                </div>
+              )}
+              {application.blog_url && (
+                <div>
+                  <span className="text-gray-500">{region === 'japan' ? 'その他SNS:' : '기타 SNS:'}</span>
+                  <a
+                    href={application.blog_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="ml-2 text-blue-600 hover:underline"
                   >
-                    {application.tiktok_url}
+                    {application.blog_url}
                   </a>
                 </div>
               )}
