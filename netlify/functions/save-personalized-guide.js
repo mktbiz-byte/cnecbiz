@@ -125,8 +125,9 @@ export async function handler(event) {
     }
 
     // campaign_participants 테이블에도 동기화 (크리에이터 마이페이지 표시용)
+    // US DB에는 campaign_participants 테이블이 없으므로 US 제외
     const app = data[0]
-    if (app.campaign_id && (app.user_id || app.email || app.applicant_email)) {
+    if (region !== 'us' && app.campaign_id && (app.user_id || app.email || app.applicant_email)) {
       try {
         // user_id로 먼저 시도
         if (app.user_id) {

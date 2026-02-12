@@ -2774,16 +2774,19 @@ JSON만 출력.`
               .eq('id', participant.id)
 
             // campaign_participants에도 동기화 (크리에이터 마이페이지 표시용)
-            try {
-              const pEmail = participant.email || participant.creator_email || participant.applicant_email
-              if (participant.user_id) {
-                await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('user_id', participant.user_id)
+            // US DB에는 campaign_participants 테이블이 없으므로 Korea/Japan만 동기화
+            if (region !== 'us') {
+              try {
+                const pEmail = participant.email || participant.creator_email || participant.applicant_email
+                if (participant.user_id) {
+                  await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('user_id', participant.user_id)
+                }
+                if (pEmail) {
+                  await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('creator_email', pEmail)
+                }
+              } catch (syncErr) {
+                console.log('[Guide Sync] campaign_participants 동기화 실패 (무시):', syncErr.message)
               }
-              if (pEmail) {
-                await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('creator_email', pEmail)
-              }
-            } catch (syncErr) {
-              console.log('[Guide Sync] campaign_participants 동기화 실패 (무시):', syncErr.message)
             }
           }
 
