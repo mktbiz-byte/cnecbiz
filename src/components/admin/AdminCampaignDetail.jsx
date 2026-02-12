@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  ArrowLeft, 
-  Users, 
-  FileText, 
+import {
+  ArrowLeft,
+  Users,
+  FileText,
   Calendar,
   DollarSign,
   CheckCircle,
@@ -18,7 +18,10 @@ import {
   X,
   Edit,
   Trash2,
-  PlayCircle
+  PlayCircle,
+  Upload,
+  Video,
+  Loader2
 } from 'lucide-react'
 import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -39,6 +42,12 @@ export default function AdminCampaignDetail() {
   const [editingGuide, setEditingGuide] = useState(false)
   const [editedGuideContent, setEditedGuideContent] = useState('')
   const [generatingGuides, setGeneratingGuides] = useState(new Set())
+
+  // 영상 업로드 관련 상태
+  const [showVideoUploadModal, setShowVideoUploadModal] = useState(false)
+  const [videoUploadTarget, setVideoUploadTarget] = useState(null) // { application, videoSlot, version }
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoSubmissions, setVideoSubmissions] = useState([])
 
   useEffect(() => {
     const initPage = async () => {
@@ -264,6 +273,163 @@ export default function AdminCampaignDetail() {
       console.error('Error fetching applications:', error)
     } finally {
       console.log('[DEBUG] fetchApplications 종료')
+    }
+  }
+
+  // JP/US 영상 제출 데이터 조회
+  const fetchVideoSubmissions = async () => {
+    if (region !== 'japan' && region !== 'us') return
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) return
+
+      const { data, error } = await client
+        .from('video_submissions')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('video_number', { ascending: true })
+        .order('version', { ascending: false })
+
+      if (!error && data) {
+        setVideoSubmissions(data)
+      }
+    } catch (err) {
+      console.error('Error fetching video submissions:', err)
+    }
+  }
+
+  // 영상 업로드 시작
+  useEffect(() => {
+    if (campaign && (region === 'japan' || region === 'us')) {
+      fetchVideoSubmissions()
+    }
+  }, [campaign, region])
+
+  // 캠페인 타입별 영상 슬롯 개수
+  const getVideoSlots = () => {
+    if (!campaign) return []
+    const type = campaign.campaign_type || ''
+    if (type === '4week_challenge' || type === '4week') {
+      return [
+        { slot: 1, label: '1주차' },
+        { slot: 2, label: '2주차' },
+        { slot: 3, label: '3주차' },
+        { slot: 4, label: '4주차' }
+      ]
+    }
+    if (type === 'megawari' || type === 'mega-warri') {
+      return [
+        { slot: 1, label: '영상 1' },
+        { slot: 2, label: '영상 2' }
+      ]
+    }
+    // 기획형/일반: 1개 영상
+    return [{ slot: 1, label: '영상' }]
+  }
+
+  // 특정 크리에이터의 특정 슬롯의 영상 버전들 가져오기
+  const getVideoVersions = (userId, slot) => {
+    return videoSubmissions
+      .filter(v => v.user_id === userId && (v.video_number === slot || v.week_number === slot))
+      .sort((a, b) => (b.version || 1) - (a.version || 1))
+  }
+
+  // 관리자 영상 업로드 핸들러
+  const handleAdminVideoUpload = async (file) => {
+    if (!videoUploadTarget || !file) return
+    setVideoUploading(true)
+
+    try {
+      const { application, videoSlot, version } = videoUploadTarget
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      // 파일명 생성
+      const ext = file.name.split('.').pop()
+      const timestamp = Date.now()
+      const filePath = `${id}/${application.user_id}/${videoSlot}_v${version}_${timestamp}.${ext}`
+
+      // Supabase Storage에 업로드
+      const { data: uploadData, error: uploadError } = await client.storage
+        .from('campaign-videos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) throw uploadError
+
+      // 공개 URL 가져오기
+      const { data: urlData } = client.storage
+        .from('campaign-videos')
+        .getPublicUrl(filePath)
+
+      const videoUrl = urlData?.publicUrl
+      if (!videoUrl) throw new Error('Failed to get public URL')
+
+      // video_submissions 테이블에 레코드 생성 (JP/US는 테이블 없을 수 있음 - 에러 무시)
+      const submissionData = {
+        campaign_id: id,
+        user_id: application.user_id,
+        video_number: videoSlot,
+        version: version,
+        video_file_url: videoUrl,
+        video_file_name: file.name,
+        video_file_size: file.size,
+        video_uploaded_at: new Date().toISOString(),
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      try {
+        const { error: insertError } = await client
+          .from('video_submissions')
+          .insert([submissionData])
+        if (insertError) {
+          console.warn('video_submissions insert failed (table may not exist):', insertError.message)
+        }
+      } catch (e) {
+        console.warn('video_submissions insert skipped:', e.message)
+      }
+
+      // applications 테이블 업데이트 - 영상 URL + 상태를 video_submitted로 변경
+      // ★ 크리에이터가 업로드한 것처럼 보이게 하기 위해 status를 video_submitted로 설정
+      const appUpdateData = {
+        video_file_url: videoUrl,
+        video_file_name: file.name,
+        video_file_size: file.size,
+        video_uploaded_at: new Date().toISOString(),
+        status: 'video_submitted',
+        updated_at: new Date().toISOString()
+      }
+
+      // 4주 챌린지의 경우 weekN_url도 업데이트
+      const campaignType = campaign?.campaign_type || ''
+      if (campaignType === '4week_challenge' || campaignType === '4week') {
+        if (videoSlot >= 1 && videoSlot <= 4) {
+          appUpdateData[`week${videoSlot}_url`] = videoUrl
+        }
+      }
+
+      const { error: appUpdateError } = await client
+        .from('applications')
+        .update(appUpdateData)
+        .eq('id', application.id)
+
+      if (appUpdateError) throw appUpdateError
+
+      alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
+      setShowVideoUploadModal(false)
+      setVideoUploadTarget(null)
+      fetchVideoSubmissions()
+      fetchApplications() // 상태 변경 반영을 위해 지원서 목록도 새로고침
+    } catch (error) {
+      console.error('Video upload error:', error)
+      alert('영상 업로드 실패: ' + error.message)
+    } finally {
+      setVideoUploading(false)
     }
   }
 
@@ -826,6 +992,133 @@ export default function AdminCampaignDetail() {
                     setSelectedGuide={setSelectedGuide}
                     setShowGuideModal={setShowGuideModal}
                   />
+
+                  {/* JP/US 영상 관리 섹션 (슈퍼 관리자 전용) */}
+                  {isSuperAdmin && (region === 'japan' || region === 'us') && selectedApplications.length > 0 && (
+                    <Card className="mt-6 border-blue-200">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-blue-900">
+                          <Video className="w-5 h-5" />
+                          영상 관리 (관리자 업로드)
+                        </CardTitle>
+                        <p className="text-sm text-gray-600">
+                          선정된 크리에이터의 영상을 업로드합니다. 업로드된 영상은 기업과 크리에이터 양쪽에서 확인 가능합니다.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {selectedApplications.map(app => {
+                            const slots = getVideoSlots()
+                            // applications 테이블에서 fallback 영상 URL 가져오기
+                            const getAppVideoUrl = (slot) => {
+                              const type = campaign?.campaign_type || ''
+                              if (type === '4week_challenge' || type === '4week') {
+                                return app[`week${slot}_url`] || null
+                              }
+                              return app.video_file_url || null
+                            }
+                            return (
+                              <div key={app.id} className="border border-gray-200 rounded-lg p-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                  {app.profile_image && (
+                                    <img src={app.profile_image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                  )}
+                                  <h4 className="font-semibold text-lg">
+                                    {app.display_name || app.applicant_name || '크리에이터'}
+                                  </h4>
+                                  <Badge className={
+                                    app.status === 'video_submitted' ? 'bg-green-100 text-green-700' :
+                                    app.status === 'selected' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'revision_requested' ? 'bg-orange-100 text-orange-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }>
+                                    {app.status === 'video_submitted' ? '영상 제출' :
+                                     app.status === 'selected' ? '선정' :
+                                     app.status === 'revision_requested' ? '수정 요청' :
+                                     app.status === 'completed' ? '완료' :
+                                     app.status || '-'}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {slots.map(({ slot, label }) => {
+                                    const versions = getVideoVersions(app.user_id, slot)
+                                    const latestVersion = versions.length > 0 ? (versions[0].version || 1) : 0
+                                    const nextVersion = latestVersion + 1
+                                    // video_submissions가 없을 때 applications 테이블 fallback
+                                    const fallbackUrl = getAppVideoUrl(slot)
+                                    const hasVideo = versions.length > 0 || fallbackUrl
+
+                                    return (
+                                      <div key={slot} className="bg-gray-50 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="font-medium text-sm">{label}</span>
+                                          <Button
+                                            size="sm"
+                                            onClick={() => {
+                                              setVideoUploadTarget({ application: app, videoSlot: slot, version: nextVersion || 1 })
+                                              setShowVideoUploadModal(true)
+                                            }}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                                          >
+                                            <Upload className="w-3 h-3 mr-1" />
+                                            {latestVersion > 0 ? `v${nextVersion} 업로드` : '업로드'}
+                                          </Button>
+                                        </div>
+                                        {versions.length > 0 ? (
+                                          <div className="space-y-1">
+                                            {versions.map((v, idx) => (
+                                              <div key={v.id || idx} className="flex items-center justify-between text-xs bg-white rounded p-2 border border-gray-100">
+                                                <div className="flex items-center gap-2">
+                                                  <Badge className={idx === 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}>
+                                                    v{v.version || 1}
+                                                  </Badge>
+                                                  <span className="text-gray-500 truncate max-w-[150px]">{v.video_file_name || 'video'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-gray-400">
+                                                    {v.submitted_at ? new Date(v.submitted_at).toLocaleDateString('ko-KR') : ''}
+                                                  </span>
+                                                  {v.video_file_url && (
+                                                    <a
+                                                      href={v.video_file_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-blue-600 hover:underline"
+                                                    >
+                                                      보기
+                                                    </a>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : fallbackUrl ? (
+                                          <div className="flex items-center justify-between text-xs bg-white rounded p-2 border border-green-100">
+                                            <div className="flex items-center gap-2">
+                                              <Badge className="bg-green-100 text-green-700">v1</Badge>
+                                              <span className="text-gray-500 truncate max-w-[150px]">{app.video_file_name || 'video'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-gray-400">
+                                                {app.video_uploaded_at ? new Date(app.video_uploaded_at).toLocaleDateString('ko-KR') : ''}
+                                              </span>
+                                              <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">보기</a>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-gray-400">아직 업로드된 영상이 없습니다</p>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="completed" className="mt-6">
@@ -960,6 +1253,72 @@ export default function AdminCampaignDetail() {
                   </Button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 영상 업로드 모달 */}
+      {showVideoUploadModal && videoUploadTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">영상 업로드</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {videoUploadTarget.application.display_name || videoUploadTarget.application.applicant_name} - v{videoUploadTarget.version}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowVideoUploadModal(false)
+                  setVideoUploadTarget(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                업로드된 영상은 크리에이터가 업로드한 것으로 표시되어 기업과 크리에이터 양쪽에서 확인 가능합니다.
+              </div>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0]
+                    if (file) {
+                      if (file.size > 500 * 1024 * 1024) {
+                        alert('파일 크기가 500MB를 초과합니다.')
+                        return
+                      }
+                      handleAdminVideoUpload(file)
+                    }
+                  }}
+                  className="hidden"
+                  id="video-file-input"
+                  disabled={videoUploading}
+                />
+                <label
+                  htmlFor="video-file-input"
+                  className="cursor-pointer flex flex-col items-center gap-3"
+                >
+                  {videoUploading ? (
+                    <>
+                      <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                      <span className="text-gray-600 font-medium">업로드 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-12 h-12 text-gray-400" />
+                      <span className="text-gray-600 font-medium">클릭하여 영상 파일을 선택하세요</span>
+                      <span className="text-xs text-gray-400">MP4, MOV, AVI 등 (최대 500MB)</span>
+                    </>
+                  )}
+                </label>
+              </div>
             </div>
           </div>
         </div>
