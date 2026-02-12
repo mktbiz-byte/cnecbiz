@@ -4890,10 +4890,15 @@ Questions? Contact us.
 
         if (profile) {
           const newPoints = (profile.points || 0) + pointAmount
-          await supabase
+          const { error: pointUpdateError } = await supabase
             .from('user_profiles')
-            .update({ points: newPoints, updated_at: new Date().toISOString() })
+            .update({ points: newPoints })
             .eq(profileMatchField, userId)
+
+          if (pointUpdateError) {
+            console.error('user_profiles 포인트 업데이트 실패:', pointUpdateError)
+            throw new Error(`포인트 업데이트 실패: ${pointUpdateError.message}`)
+          }
 
           // 포인트 이력 저장 (point_transactions 테이블)
           const { error: txError } = await supabase
@@ -4908,7 +4913,7 @@ Questions? Contact us.
             }])
 
           if (txError) {
-            console.log('point_transactions 저장 실패:', txError.message)
+            console.error('point_transactions 저장 실패:', txError.message)
           } else {
             console.log('point_transactions에 저장 완료')
           }
@@ -5110,10 +5115,15 @@ Questions? Contact us.
 
         if (profile) {
           const newPoints = (profile.points || 0) + pointAmount
-          await supabase
+          const { error: pointUpdateError2 } = await supabase
             .from('user_profiles')
-            .update({ points: newPoints, updated_at: new Date().toISOString() })
+            .update({ points: newPoints })
             .eq(profileMatchField2, userId)
+
+          if (pointUpdateError2) {
+            console.error('user_profiles 포인트 업데이트 실패:', pointUpdateError2)
+            throw new Error(`포인트 업데이트 실패: ${pointUpdateError2.message}`)
+          }
 
           // 포인트 이력 저장 (point_transactions 테이블)
           const { error: txError2 } = await supabase
@@ -5128,7 +5138,7 @@ Questions? Contact us.
             }])
 
           if (txError2) {
-            console.log('point_transactions 저장 실패:', txError2.message)
+            console.error('point_transactions 저장 실패:', txError2.message)
           } else {
             console.log('point_transactions에 저장 완료')
           }
