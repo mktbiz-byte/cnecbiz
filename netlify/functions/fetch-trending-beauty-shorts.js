@@ -1,5 +1,5 @@
 /**
- * 국가별 뷰티 카테고리 트렌딩 숏폼 영상 가져오기 (v2)
+ * 국가별 뷰티 카테고리 트렌딩 숏폼 영상 가져오기 (v3)
  *
  * 조건:
  * 1. 10만뷰 이상 영상만
@@ -7,14 +7,14 @@
  * 3. 같은 채널 중복 없음 (채널당 1개)
  * 4. AI 생성 영상 배제
  * 5. 광고 부스팅으로 뷰수 높은 영상 배제
+ * 6. 대사가 있는 영상만 (자막/캡션 존재 + 무음/ASMR/음악만 영상 제외)
  *
- * 판별 기준:
- * - 좋아요/조회수 비율(engagement rate) → 오가닉 콘텐츠는 2% 이상
- * - 댓글/조회수 비율 → 진짜 바이럴 콘텐츠는 댓글이 활발
- * - 제목/설명에 #ad #sponsored #PR #광고 #협찬 등 포함 시 제외
- * - 제목/설명에 AI generated, AI 생성, AI로 만든 등 포함 시 제외
- * - 채널 구독자 대비 조회수가 비정상적으로 높은 경우(광고 부스팅 의심) 제외
- * - 채널 구독자 0 or 비공개인데 조회수 100만+ → 광고 부스팅 의심
+ * v3 변경사항:
+ * - 검색 쿼리 전체 사용 (7개 → 모두) + 추가 쿼리로 결과 풀 확대
+ * - maxResults 25 → 50으로 증가
+ * - 검색 기간 30일 → 90일로 확대
+ * - 대사 없는 영상 필터링 (캡션 체크 + 무음/ASMR 키워드 필터)
+ * - engagement rate 기준 완화 (1% → 0.5%)
  */
 const { createClient } = require('@supabase/supabase-js')
 
@@ -23,12 +23,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const CACHE_KEY_PREFIX = 'trending_beauty_shorts_v2_'
+const CACHE_KEY_PREFIX = 'trending_beauty_shorts_v3_'
 const CACHE_HOURS = 2
 
 const MIN_VIEW_COUNT = 100000 // 10만뷰 이상
+const SEARCH_DAYS = 90 // 90일 이내 영상
 
-// 국가별 검색 쿼리
+// 국가별 검색 쿼리 (다양한 키워드로 풀 확대)
 const COUNTRY_QUERIES = {
   kr: {
     queries: [
@@ -39,6 +40,11 @@ const COUNTRY_QUERIES = {
       '화장품 리뷰 꿀팁 vlog',
       '파운데이션 추천 솔직리뷰',
       '립 추천 발색 shorts',
+      '뷰티 유튜버 추천 리뷰 솔직후기',
+      '피부관리 루틴 추천 숏츠',
+      '다이소 뷰티 추천 shorts',
+      '쿠션 파데 추천 리뷰 shorts',
+      '아이섀도 팔레트 발색 shorts',
     ],
     regionCode: 'KR',
     relevanceLanguage: 'ko',
@@ -52,6 +58,10 @@ const COUNTRY_QUERIES = {
       'ドラコス 購入品 レビュー shorts',
       'ファンデーション レビュー 正直',
       'リップ おすすめ 発色 shorts',
+      'コスメ 購入品紹介 正直レビュー',
+      'スキンケア おすすめ 韓国コスメ shorts',
+      'アイシャドウ パレット スウォッチ shorts',
+      'ベースメイク 崩れない おすすめ',
     ],
     regionCode: 'JP',
     relevanceLanguage: 'ja',
@@ -65,6 +75,10 @@ const COUNTRY_QUERIES = {
       'beauty haul honest review shorts',
       'foundation review honest shorts',
       'lip product swatches shorts',
+      'grwm makeup shorts viral',
+      'skincare product review shorts',
+      'holy grail beauty products shorts',
+      'makeup hack shorts viral trending',
     ],
     regionCode: 'US',
     relevanceLanguage: 'en',
@@ -106,6 +120,24 @@ const AI_KEYWORDS = [
   '가상 인플루언서', 'バーチャルインフルエンサー',
 ]
 
+// 대사 없는 영상 판별 키워드 (ASMR, 무음, 음악만, 자막 없는 비주얼 영상 등)
+const NO_DIALOGUE_KEYWORDS = [
+  // 한국어
+  'asmr', 'no talking', '노토킹', '무음', '음악만', 'bgm only',
+  '말없이', '소리만', '자연의 소리', '백색소음', '수면용',
+  '자장가', '명상', '릴렉스', '편안한 음악', '#asmr',
+  '말 없는', '설명 없이', '대사없이', '대사 없이',
+  // 일본어
+  'トーキングなし', '音楽のみ', 'セリフなし', '喋らない',
+  '無言', 'ノートーキング', 'BGMのみ', '環境音',
+  'リラックス', '瞑想',
+  // 영어
+  'no voice', 'silent', 'music only', 'no commentary',
+  'no narration', 'visual only', 'satisfying', 'oddly satisfying',
+  'compilation', 'sleep', 'relaxing sounds', 'white noise',
+  'no speak', 'without talking', 'no words',
+]
+
 function parseCache(value) {
   if (!value) return null
   if (typeof value === 'object') return value
@@ -133,6 +165,15 @@ function isAdOrAIContent(title, description) {
   }
 
   return { blocked: false }
+}
+
+// 대사 없는 영상인지 판별
+function isNoDialogueContent(title, description) {
+  const text = `${title} ${description}`.toLowerCase()
+  for (const keyword of NO_DIALOGUE_KEYWORDS) {
+    if (text.includes(keyword.toLowerCase())) return true
+  }
+  return false
 }
 
 // 광고 부스팅 의심 여부 체크
@@ -296,20 +337,20 @@ exports.handler = async (event) => {
     let queries = [...countryConfig.queries]
     if (category && CATEGORY_KEYWORDS[category]) {
       const catKeyword = CATEGORY_KEYWORDS[category][country] || CATEGORY_KEYWORDS[category]['us']
-      // 카테고리 키워드를 앞 4개 쿼리에 추가
-      queries = queries.slice(0, 4).map(q => `${catKeyword} ${q}`)
+      // 카테고리 키워드를 앞 6개 쿼리에 추가
+      queries = queries.slice(0, 6).map(q => `${catKeyword} ${q}`)
     }
 
-    // 검색어 4개 사용 (API 쿼터 고려)
-    const queriesToUse = queries.slice(0, 4)
+    // 검색어 전체 사용 (최대 7개, 결과 풀 확대)
+    const queriesToUse = queries.slice(0, 7)
     const allVideoIds = new Set()
     const videoIdList = []
-    const publishedAfter = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const publishedAfter = new Date(Date.now() - SEARCH_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
     for (const query of queriesToUse) {
       try {
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?` +
-          `part=snippet&type=video&videoDuration=short&maxResults=25` +
+          `part=snippet&type=video&videoDuration=short&maxResults=50` +
           `&q=${encodeURIComponent(query)}` +
           `&regionCode=${countryConfig.regionCode}` +
           `&relevanceLanguage=${countryConfig.relevanceLanguage}` +
@@ -394,27 +435,29 @@ exports.handler = async (event) => {
 
     // 필터링 + 매핑
     const filteredShorts = []
+    let filterStats = { total: allVideoDetails.length, duration: 0, views: 0, ad: 0, boost: 0, engagement: 0, noDialogue: 0, passed: 0 }
 
     for (const video of allVideoDetails) {
       // Shorts 필터 (60초 이하)
       const totalSeconds = parseDuration(video.contentDetails.duration)
-      if (totalSeconds <= 0 || totalSeconds > 60) continue
+      if (totalSeconds <= 0 || totalSeconds > 60) { filterStats.duration++; continue }
 
       const viewCount = parseInt(video.statistics.viewCount) || 0
       const likeCount = parseInt(video.statistics.likeCount) || 0
       const commentCount = parseInt(video.statistics.commentCount) || 0
       const channelId = video.snippet.channelId
       const channelInfo = channelSubMap.get(channelId) || { subscriberCount: 0 }
+      const hasCaption = video.contentDetails.caption === 'true'
 
       // 조건 1: 10만뷰 이상
-      if (viewCount < MIN_VIEW_COUNT) continue
+      if (viewCount < MIN_VIEW_COUNT) { filterStats.views++; continue }
 
       // 조건 2: 광고/AI 콘텐츠 제외 (상세 설명으로 2차 필터)
       const contentCheck = isAdOrAIContent(
         video.snippet.title,
         video.snippet.description || ''
       )
-      if (contentCheck.blocked) continue
+      if (contentCheck.blocked) { filterStats.ad++; continue }
 
       // 조건 5: 광고 부스팅 의심 제외
       const boostCheck = isSuspectedAdBoosted(
@@ -423,11 +466,19 @@ exports.handler = async (event) => {
         commentCount,
         channelInfo.subscriberCount
       )
-      if (boostCheck.suspected) continue
+      if (boostCheck.suspected) { filterStats.boost++; continue }
 
-      // engagement rate 최소 기준 (1% 이상만)
+      // 조건 6: 대사 없는 영상 제외 (제목/설명에 ASMR, no talking 등)
+      if (isNoDialogueContent(video.snippet.title, video.snippet.description || '')) {
+        filterStats.noDialogue++
+        continue
+      }
+
+      // engagement rate 최소 기준 (0.5% 이상 - v3에서 완화)
       const engRate = viewCount > 0 ? (likeCount / viewCount) * 100 : 0
-      if (engRate < 1) continue
+      if (engRate < 0.5) { filterStats.engagement++; continue }
+
+      filterStats.passed++
 
       filteredShorts.push({
         video_id: video.id,
@@ -444,11 +495,14 @@ exports.handler = async (event) => {
         comment_count: commentCount,
         subscriber_count: channelInfo.subscriberCount,
         engagement_rate: Math.round(engRate * 100) / 100,
+        has_caption: hasCaption,
         published_at: video.snippet.publishedAt,
         duration_seconds: totalSeconds,
         url: `https://youtube.com/shorts/${video.id}`,
       })
     }
+
+    console.log('[fetch-trending-beauty-shorts] Filter stats:', JSON.stringify(filterStats))
 
     // 오가닉 점수로 정렬
     filteredShorts.sort((a, b) => {
@@ -499,8 +553,11 @@ exports.handler = async (event) => {
           adFiltered: true,
           aiFiltered: true,
           boostFiltered: true,
+          noDialogueFiltered: true,
           onePerChannel: true,
-        }
+          searchDays: SEARCH_DAYS,
+        },
+        filterStats,
       })
     }
   } catch (error) {

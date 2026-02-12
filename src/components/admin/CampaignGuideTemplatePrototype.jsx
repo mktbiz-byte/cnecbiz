@@ -768,7 +768,7 @@ export default function CampaignGuideTemplatePrototype() {
                               {countryConfig[countryKey].flag} {countryConfig[countryKey].label} 트렌딩 뷰티 숏폼
                             </h3>
                             <Badge variant="outline" className="text-[10px] text-rose-500 border-rose-200">
-                              30일 / 10만뷰+
+                              90일 / 10만뷰+ / 대사有
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2">
@@ -808,6 +808,7 @@ export default function CampaignGuideTemplatePrototype() {
                           <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> 광고 제외</span>
                           <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> AI영상 제외</span>
                           <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> 부스팅 제외</span>
+                          <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> 대사 있는 영상</span>
                           <span className="flex items-center gap-0.5"><Users className="w-3 h-3 text-blue-500" /> 채널당 1개</span>
                         </div>
 
