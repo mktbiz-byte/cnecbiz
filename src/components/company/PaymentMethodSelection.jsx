@@ -439,6 +439,8 @@ const PaymentMethodSelection = () => {
                   orderName={campaign.title}
                   customerEmail={campaign.company_email || ''}
                   customerName={campaign.brand || '고객'}
+                  campaignId={campaignId}
+                  region={region}
                 />
               </div>
             )}

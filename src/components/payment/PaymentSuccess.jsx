@@ -13,6 +13,8 @@ const PaymentSuccess = () => {
       const paymentKey = searchParams.get('paymentKey');
       const orderId = searchParams.get('orderId');
       const amount = searchParams.get('amount');
+      const campaignId = searchParams.get('campaignId');
+      const region = searchParams.get('region') || 'korea';
 
       if (!paymentKey || !orderId || !amount) {
         setError('결제 정보가 올바르지 않습니다.');
@@ -30,7 +32,9 @@ const PaymentSuccess = () => {
           body: JSON.stringify({
             paymentKey,
             orderId,
-            amount: parseInt(amount)
+            amount: parseInt(amount),
+            campaignId,
+            region
           })
         });
 
