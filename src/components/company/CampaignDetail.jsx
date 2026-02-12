@@ -1700,6 +1700,13 @@ export default function CampaignDetail() {
             ...gradeInfo,
             applicant_name: resolvedName,
             profile_photo_url: profileImage,
+            // 연락처 병합 (알림 발송용 - user_profiles 우선)
+            email: profile.email || app.email || app.applicant_email,
+            phone: profile.phone || profile.phone_number || profile.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+            phone_number: profile.phone || profile.phone_number || profile.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+            creator_phone: profile.phone || profile.phone_number || profile.contact_phone || app.phone || app.phone_number || app.creator_phone || app.contact_phone,
+            // LINE user ID (일본 알림용)
+            line_user_id: profile.line_user_id || app.line_user_id || null,
             instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
             youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
             tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0,
@@ -1707,7 +1714,6 @@ export default function CampaignDetail() {
             instagram_url: profile.instagram_url || app.instagram_url,
             youtube_url: profile.youtube_url || app.youtube_url,
             tiktok_url: profile.tiktok_url || app.tiktok_url,
-            // 연락처/주소 정보 병합 (US 등 해외 지역용) - 개인정보 노출 방지로 제외
             // 계정 인증 상태 및 프로필 정보
             account_status: profile.account_status || null,
             skin_type: profile.skin_type || app.skin_type || null,
@@ -5966,6 +5972,27 @@ Questions? Contact us.
           }
         }
         alert('미국 크리에이터 알림 발송 완료!')
+      }
+
+      // 한국 크리에이터 선정 알림 발송 (알림톡)
+      if (region === 'korea') {
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
+            const pName = participant.applicant_name || participant.creator_name || '크리에이터'
+            try {
+              if (pPhone) {
+                await sendCampaignSelectedNotification(pPhone, pName, {
+                  campaignName: campaign.title || campaign.product_name
+                })
+              }
+            } catch (notifError) {
+              console.error('[Korea] 알림톡 발송 실패:', notifError.message)
+            }
+          }
+        }
       }
 
       // 기획형 캠페인인 경우 맞춤 가이드 생성
