@@ -10,17 +10,31 @@ const { createClient } = require('@supabase/supabase-js')
  * - 한번 생성된 추천은 캠페인별로 고정 (재방문 시 동일 결과)
  */
 
-const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
-
-const supabaseKorea = createClient(
-  process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-)
-
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+
+// Supabase 클라이언트를 lazy 초기화 (환경변수 누락 시 안전하게 처리)
+let _supabaseBiz = null
+let _supabaseKorea = null
+
+function getSupabaseBiz() {
+  if (!_supabaseBiz) {
+    const url = process.env.VITE_SUPABASE_BIZ_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error(`BIZ DB 환경변수 누락: URL=${!!url}, KEY=${!!key}`)
+    _supabaseBiz = createClient(url, key)
+  }
+  return _supabaseBiz
+}
+
+function getSupabaseKorea() {
+  if (!_supabaseKorea) {
+    const url = process.env.VITE_SUPABASE_KOREA_URL
+    const key = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error(`Korea DB 환경변수 누락: URL=${!!url}, KEY=${!!key}`)
+    _supabaseKorea = createClient(url, key)
+  }
+  return _supabaseKorea
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -40,6 +54,11 @@ exports.handler = async (event) => {
   try {
     const { campaignId } = JSON.parse(event.body)
 
+    console.log('[AI Rec] Starting for campaign:', campaignId)
+    console.log('[AI Rec] Env check - BIZ_URL:', !!process.env.VITE_SUPABASE_BIZ_URL, 'BIZ_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+    console.log('[AI Rec] Env check - KOREA_URL:', !!process.env.VITE_SUPABASE_KOREA_URL, 'KOREA_KEY:', !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
+    console.log('[AI Rec] Env check - GEMINI_KEY:', !!GEMINI_API_KEY)
+
     if (!campaignId) {
       return {
         statusCode: 400,
@@ -51,7 +70,7 @@ exports.handler = async (event) => {
     // 1. 기존 추천 결과 확인 (캐싱 - 한번 보여주면 고정)
     let tableExists = true
     try {
-      const { data: existingRecs, error: existingError } = await supabaseBiz
+      const { data: existingRecs, error: existingError } = await getSupabaseBiz()
         .from('ai_creator_recommendations')
         .select('*')
         .eq('campaign_id', campaignId)
@@ -86,7 +105,7 @@ exports.handler = async (event) => {
     let campaign = null
 
     // Korea DB에서 먼저 조회
-    const { data: koreaCampaign } = await supabaseKorea
+    const { data: koreaCampaign } = await getSupabaseKorea()
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
@@ -96,7 +115,7 @@ exports.handler = async (event) => {
       campaign = koreaCampaign
     } else {
       // BIZ DB에서 조회
-      const { data: bizCampaign } = await supabaseBiz
+      const { data: bizCampaign } = await getSupabaseBiz()
         .from('campaigns')
         .select('*')
         .eq('id', campaignId)
@@ -113,13 +132,13 @@ exports.handler = async (event) => {
     }
 
     // 3. 글로우(2)~블룸(3) 등급 크리에이터 조회 (가계정 제외)
-    const { data: creators, error: creatorsError } = await supabaseKorea
+    console.log('[AI Rec] Step 3: Querying creators grade 2-3...')
+    const { data: creators, error: creatorsError } = await getSupabaseKorea()
       .from('user_profiles')
       .select('*')
       .gte('cnec_grade_level', 2)
       .lte('cnec_grade_level', 3)
       .order('cnec_grade_level', { ascending: false })
-      .order('cnec_total_score', { ascending: false })
       .limit(100)
 
     if (creatorsError) {
@@ -139,7 +158,7 @@ exports.handler = async (event) => {
     console.log(`[AI Rec] Found ${validCreators.length} valid creators (grade 2-3, no fake accounts)`)
 
     // 4. 이미 이 캠페인에 지원한 크리에이터 제외
-    const { data: applications } = await supabaseKorea
+    const { data: applications } = await getSupabaseKorea()
       .from('applications')
       .select('email')
       .eq('campaign_id', campaignId)
@@ -163,7 +182,7 @@ exports.handler = async (event) => {
     const creatorEmails = availableCreators.map(c => c.email).filter(Boolean)
 
     // applications 테이블에서 각 크리에이터의 진행/완료 건수 조회
-    const { data: campaignHistory } = await supabaseKorea
+    const { data: campaignHistory } = await getSupabaseKorea()
       .from('applications')
       .select('email, status')
       .in('email', creatorEmails)
@@ -241,7 +260,7 @@ exports.handler = async (event) => {
     // DB에 저장 시도 (테이블이 없어도 추천 결과는 반환)
     if (tableExists) {
       try {
-        const { error: insertError } = await supabaseBiz
+        const { error: insertError } = await getSupabaseBiz()
           .from('ai_creator_recommendations')
           .insert(recsToSave)
 
