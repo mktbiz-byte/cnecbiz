@@ -5974,27 +5974,6 @@ Questions? Contact us.
         alert('미국 크리에이터 알림 발송 완료!')
       }
 
-      // 한국 크리에이터 선정 알림 발송 (알림톡)
-      if (region === 'korea') {
-        for (const participantId of selectedParticipants) {
-          const participant = participants.find(p => p.id === participantId) ||
-                             applications.find(a => a.id === participantId)
-          if (participant) {
-            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
-            const pName = participant.applicant_name || participant.creator_name || '크리에이터'
-            try {
-              if (pPhone) {
-                await sendCampaignSelectedNotification(pPhone, pName, {
-                  campaignName: campaign.title || campaign.product_name
-                })
-              }
-            } catch (notifError) {
-              console.error('[Korea] 알림톡 발송 실패:', notifError.message)
-            }
-          }
-        }
-      }
-
       // 기획형 캠페인인 경우 맞춤 가이드 생성
       if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
