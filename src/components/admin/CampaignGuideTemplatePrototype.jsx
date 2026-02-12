@@ -48,7 +48,8 @@ import {
   ArrowLeft, Sparkles, Globe, Clock, Hash, Video, Camera,
   Plus, X, Check, Copy, Eye, Loader2, Wand2, Download, Save,
   Search, LayoutGrid, User, Link2, FileText, Play, ChevronRight,
-  Zap, Star, Info, Settings2
+  Zap, Star, Info, Settings2, TrendingUp, RefreshCw, ThumbsUp,
+  MessageCircle, Users, ShieldCheck, ExternalLink
 } from 'lucide-react'
 import {
   KOREA_TEMPLATES,
@@ -177,6 +178,13 @@ export default function CampaignGuideTemplatePrototype() {
   const [isAnalyzingYT, setIsAnalyzingYT] = useState(false)
   const [ytResult, setYtResult] = useState(null)
 
+  // ─── 트렌딩 뷰티 숏폼 ───
+  const [trendingShorts, setTrendingShorts] = useState([])
+  const [isLoadingTrending, setIsLoadingTrending] = useState(false)
+  const [trendingError, setTrendingError] = useState(null)
+  const [previewingVideoId, setPreviewingVideoId] = useState(null)
+  const [trendingCategory, setTrendingCategory] = useState('')
+
   // ─── Step 3: 상세옵션 ───
   const [selectedPlatforms, setSelectedPlatforms] = useState(['tiktok', 'instagram_reels'])
   const [selectedDuration, setSelectedDuration] = useState('30s')
@@ -212,7 +220,55 @@ export default function CampaignGuideTemplatePrototype() {
     setShootingSceneChecks({})
     setVideoTempo('')
     setVideoTone('')
+    setTrendingShorts([])
+    setTrendingCategory('')
+    setPreviewingVideoId(null)
   }, [selectedCountry])
+
+  // ─── 트렌딩 뷰티 숏폼 가져오기 ───
+  const fetchTrendingShorts = async (forceCategory) => {
+    setIsLoadingTrending(true)
+    setTrendingError(null)
+    setPreviewingVideoId(null)
+
+    try {
+      const cat = forceCategory !== undefined ? forceCategory : trendingCategory
+      const res = await fetch('/.netlify/functions/fetch-trending-beauty-shorts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country: selectedCountry,
+          category: cat || '',
+          limit: 12,
+        })
+      })
+
+      const result = await res.json()
+      if (result.success && result.data) {
+        setTrendingShorts(result.data)
+      } else {
+        setTrendingError(result.error || '\uD2B8\uB80C\uB529 \uC601\uC0C1\uC744 \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
+      }
+    } catch (err) {
+      console.error('\uD2B8\uB80C\uB529 \uC601\uC0C1 \uB85C\uB529 \uC2E4\uD328:', err)
+      setTrendingError(err.message)
+    } finally {
+      setIsLoadingTrending(false)
+    }
+  }
+
+  // 국가 변경 시 자동으로 트렌딩 영상 로드
+  useEffect(() => {
+    fetchTrendingShorts('')
+  }, [selectedCountry])
+
+  // 포맷 유틸
+  const formatViewCount = (count) => {
+    if (count >= 10000000) return (count / 10000000).toFixed(1) + '\uCC9C\uB9CC'
+    if (count >= 10000) return (count / 10000).toFixed(1) + '\uB9CC'
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'K'
+    return count.toString()
+  }
 
   // ─── 국가별 템플릿 가져오기 ───
   const getTemplates = () => {
@@ -703,6 +759,183 @@ export default function CampaignGuideTemplatePrototype() {
                   {/* ─── 방법 B: YouTube 영상 참조 ─── */}
                   {creationMethod === 'youtube' && (
                     <div className="space-y-4 pt-2">
+                      {/* ─── 트렌딩 뷰티 숏폼 추천 ─── */}
+                      <div className="p-4 bg-gradient-to-br from-rose-50 via-white to-orange-50 rounded-xl border-2 border-rose-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-rose-500" />
+                            <h3 className="font-bold text-sm text-gray-900">
+                              {countryConfig[countryKey].flag} {countryConfig[countryKey].label} 트렌딩 뷰티 숏폼
+                            </h3>
+                            <Badge variant="outline" className="text-[10px] text-rose-500 border-rose-200">
+                              30일 / 10만뷰+
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* 카테고리 필터 */}
+                            <Select
+                              value={trendingCategory}
+                              onValueChange={(v) => {
+                                const cat = v === '__all__' ? '' : v
+                                setTrendingCategory(cat)
+                                fetchTrendingShorts(cat)
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-32 text-xs">
+                                <SelectValue placeholder="전체 카테고리" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__all__">전체</SelectItem>
+                                {PRODUCT_CATEGORIES.map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchTrendingShorts()}
+                              disabled={isLoadingTrending}
+                              className="h-8 text-xs px-2"
+                            >
+                              {isLoadingTrending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 필터 안내 */}
+                        <div className="flex items-center gap-3 mb-3 text-[10px] text-gray-500">
+                          <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> 광고 제외</span>
+                          <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> AI영상 제외</span>
+                          <span className="flex items-center gap-0.5"><ShieldCheck className="w-3 h-3 text-green-500" /> 부스팅 제외</span>
+                          <span className="flex items-center gap-0.5"><Users className="w-3 h-3 text-blue-500" /> 채널당 1개</span>
+                        </div>
+
+                        {/* 트렌딩 영상 그리드 */}
+                        {isLoadingTrending ? (
+                          <div className="flex items-center justify-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-rose-400" />
+                            <span className="ml-2 text-sm text-gray-500">트렌딩 영상 불러오는 중...</span>
+                          </div>
+                        ) : trendingError ? (
+                          <div className="text-center py-8 text-gray-400">
+                            <p className="text-sm">{trendingError}</p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => fetchTrendingShorts()}>
+                              <RefreshCw className="w-3 h-3 mr-1" /> 다시 시도
+                            </Button>
+                          </div>
+                        ) : trendingShorts.length > 0 ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {trendingShorts.map((short, idx) => (
+                              <div
+                                key={short.video_id}
+                                className={`relative rounded-xl overflow-hidden border-2 transition-all ${
+                                  previewingVideoId === short.video_id
+                                    ? 'border-rose-400 shadow-lg shadow-rose-100'
+                                    : youtubeUrl.includes(short.video_id)
+                                      ? 'border-green-400 shadow-md shadow-green-100'
+                                      : 'border-transparent hover:border-rose-200'
+                                }`}
+                              >
+                                {/* 비디오 썸네일 / 미리보기 */}
+                                <div className="aspect-[9/16] relative bg-gray-100">
+                                  {previewingVideoId === short.video_id ? (
+                                    <iframe
+                                      src={`https://www.youtube.com/embed/${short.video_id}?autoplay=1&mute=0&loop=1&playlist=${short.video_id}&playsinline=1&controls=1&rel=0&modestbranding=1`}
+                                      className="absolute inset-0 w-full h-full"
+                                      allow="autoplay; encrypted-media"
+                                      allowFullScreen
+                                    />
+                                  ) : (
+                                    <>
+                                      <img
+                                        src={short.thumbnail}
+                                        alt={short.title}
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                                      {/* 순위 */}
+                                      <div className={`absolute top-1.5 left-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                                        idx < 3 ? 'bg-gradient-to-r from-rose-500 to-orange-500' : 'bg-gray-700/80'
+                                      }`}>
+                                        {idx + 1}
+                                      </div>
+
+                                      {/* 오가닉 점수 뱃지 */}
+                                      {short.organic_score >= 60 && (
+                                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-green-500/90 text-white text-[9px] font-bold flex items-center gap-0.5">
+                                          <ShieldCheck className="w-2.5 h-2.5" /> HOT
+                                        </div>
+                                      )}
+
+                                      {/* 재생 버튼 */}
+                                      <button
+                                        onClick={() => setPreviewingVideoId(short.video_id)}
+                                        className="absolute inset-0 flex items-center justify-center group cursor-pointer"
+                                      >
+                                        <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/50 transition-colors">
+                                          <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                                        </div>
+                                      </button>
+
+                                      {/* 하단 정보 */}
+                                      <div className="absolute bottom-1.5 left-1.5 right-1.5">
+                                        <p className="text-white text-[10px] font-medium line-clamp-2 leading-tight mb-1">{short.title}</p>
+                                        <div className="flex items-center gap-1.5 text-[9px]">
+                                          <span className="text-white/90 font-bold flex items-center gap-0.5">
+                                            <Eye className="w-2.5 h-2.5" />
+                                            {formatViewCount(short.view_count)}
+                                          </span>
+                                          <span className="text-white/70 flex items-center gap-0.5">
+                                            <ThumbsUp className="w-2.5 h-2.5" />
+                                            {formatViewCount(short.like_count)}
+                                          </span>
+                                          {short.engagement_rate && (
+                                            <span className="text-green-300 font-bold">
+                                              {short.engagement_rate}%
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-white/60 text-[9px] truncate mt-0.5">{short.channel_title}</p>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* URL 가져오기 버튼 */}
+                                <button
+                                  onClick={() => {
+                                    setYoutubeUrl(short.url)
+                                    setPreviewingVideoId(null)
+                                  }}
+                                  className={`w-full py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
+                                    youtubeUrl.includes(short.video_id)
+                                      ? 'bg-green-500 text-white'
+                                      : 'bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white'
+                                  }`}
+                                >
+                                  {youtubeUrl.includes(short.video_id) ? (
+                                    <><Check className="w-3 h-3" /> 선택됨</>
+                                  ) : (
+                                    <><Link2 className="w-3 h-3" /> URL 가져오기</>
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-400">
+                            <Video className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                            <p className="text-sm">트렌딩 영상을 불러올 수 없습니다</p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => fetchTrendingShorts()}>
+                              <RefreshCw className="w-3 h-3 mr-1" /> 새로고침
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
                       {/* URL 입력 */}
                       <div>
                         <Label className="text-sm font-medium mb-1.5 block">YouTube Shorts URL *</Label>
@@ -719,6 +952,12 @@ export default function CampaignGuideTemplatePrototype() {
                             </Button>
                           )}
                         </div>
+                        {youtubeUrl && (
+                          <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            URL 입력됨 - 아래 유사도를 설정하고 분석하세요
+                          </p>
+                        )}
                       </div>
 
                       {/* 유사도 슬라이더 */}
