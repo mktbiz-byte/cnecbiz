@@ -349,9 +349,12 @@ export default function AdminCampaignDetail() {
       const timestamp = Date.now()
       const filePath = `${id}/${application.user_id}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
+      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
+
       // Supabase Storage에 업로드
       const { data: uploadData, error: uploadError } = await client.storage
-        .from('campaign-videos')
+        .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -361,7 +364,7 @@ export default function AdminCampaignDetail() {
 
       // 공개 URL 가져오기
       const { data: urlData } = client.storage
-        .from('campaign-videos')
+        .from(bucketName)
         .getPublicUrl(filePath)
 
       const videoUrl = urlData?.publicUrl
@@ -420,11 +423,41 @@ export default function AdminCampaignDetail() {
 
       if (appUpdateError) throw appUpdateError
 
+      // 기업에게 알림톡 발송 (영상 제출 알림)
+      const creatorName = application.display_name || application.applicant_name || '크리에이터'
+      try {
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('phone, company_name')
+          .eq('email', campaign?.company_email)
+          .maybeSingle()
+
+        if (companyData?.phone) {
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: companyData.phone,
+              receiverName: companyData.company_name || campaign?.brand_name || '기업',
+              templateCode: '025100001008',
+              variables: {
+                '회사명': companyData.company_name || campaign?.brand_name || '기업',
+                '캠페인명': campaign?.title || '',
+                '크리에이터명': creatorName
+              }
+            })
+          })
+          console.log('영상 제출 알림톡 발송 완료:', creatorName)
+        }
+      } catch (notifErr) {
+        console.error('알림톡 발송 실패:', notifErr)
+      }
+
       alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
       setShowVideoUploadModal(false)
       setVideoUploadTarget(null)
       fetchVideoSubmissions()
-      fetchApplications() // 상태 변경 반영을 위해 지원서 목록도 새로고침
+      fetchApplications()
     } catch (error) {
       console.error('Video upload error:', error)
       alert('영상 업로드 실패: ' + error.message)

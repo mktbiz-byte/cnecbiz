@@ -5999,13 +5999,16 @@ Questions? Contact us.
       const userId = participant.user_id || participant.id
       const filePath = `${id}/${userId}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
+      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
+
       // Supabase Storage 업로드
       const { error: uploadError } = await client.storage
-        .from('campaign-videos')
+        .from(bucketName)
         .upload(filePath, file, { cacheControl: '3600', upsert: false })
       if (uploadError) throw uploadError
 
-      const { data: urlData } = client.storage.from('campaign-videos').getPublicUrl(filePath)
+      const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
       const videoUrl = urlData?.publicUrl
       if (!videoUrl) throw new Error('Failed to get public URL')
 
@@ -6042,6 +6045,37 @@ Questions? Contact us.
         .eq('campaign_id', id)
         .eq('user_id', userId)
       if (appError) throw appError
+
+      // 기업에게 알림톡 발송 (영상 제출 알림)
+      const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+      try {
+        // 기업 전화번호 조회
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('phone, company_name')
+          .eq('email', campaign?.company_email)
+          .maybeSingle()
+
+        if (companyData?.phone) {
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: companyData.phone,
+              receiverName: companyData.company_name || campaign?.brand_name || '기업',
+              templateCode: '025100001008',
+              variables: {
+                '회사명': companyData.company_name || campaign?.brand_name || '기업',
+                '캠페인명': campaign?.title || '',
+                '크리에이터명': creatorName
+              }
+            })
+          })
+          console.log('영상 제출 알림톡 발송 완료:', creatorName)
+        }
+      } catch (notifErr) {
+        console.error('알림톡 발송 실패:', notifErr)
+      }
 
       alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
       setShowAdminVideoUploadModal(false)
