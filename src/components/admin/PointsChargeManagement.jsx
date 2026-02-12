@@ -10,6 +10,7 @@ import TaxInvoiceRequestsTab from './TaxInvoiceRequestsTab'
 import TaxInvoiceHaulabTab from './TaxInvoiceHaulabTab'
 import CreatorPointPaymentsTab from './CreatorPointPaymentsTab'
 import HowlabDepositsTab from './HowlabDepositsTab'
+import CardPaymentsTab from './CardPaymentsTab'
 
 export default function PointsChargeManagement() {
   const [activeTab, setActiveTab] = useState('requests') // requests, transactions, tax_invoices
@@ -432,6 +433,19 @@ export default function PointsChargeManagement() {
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('card_payments')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'card_payments'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                카드결제 완료 확인
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('transactions')}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeTab === 'transactions'
@@ -500,7 +514,9 @@ export default function PointsChargeManagement() {
         </CardContent>
       </Card>
 
-      {activeTab === 'transactions' ? (
+      {activeTab === 'card_payments' ? (
+        <CardPaymentsTab />
+      ) : activeTab === 'transactions' ? (
         <BankTransactionsTab />
       ) : activeTab === 'tax_invoices' ? (
         <TaxInvoiceRequestsTab />
