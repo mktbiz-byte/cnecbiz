@@ -501,20 +501,20 @@ export default function LandingPage() {
             {/* Region tabs */}
             <div className="flex bg-gray-900/80 rounded-full p-1 border border-gray-800">
               {[
-                { key: 'korea', label: 'KR' },
-                { key: 'japan', label: 'JP' },
-                { key: 'usa', label: 'US' }
+                { key: 'korea', label: 'KR', flag: '\u{1F1F0}\u{1F1F7}' },
+                { key: 'japan', label: 'JP', flag: '\u{1F1EF}\u{1F1F5}' },
+                { key: 'usa', label: 'US', flag: '\u{1F1FA}\u{1F1F8}' }
               ].map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => { setSelectedRegion(tab.key); setPlayingVideoId(null) }}
-                  className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
                     selectedRegion === tab.key
                       ? 'bg-white text-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.flag}</span> {tab.label}
                 </button>
               ))}
             </div>
@@ -523,9 +523,9 @@ export default function LandingPage() {
           {/* Content */}
           {(() => {
             const channels = {
-              korea: { region: 'South Korea', name: 'CNEC Korea', desc: '가장 빠른 트렌드 반영, K-뷰티 특화 숏폼 솔루션. 현지 크리에이터 네트워크를 통한 폭발적인 도달률을 보장합니다.', url: 'https://www.youtube.com/@bizcnec/shorts' },
-              japan: { region: 'Japan', name: 'CNEC Japan', desc: '일본 현지 크리에이터와 함께 만드는 J-뷰티 숏폼 마케팅. 일본 시장의 섬세한 뷰티 트렌드를 정확히 포착합니다.', url: 'https://www.youtube.com/@CNEC_JP/shorts' },
-              usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
+              korea: { region: 'South Korea', flag: '\u{1F1F0}\u{1F1F7}', name: 'CNEC Korea', desc: '가장 빠른 트렌드 반영, K-뷰티 특화 숏폼 솔루션. 현지 크리에이터 네트워크를 통한 폭발적인 도달률을 보장합니다.', url: 'https://www.youtube.com/@bizcnec/shorts' },
+              japan: { region: 'Japan', flag: '\u{1F1EF}\u{1F1F5}', name: 'CNEC Japan', desc: '일본 현지 크리에이터와 함께 만드는 J-뷰티 숏폼 마케팅. 일본 시장의 섬세한 뷰티 트렌드를 정확히 포착합니다.', url: 'https://www.youtube.com/@CNEC_JP/shorts' },
+              usa: { region: 'United States', flag: '\u{1F1FA}\u{1F1F8}', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
             }
             const ch = channels[selectedRegion]
             const shorts = portfolioShorts[selectedRegion] || []
@@ -542,8 +542,8 @@ export default function LandingPage() {
                   <div>
                     <p className="text-gray-500 text-[10px] font-medium tracking-[0.2em] uppercase mb-1">Selected Region</p>
                     <div className="flex items-center gap-2 mb-6">
+                      <span className="text-xl">{ch.flag}</span>
                       <p className="text-white text-base font-medium">{ch.region}</p>
-                      <Globe className="w-4 h-4 text-gray-500" />
                     </div>
                     <h3 className="text-white font-black text-3xl sm:text-4xl mb-4 italic">{ch.name}</h3>
                     <p className="text-gray-400 text-sm leading-relaxed">{ch.desc}</p>
@@ -604,7 +604,6 @@ export default function LandingPage() {
                             <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                               <Play className="w-3 h-3 text-white ml-0.5" fill="white" />
                             </div>
-                            <span className="text-white text-sm font-semibold drop-shadow-lg">{formatViews(short.view_count)}</span>
                           </div>
                         </>
                       )}

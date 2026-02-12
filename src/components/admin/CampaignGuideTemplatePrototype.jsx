@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '../ui/checkbox'
 import {
   ArrowLeft, Sparkles, Globe, Clock, Hash, Video, Camera,
-  Plus, X, Check, Copy, Eye, Edit3, Store, MapPin, Loader2, Wand2, Download, Save, Search, Filter, LayoutGrid
+  Plus, X, Check, Copy, Eye, Edit3, Store, MapPin, Loader2, Wand2, Download, Save, Search, Filter, LayoutGrid,
+  Flame, ExternalLink, RefreshCw, Play
 } from 'lucide-react'
 import {
   KOREA_TEMPLATES,
@@ -87,6 +88,10 @@ export default function CampaignGuideTemplatePrototype() {
   const [showAIGuideModal, setShowAIGuideModal] = useState(false)
   const [aiGenerationError, setAiGenerationError] = useState(null)
 
+  // 핫한 뷰티 숏폼 영상
+  const [hotShorts, setHotShorts] = useState([])
+  const [isLoadingHotShorts, setIsLoadingHotShorts] = useState(false)
+
   // YouTube Shorts 분석 상태
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [similarityPercent, setSimilarityPercent] = useState(80)
@@ -95,6 +100,26 @@ export default function CampaignGuideTemplatePrototype() {
   const [ytManualTranscript, setYtManualTranscript] = useState('')
   const [isAnalyzingYT, setIsAnalyzingYT] = useState(false)
   const [ytResult, setYtResult] = useState(null)
+
+  // 핫한 뷰티 숏폼 영상 가져오기
+  const fetchHotShorts = async () => {
+    setIsLoadingHotShorts(true)
+    try {
+      const res = await fetch('/.netlify/functions/fetch-hot-beauty-shorts')
+      const result = await res.json()
+      if (result.success && result.data) {
+        setHotShorts(result.data)
+      }
+    } catch (err) {
+      console.error('핫 숏폼 로딩 실패:', err)
+    } finally {
+      setIsLoadingHotShorts(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHotShorts()
+  }, [])
 
   // YouTube Shorts 분석 실행
   const analyzeYouTubeShorts = async () => {
@@ -470,8 +495,96 @@ export default function CampaignGuideTemplatePrototype() {
           </Card>
         </div>
 
+        {/* 🔥 핫한 뷰티 숏폼 영상 */}
+        <Card className="mb-6 border-2 border-orange-200 bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-500" />
+                HOT 뷰티 숏폼 TOP 10
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchHotShorts}
+                disabled={isLoadingHotShorts}
+                className="text-xs"
+              >
+                {isLoadingHotShorts ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                <span className="ml-1">새로고침</span>
+              </Button>
+            </div>
+            <CardDescription>
+              한국에서 핫한 뷰티 숏폼 영상들입니다. 클릭하면 URL이 자동으로 입력됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingHotShorts ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                <span className="ml-2 text-sm text-gray-500">핫한 숏폼 불러오는 중...</span>
+              </div>
+            ) : hotShorts.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                {hotShorts.map((short, idx) => (
+                  <div
+                    key={short.video_id}
+                    onClick={() => {
+                      setYoutubeUrl(short.url)
+                      // 스크롤을 YouTube 분석 섹션으로 이동
+                      document.getElementById('youtube-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                    className="relative group cursor-pointer rounded-xl overflow-hidden border-2 border-transparent hover:border-orange-400 transition-all hover:shadow-lg hover:shadow-orange-100"
+                  >
+                    <div className="aspect-[9/16] relative">
+                      <img
+                        src={short.thumbnail}
+                        alt={short.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      {/* 순위 배지 */}
+                      <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                        idx < 3 ? 'bg-orange-500' : 'bg-gray-700/80'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      {/* 조회수 */}
+                      <div className="absolute bottom-1.5 left-1.5 right-1.5">
+                        <p className="text-white text-[10px] font-medium line-clamp-2 leading-tight mb-1">{short.title}</p>
+                        <div className="flex items-center gap-1">
+                          <Play className="w-2.5 h-2.5 text-white/80" fill="white" />
+                          <span className="text-white/80 text-[9px]">
+                            {short.view_count >= 1000000
+                              ? (short.view_count / 1000000).toFixed(1) + 'M'
+                              : short.view_count >= 1000
+                                ? Math.round(short.view_count / 1000) + 'K'
+                                : short.view_count}
+                          </span>
+                          <span className="text-white/50 text-[9px] ml-auto truncate max-w-[60px]">{short.channel_title}</span>
+                        </div>
+                      </div>
+                      {/* 클릭 안내 오버레이 */}
+                      <div className="absolute inset-0 bg-orange-500/0 group-hover:bg-orange-500/20 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold bg-orange-500/90 px-3 py-1.5 rounded-full">
+                          URL 입력
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-400 text-sm">
+                핫한 숏폼 영상을 불러올 수 없습니다. 새로고침을 시도해주세요.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* YouTube Shorts 영상 분석 → 가이드 생성 */}
-        <Card className="mb-6 border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-orange-50">
+        <Card id="youtube-analysis-section" className="mb-6 border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-orange-50">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <Video className="w-5 h-5 text-red-500" />
