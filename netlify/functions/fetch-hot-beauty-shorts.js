@@ -74,20 +74,21 @@ exports.handler = async (event) => {
 
     const fetch = (await import('node-fetch')).default
 
-    // 여러 뷰티 관련 검색어로 검색하여 다양한 결과 확보
+    // 다양한 뷰티 카테고리별 검색어 (각 카테고리에서 골고루 가져오기)
     const searchQueries = [
-      '뷰티 숏폼 추천',
-      '화장품 리뷰 shorts',
-      'K-beauty shorts',
-      '메이크업 튜토리얼 shorts',
-      '스킨케어 루틴 shorts'
+      '뷰티 숏폼 화장품 리뷰',
+      '메이크업 튜토리얼 shorts 한국',
+      '스킨케어 추천 shorts',
+      'K-beauty routine shorts',
+      '올리브영 추천템 shorts'
     ]
 
     const allVideoIds = new Set()
     const videoIdList = []
+    const channelVideoMap = new Map() // channelId → [videoIds] (채널당 중복 방지용)
 
-    // 각 검색어로 검색 (2개 쿼리 사용하여 API 쿼터 절약)
-    const queriesToUse = searchQueries.slice(0, 2)
+    // 3개 쿼리 사용하여 다양한 결과 확보
+    const queriesToUse = searchQueries.slice(0, 3)
 
     for (const query of queriesToUse) {
       try {
@@ -105,9 +106,10 @@ exports.handler = async (event) => {
         if (searchData.items) {
           for (const item of searchData.items) {
             const vid = item.id.videoId
+            const channelId = item.snippet.channelId
             if (vid && !allVideoIds.has(vid)) {
               allVideoIds.add(vid)
-              videoIdList.push(vid)
+              videoIdList.push({ videoId: vid, channelId })
             }
           }
         }
@@ -129,7 +131,7 @@ exports.handler = async (event) => {
     const videosRes = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?` +
       `part=snippet,statistics,contentDetails` +
-      `&id=${videoIdList.join(',')}` +
+      `&id=${videoIdList.map(v => v.videoId).join(',')}` +
       `&key=${apiKey}`
     )
     const videosData = await videosRes.json()
@@ -143,7 +145,7 @@ exports.handler = async (event) => {
     }
 
     // Shorts 필터 (60초 이하) + 조회수 기준 정렬
-    const shorts = videosData.items
+    const allShorts = videosData.items
       .filter(video => {
         const duration = video.contentDetails.duration
         const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
@@ -155,6 +157,7 @@ exports.handler = async (event) => {
         video_id: video.id,
         title: video.snippet.title,
         thumbnail: video.snippet.thumbnails?.medium?.url || video.snippet.thumbnails?.default?.url,
+        channel_id: video.snippet.channelId,
         channel_title: video.snippet.channelTitle,
         view_count: parseInt(video.statistics.viewCount) || 0,
         like_count: parseInt(video.statistics.likeCount) || 0,
@@ -162,7 +165,16 @@ exports.handler = async (event) => {
         url: `https://youtube.com/shorts/${video.id}`
       }))
       .sort((a, b) => b.view_count - a.view_count)
-      .slice(0, 10)
+
+    // 채널당 최대 1개만 선택 (다양한 크리에이터 보장)
+    const selectedChannels = new Set()
+    const shorts = []
+    for (const short of allShorts) {
+      if (selectedChannels.has(short.channel_id)) continue
+      selectedChannels.add(short.channel_id)
+      shorts.push(short)
+      if (shorts.length >= 10) break
+    }
 
     // 캐시 저장
     await supabase

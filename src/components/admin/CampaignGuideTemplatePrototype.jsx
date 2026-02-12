@@ -91,6 +91,7 @@ export default function CampaignGuideTemplatePrototype() {
   // 핫한 뷰티 숏폼 영상
   const [hotShorts, setHotShorts] = useState([])
   const [isLoadingHotShorts, setIsLoadingHotShorts] = useState(false)
+  const [previewingVideoId, setPreviewingVideoId] = useState(null)
 
   // YouTube Shorts 분석 상태
   const [youtubeUrl, setYoutubeUrl] = useState('')
@@ -515,7 +516,7 @@ export default function CampaignGuideTemplatePrototype() {
               </Button>
             </div>
             <CardDescription>
-              한국에서 핫한 뷰티 숏폼 영상들입니다. 클릭하면 URL이 자동으로 입력됩니다.
+              한국에서 조회수 높은 뷰티 숏폼 (채널당 1개, 조회수 순). 영상을 미리 보고 "URL 입력" 버튼을 눌러주세요.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -529,49 +530,74 @@ export default function CampaignGuideTemplatePrototype() {
                 {hotShorts.map((short, idx) => (
                   <div
                     key={short.video_id}
-                    onClick={() => {
-                      setYoutubeUrl(short.url)
-                      // 스크롤을 YouTube 분석 섹션으로 이동
-                      document.getElementById('youtube-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    }}
-                    className="relative group cursor-pointer rounded-xl overflow-hidden border-2 border-transparent hover:border-orange-400 transition-all hover:shadow-lg hover:shadow-orange-100"
+                    className={`relative rounded-xl overflow-hidden border-2 transition-all ${
+                      previewingVideoId === short.video_id
+                        ? 'border-orange-400 shadow-lg shadow-orange-100'
+                        : 'border-transparent hover:border-orange-200'
+                    }`}
                   >
                     <div className="aspect-[9/16] relative">
-                      <img
-                        src={short.thumbnail}
-                        alt={short.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                      {/* 순위 배지 */}
-                      <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                        idx < 3 ? 'bg-orange-500' : 'bg-gray-700/80'
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      {/* 조회수 */}
-                      <div className="absolute bottom-1.5 left-1.5 right-1.5">
-                        <p className="text-white text-[10px] font-medium line-clamp-2 leading-tight mb-1">{short.title}</p>
-                        <div className="flex items-center gap-1">
-                          <Play className="w-2.5 h-2.5 text-white/80" fill="white" />
-                          <span className="text-white/80 text-[9px]">
-                            {short.view_count >= 1000000
-                              ? (short.view_count / 1000000).toFixed(1) + 'M'
-                              : short.view_count >= 1000
-                                ? Math.round(short.view_count / 1000) + 'K'
-                                : short.view_count}
-                          </span>
-                          <span className="text-white/50 text-[9px] ml-auto truncate max-w-[60px]">{short.channel_title}</span>
-                        </div>
-                      </div>
-                      {/* 클릭 안내 오버레이 */}
-                      <div className="absolute inset-0 bg-orange-500/0 group-hover:bg-orange-500/20 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold bg-orange-500/90 px-3 py-1.5 rounded-full">
-                          URL 입력
-                        </span>
-                      </div>
+                      {previewingVideoId === short.video_id ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${short.video_id}?autoplay=1&mute=0&loop=1&playlist=${short.video_id}&playsinline=1&controls=1&rel=0&modestbranding=1`}
+                          className="absolute inset-0 w-full h-full"
+                          allow="autoplay; encrypted-media"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <>
+                          <img
+                            src={short.thumbnail}
+                            alt={short.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                          {/* 순위 배지 */}
+                          <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                            idx < 3 ? 'bg-orange-500' : 'bg-gray-700/80'
+                          }`}>
+                            {idx + 1}
+                          </div>
+                          {/* 재생 버튼 */}
+                          <button
+                            onClick={() => setPreviewingVideoId(short.video_id)}
+                            className="absolute inset-0 flex items-center justify-center group cursor-pointer"
+                          >
+                            <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/50 transition-colors">
+                              <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                            </div>
+                          </button>
+                          {/* 하단 정보 */}
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5">
+                            <p className="text-white text-[10px] font-medium line-clamp-2 leading-tight mb-1">{short.title}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/80 text-[9px]">
+                                {short.view_count >= 1000000
+                                  ? (short.view_count / 1000000).toFixed(1) + 'M'
+                                  : short.view_count >= 1000
+                                    ? Math.round(short.view_count / 1000) + 'K'
+                                    : short.view_count}
+                                  views
+                              </span>
+                              <span className="text-white/50 text-[9px] ml-auto truncate max-w-[60px]">{short.channel_title}</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
+                    {/* URL 입력 버튼 (영상 아래) */}
+                    <button
+                      onClick={() => {
+                        setYoutubeUrl(short.url)
+                        setPreviewingVideoId(null)
+                        document.getElementById('youtube-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }}
+                      className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Check className="w-3 h-3" />
+                      URL 입력
+                    </button>
                   </div>
                 ))}
               </div>
