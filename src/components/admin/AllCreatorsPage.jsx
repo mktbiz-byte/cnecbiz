@@ -525,12 +525,17 @@ export default function AllCreatorsPage() {
         if (error) throw error
       } else {
         // 새로 등록 (featured_creators 테이블 구조에 맞게)
+        const sourceCountry = selectedCreator.dbRegion === 'japan' ? 'JP'
+          : selectedCreator.dbRegion === 'us' ? 'US'
+          : 'KR'
+
         const { error } = await supabaseKorea
           .from('featured_creators')
           .insert({
             user_id: selectedCreator.id,
             name: selectedCreator.name || selectedCreator.channel_name || '',
             profile_photo_url: selectedCreator.profile_image,
+            profile_image_url: selectedCreator.profile_image,
             instagram_url: selectedCreator.instagram_url,
             instagram_followers: selectedCreator.instagram_followers || 0,
             youtube_url: selectedCreator.youtube_url,
@@ -538,6 +543,9 @@ export default function AllCreatorsPage() {
             tiktok_url: selectedCreator.tiktok_url,
             tiktok_followers: selectedCreator.tiktok_followers || 0,
             bio: selectedCreator.bio,
+            source_country: sourceCountry,
+            primary_country: sourceCountry,
+            active_regions: [selectedCreator.dbRegion || 'korea'],
             is_active: true,
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
@@ -548,16 +556,22 @@ export default function AllCreatorsPage() {
         if (error) throw error
       }
 
-      // user_profiles 테이블에도 등급 동기화 (cnec_grade_level만 존재)
-      const { error: profileError } = await supabaseKorea
-        .from('user_profiles')
-        .update({
-          cnec_grade_level: selectedGradeLevel
-        })
-        .eq('id', selectedCreator.id)
+      // user_profiles 테이블에도 등급 동기화 (지역별 DB 사용)
+      const profileClient = selectedCreator.dbRegion === 'japan' ? supabaseJapan
+        : selectedCreator.dbRegion === 'us' ? supabaseUS
+        : supabaseKorea
 
-      if (profileError) {
-        console.warn('user_profiles 등급 동기화 실패:', profileError)
+      if (profileClient) {
+        const { error: profileError } = await profileClient
+          .from('user_profiles')
+          .update({
+            cnec_grade_level: selectedGradeLevel
+          })
+          .eq('id', selectedCreator.id)
+
+        if (profileError) {
+          console.warn('user_profiles 등급 동기화 실패:', profileError)
+        }
       }
 
       alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
@@ -586,16 +600,22 @@ export default function AllCreatorsPage() {
 
       if (error) throw error
 
-      // user_profiles 테이블에서도 등급 초기화 (cnec_grade_level만 존재)
-      const { error: profileError } = await supabaseKorea
-        .from('user_profiles')
-        .update({
-          cnec_grade_level: null
-        })
-        .eq('id', selectedCreator.id)
+      // user_profiles 테이블에서도 등급 초기화 (지역별 DB 사용)
+      const profileClient = selectedCreator.dbRegion === 'japan' ? supabaseJapan
+        : selectedCreator.dbRegion === 'us' ? supabaseUS
+        : supabaseKorea
 
-      if (profileError) {
-        console.warn('user_profiles 등급 초기화 실패:', profileError)
+      if (profileClient) {
+        const { error: profileError } = await profileClient
+          .from('user_profiles')
+          .update({
+            cnec_grade_level: null
+          })
+          .eq('id', selectedCreator.id)
+
+        if (profileError) {
+          console.warn('user_profiles 등급 초기화 실패:', profileError)
+        }
       }
 
       alert('등급이 삭제되었습니다.')
@@ -611,29 +631,29 @@ export default function AllCreatorsPage() {
 
   // 일괄 등급 변경
   const handleBulkGradeChange = async () => {
-    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
-    if (koreanCreators.length === 0) {
-      alert('한국 크리에이터를 선택해주세요. (등급 시스템은 한국 크리에이터만 지원합니다)')
+    const targetCreators = selectedCreators.filter(c => ['korea', 'japan', 'us'].includes(c.dbRegion))
+    if (targetCreators.length === 0) {
+      alert('등급을 변경할 크리에이터를 선택해주세요.')
       return
     }
 
     setSavingBulkGrade(true)
-    setBulkGradeProgress({ current: 0, total: koreanCreators.length })
+    setBulkGradeProgress({ current: 0, total: targetCreators.length })
 
     const gradeInfo = GRADE_LEVELS[bulkGradeLevel]
     let successCount = 0
     let failCount = 0
 
     try {
-      for (let i = 0; i < koreanCreators.length; i++) {
-        const creator = koreanCreators[i]
-        setBulkGradeProgress({ current: i + 1, total: koreanCreators.length })
+      for (let i = 0; i < targetCreators.length; i++) {
+        const creator = targetCreators[i]
+        setBulkGradeProgress({ current: i + 1, total: targetCreators.length })
 
         try {
           const existingFeatured = featuredCreators.find(fc => fc.user_id === creator.id)
 
           if (existingFeatured) {
-            // 기존 등급 업데이트
+            // 기존 등급 업데이트 (Korea DB 중앙 관리)
             const { error } = await supabaseKorea
               .from('featured_creators')
               .update({
@@ -646,12 +666,17 @@ export default function AllCreatorsPage() {
             if (error) throw error
           } else {
             // 새로 등록
+            const sourceCountry = creator.dbRegion === 'japan' ? 'JP'
+              : creator.dbRegion === 'us' ? 'US'
+              : 'KR'
+
             const { error } = await supabaseKorea
               .from('featured_creators')
               .insert({
                 user_id: creator.id,
                 name: creator.name || creator.channel_name || '',
                 profile_photo_url: creator.profile_image,
+                profile_image_url: creator.profile_image,
                 instagram_url: creator.instagram_url,
                 instagram_followers: creator.instagram_followers || 0,
                 youtube_url: creator.youtube_url,
@@ -659,6 +684,9 @@ export default function AllCreatorsPage() {
                 tiktok_url: creator.tiktok_url,
                 tiktok_followers: creator.tiktok_followers || 0,
                 bio: creator.bio,
+                source_country: sourceCountry,
+                primary_country: sourceCountry,
+                active_regions: [creator.dbRegion || 'korea'],
                 is_active: true,
                 cnec_grade_level: bulkGradeLevel,
                 cnec_grade_name: gradeInfo.name,
@@ -669,11 +697,17 @@ export default function AllCreatorsPage() {
             if (error) throw error
           }
 
-          // user_profiles 테이블에도 등급 동기화
-          await supabaseKorea
-            .from('user_profiles')
-            .update({ cnec_grade_level: bulkGradeLevel })
-            .eq('id', creator.id)
+          // user_profiles 테이블에도 등급 동기화 (지역별 DB)
+          const profileClient = creator.dbRegion === 'japan' ? supabaseJapan
+            : creator.dbRegion === 'us' ? supabaseUS
+            : supabaseKorea
+
+          if (profileClient) {
+            await profileClient
+              .from('user_profiles')
+              .update({ cnec_grade_level: bulkGradeLevel })
+              .eq('id', creator.id)
+          }
 
           successCount++
         } catch (err) {
@@ -1288,27 +1322,38 @@ export default function AllCreatorsPage() {
       return
     }
 
-    // 한국 크리에이터만 포인트 지급 가능
-    if (pointGrantCreator.dbRegion !== 'korea') {
-      alert('현재 한국 크리에이터만 포인트 지급이 가능합니다.')
-      return
-    }
-
     // 마이너스 지급 시 추가 확인
     if (amount < 0) {
-      if (!confirm(`${Math.abs(amount).toLocaleString()}원을 차감하시겠습니까?`)) {
+      if (!confirm(`${Math.abs(amount).toLocaleString()}포인트를 차감하시겠습니까?`)) {
         return
       }
     }
 
+    // 지역별 Supabase 클라이언트 선택
+    const getRegionClient = (region) => {
+      switch (region) {
+        case 'japan': return supabaseJapan
+        case 'us': return supabaseUS
+        default: return supabaseKorea
+      }
+    }
+    const regionClient = getRegionClient(pointGrantCreator.dbRegion)
+    const regionCode = pointGrantCreator.dbRegion === 'japan' ? 'jp' : pointGrantCreator.dbRegion === 'us' ? 'us' : 'kr'
+    const countryCode = regionCode.toUpperCase()
+
+    if (!regionClient) {
+      alert('해당 지역의 데이터베이스 연결을 찾을 수 없습니다.')
+      return
+    }
+
     setGrantingPoints(true)
     try {
-      // 직접 DB 업데이트 방식 (이전에 잘 작동하던 방식)
+      // 직접 DB 업데이트 방식
       const currentPoints = pointGrantCreator.points || 0
       const newPoints = currentPoints + amount
 
-      // 포인트 업데이트
-      const { error: updateError } = await supabaseKorea
+      // 포인트 업데이트 (지역별 DB)
+      const { error: updateError } = await regionClient
         .from('user_profiles')
         .update({
           points: newPoints,
@@ -1320,15 +1365,15 @@ export default function AllCreatorsPage() {
 
       // 포인트 이력 저장 시도 (point_transactions 테이블)
       try {
-        await supabaseKorea
+        await regionClient
           .from('point_transactions')
           .insert({
             user_id: pointGrantCreator.user_id || pointGrantCreator.id,
             amount: amount,
             transaction_type: amount > 0 ? 'admin_add' : 'admin_deduct',
             description: pointGrantReason,
-            platform_region: 'kr',
-            country_code: 'KR',
+            platform_region: regionCode,
+            country_code: countryCode,
             created_at: new Date().toISOString()
           })
       } catch (historyError) {
@@ -1336,7 +1381,7 @@ export default function AllCreatorsPage() {
       }
 
       const actionText = amount > 0 ? '지급' : '차감'
-      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}원이 ${actionText}되었습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
+      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}포인트가 ${actionText}되었습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
       setShowPointGrantModal(false)
       setShowProfileModal(false)
       setPointGrantCreator(null)
@@ -2389,16 +2434,14 @@ export default function AllCreatorsPage() {
               <Crown className="w-4 h-4 mr-2" />
               등급 설정
             </Button>
-            {selectedCreator?.dbRegion === 'korea' && (
-              <Button
-                variant="outline"
-                onClick={() => openPointGrantModal(selectedCreator)}
-                className="text-green-600 border-green-300 hover:bg-green-50"
-              >
-                <Coins className="w-4 h-4 mr-2" />
-                포인트 지급
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => openPointGrantModal(selectedCreator)}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <Coins className="w-4 h-4 mr-2" />
+              포인트 지급
+            </Button>
             {selectedCreator?.dbRegion === 'japan' && (
               <Button
                 variant="outline"
@@ -3111,13 +3154,15 @@ export default function AllCreatorsPage() {
                 <div>
                   <h3 className="font-bold text-gray-900">{pointGrantCreator.name || '이름 없음'}</h3>
                   <p className="text-sm text-gray-500">{pointGrantCreator.email}</p>
-                  <p className="text-xs text-green-600 mt-1">🇰🇷 한국 크리에이터</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {pointGrantCreator.dbRegion === 'japan' ? '🇯🇵 일본' : pointGrantCreator.dbRegion === 'us' ? '🇺🇸 미국' : '🇰🇷 한국'} 크리에이터
+                  </p>
                 </div>
               </div>
 
               {/* 지급 금액 */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">포인트 금액 (원)</label>
+                <label className="block text-sm font-medium text-gray-700">포인트 금액</label>
                 <Input
                   type="number"
                   value={pointGrantAmount}
@@ -3127,7 +3172,7 @@ export default function AllCreatorsPage() {
                 />
                 {pointGrantAmount && parseInt(pointGrantAmount) !== 0 && (
                   <p className={`text-sm ${parseInt(pointGrantAmount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {Math.abs(parseInt(pointGrantAmount)).toLocaleString()}원 {parseInt(pointGrantAmount) > 0 ? '지급' : '차감'} 예정
+                    {Math.abs(parseInt(pointGrantAmount)).toLocaleString()}P {parseInt(pointGrantAmount) > 0 ? '지급' : '차감'} 예정
                   </p>
                 )}
               </div>
