@@ -1,18 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 
-// 테스트 클라이언트 키 (실제 운영 시 환경변수로 관리)
-const CLIENT_KEY = 'test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm';
+// 토스페이먼츠 클라이언트 키 (환경변수에서 로드)
+const CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;
 const CUSTOMER_KEY = 'customer_' + Date.now(); // 고객 고유 키
 
-const TossPaymentWidget = ({ 
-  amount, 
-  orderId, 
-  orderName, 
-  customerEmail, 
+const TossPaymentWidget = ({
+  amount,
+  orderId,
+  orderName,
+  customerEmail,
   customerName,
+  campaignId,
+  region,
   onSuccess,
-  onFail 
+  onFail
 }) => {
   const paymentMethodRef = useRef(null);
   const agreementRef = useRef(null);
@@ -80,11 +82,16 @@ const TossPaymentWidget = ({
     }
 
     try {
-      // 결제 요청
+      // 결제 요청 (successUrl에 campaignId와 region 전달)
+      const successParams = new URLSearchParams();
+      if (campaignId) successParams.set('campaignId', campaignId);
+      if (region) successParams.set('region', region);
+      const successQuery = successParams.toString();
+
       await paymentWidget.requestPayment({
         orderId: orderId,
         orderName: orderName,
-        successUrl: `${window.location.origin}/payment/success`,
+        successUrl: `${window.location.origin}/payment/success${successQuery ? '?' + successQuery : ''}`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: customerEmail,
         customerName: customerName
