@@ -1363,19 +1363,27 @@ export default function AllCreatorsPage() {
 
       if (updateError) throw updateError
 
-      // 포인트 이력 저장 시도 (point_transactions 테이블)
+      // 포인트 이력 저장 시도 (point_transactions 테이블 - 지역별 컬럼 구조 대응)
       try {
+        const txData = {
+          user_id: pointGrantCreator.user_id || pointGrantCreator.id,
+          amount: amount,
+          transaction_type: amount > 0 ? 'admin_add' : 'admin_deduct',
+          description: pointGrantReason,
+          created_at: new Date().toISOString()
+        }
+
+        // 일본 DB: region 컬럼 사용 / 한국·미국 DB: platform_region + country_code 사용
+        if (pointGrantCreator.dbRegion === 'japan') {
+          txData.region = regionCode
+        } else {
+          txData.platform_region = regionCode
+          txData.country_code = countryCode
+        }
+
         await regionClient
           .from('point_transactions')
-          .insert({
-            user_id: pointGrantCreator.user_id || pointGrantCreator.id,
-            amount: amount,
-            transaction_type: amount > 0 ? 'admin_add' : 'admin_deduct',
-            description: pointGrantReason,
-            platform_region: regionCode,
-            country_code: countryCode,
-            created_at: new Date().toISOString()
-          })
+          .insert(txData)
       } catch (historyError) {
         console.log('포인트 이력 저장 실패 (무시):', historyError)
       }
