@@ -10,12 +10,54 @@ import {
   Wallet, CheckCircle, XCircle, Clock, TrendingUp,
   Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText, AlertCircle
 } from 'lucide-react'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, supabaseJapan } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
 import { sendWithdrawalRejectedNotification } from '../../services/notifications/creatorNotifications'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
 import axios from 'axios'
+
+// 일본 은행 라벨
+const JP_BANK_LABELS_WD = {
+  yucho: 'ゆうちょ銀行',
+  mufg: '三菱UFJ銀行',
+  smbc: '三井住友銀行',
+  mizuho: 'みずほ銀行',
+  resona: 'りそな銀行',
+  rakuten: '楽天銀行',
+  paypay: 'PayPay銀行',
+  sbi: '住信SBIネット銀行',
+  aeon: 'イオン銀行',
+  sony: 'ソニー銀行',
+  au_jibun: 'auじぶん銀行',
+  seven: 'セブン銀行',
+  other: 'その他',
+}
+
+const JP_ACCOUNT_TYPE_LABELS_WD = {
+  futsu: '普通',
+  touza: '当座',
+}
+
+// 일본 도도부현 라벨
+const JP_PREFECTURE_LABELS_WD = {
+  hokkaido: '北海道', aomori: '青森県', iwate: '岩手県',
+  miyagi: '宮城県', akita: '秋田県', yamagata: '山形県',
+  fukushima: '福島県', ibaraki: '茨城県', tochigi: '栃木県',
+  gunma: '群馬県', saitama: '埼玉県', chiba: '千葉県',
+  tokyo: '東京都', kanagawa: '神奈川県', niigata: '新潟県',
+  toyama: '富山県', ishikawa: '石川県', fukui: '福井県',
+  yamanashi: '山梨県', nagano: '長野県', gifu: '岐阜県',
+  shizuoka: '静岡県', aichi: '愛知県', mie: '三重県',
+  shiga: '滋賀県', kyoto: '京都府', osaka: '大阪府',
+  hyogo: '兵庫県', nara: '奈良県', wakayama: '和歌山県',
+  tottori: '鳥取県', shimane: '島根県', okayama: '岡山県',
+  hiroshima: '広島県', yamaguchi: '山口県', tokushima: '徳島県',
+  kagawa: '香川県', ehime: '愛媛県', kochi: '高知県',
+  fukuoka: '福岡県', saga: '佐賀県', nagasaki: '長崎県',
+  kumamoto: '熊本県', oita: '大分県', miyazaki: '宮崎県',
+  kagoshima: '鹿児島県', okinawa: '沖縄県',
+}
 
 export default function WithdrawalManagement() {
   const navigate = useNavigate()
@@ -292,6 +334,85 @@ export default function WithdrawalManagement() {
         }
       }
 
+      // 1-4. Japan DB에서 출금 신청 조회 (withdrawal_requests 테이블)
+      if (supabaseJapan) {
+        try {
+          const { data: jpData, error: jpError } = await supabaseJapan
+            .from('withdrawal_requests')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!jpError && jpData && jpData.length > 0) {
+            console.log('Japan DB (withdrawal_requests)에서 데이터 조회:', jpData.length, '건')
+
+            // user_profiles에서 은행 정보 조회
+            const jpUserIds = [...new Set(jpData.map(w => w.user_id).filter(Boolean))]
+            let jpUserProfiles = {}
+
+            if (jpUserIds.length > 0) {
+              const { data: jpProfiles } = await supabaseJapan
+                .from('user_profiles')
+                .select('id, user_id, nickname, name, email, phone, bank_name, branch_code, account_type, account_number, account_holder, postcode, prefecture, address, detail_address')
+                .in('id', jpUserIds)
+
+              // id로 못 찾으면 user_id로 재시도
+              let profiles = jpProfiles
+              if (!profiles || profiles.length === 0) {
+                const { data: jpProfiles2 } = await supabaseJapan
+                  .from('user_profiles')
+                  .select('id, user_id, nickname, name, email, phone, bank_name, branch_code, account_type, account_number, account_holder, postcode, prefecture, address, detail_address')
+                  .in('user_id', jpUserIds)
+                profiles = jpProfiles2
+              }
+
+              if (profiles) {
+                profiles.forEach(p => {
+                  if (p.id) jpUserProfiles[p.id] = p
+                  if (p.user_id) jpUserProfiles[p.user_id] = p
+                })
+              }
+            }
+
+            const jpWithdrawals = jpData.map(w => {
+              const profile = jpUserProfiles[w.user_id]
+              return {
+                ...w,
+                creator_name: profile?.nickname || profile?.name || w.account_holder || w.creator_name || 'Unknown',
+                creator_email: profile?.email || w.creator_email || '',
+                creator_phone: profile?.phone || '',
+                region: 'japan',
+                requested_points: w.requested_points || w.amount || 0,
+                requested_amount: w.requested_amount || w.amount || 0,
+                final_amount: w.final_amount || w.requested_amount || w.amount || 0,
+                currency: w.currency || 'JPY',
+                // 은행 정보 (user_profiles에서 가져옴)
+                bank_name: w.bank_name || profile?.bank_name || '',
+                branch_code: w.branch_code || profile?.branch_code || '',
+                account_type: w.account_type || profile?.account_type || '',
+                account_number: w.account_number || profile?.account_number || '',
+                account_holder: w.account_holder || profile?.account_holder || '',
+                // 주소 정보
+                postcode: profile?.postcode || '',
+                prefecture: profile?.prefecture || '',
+                address_info: profile?.address || '',
+                detail_address: profile?.detail_address || '',
+                // PayPal (기존 호환)
+                paypal_email: w.paypal_email || '',
+                source_db: 'japan',
+                jp_profile: profile
+              }
+            })
+            allWithdrawals = [...allWithdrawals, ...jpWithdrawals]
+          } else if (jpError) {
+            console.error('Japan DB withdrawal_requests 조회 오류:', jpError)
+          } else {
+            console.log('Japan DB (withdrawal_requests): 데이터 없음')
+          }
+        } catch (jpError) {
+          console.error('Japan DB 조회 오류:', jpError)
+        }
+      }
+
       // 2. BIZ DB에서도 출금 신청 조회 (통합 DB - creator_withdrawal_requests)
       try {
         const { data: bizData, error: bizError } = await supabaseBiz
@@ -328,7 +449,7 @@ export default function WithdrawalManagement() {
       // 3. 크리에이터 정보가 없는 경우 featured_creators에서 조회
       const withdrawalsWithCreators = await Promise.all(
         allWithdrawals.map(async (w) => {
-          if (w.creator_name) {
+          if (w.creator_name && w.creator_name !== 'Unknown') {
             return w
           }
 
@@ -350,6 +471,55 @@ export default function WithdrawalManagement() {
           return w
         })
       )
+
+      // 3-2. BIZ DB에서 온 일본 출금 신청에 JP user_profiles 은행 정보 병합
+      if (supabaseJapan) {
+        const jpBizWithdrawals = withdrawalsWithCreators.filter(w =>
+          w.region === 'japan' && w.source_db === 'biz' && w.user_id
+        )
+
+        if (jpBizWithdrawals.length > 0) {
+          try {
+            const jpUserIds = [...new Set(jpBizWithdrawals.map(w => w.user_id).filter(Boolean))]
+            // creator_id로도 시도
+            const jpCreatorIds = [...new Set(jpBizWithdrawals.map(w => w.creator_id).filter(Boolean))]
+
+            let jpProfileMap = {}
+
+            if (jpUserIds.length > 0) {
+              const { data: jpProfiles } = await supabaseJapan
+                .from('user_profiles')
+                .select('id, user_id, nickname, name, email, phone, bank_name, branch_code, account_type, account_number, account_holder')
+                .in('id', jpUserIds)
+
+              if (jpProfiles) {
+                jpProfiles.forEach(p => {
+                  if (p.id) jpProfileMap[p.id] = p
+                  if (p.user_id) jpProfileMap[p.user_id] = p
+                })
+              }
+            }
+
+            // 프로필 데이터 병합
+            jpBizWithdrawals.forEach(w => {
+              const profile = jpProfileMap[w.user_id]
+              if (profile) {
+                if (!w.creator_name || w.creator_name === 'Unknown') {
+                  w.creator_name = profile.nickname || profile.name || w.creator_name
+                }
+                if (!w.bank_name) w.bank_name = profile.bank_name
+                if (!w.branch_code) w.branch_code = profile.branch_code
+                if (!w.account_type) w.account_type = profile.account_type
+                if (!w.account_number) w.account_number = profile.account_number
+                if (!w.account_holder) w.account_holder = profile.account_holder
+                w.jp_profile = profile
+              }
+            })
+          } catch (jpEnrichError) {
+            console.error('Japan BIZ 출금 프로필 병합 오류:', jpEnrichError)
+          }
+        }
+      }
 
       // 중복 제거 (id 기준)
       const uniqueWithdrawals = withdrawalsWithCreators.reduce((acc, curr) => {
@@ -448,11 +618,24 @@ export default function WithdrawalManagement() {
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       const isKoreaDB = withdrawal.source_db === 'korea'
+      const isJapanDB = withdrawal.source_db === 'japan'
 
       // Korea DB인 경우 supabaseKorea 사용
       if (isKoreaDB && supabaseKorea) {
         const { error } = await supabaseKorea
           .from('withdrawals')
+          .update({
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+            processed_by: user?.id
+          })
+          .eq('id', withdrawal.id)
+
+        if (error) throw error
+      } else if (isJapanDB && supabaseJapan) {
+        // Japan DB인 경우 supabaseJapan 사용
+        const { error } = await supabaseJapan
+          .from('withdrawal_requests')
           .update({
             status: 'completed',
             processed_at: new Date().toISOString(),
@@ -474,7 +657,38 @@ export default function WithdrawalManagement() {
         if (error) throw error
       }
 
-      // 알림톡 + 이메일 발송 (크리에이터 정보 조회 후 발송)
+      // 알림 발송 (크리에이터 정보 조회 후 발송)
+      if (isJapanDB) {
+        // 일본 크리에이터: LINE + SMS + Email via send-japan-notification
+        try {
+          const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
+          const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
+          const jpToday = new Date().toLocaleDateString('ja-JP')
+          const jpBaseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+
+          console.log('일본 크리에이터 출금 완료 알림 발송:', jpCreatorName)
+          await axios.post(
+            `${jpBaseUrl}/.netlify/functions/send-japan-notification`,
+            {
+              type: 'withdrawal_complete',
+              creatorId: withdrawal.user_id,
+              data: {
+                creatorName: jpCreatorName,
+                amount: jpAmount,
+                expectedDate: jpToday
+              }
+            },
+            { timeout: 15000 }
+          )
+          console.log('일본 크리에이터 출금 완료 LINE 알림 발송 완료:', jpCreatorName)
+        } catch (jpNotifyError) {
+          console.error('일본 크리에이터 알림 발송 오류:', jpNotifyError)
+          // 알림 실패해도 완료 처리는 성공한 것으로 처리
+        }
+      }
+
+      // 한국 크리에이터: 알림톡 + 이메일 발송
+      if (!isJapanDB) {
       try {
         let creatorPhone = null
         let creatorEmail = null
@@ -574,6 +788,7 @@ export default function WithdrawalManagement() {
         console.error('알림 발송 오류:', notifyError)
         // 알림 실패해도 완료 처리는 성공한 것으로 처리
       }
+      } // end if (!isJapanDB)
 
       alert('지급 완료 처리되었습니다.')
       fetchWithdrawals()
@@ -625,11 +840,23 @@ export default function WithdrawalManagement() {
       for (const withdrawal of selectedList) {
         try {
           const isKoreaDB = withdrawal.source_db === 'korea'
+          const isJapanDB = withdrawal.source_db === 'japan'
 
           // DB 업데이트
           if (isKoreaDB && supabaseKorea) {
             const { error } = await supabaseKorea
               .from('withdrawals')
+              .update({
+                status: 'approved',
+                processed_by: user?.id,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else if (isJapanDB && supabaseJapan) {
+            const { error } = await supabaseJapan
+              .from('withdrawal_requests')
               .update({
                 status: 'approved',
                 processed_by: user?.id,
@@ -745,11 +972,23 @@ export default function WithdrawalManagement() {
       for (const withdrawal of selectedList) {
         try {
           const isKoreaDB = withdrawal.source_db === 'korea'
+          const isJapanDB = withdrawal.source_db === 'japan'
 
           // DB 업데이트
           if (isKoreaDB && supabaseKorea) {
             const { error } = await supabaseKorea
               .from('withdrawals')
+              .update({
+                status: 'completed',
+                processed_at: new Date().toISOString(),
+                processed_by: user?.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else if (isJapanDB && supabaseJapan) {
+            const { error } = await supabaseJapan
+              .from('withdrawal_requests')
               .update({
                 status: 'completed',
                 processed_at: new Date().toISOString(),
@@ -771,7 +1010,36 @@ export default function WithdrawalManagement() {
             if (error) throw error
           }
 
-          // 알림톡 + 이메일 발송
+          // 알림 발송
+          if (isJapanDB) {
+            // 일본 크리에이터: LINE + SMS + Email via send-japan-notification
+            try {
+              const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
+              const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
+              const jpToday = new Date().toLocaleDateString('ja-JP')
+
+              console.log(`일본 크리에이터 출금 완료 알림 발송: ${jpCreatorName}`)
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-japan-notification`,
+                {
+                  type: 'withdrawal_complete',
+                  creatorId: withdrawal.user_id,
+                  data: {
+                    creatorName: jpCreatorName,
+                    amount: jpAmount,
+                    expectedDate: jpToday
+                  }
+                },
+                { timeout: 15000 }
+              )
+              console.log(`일본 크리에이터 출금 완료 LINE 알림 발송 완료: ${jpCreatorName}`)
+            } catch (jpNotifyError) {
+              console.error('일본 크리에이터 알림 발송 오류:', jpNotifyError)
+            }
+          }
+
+          // 한국 크리에이터: 알림톡 + 이메일 발송
+          if (!isJapanDB) {
           try {
             let creatorPhone = null
             let creatorEmail = null
@@ -847,6 +1115,7 @@ export default function WithdrawalManagement() {
           } catch (notifyError) {
             console.error('알림 발송 오류:', notifyError)
           }
+          } // end if (!isJapanDB)
 
           successCount++
         } catch (err) {
@@ -873,6 +1142,7 @@ export default function WithdrawalManagement() {
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       const isKoreaDB = selectedWithdrawal.source_db === 'korea' || selectedWithdrawal.source_db === 'korea_pt'
+      const isJapanDB = selectedWithdrawal.source_db === 'japan'
       const isFromPointTransactions = selectedWithdrawal.source_db === 'korea_pt'
 
       if (actionType === 'approve') {
@@ -947,6 +1217,19 @@ export default function WithdrawalManagement() {
 
             if (error) throw error
           }
+        } else if (isJapanDB && supabaseJapan) {
+          // Japan DB
+          const { error } = await supabaseJapan
+            .from('withdrawal_requests')
+            .update({
+              status: 'approved',
+              admin_notes: adminNotes,
+              processed_by: user?.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
+
+          if (error) throw error
         } else {
           const { error } = await supabaseBiz
             .from('creator_withdrawal_requests')
@@ -1118,6 +1401,19 @@ export default function WithdrawalManagement() {
               }
             }
           }
+        } else if (isJapanDB && supabaseJapan) {
+          // Japan DB
+          const { error } = await supabaseJapan
+            .from('withdrawal_requests')
+            .update({
+              status: 'rejected',
+              rejection_reason: rejectionReason,
+              processed_by: user?.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
+
+          if (error) throw error
         } else {
           const { error } = await supabaseBiz
             .from('creator_withdrawal_requests')
@@ -1708,7 +2004,7 @@ export default function WithdrawalManagement() {
 
                                 <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
                                   <div>
-                                    <span className="font-medium">신청 포인트:</span> {withdrawal.requested_points.toLocaleString()}P
+                                    <span className="font-medium">신청 포인트:</span> {(withdrawal.requested_points || 0).toLocaleString()}P
                                   </div>
                                   <div>
                                     <span className="font-medium">지급액:</span> {withdrawal.final_amount?.toLocaleString()} {withdrawal.currency}
@@ -1730,9 +2026,35 @@ export default function WithdrawalManagement() {
                                         )}
                                       </div>
                                     </>
+                                  ) : withdrawal.region === 'japan' ? (
+                                    <>
+                                      {withdrawal.bank_name ? (
+                                        <>
+                                          <div>
+                                            <span className="font-medium">銀行:</span>{' '}
+                                            {JP_BANK_LABELS_WD[withdrawal.bank_name] || withdrawal.bank_name}{' '}
+                                            {withdrawal.branch_code && `(支店: ${withdrawal.branch_code})`}
+                                          </div>
+                                          <div>
+                                            <span className="font-medium">口座:</span>{' '}
+                                            {JP_ACCOUNT_TYPE_LABELS_WD[withdrawal.account_type] || withdrawal.account_type || ''}{' '}
+                                            {withdrawal.account_number || '-'}{' '}
+                                            {withdrawal.account_holder && `(${withdrawal.account_holder})`}
+                                          </div>
+                                        </>
+                                      ) : withdrawal.paypal_email ? (
+                                        <div>
+                                          <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          <span className="text-red-500">口座情報未登録</span>
+                                        </div>
+                                      )}
+                                    </>
                                   ) : (
                                     <div>
-                                      <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}
+                                      <span className="font-medium">PayPal:</span> {withdrawal.paypal_email || '-'}
                                     </div>
                                   )}
                                 </div>
@@ -1820,8 +2142,26 @@ export default function WithdrawalManagement() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-bold mb-2">{selectedWithdrawal.creator_name || 'Unknown'}</h3>
                 <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                  <div>신청 포인트: {selectedWithdrawal.requested_points.toLocaleString()}P</div>
+                  <div>신청 포인트: {(selectedWithdrawal.requested_points || 0).toLocaleString()}P</div>
                   <div>지급액: {selectedWithdrawal.final_amount?.toLocaleString()} {selectedWithdrawal.currency}</div>
+                  {selectedWithdrawal.region === 'korea' && (
+                    <>
+                      <div>계좌: {selectedWithdrawal.bank_name} {selectedWithdrawal.account_number}</div>
+                      <div>예금주: {selectedWithdrawal.account_holder || '-'}</div>
+                    </>
+                  )}
+                  {selectedWithdrawal.region === 'japan' && selectedWithdrawal.bank_name && (
+                    <>
+                      <div>銀行: {JP_BANK_LABELS_WD[selectedWithdrawal.bank_name] || selectedWithdrawal.bank_name} {selectedWithdrawal.branch_code && `(支店: ${selectedWithdrawal.branch_code})`}</div>
+                      <div>口座: {JP_ACCOUNT_TYPE_LABELS_WD[selectedWithdrawal.account_type] || ''} {selectedWithdrawal.account_number || '-'} ({selectedWithdrawal.account_holder || '-'})</div>
+                    </>
+                  )}
+                  {selectedWithdrawal.region === 'japan' && !selectedWithdrawal.bank_name && selectedWithdrawal.paypal_email && (
+                    <div>PayPal: {selectedWithdrawal.paypal_email}</div>
+                  )}
+                  {selectedWithdrawal.region === 'us' && selectedWithdrawal.paypal_email && (
+                    <div>PayPal: {selectedWithdrawal.paypal_email}</div>
+                  )}
                 </div>
               </div>
 

@@ -501,13 +501,16 @@ exports.handler = async (event) => {
         if (e2) console.log(`[send-japan-notification] user_id 조회 오류: ${e2.message}`);
       }
       if (e) console.log(`[send-japan-notification] id 조회 오류: ${e.message}`);
-    } else if (creatorEmail) {
+    }
+
+    // creatorId로 못 찾은 경우 이메일로 재시도 (BIZ DB ID ≠ Japan DB ID일 수 있음)
+    if (!creator && creatorEmail) {
       console.log(`[send-japan-notification] creatorEmail로 조회: ${creatorEmail}`);
       const { data: c, error: e } = await supabase
         .from('user_profiles')
         .select('id, name, email, phone, line_user_id')
         .eq('email', creatorEmail.toLowerCase())
-        .single();
+        .maybeSingle();
       creator = c;
       if (e) console.log(`[send-japan-notification] creatorEmail 조회 오류: ${e.message}`);
     }

@@ -536,6 +536,10 @@ exports.handler = async (event, context) => {
   console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
   console.log('VITE_SUPABASE_KOREA_URL:', process.env.VITE_SUPABASE_KOREA_URL ? '설정됨' : '❌ 미설정');
   console.log('SUPABASE_KOREA_SERVICE_ROLE_KEY:', process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
+  console.log('VITE_SUPABASE_JAPAN_URL:', process.env.VITE_SUPABASE_JAPAN_URL ? '설정됨' : '❌ 미설정');
+  console.log('SUPABASE_JAPAN_SERVICE_ROLE_KEY:', process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
+  console.log('VITE_SUPABASE_US_URL:', process.env.VITE_SUPABASE_US_URL ? '설정됨' : '❌ 미설정');
+  console.log('SUPABASE_US_SERVICE_ROLE_KEY:', process.env.SUPABASE_US_SERVICE_ROLE_KEY ? '설정됨' : '❌ 미설정');
   console.log('GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '설정됨' : '❌ 미설정');
   console.log('POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID ? '설정됨' : '❌ 미설정');
 
@@ -562,12 +566,14 @@ exports.handler = async (event, context) => {
     console.log('2일 후 마감:', in2DaysStr);
     console.log('3일 후 마감:', in3DaysStr);
 
-    // 캠페인 데이터는 Korea DB에 저장됨 (BIZ DB는 campaigns 테이블 스키마가 다름)
+    // 캠페인 데이터는 각 리전 DB에 저장됨 - Korea, Japan, US 모두 조회
     const regions = [
-      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY }
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY, siteUrl: 'https://cnec.co.kr' },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY, siteUrl: 'https://cnec.jp' },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY, siteUrl: 'https://cnec.us' }
     ];
 
-    console.log('📢 영상 제출 마감일 알림 - Korea DB 조회');
+    console.log('📢 영상 제출 마감일 알림 - Korea/Japan/US DB 조회');
 
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
     const deadlineDates = [
@@ -594,9 +600,10 @@ exports.handler = async (event, context) => {
           const supabase = createClient(region.url, region.key);
 
         // 모든 활성 캠페인 조회 (캠페인 타입별 마감일 필드 포함)
+        // Japan/US는 video_deadline, sns_deadline 필드도 사용
         const { data: regionCampaigns, error: campaignError } = await supabase
           .from('campaigns')
-          .select('id, title, company_id, campaign_type, content_submission_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
+          .select('id, title, company_id, campaign_type, content_submission_deadline, video_deadline, sns_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
           .in('status', ['active', 'recruiting', 'approved']);
 
         if (campaignError) {
@@ -610,7 +617,7 @@ exports.handler = async (event, context) => {
         if (regionCampaigns && regionCampaigns.length > 0) {
           console.log(`[${region.name}] 캠페인 마감일 상세:`);
           regionCampaigns.slice(0, 10).forEach(c => {
-            console.log(`  - ${c.title} (${c.campaign_type || 'regular'}): content_deadline=${getDatePart(c.content_submission_deadline)}, step1=${getDatePart(c.step1_deadline)}, week1=${getDatePart(c.week1_deadline)}`);
+            console.log(`  - ${c.title} (${c.campaign_type || 'regular'}): content_deadline=${getDatePart(c.content_submission_deadline)}, video_deadline=${getDatePart(c.video_deadline)}, step1=${getDatePart(c.step1_deadline)}, week1=${getDatePart(c.week1_deadline)}`);
           });
           if (regionCampaigns.length > 10) {
             console.log(`  ... 외 ${regionCampaigns.length - 10}개`);
@@ -632,8 +639,9 @@ exports.handler = async (event, context) => {
             return getDatePart(campaign.step1_deadline) === date ||
                    getDatePart(campaign.step2_deadline) === date;
           } else {
-            // 기획형/일반: 1개 마감일 체크
-            return getDatePart(campaign.content_submission_deadline) === date;
+            // 기획형/일반: content_submission_deadline 또는 video_deadline 체크
+            return getDatePart(campaign.content_submission_deadline) === date ||
+                   getDatePart(campaign.video_deadline) === date;
           }
         });
 

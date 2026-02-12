@@ -1,17 +1,33 @@
 /**
  * 크리에이터 영상 재제출 알림 발송
  * 기업에게 알림톡 + 이메일 발송
+ * 멀티-리전 지원 (Korea, Japan, US)
  */
 
 const { createClient } = require('@supabase/supabase-js')
 const { sendNotification } = require('./send-notification-helper')
 
-// Supabase 클라이언트 초기화
-// Korea DB - 크리에이터/캠페인 데이터
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+// 리전별 Supabase 클라이언트 생성 헬퍼
+function getRegionalClient(region) {
+  let url, key
+  switch (region) {
+    case 'japan':
+      url = process.env.VITE_SUPABASE_JAPAN_URL
+      key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      break
+    case 'us':
+      url = process.env.VITE_SUPABASE_US_URL
+      key = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      break
+    case 'korea':
+    default:
+      url = process.env.VITE_SUPABASE_KOREA_URL
+      key = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+      break
+  }
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 // BIZ DB - 기업 데이터 (회사 정보는 여기에 있음)
 const bizUrl = process.env.VITE_SUPABASE_BIZ_URL
@@ -41,7 +57,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { submissionId } = JSON.parse(event.body)
+    const { submissionId, region: bodyRegion } = JSON.parse(event.body)
 
     if (!submissionId) {
       return {
@@ -51,7 +67,21 @@ exports.handler = async (event) => {
       }
     }
 
-    console.log('[INFO] Sending resubmit notification for submission:', submissionId)
+    // 리전 판별: body > query parameter > 기본값 korea
+    const queryParams = event.queryStringParameters || {}
+    const region = bodyRegion || queryParams.region || 'korea'
+
+    console.log(`[INFO] Sending resubmit notification for submission: ${submissionId} (region: ${region})`)
+
+    // 리전별 Supabase 클라이언트 생성
+    const supabaseAdmin = getRegionalClient(region)
+    if (!supabaseAdmin) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: `${region} Supabase 환경변수가 설정되지 않았습니다.` })
+      }
+    }
 
     // 1. submission 정보 조회 (company_email 포함)
     const { data: submission, error: submissionError } = await supabaseAdmin
@@ -249,10 +279,27 @@ exports.handler = async (event) => {
       console.error('[ERROR] Notification failed:', error)
     })
 
-    // 4. DB 상태 업데이트
+    // 4. 네이버 웍스 알림 발송
+    const siteLabel = { 'korea': 'cnec.co.kr', 'japan': 'cnec.jp', 'us': 'cnec.us' }[region] || region
+    try {
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `📹 영상 재제출 알림 (${siteLabel})\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+        })
+      })
+      console.log('[SUCCESS] 네이버 웍스 알림 발송 완료')
+    } catch (worksError) {
+      console.error('[ERROR] 네이버 웍스 알림 발송 실패:', worksError)
+    }
+
+    // 5. DB 상태 업데이트
     const { error: updateError } = await supabaseAdmin
       .from('video_submissions')
-      .update({ 
+      .update({
         status: 'under_review',
         resubmit_notified_at: new Date().toISOString()
       })
@@ -267,7 +314,7 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
-        message: '수정 완료 알림이 전송되었습니다.'
+        message: `수정 완료 알림이 전송되었습니다. (${region})`
       })
     }
   } catch (error) {

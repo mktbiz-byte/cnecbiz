@@ -80,6 +80,7 @@ export default function FeaturedCreatorManagementPageNew() {
   const [searchingGraded, setSearchingGraded] = useState(false)
   const [selectedGradedCreator, setSelectedGradedCreator] = useState(null)
   const [gradeFilter, setGradeFilter] = useState('all')
+  const [countryFilter, setCountryFilter] = useState('all')
 
   // 프로필 편집 모달 state
   const [showProfileEditModal, setShowProfileEditModal] = useState(false)
@@ -319,10 +320,19 @@ export default function FeaturedCreatorManagementPageNew() {
     }))
   }
 
-  // 등급별 필터링된 크리에이터 목록
-  const filteredGradedCreators = gradeFilter === 'all'
-    ? gradedCreators
-    : gradedCreators.filter(c => c.cnec_grade_level === parseInt(gradeFilter))
+  // 국가 + 등급별 필터링된 크리에이터 목록
+  const filteredGradedCreators = gradedCreators.filter(c => {
+    // 국가 필터
+    if (countryFilter !== 'all') {
+      const creatorCountry = (c.source_country || c.primary_country || 'KR').toUpperCase()
+      if (countryFilter === 'korea' && creatorCountry !== 'KR') return false
+      if (countryFilter === 'japan' && creatorCountry !== 'JP') return false
+      if (countryFilter === 'us' && creatorCountry !== 'US') return false
+    }
+    // 등급 필터
+    if (gradeFilter !== 'all' && c.cnec_grade_level !== parseInt(gradeFilter)) return false
+    return true
+  })
 
   const loadFeaturedCreators = async () => {
     try {
@@ -1239,6 +1249,30 @@ export default function FeaturedCreatorManagementPageNew() {
                     <Plus className="w-4 h-4 mr-2" />
                     크리에이터 추가
                   </Button>
+                </div>
+
+                {/* 국가 필터 */}
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {[
+                    { key: 'all', label: '전체', flag: '' },
+                    { key: 'korea', label: '한국', flag: '🇰🇷', code: 'KR' },
+                    { key: 'japan', label: '일본', flag: '🇯🇵', code: 'JP' },
+                    { key: 'us', label: '미국', flag: '🇺🇸', code: 'US' }
+                  ].map(({ key, label, flag, code }) => {
+                    const count = key === 'all'
+                      ? gradedCreators.length
+                      : gradedCreators.filter(c => (c.source_country || c.primary_country || 'KR').toUpperCase() === code).length
+                    return (
+                      <Button
+                        key={key}
+                        variant={countryFilter === key ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCountryFilter(key)}
+                      >
+                        {flag} {label} ({count})
+                      </Button>
+                    )
+                  })}
                 </div>
 
                 {/* 등급 필터 */}
