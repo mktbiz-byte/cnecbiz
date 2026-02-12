@@ -216,34 +216,9 @@ exports.handler = async (event) => {
       };
     }
 
-    // 4. 카카오 알림톡 발송
-    console.log('알림톡 발송 시작:', {
-      companyPhone,
-      companyName,
-      campaignTitle: campaign.title,
-      creatorName,
-      version
-    });
+    // 카카오 알림톡은 webhook-video-submission.js에서 발송하므로 여기서는 발송하지 않음 (중복 방지)
 
-    const kakaoResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        receiverNum: companyPhone,
-        receiverName: companyName,
-        templateCode: '025100001008',
-        variables: {
-          '회사명': companyName,
-          '캠페인명': campaign.title || campaign.brand,
-          '크리에이터명': creatorName
-        }
-      })
-    });
-
-    const kakaoResult = await kakaoResponse.json();
-    console.log('알림톡 발송 결과:', kakaoResult);
-
-    // 5. 네이버 웍스 알림 발송
+    // 4. 네이버 웍스 알림 발송
     try {
       const naverResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',

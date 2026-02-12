@@ -73,18 +73,22 @@ exports.handler = async (event, context) => {
 
     // company_id 목록 추출 (실제로는 user_id임)
     const userIds = [...new Set(chargeRequests.map(req => req.company_id))];
-    
+
     // companies 테이블에서 회사 정보 조회 (user_id로 조회)
-    const { data: companies, error: companiesError } = await supabaseAdmin
-      .from('companies')
-      .select('id, user_id, company_name, email, ceo_name, business_registration_number, phone, company_address, business_type, business_category')
-      .in('user_id', userIds);
-    
-    if (companiesError) {
-      console.error('❌ 회사 정보 조회 실패:', companiesError);
-      throw companiesError;
+    let companies = [];
+    if (userIds.length > 0) {
+      const { data: companiesData, error: companiesError } = await supabaseAdmin
+        .from('companies')
+        .select('id, user_id, company_name, email, ceo_name, business_registration_number, phone, company_address, business_type, business_category')
+        .in('user_id', userIds);
+
+      if (companiesError) {
+        console.error('❌ 회사 정보 조회 실패:', companiesError);
+        throw companiesError;
+      }
+      companies = companiesData || [];
     }
-    
+
     // user_id로 매핑하기 위한 Map 생성 (company_id는 실제로 user_id임)
     const companyMap = new Map(companies.map(c => [c.user_id, c]));
 
@@ -106,11 +110,82 @@ exports.handler = async (event, context) => {
         nts_confirm_num: taxInfo.nts_confirm_num || null,  // 국세청 승인번호
         companies: companyMap.get(req.company_id) || { company_name: '알 수 없음', email: '' },
         tax_invoice_info: req.tax_invoice_info,
-        related_campaign_id: req.related_campaign_id  // 캠페인 관련 정보도 포함
+        related_campaign_id: req.related_campaign_id,  // 캠페인 관련 정보도 포함
+        is_manual: false
       };
     });
 
-    console.log(`✅ ${requests.length}건의 세금계산서 신청 내역 조회 완료`);
+    // ── 수동 발행 세금계산서도 조회 (manual_tax_invoices, 하우파파만) ──
+    console.log('📋 수동 발행 세금계산서 조회...');
+    let manualQuery = supabaseAdmin
+      .from('manual_tax_invoices')
+      .select('*')
+      .order('issued_at', { ascending: false });
+
+    // 하우파파 탭이므로 haulab 제외 (issuer가 null이거나 haulab이 아닌 것)
+    manualQuery = manualQuery.or('issuer.is.null,issuer.neq.haulab');
+
+    // 필터 적용: pending 필터일 때는 수동발행 제외 (항상 issued 상태)
+    if (filter === 'pending' || filter === 'prepaid') {
+      // 수동 발행은 항상 issued 상태이므로 pending/prepaid 필터에서는 제외
+      console.log('ℹ️  수동 발행은 pending/prepaid 필터에서 제외');
+    } else {
+      const { data: manualInvoices, error: manualError } = await manualQuery;
+
+      if (manualError) {
+        console.error('⚠️ 수동 발행 세금계산서 조회 실패:', manualError);
+      } else if (manualInvoices && manualInvoices.length > 0) {
+        console.log(`✅ 수동 발행 세금계산서 ${manualInvoices.length}건 조회`);
+
+        const manualRequests = manualInvoices.map(inv => ({
+          id: `manual_${inv.id}`,
+          charge_request_id: null,
+          amount: inv.total_amount,
+          status: inv.status || 'issued',
+          is_deposit_confirmed: true,
+          is_prepaid: false,
+          created_at: inv.issued_at || inv.created_at,
+          issued_at: inv.issued_at,
+          nts_confirm_num: inv.nts_confirm_num || null,
+          companies: {
+            company_name: inv.company_name || '알 수 없음',
+            email: inv.email || '',
+            ceo_name: inv.ceo_name || '',
+            business_registration_number: inv.business_number || '',
+            phone: inv.phone || '',
+            company_address: inv.address || '',
+            business_type: inv.business_type || '',
+            business_category: inv.business_category || ''
+          },
+          tax_invoice_info: {
+            company_name: inv.company_name,
+            business_number: inv.business_number,
+            representative: inv.ceo_name,
+            address: inv.address,
+            business_type: inv.business_type,
+            business_category: inv.business_category,
+            email: inv.email,
+            contact: inv.phone,
+            nts_confirm_num: inv.nts_confirm_num,
+            issued_at: inv.issued_at,
+            supply_cost: inv.supply_cost,
+            tax: inv.tax,
+            item_name: inv.item_name,
+            memo: inv.memo,
+            mgt_key: inv.mgt_key
+          },
+          related_campaign_id: null,
+          is_manual: true
+        }));
+
+        requests.push(...manualRequests);
+      }
+    }
+
+    // 날짜순 재정렬 (최신순)
+    requests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    console.log(`✅ ${requests.length}건의 세금계산서 신청 내역 조회 완료 (수동 발행 포함)`);
 
     // 통계 계산
     const stats = {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
@@ -135,6 +135,9 @@ export default function LandingPage() {
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
   const [featuredNewsletters, setFeaturedNewsletters] = useState([])
+  const [portfolioShorts, setPortfolioShorts] = useState({ korea: [], japan: [], usa: [] })
+  const [selectedRegion, setSelectedRegion] = useState('korea')
+  const [playingVideoId, setPlayingVideoId] = useState(null)
   const [pageContent, setPageContent] = useState({
     hero_title: 'K-뷰티를 세계로,',
     hero_subtitle: '14일 만에 완성하는 숏폼',
@@ -177,6 +180,7 @@ export default function LandingPage() {
     fetchFaqs()
     fetchPageContent()
     fetchFeaturedNewsletters()
+    fetchPortfolioShorts()
   }, [])
 
   // 추천 뉴스레터 또는 최신 뉴스레터 가져오기
@@ -208,6 +212,18 @@ export default function LandingPage() {
       }
     } catch (error) {
       console.error('뉴스레터 조회 오류:', error)
+    }
+  }
+
+  const fetchPortfolioShorts = async () => {
+    try {
+      const res = await fetch('/.netlify/functions/fetch-portfolio-shorts')
+      const result = await res.json()
+      if (result.success && result.data) {
+        setPortfolioShorts(result.data)
+      }
+    } catch (error) {
+      console.error('포트폴리오 숏폼 조회 오류:', error)
     }
   }
 
@@ -468,8 +484,148 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Portfolio Section */}
+      <section className="py-12 sm:py-16 lg:py-24 bg-gray-950" id="showcase">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header with tabs */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 sm:mb-12 gap-4">
+            <div>
+              <p className="text-yellow-500 text-xs font-medium tracking-[0.2em] uppercase mb-2 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                GLOBAL CREATOR NETWORK
+              </p>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white">
+                PORTFOLIO <span className="italic font-light opacity-80">Series.</span>
+              </h2>
+            </div>
+            {/* Region tabs */}
+            <div className="flex bg-gray-900/80 rounded-full p-1 border border-gray-800">
+              {[
+                { key: 'korea', label: 'KR' },
+                { key: 'japan', label: 'JP' },
+                { key: 'usa', label: 'US' }
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setSelectedRegion(tab.key); setPlayingVideoId(null) }}
+                  className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                    selectedRegion === tab.key
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content */}
+          {(() => {
+            const channels = {
+              korea: { region: 'South Korea', name: 'CNEC Korea', desc: '가장 빠른 트렌드 반영, K-뷰티 특화 숏폼 솔루션. 현지 크리에이터 네트워크를 통한 폭발적인 도달률을 보장합니다.', url: 'https://www.youtube.com/@bizcnec/shorts' },
+              japan: { region: 'Japan', name: 'CNEC Japan', desc: '일본 현지 크리에이터와 함께 만드는 J-뷰티 숏폼 마케팅. 일본 시장의 섬세한 뷰티 트렌드를 정확히 포착합니다.', url: 'https://www.youtube.com/@CNEC_JP/shorts' },
+              usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
+            }
+            const ch = channels[selectedRegion]
+            const shorts = portfolioShorts[selectedRegion] || []
+            const formatViews = (count) => {
+              if (!count) return '0'
+              if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M'
+              if (count >= 1000) return Math.round(count / 1000) + 'K'
+              return count.toString()
+            }
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2fr] gap-5 lg:gap-6">
+                {/* Left: Info card */}
+                <div className="bg-gray-900/60 border border-gray-800/80 rounded-2xl p-6 sm:p-8 flex flex-col justify-between min-h-[320px] lg:min-h-[400px]">
+                  <div>
+                    <p className="text-gray-500 text-[10px] font-medium tracking-[0.2em] uppercase mb-1">Selected Region</p>
+                    <div className="flex items-center gap-2 mb-6">
+                      <p className="text-white text-base font-medium">{ch.region}</p>
+                      <Globe className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <h3 className="text-white font-black text-3xl sm:text-4xl mb-4 italic">{ch.name}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">{ch.desc}</p>
+                  </div>
+                  <a
+                    href={ch.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 mt-6 pt-5 border-t border-gray-800 group"
+                  >
+                    <div className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center group-hover:border-gray-500 transition-colors">
+                      <Play className="w-4 h-4 text-white ml-0.5" />
+                    </div>
+                    <span className="text-gray-400 text-xs font-medium tracking-wider uppercase group-hover:text-white transition-colors">Watch All Works</span>
+                    {shorts.length > 0 && (
+                      <div className="ml-auto flex items-center -space-x-2">
+                        {shorts.slice(0, 3).map((s, i) => (
+                          <div key={s.video_id} className="w-7 h-7 rounded-full border-2 border-gray-900 overflow-hidden">
+                            <img src={s.thumbnail} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        {shorts.length > 3 && (
+                          <div className="w-7 h-7 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center">
+                            <span className="text-gray-400 text-[9px] font-medium">+{shorts.length - 3}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </a>
+                </div>
+
+                {/* Right: Video grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {shorts.length > 0 ? shorts.slice(0, 4).map(short => (
+                    <div
+                      key={short.video_id}
+                      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 cursor-pointer group"
+                      onClick={() => setPlayingVideoId(playingVideoId === short.video_id ? null : short.video_id)}
+                    >
+                      {playingVideoId === short.video_id ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${short.video_id}?autoplay=1&mute=0&loop=1&playlist=${short.video_id}&playsinline=1&controls=1&rel=0&modestbranding=1`}
+                          className="absolute inset-0 w-full h-full"
+                          allow="autoplay; encrypted-media"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <>
+                          <img
+                            src={short.thumbnail}
+                            alt={short.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                          <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+                            <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                              <Play className="w-3 h-3 text-white ml-0.5" fill="white" />
+                            </div>
+                            <span className="text-white text-sm font-semibold drop-shadow-lg">{formatViews(short.view_count)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )) : (
+                    // Skeleton loading
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 animate-pulse">
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-900" />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      </section>
+
       {/* Video Portfolio Sections - 카테고리별 (DB 영상 사용) */}
-      <section id="showcase">
+      <section>
         {videoCategories.map((category, index) => (
           <VideoCategorySection
             key={category.id}

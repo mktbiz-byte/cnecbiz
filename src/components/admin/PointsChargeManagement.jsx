@@ -7,6 +7,7 @@ import { CheckCircle, XCircle, Clock, Search, Filter, CreditCard, Building2, Fil
 import AdminNavigation from './AdminNavigation'
 import BankTransactionsTab from './BankTransactionsTab'
 import TaxInvoiceRequestsTab from './TaxInvoiceRequestsTab'
+import TaxInvoiceHaulabTab from './TaxInvoiceHaulabTab'
 import CreatorPointPaymentsTab from './CreatorPointPaymentsTab'
 import HowlabDepositsTab from './HowlabDepositsTab'
 
@@ -453,7 +454,20 @@ export default function PointsChargeManagement() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                세금계산서 신청 내역
+                세금계산서 (하우파파)
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('tax_invoices_haulab')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'tax_invoices_haulab'
+                  ? 'text-green-600 border-b-2 border-green-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                세금계산서 (하우랩)
               </div>
             </button>
             <button
@@ -490,6 +504,8 @@ export default function PointsChargeManagement() {
         <BankTransactionsTab />
       ) : activeTab === 'tax_invoices' ? (
         <TaxInvoiceRequestsTab />
+      ) : activeTab === 'tax_invoices_haulab' ? (
+        <TaxInvoiceHaulabTab />
       ) : activeTab === 'creator_payments' ? (
         <CreatorPointPaymentsTab />
       ) : activeTab === 'howlab_deposits' ? (

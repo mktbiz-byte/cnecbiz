@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
-  Plus, Trash2, Edit2, Building2, FileSpreadsheet,
+  Plus, Trash2, Edit2, Building2, FileSpreadsheet, Upload,
   Receipt, RefreshCw, ExternalLink, Database,
   Zap, Users, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   PieChart, BarChart3, Wallet, CreditCard, DollarSign
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import {
@@ -97,6 +98,21 @@ export default function RevenueManagementNew() {
   const [withdrawalData, setWithdrawalData] = useState([])
   const [voucherTransactions, setVoucherTransactions] = useState([])
   const [voucherSummary, setVoucherSummary] = useState([])
+  const [contractAmounts, setContractAmounts] = useState({}) // { company_id: amount }
+  const [contractDates, setContractDates] = useState({}) // { company_id: date_string }
+  const [voucherManualEntries, setVoucherManualEntries] = useState([])
+  const [showVoucherModal, setShowVoucherModal] = useState(false)
+  const [showVoucherBulkModal, setShowVoucherBulkModal] = useState(false)
+  const [editingVoucherEntry, setEditingVoucherEntry] = useState(null)
+  const [voucherForm, setVoucherForm] = useState({
+    company_name: '',
+    contract_date: new Date().toISOString().split('T')[0],
+    contract_amount: '',
+    entry_type: 'voucher',
+    description: ''
+  })
+  const [bulkVoucherType, setBulkVoucherType] = useState('voucher')
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState('all') // all, voucher, point
 
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -171,6 +187,13 @@ export default function RevenueManagementNew() {
         .order('created_at', { ascending: false })
       setReceivables(recv || [])
 
+      // 수출바우처 수동 입력 내역 조회
+      const { data: manualEntries } = await supabaseBiz
+        .from('voucher_manual_entries')
+        .select('*')
+        .order('contract_date', { ascending: false })
+      setVoucherManualEntries(manualEntries || [])
+
       // 수출바우처(포인트) 거래 내역 조회
       const { data: transactions } = await supabaseBiz
         .from('points_transactions')
@@ -207,15 +230,25 @@ export default function RevenueManagementNew() {
         if (companyIds.length > 0) {
           const { data: companies } = await supabaseBiz
             .from('companies')
-            .select('user_id, company_name, email')
+            .select('*')
             .in('user_id', companyIds)
 
           if (companies) {
+            const amounts = {}
+            const dates = {}
             for (const company of companies) {
               if (companyMap[company.user_id]) {
                 companyMap[company.user_id].company_name = company.company_name || company.email || '알 수 없음'
               }
+              if (company.voucher_contract_amount) {
+                amounts[company.user_id] = company.voucher_contract_amount
+              }
+              if (company.voucher_contract_date) {
+                dates[company.user_id] = company.voucher_contract_date
+              }
             }
+            setContractAmounts(prev => ({ ...prev, ...amounts }))
+            setContractDates(prev => ({ ...prev, ...dates }))
           }
         }
 
@@ -384,10 +417,21 @@ export default function RevenueManagementNew() {
 
   // 동기화 함수들
   const syncTaxInvoicesToRevenue = async () => {
-    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?')) return
+    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?\n\n하우파파(자동+수동) + 하우랩(수동) 모두 포함됩니다.')) return
 
     setLoading(true)
     try {
+      // 기존 동기화된 레코드 조회 (중복 방지)
+      const { data: existingRevenues } = await supabaseBiz
+        .from('revenue_records')
+        .select('source_id, source_type')
+        .in('source_type', ['tax_invoice', 'manual_tax_invoice'])
+
+      const existingIds = new Set((existingRevenues || []).map(r => `${r.source_type}_${r.source_id}`))
+
+      let syncCount = 0
+
+      // 1. 하우파파 자동 발행 (points_charge_requests)
       const { data: chargeRequests, error: fetchError } = await supabaseBiz
         .from('points_charge_requests')
         .select('id, amount, tax_invoice_issued, tax_invoice_info, created_at, company_id')
@@ -396,22 +440,13 @@ export default function RevenueManagementNew() {
 
       if (fetchError) throw fetchError
 
-      const { data: existingRevenues } = await supabaseBiz
-        .from('revenue_records')
-        .select('source_id')
-        .eq('source_type', 'tax_invoice')
-
-      const existingIds = new Set((existingRevenues || []).map(r => r.source_id))
-
-      let syncCount = 0
       for (const request of (chargeRequests || [])) {
-        if (existingIds.has(request.id)) continue
+        if (existingIds.has(`tax_invoice_${request.id}`)) continue
 
         const createdDate = new Date(request.created_at)
         const yearMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`
         const taxInfo = request.tax_invoice_info || {}
         const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
-
         const recordDate = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}-${String(createdDate.getDate()).padStart(2, '0')}`
 
         const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
@@ -423,11 +458,55 @@ export default function RevenueManagementNew() {
           source_type: 'tax_invoice',
           source_id: request.id,
           tax_invoice_number: taxInfo.nts_confirm_num || taxInfo.mgt_key || '',
-          description: `세금계산서 발행: ${companyName}`
+          description: `[하우파파] 세금계산서: ${companyName}`
         })
 
         if (insertError) {
           console.error('매출 레코드 삽입 오류:', insertError)
+          continue
+        }
+        syncCount++
+      }
+
+      // 2. 수동 발행 (manual_tax_invoices) - 하우파파 + 하우랩
+      const { data: manualInvoices, error: manualError } = await supabaseBiz
+        .from('manual_tax_invoices')
+        .select('*')
+        .eq('status', 'issued')
+        .order('issued_at', { ascending: false })
+
+      if (manualError) {
+        console.error('수동 세금계산서 조회 오류:', manualError)
+      }
+
+      for (const invoice of (manualInvoices || [])) {
+        if (existingIds.has(`manual_tax_invoice_${invoice.id}`)) continue
+
+        // mgt_key가 'L'로 시작하면 하우랩, 'M'으로 시작하면 하우파파
+        const isHaulab = (invoice.mgt_key || '').startsWith('L') || invoice.issuer === 'haulab'
+        const corpId = isHaulab ? 'haulab' : 'haupapa'
+        const corpLabel = isHaulab ? '하우랩' : '하우파파'
+
+        const issuedDate = new Date(invoice.issued_at || invoice.write_date || invoice.created_at)
+        const yearMonth = invoice.write_date
+          ? invoice.write_date.substring(0, 7)
+          : `${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}`
+        const recordDate = invoice.write_date || `${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}-${String(issuedDate.getDate()).padStart(2, '0')}`
+
+        const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
+          corporation_id: corpId,
+          year_month: yearMonth,
+          record_date: recordDate,
+          type: 'revenue',
+          amount: invoice.total_amount,
+          source_type: 'manual_tax_invoice',
+          source_id: invoice.id,
+          tax_invoice_number: invoice.nts_confirm_num || invoice.mgt_key || '',
+          description: `[${corpLabel}] 세금계산서: ${invoice.company_name || '-'}`
+        })
+
+        if (insertError) {
+          console.error('수동 매출 레코드 삽입 오류:', insertError)
           continue
         }
         syncCount++
@@ -711,6 +790,315 @@ export default function RevenueManagementNew() {
       due_date: ''
     })
   }
+
+  // 바우처 계약일 저장
+  const handleSaveContractDate = async (companyId, date) => {
+    try {
+      setContractDates(prev => ({ ...prev, [companyId]: date }))
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ voucher_contract_date: date || null })
+        .eq('user_id', companyId)
+      if (error) throw error
+    } catch (error) {
+      console.error('계약일 저장 오류:', error)
+      alert('계약일 저장 실패: ' + error.message)
+    }
+  }
+
+  // 바우처 계약금액 저장
+  const handleSaveContractAmount = async (companyId, amount) => {
+    try {
+      const numAmount = parseInt(amount) || 0
+      setContractAmounts(prev => ({ ...prev, [companyId]: numAmount }))
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ voucher_contract_amount: numAmount })
+        .eq('user_id', companyId)
+      if (error) throw error
+    } catch (error) {
+      console.error('계약금액 저장 오류:', error)
+      alert('계약금액 저장 실패: ' + error.message)
+    }
+  }
+
+  // 특정 기업의 포인트 데이터 리셋
+  const handleResetCompanyPoints = async (companyId) => {
+    // 먼저 dry run으로 영향 범위 확인
+    try {
+      // company_id(auth.users.id)로 companies 테이블에서 email 조회
+      const { data: company } = await supabaseBiz
+        .from('companies')
+        .select('email, company_name')
+        .eq('user_id', companyId)
+        .single()
+
+      if (!company) {
+        alert('기업 정보를 찾을 수 없습니다.')
+        return
+      }
+
+      const dryRes = await fetch('/.netlify/functions/reset-company-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyEmail: company.email, dryRun: true })
+      })
+      const dryResult = await dryRes.json()
+
+      if (!dryResult.success) {
+        alert(`조회 실패: ${dryResult.error}`)
+        return
+      }
+
+      const r = dryResult.report.affected
+      const msg = `[${company.company_name}] 포인트 데이터를 리셋합니다.\n\n` +
+        `삭제 대상:\n` +
+        `- 포인트 거래내역: ${r.points_transactions?.count || 0}건\n` +
+        `- 충전 요청: ${r.points_charge_requests?.count || 0}건\n` +
+        `- 미수금: ${r.receivables?.count || 0}건\n` +
+        `- 결제 내역: ${r.payments?.count || 0}건\n` +
+        `- 포인트 잔액: 0으로 리셋\n\n` +
+        `정말 삭제하시겠습니까?`
+
+      if (!confirm(msg)) return
+
+      // 실제 삭제 실행
+      const execRes = await fetch('/.netlify/functions/reset-company-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyEmail: company.email, dryRun: false })
+      })
+      const execResult = await execRes.json()
+
+      if (execResult.success) {
+        alert(`${company.company_name}의 포인트 데이터가 리셋되었습니다.`)
+        fetchAllData() // 데이터 새로고침
+      } else {
+        alert(`리셋 실패: ${execResult.error}`)
+      }
+    } catch (error) {
+      console.error('포인트 리셋 오류:', error)
+      alert(`오류: ${error.message}`)
+    }
+  }
+
+  // ── 수출바우처 수동 입력 핸들러 ──
+  const resetVoucherForm = () => {
+    setVoucherForm({
+      company_name: '',
+      contract_date: new Date().toISOString().split('T')[0],
+      contract_amount: '',
+      entry_type: 'voucher',
+      description: ''
+    })
+  }
+
+  const handleSaveVoucherEntry = async () => {
+    if (!voucherForm.company_name.trim()) { alert('기업명을 입력해주세요.'); return }
+    if (!voucherForm.contract_date) { alert('계약일을 입력해주세요.'); return }
+    const amount = parseInt(String(voucherForm.contract_amount).replace(/[^0-9]/g, '')) || 0
+    if (!amount) { alert('계약금액을 입력해주세요.'); return }
+
+    try {
+      const data = {
+        company_name: voucherForm.company_name.trim(),
+        contract_date: voucherForm.contract_date,
+        contract_amount: amount,
+        entry_type: voucherForm.entry_type || 'voucher',
+        description: voucherForm.description.trim() || null
+      }
+
+      let error
+      if (editingVoucherEntry) {
+        ({ error } = await supabaseBiz.from('voucher_manual_entries').update(data).eq('id', editingVoucherEntry.id))
+      } else {
+        ({ error } = await supabaseBiz.from('voucher_manual_entries').insert(data))
+      }
+
+      // entry_type 컬럼이 없으면 제거 후 재시도
+      if (error && error.message?.includes('entry_type')) {
+        const { entry_type, ...dataWithout } = data
+        if (editingVoucherEntry) {
+          const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').update(dataWithout).eq('id', editingVoucherEntry.id)
+          if (err2) throw err2
+        } else {
+          const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').insert(dataWithout)
+          if (err2) throw err2
+        }
+      } else if (error) {
+        throw error
+      }
+
+      setShowVoucherModal(false)
+      setEditingVoucherEntry(null)
+      resetVoucherForm()
+      fetchAllData()
+    } catch (error) {
+      console.error('수출바우처 저장 오류:', error)
+      alert('저장 실패: ' + error.message)
+    }
+  }
+
+  const handleDeleteVoucherEntry = async (id) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return
+    try {
+      await supabaseBiz.from('voucher_manual_entries').delete().eq('id', id)
+      fetchAllData()
+    } catch (error) {
+      alert('삭제 실패: ' + error.message)
+    }
+  }
+
+  const handleExcelFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data)
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+      if (rows.length === 0) {
+        alert('엑셀 파일에 데이터가 없습니다.')
+        return
+      }
+
+      // 첫 행이 헤더인지 자동 판별 (첫 번째 셀이 숫자가 아니면 헤더로 간주)
+      const startRow = (typeof rows[0][0] === 'string' && isNaN(parseInt(String(rows[0][0]).replace(/[^0-9]/g, '')))) ? 1 : 0
+
+      const entries = []
+      const errors = []
+
+      for (let i = startRow; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length < 3) {
+          if (row && row.some(cell => cell)) errors.push(`${i + 1}행: 최소 3개 컬럼 필요 (기업명, 계약일, 금액)`)
+          continue
+        }
+
+        const companyName = String(row[0] || '').trim()
+        let contractDate = String(row[1] || '').trim()
+        const amount = parseInt(String(row[2] || '').replace(/[^0-9]/g, '')) || 0
+        const description = String(row[3] || '').trim()
+
+        // 엑셀 날짜 시리얼 넘버 처리
+        if (typeof row[1] === 'number' && row[1] > 30000 && row[1] < 60000) {
+          const excelDate = new Date((row[1] - 25569) * 86400 * 1000)
+          contractDate = excelDate.toISOString().split('T')[0]
+        }
+
+        // 날짜 포맷 정규화
+        contractDate = contractDate.replace(/\//g, '-').replace(/\./g, '-')
+        if (/^\d{8}$/.test(contractDate)) {
+          contractDate = `${contractDate.slice(0, 4)}-${contractDate.slice(4, 6)}-${contractDate.slice(6, 8)}`
+        }
+        // YYYY-M-D → YYYY-MM-DD
+        const dateParts = contractDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+        if (dateParts) {
+          contractDate = `${dateParts[1]}-${String(dateParts[2]).padStart(2, '0')}-${String(dateParts[3]).padStart(2, '0')}`
+        }
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(contractDate)) {
+          errors.push(`${i + 1}행: 날짜 형식 오류 (${row[1]})`)
+          continue
+        }
+
+        if (!companyName || !amount) {
+          errors.push(`${i + 1}행: 기업명 또는 금액 누락`)
+          continue
+        }
+
+        entries.push({
+          company_name: companyName,
+          contract_date: contractDate,
+          contract_amount: amount,
+          entry_type: bulkVoucherType || 'voucher',
+          description: description || null
+        })
+      }
+
+      if (errors.length > 0) {
+        alert(`오류가 있는 행:\n${errors.join('\n')}\n\n오류 없는 ${entries.length}건을 등록합니다.`)
+      }
+
+      if (entries.length === 0) {
+        alert('등록할 데이터가 없습니다.')
+        return
+      }
+
+      if (!confirm(`${entries.length}건을 등록하시겠습니까?\n\n${entries.slice(0, 3).map(e => `${e.company_name} / ${e.contract_date} / ${e.contract_amount.toLocaleString()}원`).join('\n')}${entries.length > 3 ? `\n... 외 ${entries.length - 3}건` : ''}`)) return
+
+      let { error } = await supabaseBiz.from('voucher_manual_entries').insert(entries)
+      // entry_type 컬럼이 없으면 제거 후 재시도
+      if (error && error.message?.includes('entry_type')) {
+        const entriesWithout = entries.map(({ entry_type, ...rest }) => rest)
+        const { error: err2 } = await supabaseBiz.from('voucher_manual_entries').insert(entriesWithout)
+        if (err2) throw err2
+      } else if (error) {
+        throw error
+      }
+      alert(`${entries.length}건이 등록되었습니다.`)
+      setShowVoucherBulkModal(false)
+      fetchAllData()
+    } catch (error) {
+      console.error('엑셀 업로드 오류:', error)
+      alert('엑셀 업로드 실패: ' + error.message)
+    }
+
+    // 파일 input 초기화
+    e.target.value = ''
+  }
+
+  // 수출바우처 통계
+  const voucherStats = useMemo(() => {
+    const vouchers = voucherManualEntries.filter(e => e.entry_type !== 'point')
+    const points = voucherManualEntries.filter(e => e.entry_type === 'point')
+    // 포인트 기반 기업별 잔액 합계 (계약금액 - 지급금)
+    const totalContractAmount = voucherSummary.reduce((sum, s) => sum + (contractAmounts[s.company_id] || 0), 0)
+    const totalCharged = voucherSummary.reduce((sum, s) => sum + s.total_charged, 0)
+    const totalSpent = voucherSummary.reduce((sum, s) => sum + s.total_spent, 0)
+    const totalBalance = totalContractAmount - totalCharged // 계약금액 - 지급금 = 미수금(잔액)
+    return {
+      totalCount: voucherManualEntries.length,
+      totalAmount: voucherManualEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      voucherCount: vouchers.length,
+      voucherAmount: vouchers.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      pointCount: points.length,
+      pointAmount: points.reduce((sum, e) => sum + (e.contract_amount || 0), 0),
+      totalContractAmount,
+      totalCharged,
+      totalSpent,
+      totalBalance
+    }
+  }, [voucherManualEntries, voucherSummary, contractAmounts])
+
+  // 필터링된 수동 입력 목록
+  const filteredVoucherEntries = useMemo(() => {
+    if (voucherTypeFilter === 'all') return voucherManualEntries
+    return voucherManualEntries.filter(e =>
+      voucherTypeFilter === 'point' ? e.entry_type === 'point' : e.entry_type !== 'point'
+    )
+  }, [voucherManualEntries, voucherTypeFilter])
+
+  // 수출바우처 월간 통계
+  const voucherMonthlySummary = useMemo(() => {
+    const monthly = {}
+    for (const entry of voucherManualEntries) {
+      const month = entry.contract_date?.substring(0, 7) // YYYY-MM
+      if (!month) continue
+      const type = entry.entry_type === 'point' ? 'point' : 'voucher'
+      if (!monthly[month]) monthly[month] = { month, voucherCount: 0, voucherTotal: 0, pointCount: 0, pointTotal: 0 }
+      if (type === 'voucher') {
+        monthly[month].voucherCount++
+        monthly[month].voucherTotal += entry.contract_amount || 0
+      } else {
+        monthly[month].pointCount++
+        monthly[month].pointTotal += entry.contract_amount || 0
+      }
+    }
+    return Object.values(monthly).sort((a, b) => b.month.localeCompare(a.month))
+  }, [voucherManualEntries])
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return '-'
@@ -1310,14 +1698,83 @@ export default function RevenueManagementNew() {
 
           {/* 매출 내역 탭 */}
           <TabsContent value="revenue">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">매출 내역</CardTitle>
-                <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
-                  <Plus className="w-4 h-4 mr-1" /> 매출 추가
-                </Button>
-              </CardHeader>
+            <div className="space-y-6">
+              {/* 법인별 월별 매출 요약 테이블 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 요약 (법인별)</CardTitle>
+                  <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
+                    <Plus className="w-4 h-4 mr-1" /> 매출 추가
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">법인</th>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
+                          ))}
+                          <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* 하우파파 */}
+                        <tr className="border-b border-slate-100 hover:bg-blue-50/30">
+                          <td className="px-3 py-2 font-medium text-blue-700 sticky left-0 bg-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                            하우파파
+                          </td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-2 text-right text-slate-600">
+                              {m.haupapaRevenue !== 0 ? formatCompact(m.haupapaRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right font-semibold text-blue-700 bg-slate-50">
+                            {formatCompact(yearlyTotals.haupapaRevenue)}
+                          </td>
+                        </tr>
+                        {/* 하우랩 */}
+                        <tr className="border-b border-slate-100 hover:bg-emerald-50/30">
+                          <td className="px-3 py-2 font-medium text-emerald-700 sticky left-0 bg-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            하우랩
+                          </td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-2 text-right text-slate-600">
+                              {m.haulabRevenue !== 0 ? formatCompact(m.haulabRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700 bg-slate-50">
+                            {formatCompact(yearlyTotals.haulabRevenue)}
+                          </td>
+                        </tr>
+                        {/* 합계 */}
+                        <tr className="bg-violet-50 font-bold">
+                          <td className="px-3 py-3 text-violet-700 sticky left-0 bg-violet-50">합계</td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-3 text-right text-violet-600">
+                              {m.totalRevenue !== 0 ? formatCompact(m.totalRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-3 text-right text-violet-700 bg-violet-100">
+                            {formatCompact(yearlyTotals.totalRevenue)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 매출 개별 내역 리스트 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 내역 (개별 항목)</CardTitle>
+                  <span className="text-sm text-slate-500">총 {revenueData.length}건</span>
+                </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {revenueData.length === 0 ? (
@@ -1374,18 +1831,324 @@ export default function RevenueManagementNew() {
                   )}
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* 수출바우처 탭 */}
           <TabsContent value="voucher">
             <div className="space-y-6">
+              {/* 통계 카드 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-indigo-100 text-sm">전체 계약</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.totalCount}건</p>
+                        <p className="text-indigo-200 text-sm mt-1">{formatNumber(voucherStats.totalAmount)}</p>
+                      </div>
+                      <FileSpreadsheet className="w-10 h-10 text-indigo-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-100 text-sm">수출바우처</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.voucherCount}건</p>
+                        <p className="text-blue-200 text-sm mt-1">{formatNumber(voucherStats.voucherAmount)}</p>
+                      </div>
+                      <Zap className="w-10 h-10 text-blue-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-emerald-100 text-sm">포인트 지급</p>
+                        <p className="text-2xl font-bold mt-1">{voucherStats.pointCount}건</p>
+                        <p className="text-emerald-200 text-sm mt-1">{formatNumber(voucherStats.pointAmount)}</p>
+                      </div>
+                      <CreditCard className="w-10 h-10 text-emerald-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-amber-100 text-sm">미수금 (잔액)</p>
+                        <p className="text-2xl font-bold mt-1">{formatNumber(voucherStats.totalBalance)}</p>
+                        <p className="text-amber-200 text-xs mt-1">
+                          계약 {formatNumber(voucherStats.totalContractAmount)} - 지급 {formatNumber(voucherStats.totalCharged)}
+                        </p>
+                      </div>
+                      <Wallet className="w-10 h-10 text-amber-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 월간 계약 현황 차트 */}
+              {voucherMonthlySummary.length > 0 && (
+                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-indigo-500" />
+                      월간 계약 현황
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[...voucherMonthlySummary].sort((a, b) => a.month.localeCompare(b.month))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={(v) => {
+                            const parts = v.split('-')
+                            return `${parts[0].slice(2)}.${parts[1]}`
+                          }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => {
+                            if (v >= 100000000) return `${(v / 100000000).toFixed(0)}억`
+                            if (v >= 10000000) return `${(v / 10000000).toFixed(0)}천만`
+                            if (v >= 10000) return `${(v / 10000).toFixed(0)}만`
+                            return v.toLocaleString()
+                          }} />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${value.toLocaleString()}원`,
+                              name === 'voucherTotal' ? '수출바우처' : '포인트 지급'
+                            ]}
+                            labelFormatter={(label) => `${label}`}
+                          />
+                          <Legend formatter={(value) => value === 'voucherTotal' ? '수출바우처' : '포인트 지급'} />
+                          <Bar dataKey="voucherTotal" fill="#3B82F6" radius={[4, 4, 0, 0]} name="voucherTotal" />
+                          <Bar dataKey="pointTotal" fill="#10B981" radius={[4, 4, 0, 0]} name="pointTotal" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 수출바우처 수동 입력 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
+                      계약 관리
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                        onClick={() => setShowVoucherBulkModal(true)}
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        엑셀 업로드
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                        onClick={() => {
+                          setEditingVoucherEntry(null)
+                          resetVoucherForm()
+                          setShowVoucherModal(true)
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        수동 입력
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* 타입 필터 */}
+                  <div className="flex gap-2 mb-4">
+                    {[
+                      { key: 'all', label: '전체' },
+                      { key: 'voucher', label: '수출바우처' },
+                      { key: 'point', label: '포인트 지급' }
+                    ].map(f => (
+                      <Button
+                        key={f.key}
+                        size="sm"
+                        variant={voucherTypeFilter === f.key ? 'default' : 'outline'}
+                        className={voucherTypeFilter === f.key
+                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          : 'text-slate-600 border-slate-200 hover:bg-slate-50'}
+                        onClick={() => setVoucherTypeFilter(f.key)}
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {filteredVoucherEntries.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      <Receipt className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                      <p>수동 입력된 내역이 없습니다.</p>
+                      <p className="text-xs mt-1">위 버튼으로 직접 입력하거나 엑셀 파일로 업로드하세요.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">구분</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">계약일</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업명</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-indigo-600">계약금액</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">비고</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">관리</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredVoucherEntries.map((entry) => (
+                            <tr key={entry.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  entry.entry_type === 'point'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {entry.entry_type === 'point' ? '포인트' : '바우처'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{entry.contract_date}</td>
+                              <td className="px-4 py-3 font-medium text-slate-700">{entry.company_name}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-indigo-600">{formatNumber(entry.contract_amount)}</td>
+                              <td className="px-4 py-3 text-sm text-slate-500">{entry.description || '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-600 hover:bg-blue-50 h-7 w-7 p-0"
+                                    onClick={() => {
+                                      setEditingVoucherEntry(entry)
+                                      setVoucherForm({
+                                        company_name: entry.company_name,
+                                        contract_date: entry.contract_date,
+                                        contract_amount: String(entry.contract_amount),
+                                        entry_type: entry.entry_type || 'voucher',
+                                        description: entry.description || ''
+                                      })
+                                      setShowVoucherModal(true)
+                                    }}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-rose-600 hover:bg-rose-50 h-7 w-7 p-0"
+                                    onClick={() => handleDeleteVoucherEntry(entry.id)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-indigo-50 font-bold">
+                            <td className="px-4 py-3 text-indigo-700" colSpan={3}>합계 ({filteredVoucherEntries.length}건)</td>
+                            <td className="px-4 py-3 text-right text-indigo-700">
+                              {formatNumber(filteredVoucherEntries.reduce((sum, e) => sum + (e.contract_amount || 0), 0))}
+                            </td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 월간 통계 */}
+              {voucherMonthlySummary.length > 0 && (
+                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-violet-500" />
+                      수출바우처 월간 통계
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">월</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600">바우처 건수</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-blue-600">바우처 금액</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-emerald-600">포인트 건수</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">포인트 금액</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-violet-600">합계</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {voucherMonthlySummary.map((ms) => (
+                            <tr key={ms.month} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-4 py-3 font-medium text-slate-700">{ms.month}</td>
+                              <td className="px-4 py-3 text-center">
+                                {ms.voucherCount > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
+                                    {ms.voucherCount}건
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-sm text-blue-600">{ms.voucherTotal > 0 ? formatNumber(ms.voucherTotal) : '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                {ms.pointCount > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+                                    {ms.pointCount}건
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-sm text-emerald-600">{ms.pointTotal > 0 ? formatNumber(ms.pointTotal) : '-'}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-violet-600">{formatNumber(ms.voucherTotal + ms.pointTotal)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-violet-50 font-bold">
+                            <td className="px-4 py-3 text-violet-700">총합계</td>
+                            <td className="px-4 py-3 text-center text-blue-700">
+                              {voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherCount, 0)}건
+                            </td>
+                            <td className="px-4 py-3 text-right text-blue-700">
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherTotal, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-center text-emerald-700">
+                              {voucherMonthlySummary.reduce((sum, ms) => sum + ms.pointCount, 0)}건
+                            </td>
+                            <td className="px-4 py-3 text-right text-emerald-700">
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.pointTotal, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-right text-violet-700">
+                              {formatNumber(voucherMonthlySummary.reduce((sum, ms) => sum + ms.voucherTotal + ms.pointTotal, 0))}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* 기업별 바우처 요약 */}
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-purple-500" />
-                    기업별 수출바우처 현황
+                    기업별 수출바우처 현황 (포인트 기반)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1400,10 +2163,13 @@ export default function RevenueManagementNew() {
                         <thead>
                           <tr className="border-b border-slate-200">
                             <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">기업</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">계약일</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-purple-600">계약금액</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">지급금 (충전)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-rose-600">사용금 (차감)</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-slate-600">잔액</th>
                             <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">거래 건수</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">관리</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1411,6 +2177,31 @@ export default function RevenueManagementNew() {
                             <tr key={summary.company_id} className="border-b border-slate-100 hover:bg-slate-50/50">
                               <td className="px-4 py-3">
                                 <div className="font-medium text-slate-700">{summary.company_name || '알 수 없음'}</div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Input
+                                  type="date"
+                                  className="w-36 text-sm"
+                                  value={contractDates[summary.company_id] || ''}
+                                  onChange={(e) => setContractDates(prev => ({ ...prev, [summary.company_id]: e.target.value }))}
+                                  onBlur={(e) => handleSaveContractDate(summary.company_id, e.target.value)}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <Input
+                                  type="text"
+                                  className="w-32 text-right text-sm ml-auto"
+                                  placeholder="0"
+                                  value={contractAmounts[summary.company_id] != null ? formatNumber(contractAmounts[summary.company_id]) : ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                                    setContractAmounts(prev => ({ ...prev, [summary.company_id]: raw ? parseInt(raw) : '' }))
+                                  }}
+                                  onBlur={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                                    handleSaveContractAmount(summary.company_id, raw)
+                                  }}
+                                />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <span className="font-semibold text-emerald-600">
@@ -1434,12 +2225,27 @@ export default function RevenueManagementNew() {
                                   {summary.transactions.length}건
                                 </span>
                               </td>
+                              <td className="px-4 py-3 text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
+                                  onClick={() => handleResetCompanyPoints(summary.company_id)}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  리셋
+                                </Button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr className="bg-purple-50 font-bold">
                             <td className="px-4 py-3 text-purple-700">합계</td>
+                            <td></td>
+                            <td className="px-4 py-3 text-right text-purple-700">
+                              {formatNumber(voucherSummary.reduce((sum, s) => sum + (contractAmounts[s.company_id] || 0), 0))}
+                            </td>
                             <td className="px-4 py-3 text-right text-emerald-700">
                               +{formatNumber(voucherSummary.reduce((sum, s) => sum + s.total_charged, 0))}
                             </td>
@@ -1452,6 +2258,7 @@ export default function RevenueManagementNew() {
                             <td className="px-4 py-3 text-center text-purple-700">
                               {voucherTransactions.length}건
                             </td>
+                            <td></td>
                           </tr>
                         </tfoot>
                       </table>
@@ -1653,6 +2460,107 @@ export default function RevenueManagementNew() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReceivableModal(false)}>취소</Button>
             <Button onClick={handleSaveReceivable} className="bg-amber-500 hover:bg-amber-600">저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 수출바우처 수동 입력 모달 */}
+      <Dialog open={showVoucherModal} onOpenChange={setShowVoucherModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingVoucherEntry ? '수출바우처 수정' : '수출바우처 수동 입력'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>구분 *</Label>
+              <Select value={voucherForm.entry_type} onValueChange={(v) => setVoucherForm({...voucherForm, entry_type: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="voucher">수출바우처</SelectItem>
+                  <SelectItem value="point">포인트 지급</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>기업명 *</Label>
+              <Input
+                value={voucherForm.company_name}
+                onChange={(e) => setVoucherForm({...voucherForm, company_name: e.target.value})}
+                placeholder="기업명을 입력하세요"
+              />
+            </div>
+            <div>
+              <Label>계약일 *</Label>
+              <Input
+                type="date"
+                value={voucherForm.contract_date}
+                onChange={(e) => setVoucherForm({...voucherForm, contract_date: e.target.value})}
+              />
+            </div>
+            <div>
+              <Label>계약금액 *</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={voucherForm.contract_amount ? parseInt(String(voucherForm.contract_amount).replace(/[^0-9]/g, '')).toLocaleString() : ''}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '')
+                  setVoucherForm({...voucherForm, contract_amount: raw})
+                }}
+                placeholder="금액 입력"
+              />
+            </div>
+            <div>
+              <Label>비고</Label>
+              <Input
+                value={voucherForm.description}
+                onChange={(e) => setVoucherForm({...voucherForm, description: e.target.value})}
+                placeholder="메모 (선택)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVoucherModal(false)}>취소</Button>
+            <Button onClick={handleSaveVoucherEntry} className="bg-indigo-600 hover:bg-indigo-700">저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 수출바우처 엑셀 업로드 모달 */}
+      <Dialog open={showVoucherBulkModal} onOpenChange={setShowVoucherBulkModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>엑셀 파일 업로드</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-indigo-50 rounded-lg p-4 text-sm text-indigo-700">
+              <p className="font-medium mb-2">엑셀 파일(.xlsx, .xls)을 업로드하세요.</p>
+              <p className="text-xs">컬럼 순서: <strong>기업명 | 계약일 | 금액 | 비고(선택)</strong></p>
+              <p className="text-xs mt-1">첫 행이 헤더인 경우 자동 건너뜁니다.</p>
+            </div>
+            <div>
+              <Label>구분</Label>
+              <Select value={bulkVoucherType} onValueChange={setBulkVoucherType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="voucher">수출바우처</SelectItem>
+                  <SelectItem value="point">포인트 지급</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="border-2 border-dashed border-indigo-200 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors">
+              <Upload className="w-10 h-10 mx-auto mb-3 text-indigo-400" />
+              <p className="text-sm text-slate-600 mb-3">클릭하여 엑셀 파일을 선택하세요</p>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleExcelFileUpload}
+                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVoucherBulkModal(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

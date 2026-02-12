@@ -17,7 +17,7 @@ const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID
 const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM
 const POPBILL_USER_ID = process.env.POPBILL_USER_ID
-const POPBILL_TEST_MODE = process.env.POPBILL_TEST_MODE !== 'false' // 기본값 true
+const POPBILL_TEST_MODE = process.env.POPBILL_TEST_MODE === 'true' // 기본값 false (프로덕션)
 
 // Popbill API Base URL
 const POPBILL_API_URL = POPBILL_TEST_MODE 

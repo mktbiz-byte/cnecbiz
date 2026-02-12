@@ -626,6 +626,7 @@ export default function CampaignDetail() {
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
+  const [viewingGuideGroup, setViewingGuideGroup] = useState(null) // 가이드 보기 시 크리에이터의 그룹명
   const [showCampaignGuidePopup, setShowCampaignGuidePopup] = useState(false) // 캠페인 등록 정보 팝업
   const [showDeleteModal, setShowDeleteModal] = useState(false) // 캠페인 삭제 모달
   const [isDeleting, setIsDeleting] = useState(false)
@@ -1962,10 +1963,10 @@ export default function CampaignDetail() {
         }
       }
 
-      // 6. 클린본 URL 병합 (같은 user_id, video_number의 다른 레코드에서)
+      // 6. 클린본 URL 병합 (같은 user_id, video_number, version의 다른 레코드에서)
       const videoMap = new Map()
       allVideoSubmissions.forEach(sub => {
-        const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}`
+        const key = `${sub.user_id}_${sub.video_number || sub.week_number || 'default'}_${sub.version || 1}`
         const existing = videoMap.get(key)
         if (!existing) {
           videoMap.set(key, sub)
@@ -4455,16 +4456,33 @@ Questions? Contact us.
       }
 
       // 1. video_submissions 상태 업데이트 (approved로 변경)
-      const { error: videoError } = await supabase
+      const now = new Date().toISOString()
+      let { error: videoError } = await supabase
         .from('video_submissions')
         .update({
           status: 'approved',
-          approved_at: new Date().toISOString(),
-          reviewed_at: new Date().toISOString()
+          approved_at: now,
+          reviewed_at: now
         })
         .eq('id', submission.id)
 
-      if (videoError) throw videoError
+      // approved_at/reviewed_at 컬럼이 없는 리전(Japan 등)에서는 status만 업데이트
+      if (videoError) {
+        console.warn('[handleVideoApproval] Full update failed, trying status only:', videoError.message)
+        const { error: fallbackError } = await supabase
+          .from('video_submissions')
+          .update({ status: 'approved', updated_at: now })
+          .eq('id', submission.id)
+
+        if (fallbackError) {
+          // updated_at도 없을 수 있음
+          const { error: minimalError } = await supabase
+            .from('video_submissions')
+            .update({ status: 'approved' })
+            .eq('id', submission.id)
+          if (minimalError) throw minimalError
+        }
+      }
 
       // 다중 영상 캠페인 타입 체크 (리전별)
       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
@@ -4724,7 +4742,7 @@ Questions? Contact us.
         let profileMatchField = 'id'
         const { data: profileById } = await supabase
           .from('user_profiles')
-          .select('points, phone, email')
+          .select('points, phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
         if (profileById) {
@@ -4733,7 +4751,7 @@ Questions? Contact us.
         } else {
           const { data: profileByUserId } = await supabase
             .from('user_profiles')
-            .select('points, phone, email')
+            .select('points, phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId
@@ -4767,8 +4785,8 @@ Questions? Contact us.
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
-          if (profile.phone) {
+          // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
+          if (region === 'korea' && profile.phone) {
             try {
               const completedDate = new Date().toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
@@ -4793,8 +4811,58 @@ Questions? Contact us.
             }
           }
 
-          // 크리에이터에게 이메일 발송
-          if (profile.email) {
+          // 일본: LINE + SMS + 이메일 알림 발송 (포인트 지급)
+          if (region === 'japan') {
+            try {
+              const lineUserId = profile.line_user_id ||
+                participants.find(p => p.user_id === userId)?.line_user_id ||
+                enrichedApplications.find(a => a.user_id === userId)?.line_user_id
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  lineUserId: lineUserId,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'キャンペーン',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 일본 포인트 지급 알림 발송 성공 (LINE + SMS + Email)')
+            } catch (japanError) {
+              console.error('일본 포인트 지급 알림 발송 실패:', japanError)
+            }
+          }
+
+          // 미국: 이메일 + SMS 알림 (포인트 지급)
+          if (region === 'us') {
+            try {
+              await fetch('/.netlify/functions/send-us-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'Campaign',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 미국 포인트 지급 알림 발송 성공 (SMS + Email)')
+            } catch (usError) {
+              console.error('미국 포인트 지급 알림 발송 실패:', usError)
+            }
+          }
+
+          // 한국: 이메일 발송
+          if (region === 'korea' && profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
@@ -4894,7 +4962,7 @@ Questions? Contact us.
         let profileMatchField2 = 'id'
         const { data: profileById2 } = await supabase
           .from('user_profiles')
-          .select('points, phone, email')
+          .select('points, phone, email, line_user_id')
           .eq('id', userId)
           .maybeSingle()
         if (profileById2) {
@@ -4903,7 +4971,7 @@ Questions? Contact us.
         } else {
           const { data: profileByUserId2 } = await supabase
             .from('user_profiles')
-            .select('points, phone, email')
+            .select('points, phone, email, line_user_id')
             .eq('user_id', userId)
             .maybeSingle()
           profile = profileByUserId2
@@ -4937,8 +5005,8 @@ Questions? Contact us.
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
-          if (profile.phone) {
+          // 한국: 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
+          if (region === 'korea' && profile.phone) {
             try {
               const completedDate = new Date().toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
@@ -4962,8 +5030,56 @@ Questions? Contact us.
             }
           }
 
-          // 크리에이터에게 이메일 발송
-          if (profile.email) {
+          // 일본: LINE + SMS + 이메일 알림 발송 (포인트 지급)
+          if (region === 'japan') {
+            try {
+              const lineUserId = profile.line_user_id || participant.line_user_id
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  lineUserId: lineUserId,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'キャンペーン',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 일본 포인트 지급 알림 발송 성공 (LINE + SMS + Email)')
+            } catch (japanError) {
+              console.error('일본 포인트 지급 알림 발송 실패:', japanError)
+            }
+          }
+
+          // 미국: 이메일 + SMS 알림 (포인트 지급)
+          if (region === 'us') {
+            try {
+              await fetch('/.netlify/functions/send-us-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'points_awarded',
+                  creatorEmail: profile.email,
+                  creatorPhone: profile.phone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'Campaign',
+                    points: pointAmount
+                  }
+                })
+              })
+              console.log('✓ 미국 포인트 지급 알림 발송 성공 (SMS + Email)')
+            } catch (usError) {
+              console.error('미국 포인트 지급 알림 발송 실패:', usError)
+            }
+          }
+
+          // 한국: 이메일 발송
+          if (region === 'korea' && profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
@@ -6791,11 +6907,12 @@ Questions? Contact us.
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
                           <div className="flex items-center gap-1.5">
                             {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) && (
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide || (campaign.guide_group_data && Object.keys(campaign.guide_group_data).length > 0)) && (
                               <Button
                                 size="sm"
                                 onClick={() => {
-                                  // 캠페인 레벨 가이드 모달 열기
+                                  // 크리에이터의 그룹명으로 가이드 모달 열기
+                                  setViewingGuideGroup(participant.guide_group || null)
                                   setShowOliveyoungGuideModal(true)
                                 }}
                                 className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
@@ -7336,7 +7453,7 @@ Questions? Contact us.
                 <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">영상 확인</span>
                 <span className="sm:hidden">영상</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size}명</span>
+                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size}명</span>
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
@@ -9122,7 +9239,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'all' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
                       onClick={() => setVideoReviewFilter('all')}
                     >
-                      전체 ({new Set(videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status)).map(v => v.user_id)).size})
+                      전체 ({new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size})
                     </Button>
                     <Button
                       size="sm"
@@ -9138,7 +9255,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-300 text-green-700 hover:bg-green-50'}
                       onClick={() => setVideoReviewFilter('approved')}
                     >
-                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status)).map(v => v.user_id)).size})
+                      검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status)).map(v => v.user_id)).size})
                     </Button>
                     <Button
                       size="sm"
@@ -9531,17 +9648,16 @@ Questions? Contact us.
                   const isMegawari = region === 'japan' && campaign.campaign_type === 'megawari'
                   const isMultiStepCampaign = is4WeekChallenge || isOliveyoung || isMegawari
 
-                  // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
-                  // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  let filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+                  // 전체 보기에서는 rejected만 제외 (completed도 표시)
+                  let filteredSubmissions = videoSubmissions.filter(v => v.status !== 'rejected')
 
                   // 필터에 따라 추가 필터링
                   if (videoReviewFilter === 'pending') {
                     // 검수 미완료: pending, submitted, revision_requested 상태
                     filteredSubmissions = filteredSubmissions.filter(v => ['pending', 'submitted', 'revision_requested'].includes(v.status))
                   } else if (videoReviewFilter === 'approved') {
-                    // 검수 완료: approved, sns_uploaded, final_confirmed 상태
-                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                    // 검수 완료: approved, sns_uploaded, final_confirmed, completed, confirmed 상태
+                    filteredSubmissions = filteredSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status))
                   }
 
                   // user_id로만 그룹화
@@ -13723,10 +13839,10 @@ Questions? Contact us.
       {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
         <OliveyoungGuideModal
           campaign={campaign}
-          onClose={() => setShowOliveyoungGuideModal(false)}
+          onClose={() => { setShowOliveyoungGuideModal(false); setViewingGuideGroup(null) }}
           onUpdate={fetchCampaignDetail}
           supabase={supabase}
-          groupName={guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null}
+          groupName={viewingGuideGroup || (guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null)}
         />
       )}
 

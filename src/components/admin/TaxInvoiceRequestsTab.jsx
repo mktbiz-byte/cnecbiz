@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign, X, MinusCircle, Plus } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign, X, MinusCircle, Plus, Download } from 'lucide-react';
+import { supabaseBiz } from '../../lib/supabaseClients';
 
 const TaxInvoiceRequestsTab = () => {
   const [requests, setRequests] = useState([]);
@@ -18,6 +19,13 @@ const TaxInvoiceRequestsTab = () => {
     cancelReason: ''
   });
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // 기업 불러오기 상태
+  const [companySearchOpen, setCompanySearchOpen] = useState(false);
+  const [companySearchTerm, setCompanySearchTerm] = useState('');
+  const [companySearchResults, setCompanySearchResults] = useState([]);
+  const [companySearchLoading, setCompanySearchLoading] = useState(false);
+  const companySearchRef = useRef(null);
 
   // 수동 발행 모달 상태
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -218,6 +226,9 @@ const TaxInvoiceRequestsTab = () => {
   // 수동 발행 모달 닫기
   const closeManualModal = () => {
     setIsManualModalOpen(false);
+    setCompanySearchOpen(false);
+    setCompanySearchTerm('');
+    setCompanySearchResults([]);
     setManualForm({
       companyName: '',
       businessNumber: '',
@@ -233,6 +244,49 @@ const TaxInvoiceRequestsTab = () => {
       memo: '',
       writeDate: new Date().toISOString().split('T')[0]
     });
+  };
+
+  // 기업 검색
+  const handleCompanySearch = async (term) => {
+    setCompanySearchTerm(term);
+    if (term.trim().length < 1) {
+      setCompanySearchResults([]);
+      return;
+    }
+    setCompanySearchLoading(true);
+    try {
+      const { data, error } = await supabaseBiz
+        .from('companies')
+        .select('id, company_name, ceo_name, business_registration_number, company_address, business_type, business_category, email, phone, contact_person')
+        .or(`company_name.ilike.%${term}%,business_registration_number.ilike.%${term}%`)
+        .limit(10);
+      if (!error && data) {
+        setCompanySearchResults(data);
+      }
+    } catch (err) {
+      console.error('기업 검색 오류:', err);
+    } finally {
+      setCompanySearchLoading(false);
+    }
+  };
+
+  // 기업 선택 시 폼 자동 채우기
+  const handleSelectCompany = (company) => {
+    setManualForm(prev => ({
+      ...prev,
+      companyName: company.company_name || '',
+      businessNumber: formatBusinessNumber(company.business_registration_number || ''),
+      ceoName: company.ceo_name || '',
+      address: company.company_address || '',
+      businessType: company.business_type || '',
+      businessCategory: company.business_category || '',
+      email: company.email || '',
+      phone: company.phone || '',
+      contactName: company.contact_person || ''
+    }));
+    setCompanySearchOpen(false);
+    setCompanySearchTerm('');
+    setCompanySearchResults([]);
   };
 
   // 사업자번호 포맷팅 (자동 하이픈 추가)
@@ -321,10 +375,15 @@ const TaxInvoiceRequestsTab = () => {
     }
   };
 
-  const filteredRequests = requests.filter(req =>
-    req.companies.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.companies.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRequests = requests.filter(req => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      (req.companies?.company_name || '').toLowerCase().includes(search) ||
+      (req.companies?.email || '').toLowerCase().includes(search) ||
+      (req.companies?.business_registration_number || '').toLowerCase().includes(search)
+    );
+  });
 
   const stats = {
     total: requests.length,
@@ -497,8 +556,15 @@ const TaxInvoiceRequestsTab = () => {
                       {new Date(request.created_at).toLocaleString('ko-KR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {request.companies.company_name}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {request.companies.company_name}
+                        </span>
+                        {request.is_manual && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                            수동
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-500">
                         {request.companies.email}
@@ -508,7 +574,11 @@ const TaxInvoiceRequestsTab = () => {
                       {request.amount.toLocaleString()}원
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {request.is_deposit_confirmed ? (
+                      {request.is_manual ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          수동발행
+                        </span>
+                      ) : request.is_deposit_confirmed ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           확인됨
@@ -734,7 +804,7 @@ const TaxInvoiceRequestsTab = () => {
                   {isIssuing ? '발행 중...' : '발행하기 (팝빌)'}
                 </button>
               )}
-              {selectedRequest.status === 'issued' && (
+              {selectedRequest.status === 'issued' && !selectedRequest.is_manual && (
                 <>
                   <button
                     onClick={() => handleIssueInvoice(true)}
@@ -916,10 +986,57 @@ const TaxInvoiceRequestsTab = () => {
 
               {/* 공급받는자 정보 */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  공급받는자 정보
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    공급받는자 정보
+                  </h3>
+                  <div className="relative" ref={companySearchRef}>
+                    <button
+                      type="button"
+                      onClick={() => setCompanySearchOpen(!companySearchOpen)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                    >
+                      <Download className="w-4 h-4" />
+                      기업 불러오기
+                    </button>
+                    {companySearchOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                        <div className="p-2">
+                          <input
+                            type="text"
+                            value={companySearchTerm}
+                            onChange={(e) => handleCompanySearch(e.target.value)}
+                            placeholder="회사명 또는 사업자번호 검색..."
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {companySearchLoading ? (
+                            <div className="px-3 py-2 text-sm text-gray-500 text-center">검색 중...</div>
+                          ) : companySearchResults.length > 0 ? (
+                            companySearchResults.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => handleSelectCompany(c)}
+                                className="w-full text-left px-3 py-2 hover:bg-blue-50 border-t border-gray-100 transition-colors"
+                              >
+                                <div className="text-sm font-medium text-gray-900">{c.company_name}</div>
+                                <div className="text-xs text-gray-500">{c.business_registration_number || '-'} | {c.ceo_name || '-'}</div>
+                              </button>
+                            ))
+                          ) : companySearchTerm.length > 0 ? (
+                            <div className="px-3 py-2 text-sm text-gray-500 text-center">검색 결과 없음</div>
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-gray-400 text-center">회사명 또는 사업자번호를 입력하세요</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
