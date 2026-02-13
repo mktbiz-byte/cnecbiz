@@ -77,6 +77,7 @@ import FeaturedCreatorManagementPageNew from './components/admin/FeaturedCreator
 import SnsUploadManagement from './components/admin/SnsUploadManagement'
 import SnsAutoUploadPage from './components/admin/SnsAutoUploadPage'
 import SnsOAuthCallback from './components/admin/SnsOAuthCallback'
+import MetaAdsManagement from './components/admin/MetaAdsManagement'
 import CreatorMyPage from './components/creator/CreatorMyPage'
 import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
@@ -268,6 +269,8 @@ function App() {
         <Route path="/admin/sns-uploads" element={<SnsAutoUploadPage />} />
         <Route path="/admin/sns-uploads/callback/:platform" element={<SnsOAuthCallback />} />
         <Route path="/admin/sns-completed" element={<SnsUploadManagement />} />
+        <Route path="/admin/meta-ads" element={<MetaAdsManagement />} />
+        <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 
