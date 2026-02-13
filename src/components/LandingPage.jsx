@@ -689,7 +689,7 @@ export default function LandingPage() {
               usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
             }
             const ch = channels[selectedRegion]
-            const shorts = (portfolioShorts[selectedRegion] || []).slice(0, 10)
+            const shorts = (portfolioShorts[selectedRegion] || []).slice(0, 12)
             const VISIBLE_COUNT_DESKTOP = 4
             const VISIBLE_COUNT_MOBILE = 2
             const totalPages = Math.max(1, Math.ceil(shorts.length / VISIBLE_COUNT_DESKTOP))
