@@ -10,22 +10,40 @@ const { createClient } = require('@supabase/supabase-js')
 
 const TOSS_SECRET_KEY = process.env.TOSS_PAYMENTS_SECRET_KEY
 
-const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
-const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
 const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseBizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+const supabaseJapanUrl = process.env.VITE_SUPABASE_JAPAN_URL
+const supabaseJapanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+const supabaseUSUrl = process.env.VITE_SUPABASE_US_URL
+const supabaseUSServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
 
-const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
-  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
-  : null
 const supabaseBiz = supabaseBizUrl && supabaseBizServiceKey
   ? createClient(supabaseBizUrl, supabaseBizServiceKey)
   : null
+const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
+  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
+  : null
+const supabaseJapan = supabaseJapanUrl && supabaseJapanServiceKey
+  ? createClient(supabaseJapanUrl, supabaseJapanServiceKey)
+  : null
+const supabaseUS = supabaseUSUrl && supabaseUSServiceKey
+  ? createClient(supabaseUSUrl, supabaseUSServiceKey)
+  : null
 
-function getSupabaseByRegion(region) {
+// 리전별 Supabase 클라이언트 (캠페인 업데이트용)
+function getCampaignSupabase(region) {
   switch (region) {
     case 'korea':
+    case 'kr':
       return supabaseKorea
+    case 'japan':
+    case 'jp':
+      return supabaseJapan
+    case 'us':
+    case 'usa':
+      return supabaseUS
     default:
       return supabaseKorea
   }
@@ -125,19 +143,19 @@ exports.handler = async (event, context) => {
       cancels: tossResult.cancels
     })
 
-    // ===== 2단계: DB 업데이트 =====
-    if (paymentId && supabaseKorea) {
-      // payments 레코드 조회
-      const { data: payment } = await supabaseKorea
+    // ===== 2단계: DB 업데이트 (payments는 supabaseBiz 중앙 DB에서 관리) =====
+    if (paymentId && supabaseBiz) {
+      // payments 레코드 조회 (supabaseBiz에서)
+      const { data: payment } = await supabaseBiz
         .from('payments')
-        .select('*, campaigns:campaign_id(id, title, company_email, brand, campaign_type)')
+        .select('*')
         .eq('id', paymentId)
         .single()
 
       if (payment) {
-        // payments 테이블 업데이트
+        // payments 테이블 업데이트 (supabaseBiz에서)
         const cancelInfo = tossResult.cancels?.[tossResult.cancels.length - 1]
-        await supabaseKorea
+        await supabaseBiz
           .from('payments')
           .update({
             status: 'refunded',
@@ -152,22 +170,40 @@ exports.handler = async (event, context) => {
           })
           .eq('id', paymentId)
 
-        // campaigns 테이블 결제 상태 초기화
+        // campaigns 테이블 결제 상태 초기화 (리전별 DB)
         if (payment.campaign_id) {
-          await supabaseKorea
-            .from('campaigns')
-            .update({
-              payment_status: 'cancelled',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', payment.campaign_id)
-
+          const campaignRegion = payment.region || 'korea'
+          const campaignDb = getCampaignSupabase(campaignRegion)
+          if (campaignDb) {
+            await campaignDb
+              .from('campaigns')
+              .update({
+                payment_status: 'cancelled',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', payment.campaign_id)
+          }
           console.log('[cancel-toss-payment] 캠페인 결제 상태 업데이트 완료')
+        }
+
+        // 캠페인 정보 조회 (알림용)
+        let campaignInfo = null
+        if (payment.campaign_id) {
+          const campaignRegion = payment.region || 'korea'
+          const campaignDb = getCampaignSupabase(campaignRegion)
+          if (campaignDb) {
+            const { data } = await campaignDb
+              .from('campaigns')
+              .select('id, title, company_email, brand, campaign_type')
+              .eq('id', payment.campaign_id)
+              .single()
+            campaignInfo = data
+          }
         }
 
         // ===== 3단계: 네이버 웍스 알림 =====
         try {
-          const campaign = payment.campaigns
+          const campaign = campaignInfo
           let companyName = campaign?.brand || ''
           if (campaign?.company_email && supabaseBiz) {
             const { data: companyData } = await supabaseBiz

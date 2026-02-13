@@ -305,6 +305,7 @@ export default function LandingPage() {
     stats_countries: '4개국',
     stats_success: '5억회'
   })
+  const [brochureUrl, setBrochureUrl] = useState('')
 
   // 비디오 카테고리 정의 (DB 영상을 분배해서 사용) - 3개 카테고리 x 5개 = 15개
   const videoCategories = [
@@ -340,6 +341,7 @@ export default function LandingPage() {
     fetchPageContent()
     fetchFeaturedNewsletters()
     fetchPortfolioShorts()
+    loadBrochureUrl()
   }, [])
 
   // 추천 뉴스레터 또는 최신 뉴스레터 가져오기
@@ -383,6 +385,25 @@ export default function LandingPage() {
       }
     } catch (error) {
       console.error('포트폴리오 숏폼 조회 오류:', error)
+    }
+  }
+
+  const loadBrochureUrl = async () => {
+    try {
+      const { data: files } = await supabaseBiz
+        .storage
+        .from('campaign-guides')
+        .list('', { search: 'cnec_brochure' })
+
+      if (files?.find(f => f.name === 'cnec_brochure.pdf')) {
+        const { data: { publicUrl } } = supabaseBiz
+          .storage
+          .from('campaign-guides')
+          .getPublicUrl('cnec_brochure.pdf')
+        setBrochureUrl(publicUrl)
+      }
+    } catch (error) {
+      console.error('브로슈어 URL 로드 오류:', error)
     }
   }
 
@@ -839,7 +860,7 @@ export default function LandingPage() {
       <section className="py-0 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <a
-            href="https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"
+            href={brochureUrl || "https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"}
             className="group block relative overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/40 hover:border-purple-400/50 transition-all duration-300"
           >
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(168,85,247,0.15),transparent_70%)]" />
@@ -1217,7 +1238,7 @@ export default function LandingPage() {
             캠페인 프로세스, 성과 사례, 가격 안내까지 한 번에.
           </p>
           <a
-            href="https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"
+            href={brochureUrl || "https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"}
             className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white rounded-full font-semibold text-sm sm:text-base transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
           >
             <Download className="w-4 h-4" />

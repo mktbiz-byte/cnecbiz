@@ -552,8 +552,7 @@ Output format:
         question4: toNullIfEmpty(campaignForm.question4),
         product_shipping_date: toNullIfEmpty(campaignForm.product_shipping_date),
         // 기업 정보 - 캠페인 목록 조회에 필요
-        company_id: user.id,
-        company_email: user.email
+        company_id: user.id
       }
 
       // 캠페인 타입별 마감일

@@ -65,21 +65,31 @@ const PaymentMethodSelection = () => {
         console.log(`[PaymentMethodSelection] Campaign found:`, data.title);
         setCampaign(data);
 
-        // 수출바우처 잔액 조회 (company_email로 companies 테이블에서 조회)
+        // 수출바우처 잔액 조회 (company_email 또는 company_id로 companies 테이블에서 조회)
+        let companyData = null;
         if (data?.company_email) {
-          const { data: companyData, error: companyError } = await supabaseBiz
+          const { data: cd, error: ce } = await supabaseBiz
             .from('companies')
             .select('id, user_id, points_balance, company_name, phone')
             .eq('email', data.company_email)
             .single();
-
-          if (!companyError && companyData) {
-            setVoucherBalance(companyData.points_balance || 0);
-            setCompanyId(companyData.id);  // for companies table update
-            setCompanyUserId(companyData.user_id);  // for points_transactions
-            setCompanyName(companyData.company_name || data.brand || '');  // for notifications
-            setCompanyPhone(companyData.phone || '');  // for 알림톡
-          }
+          if (!ce) companyData = cd;
+        }
+        // company_email이 없으면 company_id(=user_id)로 조회
+        if (!companyData && data?.company_id) {
+          const { data: cd, error: ce } = await supabaseBiz
+            .from('companies')
+            .select('id, user_id, points_balance, company_name, phone')
+            .eq('user_id', data.company_id)
+            .single();
+          if (!ce) companyData = cd;
+        }
+        if (companyData) {
+          setVoucherBalance(companyData.points_balance || 0);
+          setCompanyId(companyData.id);
+          setCompanyUserId(companyData.user_id);
+          setCompanyName(companyData.company_name || data.brand || '');
+          setCompanyPhone(companyData.phone || '');
         }
 
         setLoading(false);

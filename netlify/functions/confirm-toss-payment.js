@@ -12,25 +12,42 @@ const { createClient } = require('@supabase/supabase-js')
 const TOSS_SECRET_KEY = process.env.TOSS_PAYMENTS_SECRET_KEY
 
 // Supabase 클라이언트 초기화
-const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
-const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
 const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseBizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+const supabaseJapanUrl = process.env.VITE_SUPABASE_JAPAN_URL
+const supabaseJapanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+const supabaseUSUrl = process.env.VITE_SUPABASE_US_URL
+const supabaseUSServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
 
-const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
-  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
-  : null
 const supabaseBiz = supabaseBizUrl && supabaseBizServiceKey
   ? createClient(supabaseBizUrl, supabaseBizServiceKey)
   : null
+const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
+  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
+  : null
+const supabaseJapan = supabaseJapanUrl && supabaseJapanServiceKey
+  ? createClient(supabaseJapanUrl, supabaseJapanServiceKey)
+  : null
+const supabaseUS = supabaseUSUrl && supabaseUSServiceKey
+  ? createClient(supabaseUSUrl, supabaseUSServiceKey)
+  : null
 
-// 리전별 Supabase 클라이언트 반환
-function getSupabaseByRegion(region) {
+// 리전별 Supabase 클라이언트 반환 (캠페인 조회/업데이트용)
+function getCampaignSupabase(region) {
   switch (region) {
     case 'korea':
+    case 'kr':
       return supabaseKorea
+    case 'japan':
+    case 'jp':
+      return supabaseJapan
+    case 'us':
+    case 'usa':
+      return supabaseUS
     default:
-      return supabaseKorea // 토스 결제는 한국 리전이 기본
+      return supabaseKorea
   }
 }
 
@@ -109,22 +126,35 @@ exports.handler = async (event, context) => {
     })
 
     // ===== 2단계: DB에 결제 정보 저장 =====
-    const supabaseRegion = getSupabaseByRegion(region || 'korea')
+    // 캠페인은 리전별 DB에, 결제 기록은 supabaseBiz(중앙)에 저장
+    const supabaseRegion = getCampaignSupabase(region || 'korea')
 
-    if (supabaseRegion && campaignId) {
-      // 캠페인 조회
-      const { data: campaign, error: campaignError } = await supabaseRegion
-        .from('campaigns')
-        .select('id, title, company_email, company_id, brand, campaign_type, estimated_cost')
-        .eq('id', campaignId)
-        .single()
-
-      if (campaignError) {
-        console.error('[confirm-toss-payment] 캠페인 조회 실패:', campaignError)
+    if (campaignId) {
+      // 캠페인 조회 (리전별 DB에서)
+      let campaign = null
+      if (supabaseRegion) {
+        const { data, error: campaignError } = await supabaseRegion
+          .from('campaigns')
+          .select('id, title, company_email, company_id, brand, campaign_type, estimated_cost')
+          .eq('id', campaignId)
+          .single()
+        if (campaignError) {
+          console.error('[confirm-toss-payment] 캠페인 조회 실패 (리전):', campaignError)
+        }
+        campaign = data
+      }
+      // 리전 DB에서 못 찾으면 supabaseBiz에서 시도
+      if (!campaign && supabaseBiz) {
+        const { data } = await supabaseBiz
+          .from('campaigns')
+          .select('id, title, company_email, company_id, brand, campaign_type, estimated_cost')
+          .eq('id', campaignId)
+          .single()
+        campaign = data
       }
 
       if (campaign) {
-        // payments 테이블에 결제 기록 저장
+        // payments 테이블에 결제 기록 저장 (supabaseBiz 중앙 DB에 저장)
         const paymentData = {
           campaign_id: campaignId,
           amount: tossResult.totalAmount || amount,
@@ -164,31 +194,36 @@ exports.handler = async (event, context) => {
           }
         }
 
-        const { error: insertError } = await supabaseRegion
-          .from('payments')
-          .insert(paymentData)
+        // 결제 기록은 supabaseBiz(중앙)에 저장
+        if (supabaseBiz) {
+          const { error: insertError } = await supabaseBiz
+            .from('payments')
+            .insert(paymentData)
 
-        if (insertError) {
-          console.error('[confirm-toss-payment] 결제 기록 저장 실패:', insertError)
-        } else {
-          console.log('[confirm-toss-payment] 결제 기록 저장 완료')
+          if (insertError) {
+            console.error('[confirm-toss-payment] 결제 기록 저장 실패 (supabaseBiz):', insertError)
+          } else {
+            console.log('[confirm-toss-payment] 결제 기록 저장 완료 (supabaseBiz)')
+          }
         }
 
-        // campaigns 테이블 결제 상태 업데이트
-        const { error: updateError } = await supabaseRegion
-          .from('campaigns')
-          .update({
-            payment_status: 'paid',
-            payment_method: 'toss_card',
-            paid_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', campaignId)
+        // campaigns 테이블 결제 상태 업데이트 (리전별 DB)
+        if (supabaseRegion) {
+          const { error: updateError } = await supabaseRegion
+            .from('campaigns')
+            .update({
+              payment_status: 'paid',
+              payment_method: 'toss_card',
+              paid_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', campaignId)
 
-        if (updateError) {
-          console.error('[confirm-toss-payment] 캠페인 상태 업데이트 실패:', updateError)
-        } else {
-          console.log('[confirm-toss-payment] 캠페인 결제 상태 업데이트 완료')
+          if (updateError) {
+            console.error('[confirm-toss-payment] 캠페인 상태 업데이트 실패:', updateError)
+          } else {
+            console.log('[confirm-toss-payment] 캠페인 결제 상태 업데이트 완료')
+          }
         }
 
         // ===== 3단계: 네이버 웍스 관리자 알림 =====
