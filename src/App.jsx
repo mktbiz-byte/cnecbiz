@@ -46,6 +46,7 @@ import PointsManagement from './components/company/PointsManagement'
 import PointsChargePage from './components/company/PointsChargePage'
 import CompanyProfileSetup from './components/company/CompanyProfileSetup'
 import CompanyProfileEdit from './components/company/CompanyProfileEdit'
+import CampaignCreationGuide from './components/company/CampaignCreationGuide'
 import PaymentHistory from './components/company/PaymentHistory'
 import PaymentMethodSelection from './components/company/PaymentMethodSelection'
 import TossPaymentWidget from './components/payment/TossPaymentWidget'
@@ -203,6 +204,7 @@ function App() {
         {/* <Route path="/company/points/charge" element={<PointsChargePage />} /> */} {/* 포인트 시스템 제거로 비활성화 */}
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
+        <Route path="/company/campaign-guide" element={<CampaignCreationGuide />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         <Route path="/company/campaigns/payment" element={<PaymentMethodSelection />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
