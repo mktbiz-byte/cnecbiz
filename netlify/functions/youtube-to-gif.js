@@ -14,6 +14,25 @@ const { createClient } = require('@supabase/supabase-js')
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+// YouTube 쿠키 기반 인증 에이전트 생성
+function createYtdlAgent() {
+  const ytdl = require('@distube/ytdl-core')
+  const cookiesEnv = process.env.YOUTUBE_COOKIES
+  if (!cookiesEnv) {
+    console.log('[youtube-to-gif] No YOUTUBE_COOKIES env var set, proceeding without cookies')
+    return null
+  }
+  try {
+    const cookies = JSON.parse(cookiesEnv)
+    const agent = ytdl.createAgent(cookies)
+    console.log('[youtube-to-gif] YouTube cookie agent created successfully')
+    return agent
+  } catch (e) {
+    console.error('[youtube-to-gif] Failed to parse YOUTUBE_COOKIES:', e.message)
+    return null
+  }
+}
+
 // YouTube 영상 ID 추출
 function extractVideoId(url) {
   const patterns = [
@@ -150,11 +169,12 @@ exports.handler = async (event) => {
 
         const ytdl = require('@distube/ytdl-core')
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        const agent = createYtdlAgent()
 
         console.log(`[youtube-to-gif] Downloading video: ${targetVideoId}`)
 
         // 영상 정보 조회
-        const info = await ytdl.getInfo(targetVideoId)
+        const info = await ytdl.getInfo(targetVideoId, { ...(agent && { agent }) })
 
         // 가장 작은 MP4 포맷 선택 (비디오+오디오)
         const formats = info.formats.filter(f =>
@@ -184,7 +204,7 @@ exports.handler = async (event) => {
         // 영상 다운로드 (Buffer)
         const videoBuffer = await new Promise((resolve, reject) => {
           const chunks = []
-          const stream = ytdl.downloadFromInfo(info, { format: selectedFormat })
+          const stream = ytdl.downloadFromInfo(info, { format: selectedFormat, ...(agent && { agent }) })
           stream.on('data', chunk => chunks.push(chunk))
           stream.on('end', () => resolve(Buffer.concat(chunks)))
           stream.on('error', reject)
@@ -301,10 +321,19 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[youtube-to-gif] Error:', error)
+
+    // YouTube 봇 감지 에러 시 안내 메시지 추가
+    const isBotDetection = error.message?.includes('Sign in to confirm') ||
+      error.message?.includes('bot') ||
+      error.message?.includes('Status code: 403')
+    const errorMessage = isBotDetection
+      ? '유튜브 봇 감지로 다운로드가 차단되었습니다. Netlify 환경변수에 YOUTUBE_COOKIES를 설정해주세요.'
+      : error.message
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({ success: false, error: errorMessage })
     }
   }
 }
