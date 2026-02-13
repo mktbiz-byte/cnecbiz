@@ -19,9 +19,9 @@ export default function HolidayNotice() {
     const end = new Date('2026-02-18T23:59:59+09:00')
     if (now < start || now > end) return
 
-    // 오늘 이미 닫았으면 표시하지 않음
-    const dismissed = localStorage.getItem('holidayNotice2026')
-    if (dismissed === now.toDateString()) return
+    // 24시간 내 닫았으면 표시하지 않음
+    const dismissedAt = localStorage.getItem('holidayNotice2026_dismissed')
+    if (dismissedAt && now.getTime() - Number(dismissedAt) < 24 * 60 * 60 * 1000) return
 
     // 약간의 딜레이 후 표시 (페이지 로드 후 자연스럽게)
     const timer = setTimeout(() => setShow(true), 800)
@@ -34,10 +34,12 @@ export default function HolidayNotice() {
 
   const handleClose = () => {
     setClosing(true)
-    setTimeout(() => {
-      setShow(false)
-      localStorage.setItem('holidayNotice2026', new Date().toDateString())
-    }, 300)
+    setTimeout(() => setShow(false), 300)
+  }
+
+  const handleDismiss24h = () => {
+    localStorage.setItem('holidayNotice2026_dismissed', String(Date.now()))
+    handleClose()
   }
 
   if (!show) return null
@@ -147,6 +149,14 @@ export default function HolidayNotice() {
           <p className="text-center text-[12px] text-gray-400 pt-1 pb-0.5">
             🎊 새해 복 많이 받으세요!
           </p>
+
+          {/* 24시간 보지 않기 */}
+          <button
+            onClick={handleDismiss24h}
+            className="w-full text-center text-[11px] text-gray-400 hover:text-gray-600 transition-colors py-1"
+          >
+            24시간 동안 보지 않기
+          </button>
         </div>
       </div>
     </div>
