@@ -8,9 +8,40 @@ import Footer from './Footer'
 const FlagKR = ({ className = "w-5 h-3.5" }) => (
   <svg viewBox="0 0 900 600" className={className}>
     <rect width="900" height="600" fill="white"/>
-    <circle cx="450" cy="300" r="150" fill="#C60C30"/>
-    <path d="M450,150 A150,150 0 0,1 450,300 A75,75 0 0,0 450,450 A150,150 0 0,1 450,150" fill="#003478"/>
-    <path d="M450,150 A150,150 0 0,0 450,300 A75,75 0 0,1 450,450 A150,150 0 0,0 450,150" fill="#C60C30"/>
+    {/* 태극 (Taeguk) */}
+    <circle cx="450" cy="300" r="150" fill="#CD2E3A"/>
+    <path d="M450,150 A150,150 0 0,1 450,300 A75,75 0 0,0 450,450 A150,150 0 0,1 450,150" fill="#0047A0"/>
+    <path d="M450,150 A150,150 0 0,0 450,300 A75,75 0 0,1 450,450 A150,150 0 0,0 450,150" fill="#CD2E3A"/>
+    {/* 건 (Geon) - 좌상 */}
+    <g transform="rotate(-56 450 300)">
+      <rect x="590" y="197" width="170" height="22" fill="#000"/>
+      <rect x="590" y="233" width="170" height="22" fill="#000"/>
+      <rect x="590" y="269" width="170" height="22" fill="#000"/>
+    </g>
+    {/* 곤 (Gon) - 우하 */}
+    <g transform="rotate(-56 450 300)">
+      <rect x="140" y="310" width="75" height="22" fill="#000"/>
+      <rect x="235" y="310" width="75" height="22" fill="#000"/>
+      <rect x="140" y="346" width="75" height="22" fill="#000"/>
+      <rect x="235" y="346" width="75" height="22" fill="#000"/>
+      <rect x="140" y="382" width="75" height="22" fill="#000"/>
+      <rect x="235" y="382" width="75" height="22" fill="#000"/>
+    </g>
+    {/* 감 (Gam) - 우상 */}
+    <g transform="rotate(56 450 300)">
+      <rect x="590" y="197" width="170" height="22" fill="#000"/>
+      <rect x="590" y="233" width="75" height="22" fill="#000"/>
+      <rect x="685" y="233" width="75" height="22" fill="#000"/>
+      <rect x="590" y="269" width="170" height="22" fill="#000"/>
+    </g>
+    {/* 리 (Ri) - 좌하 */}
+    <g transform="rotate(56 450 300)">
+      <rect x="140" y="310" width="75" height="22" fill="#000"/>
+      <rect x="235" y="310" width="75" height="22" fill="#000"/>
+      <rect x="140" y="346" width="170" height="22" fill="#000"/>
+      <rect x="140" y="382" width="75" height="22" fill="#000"/>
+      <rect x="235" y="382" width="75" height="22" fill="#000"/>
+    </g>
   </svg>
 )
 

@@ -1,9 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
+const nodemailer = require('nodemailer');
 
 /**
  * US Campaign Guide Delivery Function
  * - LINE message delivery
- * - Email delivery
+ * - Email delivery (with PDF attachment support)
  * - Multi-step support for different campaign types
  */
 
@@ -66,16 +67,46 @@ async function sendLineMessage(lineUserId, message) {
   }
 }
 
-// Email delivery
-async function sendEmail(to, subject, html) {
+// Fetch PDF from URL
+async function fetchPdfBuffer(url) {
   try {
-    const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
-    const response = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, html })
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('[deliver-us-guide] PDF fetch error:', error.message);
+    return null;
+  }
+}
+
+// Email delivery (with PDF attachment support)
+async function sendEmail(to, subject, html, attachments = []) {
+  try {
+    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const senderName = process.env.GMAIL_SENDER_NAME || 'CNECBIZ';
+
+    if (!gmailAppPassword) {
+      return { success: false, error: 'Gmail not configured' };
+    }
+
+    const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: gmailEmail, pass: cleanPassword }
     });
-    return await response.json();
+
+    const mailOptions = {
+      from: `"${senderName}" <${gmailEmail}>`,
+      to,
+      subject,
+      html,
+      ...(attachments.length > 0 && { attachments })
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -295,6 +326,32 @@ exports.handler = async (event) => {
       });
     }
 
+    // Pre-fetch PDF if guide is a PDF file
+    const isPdf = guide_url && (
+      guide_url.endsWith('.pdf') ||
+      guide_url.includes('.pdf?') ||
+      (campaign && campaign.guide_type === 'pdf')
+    );
+    let pdfAttachments = [];
+    if (isPdf && guide_url) {
+      console.log('[deliver-us-guide] PDF guide detected, downloading:', guide_url);
+      const pdfBuffer = await fetchPdfBuffer(guide_url);
+      if (pdfBuffer) {
+        const urlPath = guide_url.split('?')[0];
+        const urlParts = urlPath.split('/');
+        let fileName = decodeURIComponent(urlParts[urlParts.length - 1]) || 'guide.pdf';
+        if (!fileName.endsWith('.pdf')) fileName += '.pdf';
+        pdfAttachments = [{
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }];
+        console.log(`[deliver-us-guide] PDF downloaded: ${fileName} (${pdfBuffer.length} bytes)`);
+      } else {
+        console.warn('[deliver-us-guide] PDF download failed, sending with URL link only');
+      }
+    }
+
     const results = {
       total: participants.length,
       line_sent: 0,
@@ -405,7 +462,8 @@ CNEC BIZ`;
         const emailResult = await sendEmail(
           participant.email,
           `[CNEC] ${stepInfo} - ${campaign.title}`,
-          emailHtml
+          emailHtml,
+          pdfAttachments
         );
 
         detail.email_result = emailResult;

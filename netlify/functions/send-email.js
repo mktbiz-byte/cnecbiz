@@ -7,7 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 exports.handler = async (event) => {
   try {
-    const { to, subject, html, text } = JSON.parse(event.body);
+    const { to, subject, html, text, attachments } = JSON.parse(event.body);
 
     if (!to || !subject || (!html && !text)) {
       return {
@@ -52,13 +52,28 @@ exports.handler = async (event) => {
       }
     });
 
+    // 첨부파일 처리 (base64 → Buffer 변환)
+    const mailAttachments = [];
+    if (attachments && Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (att.content && att.filename) {
+          mailAttachments.push({
+            filename: att.filename,
+            content: Buffer.from(att.content, 'base64'),
+            contentType: att.contentType || 'application/octet-stream'
+          });
+        }
+      }
+    }
+
     // 이메일 발송
     const mailOptions = {
       from: `"${senderName}" <${gmailEmail}>`,
       to: to,
       subject: subject,
       text: text,
-      html: html
+      html: html,
+      ...(mailAttachments.length > 0 && { attachments: mailAttachments })
     };
 
     const info = await transporter.sendMail(mailOptions);

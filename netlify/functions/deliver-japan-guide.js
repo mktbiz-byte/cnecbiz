@@ -1,9 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
+const nodemailer = require('nodemailer');
 
 /**
  * 일본 캠페인 가이드 발송 Function
  * - LINE 메시지 발송
- * - 이메일 발송
+ * - 이메일 발송 (PDF 첨부 지원)
  * - 캠페인 타입별 다중 스텝 지원
  */
 
@@ -66,16 +67,46 @@ async function sendLineMessage(lineUserId, message) {
   }
 }
 
-// 이메일 발송
-async function sendEmail(to, subject, html) {
+// PDF URL에서 파일 다운로드
+async function fetchPdfBuffer(url) {
   try {
-    const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
-    const response = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, html })
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('[deliver-japan-guide] PDF fetch error:', error.message);
+    return null;
+  }
+}
+
+// 이메일 발송 (PDF 첨부 지원)
+async function sendEmail(to, subject, html, attachments = []) {
+  try {
+    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const senderName = process.env.GMAIL_SENDER_NAME || 'CNECBIZ';
+
+    if (!gmailAppPassword) {
+      return { success: false, error: 'Gmail not configured' };
+    }
+
+    const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: gmailEmail, pass: cleanPassword }
     });
-    return await response.json();
+
+    const mailOptions = {
+      from: `"${senderName}" <${gmailEmail}>`,
+      to,
+      subject,
+      html,
+      ...(attachments.length > 0 && { attachments })
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -298,6 +329,32 @@ exports.handler = async (event) => {
       });
     }
 
+    // PDF 가이드인 경우 파일을 미리 다운로드
+    const isPdf = guide_url && (
+      guide_url.endsWith('.pdf') ||
+      guide_url.includes('.pdf?') ||
+      (campaign && campaign.guide_type === 'pdf')
+    );
+    let pdfAttachments = [];
+    if (isPdf && guide_url) {
+      console.log('[deliver-japan-guide] PDF 가이드 감지, 다운로드 시작:', guide_url);
+      const pdfBuffer = await fetchPdfBuffer(guide_url);
+      if (pdfBuffer) {
+        const urlPath = guide_url.split('?')[0];
+        const urlParts = urlPath.split('/');
+        let fileName = decodeURIComponent(urlParts[urlParts.length - 1]) || 'guide.pdf';
+        if (!fileName.endsWith('.pdf')) fileName += '.pdf';
+        pdfAttachments = [{
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }];
+        console.log(`[deliver-japan-guide] PDF 다운로드 완료: ${fileName} (${pdfBuffer.length} bytes)`);
+      } else {
+        console.warn('[deliver-japan-guide] PDF 다운로드 실패, URL 링크만 포함하여 발송');
+      }
+    }
+
     const results = {
       total: participants.length,
       line_sent: 0,
@@ -430,7 +487,8 @@ CNEC BIZ`;
         const emailResult = await sendEmail(
           participant.email,
           `[CNEC] 📋 ${stepInfo} - ${campaign.title}`,
-          emailHtml
+          emailHtml,
+          pdfAttachments
         );
 
         detail.email_result = emailResult;
