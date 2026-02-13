@@ -283,7 +283,7 @@ export default function SnsUploadManagement() {
         // 캠페인 정보 별도 조회
         const { data: koreaCampaigns } = await supabaseKorea
           .from('campaigns')
-          .select('id, title, campaign_type')
+          .select('id, title, campaign_type, target_country')
 
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
@@ -374,7 +374,7 @@ export default function SnsUploadManagement() {
                 created_at: p.updated_at || p.created_at,
                 status: p.status,
                 source: 'korea',
-                country: 'kr',
+                country: campaign?.target_country || 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: getKoreaCreatorName(p.user_id, p),
@@ -451,7 +451,7 @@ export default function SnsUploadManagement() {
                 created_at: sub.approved_at || sub.updated_at || sub.created_at,
                 status: sub.status,
                 source: 'korea_submission',
-                country: 'kr',
+                country: campaign?.target_country || 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: creatorName,

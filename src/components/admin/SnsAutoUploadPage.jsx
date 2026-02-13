@@ -128,6 +128,7 @@ export default function SnsAutoUploadPage() {
   const [uploads, setUploads] = useState([])
   const [pendingVideos, setPendingVideos] = useState([])
   const [selectedVideos, setSelectedVideos] = useState([])
+  const [selectedCountry, setSelectedCountry] = useState('all')
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -370,6 +371,7 @@ export default function SnsAutoUploadPage() {
               campaign_id: app.campaign_id,
               campaign_name: campaign?.title || app.campaign_name || '-',
               campaign_type: campaign?.campaign_type,
+              country: campaign?.target_country || 'kr',
               creator_name: resolveCreatorName(app, null),
               user_id: app.user_id,
               status: app.status,
@@ -420,6 +422,7 @@ export default function SnsAutoUploadPage() {
                 campaign_id: sub.campaign_id,
                 campaign_name: campaign?.title || sub.campaign_name || '-',
                 campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'kr',
                 creator_name: getBizCreatorName(sub),
                 user_id: sub.user_id,
                 status: sub.status,
@@ -539,6 +542,7 @@ export default function SnsAutoUploadPage() {
                 campaign_id: p.campaign_id,
                 campaign_name: campaign?.title || '-',
                 campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'kr',
                 creator_name: resolveCreatorName(p, koreaProfileMap),
                 user_id: p.user_id,
                 status: p.status,
@@ -588,6 +592,7 @@ export default function SnsAutoUploadPage() {
                   campaign_id: sub.campaign_id,
                   campaign_name: campaign?.title || '-',
                   campaign_type: campaign?.campaign_type,
+                  country: campaign?.target_country || 'kr',
                   creator_name: getKoreaCreatorName(sub),
                   user_id: sub.user_id,
                   status: sub.status,
@@ -1467,7 +1472,7 @@ export default function SnsAutoUploadPage() {
                 <div>
                   <CardTitle>업로드 대기 영상</CardTitle>
                   <CardDescription>
-                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다 ({pendingVideos.length}건)
+                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다 (총 {pendingVideos.length}건)
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -1485,7 +1490,49 @@ export default function SnsAutoUploadPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {pendingVideos.length === 0 ? (
+                {/* 국가별 필터 */}
+                <div className="flex gap-2 mb-4">
+                  {[
+                    { key: 'all', label: '전체', flag: '🌍' },
+                    { key: 'kr', label: '한국', flag: '🇰🇷' },
+                    { key: 'jp', label: '일본', flag: '🇯🇵' },
+                    { key: 'us', label: '미국', flag: '🇺🇸' },
+                  ].map(({ key, label, flag }) => {
+                    const count = key === 'all'
+                      ? pendingVideos.length
+                      : pendingVideos.filter(v => {
+                          if (key === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
+                          if (key === 'jp') return v.country === 'jp' || v.country === 'japan'
+                          if (key === 'us') return v.country === 'us' || v.country === 'usa'
+                          return false
+                        }).length
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => { setSelectedCountry(key); setSelectedVideos([]) }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                          selectedCountry === key
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {flag} {label} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {(() => {
+                  const filteredVideos = selectedCountry === 'all'
+                    ? pendingVideos
+                    : pendingVideos.filter(v => {
+                        if (selectedCountry === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
+                        if (selectedCountry === 'jp') return v.country === 'jp' || v.country === 'japan'
+                        if (selectedCountry === 'us') return v.country === 'us' || v.country === 'usa'
+                        return true
+                      })
+
+                  return filteredVideos.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <FileVideo className="w-12 h-12 mx-auto mb-4 opacity-30" />
                     <p>업로드 대기중인 영상이 없습니다</p>
@@ -1497,16 +1544,17 @@ export default function SnsAutoUploadPage() {
                         <TableHead className="w-12">
                           <input
                             type="checkbox"
-                            checked={selectedVideos.length === pendingVideos.length && pendingVideos.length > 0}
+                            checked={selectedVideos.length === filteredVideos.length && filteredVideos.length > 0}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedVideos(pendingVideos)
+                                setSelectedVideos(filteredVideos)
                               } else {
                                 setSelectedVideos([])
                               }
                             }}
                           />
                         </TableHead>
+                        <TableHead>국가</TableHead>
                         <TableHead>크리에이터</TableHead>
                         <TableHead>캠페인</TableHead>
                         <TableHead>주차</TableHead>
@@ -1516,7 +1564,7 @@ export default function SnsAutoUploadPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingVideos.map((video) => (
+                      {filteredVideos.map((video) => (
                         <TableRow key={`${video.source_type}_${video.id}`}>
                           <TableCell>
                             <input
@@ -1530,6 +1578,11 @@ export default function SnsAutoUploadPage() {
                                 }
                               }}
                             />
+                          </TableCell>
+                          <TableCell>
+                            {(!video.country || video.country === 'kr' || video.country === 'korea') ? '🇰🇷' :
+                             (video.country === 'jp' || video.country === 'japan') ? '🇯🇵' :
+                             (video.country === 'us' || video.country === 'usa') ? '🇺🇸' : '🌍'}
                           </TableCell>
                           <TableCell className="font-medium">{video.creator_name || '-'}</TableCell>
                           <TableCell className="max-w-[180px] truncate">
@@ -1585,7 +1638,8 @@ export default function SnsAutoUploadPage() {
                       ))}
                     </TableBody>
                   </Table>
-                )}
+                )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
