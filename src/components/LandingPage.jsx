@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
@@ -835,6 +835,35 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 크넥 소개서 배너 (상단) */}
+      <section className="py-0 bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <a
+            href="https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/edit?usp=sharing&ouid=101247841505035773538&rtpof=true&sd=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block relative overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/40 hover:border-purple-400/50 transition-all duration-300"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(168,85,247,0.15),transparent_70%)]" />
+            <div className="relative flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 text-purple-300" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm sm:text-base">CNEC 서비스 소개서</p>
+                  <p className="text-purple-300/70 text-xs sm:text-sm">크넥의 크리에이터 마케팅 서비스를 한눈에 확인하세요</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-purple-300 group-hover:text-white transition-colors shrink-0">
+                <span className="hidden sm:inline text-sm font-medium">소개서 보기</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </a>
+        </div>
+      </section>
+
       {/* Featured Newsletters Section */}
       {featuredNewsletters.length > 0 && (
         <section className="py-10 sm:py-16 lg:py-20 bg-gray-50">
@@ -1172,6 +1201,33 @@ export default function LandingPage() {
             뉴스레터 보러가기
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
+        </div>
+      </section>
+
+      {/* 크넥 소개서 배너 (하단) */}
+      <section className="py-10 sm:py-14 lg:py-16 bg-gray-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-500/15 rounded-full text-purple-300 text-xs font-medium mb-4">
+            <FileText className="w-3.5 h-3.5" />
+            Company Brochure
+          </div>
+          <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 sm:mb-3">
+            크넥이 처음이신가요?
+          </h3>
+          <p className="text-gray-400 text-sm sm:text-base mb-5 sm:mb-6 max-w-lg mx-auto">
+            서비스 소개서에서 크리에이터 마케팅의 모든 것을 확인하세요.<br className="hidden sm:inline" />
+            캠페인 프로세스, 성과 사례, 가격 안내까지 한 번에.
+          </p>
+          <a
+            href="https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/edit?usp=sharing&ouid=101247841505035773538&rtpof=true&sd=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white rounded-full font-semibold text-sm sm:text-base transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
+          >
+            <FileText className="w-4 h-4" />
+            CNEC 소개서 보기
+            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+          </a>
         </div>
       </section>
 
