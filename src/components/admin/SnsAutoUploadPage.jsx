@@ -143,6 +143,10 @@ export default function SnsAutoUploadPage() {
     isScheduled: false
   })
 
+  // 채널 추가 다이얼로그
+  const [channelAddDialogOpen, setChannelAddDialogOpen] = useState(false)
+  const [channelAddRegion, setChannelAddRegion] = useState('')
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -1028,7 +1032,7 @@ export default function SnsAutoUploadPage() {
                     <RefreshCw className="w-4 h-4 mr-1" />
                     새로고침
                   </Button>
-                  <Button size="sm" onClick={() => handleConnectAccount('youtube')}>
+                  <Button size="sm" onClick={() => { setChannelAddRegion(''); setChannelAddDialogOpen(true) }}>
                     <Plus className="w-4 h-4 mr-1" />
                     채널 추가
                   </Button>
@@ -1042,7 +1046,7 @@ export default function SnsAutoUploadPage() {
                     <p className="text-xs text-gray-400 mb-4">
                       "채널 추가" 클릭 → Google 로그인 시 채널(Brand Account) 선택 → 연동 완료
                     </p>
-                    <Button onClick={() => handleConnectAccount('youtube')}>
+                    <Button onClick={() => { setChannelAddRegion(''); setChannelAddDialogOpen(true) }}>
                       <Link2 className="w-4 h-4 mr-2" />
                       첫 번째 채널 연동하기
                     </Button>
@@ -1170,6 +1174,52 @@ export default function SnsAutoUploadPage() {
               </CardContent>
             </Card>
 
+            {/* 채널 추가 지역 선택 다이얼로그 */}
+            <Dialog open={channelAddDialogOpen} onOpenChange={setChannelAddDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Youtube className="w-5 h-5 text-red-500" />
+                    YouTube 채널 추가
+                  </DialogTitle>
+                  <DialogDescription>
+                    연동할 채널의 지역을 선택한 후 Google 계정으로 로그인하세요.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-3 gap-3 py-4">
+                  {Object.entries(YOUTUBE_REGIONS).map(([key, config]) => (
+                    <button
+                      key={key}
+                      onClick={() => setChannelAddRegion(key)}
+                      className={`p-4 rounded-lg border-2 text-center transition-all ${
+                        channelAddRegion === key
+                          ? `${config.borderColor} ${config.bgColor} ring-2 ring-offset-1 ring-blue-400`
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{config.flag}</div>
+                      <div className="text-sm font-medium">{config.name}</div>
+                    </button>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setChannelAddDialogOpen(false)}>
+                    취소
+                  </Button>
+                  <Button
+                    disabled={!channelAddRegion}
+                    onClick={() => {
+                      setChannelAddDialogOpen(false)
+                      handleConnectAccount('youtube', channelAddRegion)
+                    }}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    {channelAddRegion ? `${YOUTUBE_REGIONS[channelAddRegion].flag} ${YOUTUBE_REGIONS[channelAddRegion].name} 채널 연동` : '지역을 선택하세요'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             {/* 연동 안내 */}
             <Card className="mb-6 border-blue-200 bg-blue-50/30">
               <CardContent className="pt-4">
@@ -1178,10 +1228,10 @@ export default function SnsAutoUploadPage() {
                   <div className="text-sm space-y-3">
                     <p className="font-medium text-blue-800">YouTube 채널 연동 방법</p>
                     <ol className="text-blue-700 space-y-1 list-decimal list-inside">
-                      <li>"채널 추가" 버튼 클릭</li>
+                      <li>"채널 추가" 버튼 클릭 → <strong>지역(한국/일본/미국) 선택</strong></li>
                       <li>Google 계정 선택 → <strong>연동할 채널의 Brand Account</strong> 선택</li>
                       <li>권한 허용 → 자동 연동 완료</li>
-                      <li>다른 채널 추가하려면 다시 "채널 추가" 클릭 후 다른 Brand Account 선택</li>
+                      <li>다른 채널 추가하려면 다시 "채널 추가" 클릭 후 다른 지역/Brand Account 선택</li>
                     </ol>
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="font-medium text-amber-800 mb-1">⚠️ 관리자 권한 채널이 안 보이는 경우</p>
