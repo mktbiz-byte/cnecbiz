@@ -4,65 +4,17 @@ import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, 
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
-// 국기 SVG 컴포넌트 (크로스 브라우저 호환)
+// 국기 이미지 컴포넌트
 const FlagKR = ({ className = "w-5 h-3.5" }) => (
-  <svg viewBox="0 0 900 600" className={className}>
-    <rect width="900" height="600" fill="white"/>
-    {/* 태극 (Taeguk) */}
-    <circle cx="450" cy="300" r="150" fill="#CD2E3A"/>
-    <path d="M450,150 A150,150 0 0,1 450,300 A75,75 0 0,0 450,450 A150,150 0 0,1 450,150" fill="#0047A0"/>
-    <path d="M450,150 A150,150 0 0,0 450,300 A75,75 0 0,1 450,450 A150,150 0 0,0 450,150" fill="#CD2E3A"/>
-    {/* 건 (Geon) - 좌상 */}
-    <g transform="rotate(-56 450 300)">
-      <rect x="590" y="197" width="170" height="22" fill="#000"/>
-      <rect x="590" y="233" width="170" height="22" fill="#000"/>
-      <rect x="590" y="269" width="170" height="22" fill="#000"/>
-    </g>
-    {/* 곤 (Gon) - 우하 */}
-    <g transform="rotate(-56 450 300)">
-      <rect x="140" y="310" width="75" height="22" fill="#000"/>
-      <rect x="235" y="310" width="75" height="22" fill="#000"/>
-      <rect x="140" y="346" width="75" height="22" fill="#000"/>
-      <rect x="235" y="346" width="75" height="22" fill="#000"/>
-      <rect x="140" y="382" width="75" height="22" fill="#000"/>
-      <rect x="235" y="382" width="75" height="22" fill="#000"/>
-    </g>
-    {/* 감 (Gam) - 우상 */}
-    <g transform="rotate(56 450 300)">
-      <rect x="590" y="197" width="170" height="22" fill="#000"/>
-      <rect x="590" y="233" width="75" height="22" fill="#000"/>
-      <rect x="685" y="233" width="75" height="22" fill="#000"/>
-      <rect x="590" y="269" width="170" height="22" fill="#000"/>
-    </g>
-    {/* 리 (Ri) - 좌하 */}
-    <g transform="rotate(56 450 300)">
-      <rect x="140" y="310" width="75" height="22" fill="#000"/>
-      <rect x="235" y="310" width="75" height="22" fill="#000"/>
-      <rect x="140" y="346" width="170" height="22" fill="#000"/>
-      <rect x="140" y="382" width="75" height="22" fill="#000"/>
-      <rect x="235" y="382" width="75" height="22" fill="#000"/>
-    </g>
-  </svg>
+  <img src="/flags/kr.png" alt="KR" className={className} style={{ objectFit: 'contain' }} />
 )
 
 const FlagJP = ({ className = "w-5 h-3.5" }) => (
-  <svg viewBox="0 0 900 600" className={className}>
-    <rect width="900" height="600" fill="white"/>
-    <circle cx="450" cy="300" r="180" fill="#BC002D"/>
-  </svg>
+  <img src="/flags/jp.png" alt="JP" className={className} style={{ objectFit: 'contain' }} />
 )
 
 const FlagUS = ({ className = "w-5 h-3.5" }) => (
-  <svg viewBox="0 0 1235 650" className={className}>
-    <rect width="1235" height="650" fill="#B22234"/>
-    <rect y="50" width="1235" height="50" fill="white"/>
-    <rect y="150" width="1235" height="50" fill="white"/>
-    <rect y="250" width="1235" height="50" fill="white"/>
-    <rect y="350" width="1235" height="50" fill="white"/>
-    <rect y="450" width="1235" height="50" fill="white"/>
-    <rect y="550" width="1235" height="50" fill="white"/>
-    <rect width="494" height="350" fill="#3C3B6E"/>
-  </svg>
+  <img src="/flags/us.png" alt="US" className={className} style={{ objectFit: 'contain' }} />
 )
 
 const FLAGS = {
