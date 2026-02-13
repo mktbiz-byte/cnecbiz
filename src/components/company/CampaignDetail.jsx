@@ -13715,243 +13715,237 @@ Questions? Contact us.
         </div>
       )}
 
-      {/* 크리에이터 프로필 모달 - 개편 */}
+      {/* 크리에이터 프로필 모달 - v2 모던 디자인 */}
       {showProfileModal && selectedParticipant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-            {/* 고정 헤더 */}
-            <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-20">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">크리에이터 프로필</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowProfileModal(false); setSelectedParticipant(null) } }}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
+            {/* 프로필 헤더 - 미니멀 */}
+            <div className="relative bg-gray-50 px-5 py-5 border-b border-gray-100">
               <button
-                onClick={() => {
-                  setShowProfileModal(false)
-                  setSelectedParticipant(null)
-                }}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                onClick={() => { setShowProfileModal(false); setSelectedParticipant(null) }}
+                className="absolute top-3 right-3 p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                <X className="w-6 h-6 text-gray-600" />
+                <X className="w-5 h-5 text-gray-400" />
               </button>
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  <img
+                    src={selectedParticipant.profile_photo_url || '/default-avatar.png'}
+                    alt={selectedParticipant.name}
+                    className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white shadow-md"
+                  />
+                  {(() => {
+                    const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
+                    const colors = {
+                      verified: 'bg-emerald-500', warning_1: 'bg-blue-500',
+                      warning_2: 'bg-amber-500', warning_3: 'bg-red-500', unclassified: 'bg-gray-400'
+                    }
+                    const icons = {
+                      verified: <ShieldCheck className="w-3 h-3" />, warning_1: <Search className="w-3 h-3" />,
+                      warning_2: <AlertCircle className="w-3 h-3" />, warning_3: <ShieldX className="w-3 h-3" />,
+                      unclassified: <Clock className="w-3 h-3" />
+                    }
+                    return (
+                      <div className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-md text-white ${colors[status]}`}>
+                        {icons[status]}
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg font-bold text-gray-900 truncate">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
+                    {(() => {
+                      const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
+                      const styles = {
+                        verified: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        warning_1: 'bg-blue-50 text-blue-700 border-blue-200',
+                        warning_2: 'bg-amber-50 text-amber-700 border-amber-200',
+                        warning_3: 'bg-red-50 text-red-700 border-red-200',
+                        unclassified: 'bg-gray-50 text-gray-600 border-gray-200'
+                      }
+                      return (
+                        <span className={`px-2 py-0.5 text-[10px] rounded-md font-semibold border ${styles[status]}`}>
+                          {ACCOUNT_STATUS[status].name}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {[
+                      selectedParticipant.gender && (GENDER_MAP[selectedParticipant.gender] || selectedParticipant.gender),
+                      selectedParticipant.age && `${selectedParticipant.age}세`,
+                      selectedParticipant.job
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                  {/* SNS 링크 인라인 */}
+                  <div className="flex items-center gap-2 mt-2">
+                    {selectedParticipant.instagram_url && (
+                      <a href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer"
+                         className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <Instagram className="w-3.5 h-3.5 text-pink-600" />
+                      </a>
+                    )}
+                    {selectedParticipant.youtube_url && (
+                      <a href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer"
+                         className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <Youtube className="w-3.5 h-3.5 text-red-600" />
+                      </a>
+                    )}
+                    {selectedParticipant.tiktok_url && (
+                      <a href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer"
+                         className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <svg className="w-3.5 h-3.5 text-gray-800" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 스크롤 가능한 컨텐츠 */}
             <div className="overflow-y-auto flex-1">
-              {/* 프로필 상단 - 컴팩트 */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 sm:p-6">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="relative">
-                    <img
-                      src={selectedParticipant.profile_photo_url || '/default-avatar.png'}
-                      alt={selectedParticipant.name}
-                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl border-4 border-white shadow-lg object-cover"
-                    />
-                    {(() => {
-                      const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
-                      return (
-                        <div className={`absolute -bottom-1 -right-1 p-1 rounded-full ${
-                          status === 'verified' ? 'bg-emerald-500 text-white' :
-                          status === 'warning_1' ? 'bg-blue-500 text-white' :
-                          status === 'warning_2' ? 'bg-yellow-500 text-white' :
-                          status === 'warning_3' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                        }`}>
-                          {status === 'verified' && <ShieldCheck className="w-4 h-4" />}
-                          {status === 'warning_1' && <Search className="w-4 h-4" />}
-                          {status === 'warning_2' && <AlertCircle className="w-4 h-4" />}
-                          {status === 'warning_3' && <ShieldX className="w-4 h-4" />}
-                          {status === 'unclassified' && <Clock className="w-4 h-4" />}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                  <div className="flex-1 text-white">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
-                      {/* 인증 상태 배지 */}
-                      {(() => {
-                        const status = selectedParticipant.account_status && ACCOUNT_STATUS[selectedParticipant.account_status] ? selectedParticipant.account_status : 'unclassified'
-                        return (
-                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                            status === 'verified' ? 'bg-emerald-400 text-white' :
-                            status === 'warning_1' ? 'bg-blue-400 text-white' :
-                            status === 'warning_2' ? 'bg-yellow-400 text-gray-800' :
-                            status === 'warning_3' ? 'bg-red-400 text-white' : 'bg-gray-400 text-white'
-                          }`}>
-                            {ACCOUNT_STATUS[status].name}
-                          </span>
-                        )
-                      })()}
-                    </div>
-                    <p className="text-purple-100 mt-1">
-                      {selectedParticipant.gender && `${GENDER_MAP[selectedParticipant.gender] || selectedParticipant.gender} · `}
-                      {selectedParticipant.age && `${selectedParticipant.age}세`}
-                      {selectedParticipant.job && ` · ${selectedParticipant.job}`}
-                    </p>
-                    {/* SNS 채널 아이콘 */}
-                    <div className="flex gap-3 mt-3">
-                      {selectedParticipant.instagram_url && (
-                        <a href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer"
-                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
-                          <Instagram className="w-5 h-5 text-pink-600" />
-                        </a>
-                      )}
-                      {selectedParticipant.youtube_url && (
-                        <a href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer"
-                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
-                          <Youtube className="w-5 h-5 text-red-600" />
-                        </a>
-                      )}
-                      {selectedParticipant.tiktok_url && (
-                        <a href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer"
-                           className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform">
-                          <svg className="w-5 h-5 text-gray-800" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                          </svg>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* CHANNEL INFLUENCE - 팔로워 통계 */}
-              {(selectedParticipant.youtube_url || selectedParticipant.instagram_url || selectedParticipant.tiktok_url ||
-                selectedParticipant.youtube_subscribers > 0 || selectedParticipant.instagram_followers > 0 || selectedParticipant.tiktok_followers > 0) && (
-              <div className="p-4 bg-gray-50 border-b">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">CHANNEL INFLUENCE</h3>
-                <div className="flex gap-4">
-                  {(selectedParticipant.youtube_url || selectedParticipant.youtube_subscribers > 0) && (
-                    <a
-                      href={selectedParticipant.youtube_url ? normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube') : '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <Youtube className="w-5 h-5 text-red-600" />
-                      </div>
-                      <p className="text-lg font-bold text-red-600">
-                        {selectedParticipant.youtube_subscribers > 0
-                          ? (selectedParticipant.youtube_subscribers >= 10000
-                              ? `${(selectedParticipant.youtube_subscribers / 10000).toFixed(1)}만`
-                              : selectedParticipant.youtube_subscribers.toLocaleString())
-                          : '-'}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase">YOUTUBE</p>
-                    </a>
-                  )}
-                  {(selectedParticipant.instagram_url || selectedParticipant.instagram_followers > 0) && (
-                    <a
-                      href={selectedParticipant.instagram_url ? normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram') : '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <Instagram className="w-5 h-5 text-pink-600" />
-                      </div>
-                      <p className="text-lg font-bold text-pink-600">
-                        {selectedParticipant.instagram_followers > 0
-                          ? (selectedParticipant.instagram_followers >= 10000
-                              ? `${(selectedParticipant.instagram_followers / 10000).toFixed(1)}만`
-                              : selectedParticipant.instagram_followers.toLocaleString())
-                          : '-'}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase">INSTAGRAM</p>
-                    </a>
-                  )}
-                  {(selectedParticipant.tiktok_url || selectedParticipant.tiktok_followers > 0) && (
-                    <a
-                      href={selectedParticipant.tiktok_url ? normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok') : '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-white p-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              {/* 팔로워 카드 */}
+              {(selectedParticipant.youtube_subscribers > 0 || selectedParticipant.instagram_followers > 0 || selectedParticipant.tiktok_followers > 0) && (
+                <div className="px-5 pt-4 pb-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    {(selectedParticipant.youtube_url || selectedParticipant.youtube_subscribers > 0) && (
+                      <a
+                        href={selectedParticipant.youtube_url ? normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube') : '#'}
+                        target="_blank" rel="noopener noreferrer"
+                        className="group bg-white p-3 rounded-xl text-center border border-gray-100 hover:border-red-200 hover:bg-red-50/30 transition-all"
+                      >
+                        <Youtube className="w-4 h-4 text-red-500 mx-auto mb-1.5 group-hover:scale-110 transition-transform" />
+                        <p className="text-base font-bold text-gray-900">
+                          {selectedParticipant.youtube_subscribers > 0
+                            ? (selectedParticipant.youtube_subscribers >= 10000
+                                ? `${(selectedParticipant.youtube_subscribers / 10000).toFixed(1)}만`
+                                : selectedParticipant.youtube_subscribers.toLocaleString())
+                            : '-'}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">YouTube</p>
+                      </a>
+                    )}
+                    {(selectedParticipant.instagram_url || selectedParticipant.instagram_followers > 0) && (
+                      <a
+                        href={selectedParticipant.instagram_url ? normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram') : '#'}
+                        target="_blank" rel="noopener noreferrer"
+                        className="group bg-white p-3 rounded-xl text-center border border-gray-100 hover:border-pink-200 hover:bg-pink-50/30 transition-all"
+                      >
+                        <Instagram className="w-4 h-4 text-pink-500 mx-auto mb-1.5 group-hover:scale-110 transition-transform" />
+                        <p className="text-base font-bold text-gray-900">
+                          {selectedParticipant.instagram_followers > 0
+                            ? (selectedParticipant.instagram_followers >= 10000
+                                ? `${(selectedParticipant.instagram_followers / 10000).toFixed(1)}만`
+                                : selectedParticipant.instagram_followers.toLocaleString())
+                            : '-'}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">Instagram</p>
+                      </a>
+                    )}
+                    {(selectedParticipant.tiktok_url || selectedParticipant.tiktok_followers > 0) && (
+                      <a
+                        href={selectedParticipant.tiktok_url ? normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok') : '#'}
+                        target="_blank" rel="noopener noreferrer"
+                        className="group bg-white p-3 rounded-xl text-center border border-gray-100 hover:border-gray-300 hover:bg-gray-50/50 transition-all"
+                      >
+                        <svg className="w-4 h-4 mx-auto mb-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
                         </svg>
-                      </div>
-                      <p className="text-lg font-bold text-gray-800">
-                        {selectedParticipant.tiktok_followers > 0
-                          ? (selectedParticipant.tiktok_followers >= 10000
-                              ? `${(selectedParticipant.tiktok_followers / 10000).toFixed(1)}만`
-                              : selectedParticipant.tiktok_followers.toLocaleString())
-                          : '-'}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase">TIKTOK</p>
-                    </a>
-                  )}
+                        <p className="text-base font-bold text-gray-900">
+                          {selectedParticipant.tiktok_followers > 0
+                            ? (selectedParticipant.tiktok_followers >= 10000
+                                ? `${(selectedParticipant.tiktok_followers / 10000).toFixed(1)}만`
+                                : selectedParticipant.tiktok_followers.toLocaleString())
+                            : '-'}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">TikTok</p>
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
               )}
 
-              {/* 모달 컨텐츠 */}
-              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* BEAUTY SPEC */}
-                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type) && (
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-3 sm:p-4 rounded-xl border border-pink-200">
-                    <h3 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2 sm:mb-3">BEAUTY SPEC</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+              {/* 본문 */}
+              <div className="px-5 py-4 space-y-5">
+                {/* AI 소개글 (상단 배치 - 가장 중요한 요약) */}
+                {selectedParticipant.ai_profile_text && (
+                  <div className="relative bg-gradient-to-br from-violet-50 to-indigo-50 p-4 rounded-xl border border-violet-100">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                      <span className="text-[11px] font-bold text-violet-600 uppercase tracking-wider">AI Summary</span>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.ai_profile_text}</p>
+                  </div>
+                )}
+
+                {/* 크리에이터 소개 */}
+                {selectedParticipant.bio && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.bio}</p>
+                  </div>
+                )}
+
+                {/* BEAUTY SPEC - 2열 카드 */}
+                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level) && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Beauty Spec</p>
+                    <div className="grid grid-cols-3 gap-2">
                       {selectedParticipant.skin_type && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">피부</p>
-                          <p className="text-sm font-semibold text-gray-800">{SKIN_TYPES[selectedParticipant.skin_type?.toLowerCase()] || selectedParticipant.skin_type}</p>
+                        <div className="bg-pink-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-pink-400 font-medium mb-0.5">피부 타입</p>
+                          <p className="text-xs font-semibold text-gray-800">{SKIN_TYPES[selectedParticipant.skin_type?.toLowerCase()] || selectedParticipant.skin_type}</p>
                         </div>
                       )}
                       {selectedParticipant.skin_shade && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">호수</p>
-                          <p className="text-sm font-semibold text-gray-800">{SKIN_SHADE_MAP[selectedParticipant.skin_shade] || selectedParticipant.skin_shade}</p>
+                        <div className="bg-orange-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-orange-400 font-medium mb-0.5">피부 호수</p>
+                          <p className="text-xs font-semibold text-gray-800">{SKIN_SHADE_MAP[selectedParticipant.skin_shade] || selectedParticipant.skin_shade}</p>
                         </div>
                       )}
                       {selectedParticipant.personal_color && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">퍼스널컬러</p>
-                          <p className="text-sm font-semibold text-gray-800">{PERSONAL_COLOR_MAP[selectedParticipant.personal_color] || selectedParticipant.personal_color}</p>
+                        <div className="bg-rose-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-rose-400 font-medium mb-0.5">퍼스널컬러</p>
+                          <p className="text-xs font-semibold text-gray-800">{PERSONAL_COLOR_MAP[selectedParticipant.personal_color] || selectedParticipant.personal_color}</p>
                         </div>
                       )}
                       {selectedParticipant.hair_type && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">헤어</p>
-                          <p className="text-sm font-semibold text-gray-800">{HAIR_TYPE_MAP[selectedParticipant.hair_type] || selectedParticipant.hair_type}</p>
+                        <div className="bg-amber-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-amber-400 font-medium mb-0.5">헤어 타입</p>
+                          <p className="text-xs font-semibold text-gray-800">{HAIR_TYPE_MAP[selectedParticipant.hair_type] || selectedParticipant.hair_type}</p>
                         </div>
                       )}
                       {selectedParticipant.editing_level && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">편집</p>
-                          <p className="text-sm font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.editing_level] || selectedParticipant.editing_level}</p>
+                        <div className="bg-blue-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-blue-400 font-medium mb-0.5">편집 레벨</p>
+                          <p className="text-xs font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.editing_level] || selectedParticipant.editing_level}</p>
                         </div>
                       )}
                       {selectedParticipant.shooting_level && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">촬영</p>
-                          <p className="text-sm font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.shooting_level] || selectedParticipant.shooting_level}</p>
+                        <div className="bg-indigo-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-indigo-400 font-medium mb-0.5">촬영 레벨</p>
+                          <p className="text-xs font-semibold text-gray-800">{SKILL_LEVEL_MAP[selectedParticipant.shooting_level] || selectedParticipant.shooting_level}</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* CONCERNS */}
-                {selectedParticipant.skin_concerns && selectedParticipant.skin_concerns.length > 0 && (
+                {/* 피부/헤어 고민 - 태그 스타일 */}
+                {((selectedParticipant.skin_concerns && selectedParticipant.skin_concerns.length > 0) || (selectedParticipant.hair_concerns && selectedParticipant.hair_concerns.length > 0)) && (
                   <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">피부 고민</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedParticipant.skin_concerns.map((concern, idx) => (
-                        <span key={idx} className="px-3 py-1 text-xs bg-pink-100 text-pink-700 rounded-full border border-pink-200">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Concerns</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedParticipant.skin_concerns?.map((concern, idx) => (
+                        <span key={`skin-${idx}`} className="px-2.5 py-1 text-[11px] font-medium bg-pink-50 text-pink-600 rounded-lg border border-pink-100">
                           {SKIN_CONCERN_MAP[concern] || concern}
                         </span>
                       ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 헤어 고민 */}
-                {selectedParticipant.hair_concerns && selectedParticipant.hair_concerns.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">헤어 고민</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedParticipant.hair_concerns.map((concern, idx) => (
-                        <span key={idx} className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full border border-amber-200">
+                      {selectedParticipant.hair_concerns?.map((concern, idx) => (
+                        <span key={`hair-${idx}`} className="px-2.5 py-1 text-[11px] font-medium bg-amber-50 text-amber-600 rounded-lg border border-amber-100">
                           {HAIR_CONCERN_MAP[concern] || concern}
                         </span>
                       ))}
@@ -13960,164 +13954,137 @@ Questions? Contact us.
                 )}
 
                 {/* 콘텐츠 스타일 */}
-                {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency) && (
-                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 sm:p-4 rounded-xl border border-blue-200">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 sm:mb-3">콘텐츠 스타일</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
+                {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency || selectedParticipant.shortform_tempo_style) && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Content Style</p>
+                    <div className="grid grid-cols-2 gap-2">
                       {selectedParticipant.primary_interest && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">주요 콘텐츠</p>
-                          <p className="text-sm font-semibold text-gray-800">{PRIMARY_INTEREST_MAP[selectedParticipant.primary_interest] || selectedParticipant.primary_interest}</p>
+                        <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">주요 콘텐츠</p>
+                          <p className="text-xs font-semibold text-gray-800">{PRIMARY_INTEREST_MAP[selectedParticipant.primary_interest] || selectedParticipant.primary_interest}</p>
                         </div>
                       )}
                       {selectedParticipant.video_length_style && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">영상 길이</p>
-                          <p className="text-sm font-semibold text-gray-800">{VIDEO_LENGTH_STYLE_MAP[selectedParticipant.video_length_style] || selectedParticipant.video_length_style}</p>
+                        <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">영상 길이</p>
+                          <p className="text-xs font-semibold text-gray-800">{VIDEO_LENGTH_STYLE_MAP[selectedParticipant.video_length_style] || selectedParticipant.video_length_style}</p>
                         </div>
                       )}
                       {selectedParticipant.shortform_tempo_style && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">숏폼 템포</p>
-                          <p className="text-sm font-semibold text-gray-800">{SHORTFORM_TEMPO_MAP[selectedParticipant.shortform_tempo_style] || selectedParticipant.shortform_tempo_style}</p>
+                        <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">숏폼 템포</p>
+                          <p className="text-xs font-semibold text-gray-800">{SHORTFORM_TEMPO_MAP[selectedParticipant.shortform_tempo_style] || selectedParticipant.shortform_tempo_style}</p>
                         </div>
                       )}
                       {selectedParticipant.upload_frequency && (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase">업로드 빈도</p>
-                          <p className="text-sm font-semibold text-gray-800">{UPLOAD_FREQUENCY_MAP[selectedParticipant.upload_frequency] || selectedParticipant.upload_frequency}</p>
+                        <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">업로드 빈도</p>
+                          <p className="text-xs font-semibold text-gray-800">{UPLOAD_FREQUENCY_MAP[selectedParticipant.upload_frequency] || selectedParticipant.upload_frequency}</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* 영상 스타일 */}
-                {selectedParticipant.video_styles && selectedParticipant.video_styles.length > 0 && (
+                {/* 영상 스타일 + 뷰티 아이템 */}
+                {(selectedParticipant.video_styles?.length > 0 || selectedParticipant.nail_usage || selectedParticipant.circle_lens_usage || selectedParticipant.glasses_usage) && (
                   <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">영상 스타일</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedParticipant.video_styles.map((style, idx) => (
-                        <span key={idx} className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full border border-blue-200">
-                          {VIDEO_STYLE_MAP[style] || style}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 뷰티 아이템 사용 */}
-                {(selectedParticipant.nail_usage || selectedParticipant.circle_lens_usage || selectedParticipant.glasses_usage) && (
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">뷰티 아이템</h3>
-                    <div className="flex flex-wrap gap-3">
-                      {selectedParticipant.nail_usage && (
-                        <span className="px-3 py-1 text-xs bg-rose-50 text-rose-700 rounded-full border border-rose-200">
-                          💅 네일: {USAGE_FREQUENCY_MAP[selectedParticipant.nail_usage] || selectedParticipant.nail_usage}
-                        </span>
-                      )}
-                      {selectedParticipant.circle_lens_usage && (
-                        <span className="px-3 py-1 text-xs bg-purple-50 text-purple-700 rounded-full border border-purple-200">
-                          👁️ 렌즈: {USAGE_FREQUENCY_MAP[selectedParticipant.circle_lens_usage] || selectedParticipant.circle_lens_usage}
-                        </span>
-                      )}
-                      {selectedParticipant.glasses_usage && (
-                        <span className="px-3 py-1 text-xs bg-gray-50 text-gray-700 rounded-full border border-gray-200">
-                          👓 안경: {USAGE_FREQUENCY_MAP[selectedParticipant.glasses_usage] || selectedParticipant.glasses_usage}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* AI 소개글 */}
-                {selectedParticipant.ai_profile_text && (
-                  <div className="bg-violet-50 p-4 rounded-xl border border-violet-200">
-                    <h3 className="text-xs font-bold text-violet-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> AI 소개글
-                    </h3>
-                    <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.ai_profile_text}</p>
-                  </div>
-                )}
-
-                {/* Bio */}
-                {selectedParticipant.bio && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-800 mb-2">크리에이터 소개</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{selectedParticipant.bio}</p>
-                  </div>
-                )}
-
-                {/* 구분선 */}
-                <hr className="border-gray-200" />
-
-                {/* 지원서 답변 */}
-                {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      지원서 질문 & 답변
-                    </h3>
-                    <div className="space-y-4">
-                      {selectedParticipant.answer_1 && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question1 || campaign?.questions?.[0]?.question || '질문 1'}</div>
-                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_1}</div>
+                    {selectedParticipant.video_styles?.length > 0 && (
+                      <>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Video Style</p>
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {selectedParticipant.video_styles.map((style, idx) => (
+                            <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-blue-50 text-blue-600 rounded-lg border border-blue-100">
+                              {VIDEO_STYLE_MAP[style] || style}
+                            </span>
+                          ))}
                         </div>
-                      )}
-                      {selectedParticipant.answer_2 && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question2 || campaign?.questions?.[1]?.question || '질문 2'}</div>
-                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_2}</div>
+                      </>
+                    )}
+                    {(selectedParticipant.nail_usage || selectedParticipant.circle_lens_usage || selectedParticipant.glasses_usage) && (
+                      <>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-3">Beauty Items</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedParticipant.nail_usage && (
+                            <span className="px-2.5 py-1 text-[11px] font-medium bg-rose-50 text-rose-600 rounded-lg border border-rose-100">
+                              네일 · {USAGE_FREQUENCY_MAP[selectedParticipant.nail_usage] || selectedParticipant.nail_usage}
+                            </span>
+                          )}
+                          {selectedParticipant.circle_lens_usage && (
+                            <span className="px-2.5 py-1 text-[11px] font-medium bg-purple-50 text-purple-600 rounded-lg border border-purple-100">
+                              렌즈 · {USAGE_FREQUENCY_MAP[selectedParticipant.circle_lens_usage] || selectedParticipant.circle_lens_usage}
+                            </span>
+                          )}
+                          {selectedParticipant.glasses_usage && (
+                            <span className="px-2.5 py-1 text-[11px] font-medium bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
+                              안경 · {USAGE_FREQUENCY_MAP[selectedParticipant.glasses_usage] || selectedParticipant.glasses_usage}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {selectedParticipant.answer_3 && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question3 || campaign?.questions?.[2]?.question || '질문 3'}</div>
-                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_3}</div>
-                        </div>
-                      )}
-                      {selectedParticipant.answer_4 && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <div className="text-xs font-medium text-blue-600 mb-2">Q. {campaign?.question4 || campaign?.questions?.[3]?.question || '질문 4'}</div>
-                          <div className="text-sm text-gray-800 pl-3 border-l-2 border-blue-300">{selectedParticipant.answer_4}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 지원자 한마디 */}
-                {selectedParticipant.additional_info && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-purple-600" />
-                      지원자 한마디
-                    </h3>
-                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl text-sm text-gray-800 whitespace-pre-wrap border border-purple-200">
-                      {selectedParticipant.additional_info}
-                    </div>
+                      </>
+                    )}
                   </div>
                 )}
 
                 {/* 활동 정보 */}
                 {(selectedParticipant.child_appearance || selectedParticipant.family_appearance || selectedParticipant.offline_visit || selectedParticipant.languages?.length > 0) && (
                   <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">활동 정보</h3>
-                    <div className="flex flex-wrap gap-2">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Activity</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {selectedParticipant.child_appearance === '가능' && (
-                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">아이출연가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">아이 출연 가능</span>
                       )}
                       {selectedParticipant.family_appearance === '가능' && (
-                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">가족출연가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">가족 출연 가능</span>
                       )}
                       {selectedParticipant.offline_visit === '가능' && (
-                        <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">오프라인촬영가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">오프라인 촬영 가능</span>
                       )}
-                      {selectedParticipant.languages && selectedParticipant.languages.map((lang, idx) => (
-                        <span key={idx} className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">{lang}</span>
+                      {selectedParticipant.languages?.map((lang, idx) => (
+                        <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-slate-50 text-slate-600 rounded-lg border border-slate-200">{lang}</span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 구분선 - 지원서 영역 */}
+                {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4 || selectedParticipant.additional_info) && (
+                  <div className="border-t border-gray-100 pt-5">
+                    {/* 지원서 답변 */}
+                    {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
+                      <div className="mb-5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Application Q&A</p>
+                        </div>
+                        <div className="space-y-3">
+                          {[
+                            { answer: selectedParticipant.answer_1, question: campaign?.question1 || campaign?.questions?.[0]?.question },
+                            { answer: selectedParticipant.answer_2, question: campaign?.question2 || campaign?.questions?.[1]?.question },
+                            { answer: selectedParticipant.answer_3, question: campaign?.question3 || campaign?.questions?.[2]?.question },
+                            { answer: selectedParticipant.answer_4, question: campaign?.question4 || campaign?.questions?.[3]?.question },
+                          ].filter(qa => qa.answer).map((qa, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-xl p-3.5">
+                              <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Q. {qa.question || `질문 ${idx + 1}`}</p>
+                              <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{qa.answer}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 지원자 한마디 */}
+                    {selectedParticipant.additional_info && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageSquare className="w-4 h-4 text-violet-400" />
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">지원 한마디</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedParticipant.additional_info}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
