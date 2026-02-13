@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@distube/ytdl-core':
+        specifier: ^4.16.12
+        version: 4.16.12
+      '@ffmpeg/ffmpeg':
+        specifier: ^0.12.15
+        version: 0.12.15
+      '@ffmpeg/util':
+        specifier: ^0.12.2
+        version: 0.12.2
       '@google/generative-ai':
         specifier: ^0.24.1
         version: 0.24.1
@@ -391,6 +400,10 @@ packages:
     resolution: {integrity: sha512-+EzkxvLNfiUeKMgy/3luqfsCWFRXLb7U6wNQTk60tovuckwB15B191tJWvpp4HjiQWdJkCxO3Wbvc6jlk3Xb2Q==}
     engines: {node: '>=6.9.0'}
 
+  '@distube/ytdl-core@4.16.12':
+    resolution: {integrity: sha512-/NR8Jur1Q4E2oD+DJta7uwWu7SkqdEkhwERt7f4iune70zg7ZlLLTOHs1+jgg3uD2jQjpdk7RGC16FqstG4RsA==}
+    engines: {node: '>=20.18.1'}
+
   '@emotion/is-prop-valid@1.2.2':
     resolution: {integrity: sha512-uNsoYd37AFmaCdXlg6EYD1KaPOaRWRByMCYzbKUX4+hhMfrxdVSelShywL4JVaAeM/eHUOSprYBQls+/neX3pw==}
 
@@ -587,6 +600,18 @@ packages:
   '@eslint/plugin-kit@0.2.8':
     resolution: {integrity: sha512-ZAoA40rNMPwSm+AeHpCq8STiNAwzWLJuP8Xv4CHIc9wv/PSuExjMrmjfYNj682vW0OOiZ1HKxzvjQr9XZIisQA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@ffmpeg/ffmpeg@0.12.15':
+    resolution: {integrity: sha512-1C8Obr4GsN3xw+/1Ww6PFM84wSQAGsdoTuTWPOj2OizsRDLT4CXTaVjPhkw6ARyDus1B9X/L2LiXHqYYsGnRFw==}
+    engines: {node: '>=18.x'}
+
+  '@ffmpeg/types@0.12.4':
+    resolution: {integrity: sha512-k9vJQNBGTxE5AhYDtOYR5rO5fKsspbg51gbcwtbkw2lCdoIILzklulcjJfIDwrtn7XhDeF2M+THwJ2FGrLeV6A==}
+    engines: {node: '>=16.x'}
+
+  '@ffmpeg/util@0.12.2':
+    resolution: {integrity: sha512-ouyoW+4JB7WxjeZ2y6KpRvB+dLp7Cp4ro8z0HIVpZVCM7AwFlHa0c4R8Y/a4M3wMqATpYKhC7lSFHQ0T11MEDw==}
+    engines: {node: '>=18.x'}
 
   '@floating-ui/core@1.7.0':
     resolution: {integrity: sha512-FRdBLykrPPA6P76GGGqlex/e7fbe0F1ykgxHYNXQsH/iTEtjMj/f9bpY5oQqbjt5VgZvgz/uKXbGuROijh3VLA==}
@@ -2594,6 +2619,16 @@ packages:
   htmlparser2@10.0.0:
     resolution: {integrity: sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==}
 
+  http-cookie-agent@7.0.3:
+    resolution: {integrity: sha512-EeZo7CGhfqPW6R006rJa4QtZZUpBygDa2HZH3DJqsTzTjyRE6foDBVQIv/pjVsxHC8z2GIdbB1Hvn9SRorP3WQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      tough-cookie: ^4.0.0 || ^5.0.0 || ^6.0.0
+      undici: ^7.0.0
+    peerDependenciesMeta:
+      undici:
+        optional: true
+
   http-errors@2.0.0:
     resolution: {integrity: sha512-FtwrG/euBzaEjYeRqOgly7G0qviiXoJWnvEH2Z1plBdXgbyjv34pHTSb9zoeHMyDy33+DWy5Wt9Wo+TURtOYSQ==}
     engines: {node: '>= 0.8'}
@@ -2857,6 +2892,10 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  m3u8stream@0.8.6:
+    resolution: {integrity: sha512-LZj8kIVf9KCphiHmH7sbFQTVe4tOemb202fWwvJwR9W5ENW/1hxJN6ksAWGhQgSBSa3jyWhnjKU1Fw1GaOdbyA==}
+    engines: {node: '>=12'}
+
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
 
@@ -2899,6 +2938,10 @@ packages:
   mime-types@3.0.1:
     resolution: {integrity: sha512-xRc4oEhT6eaBpU1XF7AjpOFD+xQmXNB5OVKwp4tqCuBpHLS/ZbBDrc07mYTDqVMg6PfxUjjNp85O6Cd2Z/5HWA==}
     engines: {node: '>= 0.6'}
+
+  miniget@4.2.3:
+    resolution: {integrity: sha512-SjbDPDICJ1zT+ZvQwK0hUcRY4wxlhhNpHL9nJOB2MEAXRGagTljsO8MEDzQMTFf0Q8g4QNi8P9lEm/g7e+qgzA==}
+    engines: {node: '>=12'}
 
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -3359,6 +3402,10 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
+  sax@1.4.4:
+    resolution: {integrity: sha512-1n3r/tGXO6b6VXMdFT54SHzT9ytu9yr7TaELowdYpMqY/Ao7EnlQGmAQ1+RatX7Tkkdm6hONI2owqNx2aZj5Sw==}
+    engines: {node: '>=11.0.0'}
+
   scheduler@0.26.0:
     resolution: {integrity: sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==}
 
@@ -3532,9 +3579,20 @@ packages:
     resolution: {integrity: sha512-mEwzpUgrLySlveBwEVDMKk5B57bhLPYovRfPAXD5gA/98Opn0rCDj3GtLwFvCvH5RK9uPCExUROW5NjDwvqkxw==}
     engines: {node: '>=12.0.0'}
 
+  tldts-core@6.1.86:
+    resolution: {integrity: sha512-Je6p7pkk+KMzMv2XXKmAE3McmolOQFdxkKw0R8EYNr7sELW46JqnNeTX8ybPiQgvg1ymCoF8LXs5fzFaZvJPTA==}
+
+  tldts@6.1.86:
+    resolution: {integrity: sha512-WMi/OQ2axVTf/ykqCQgXiIct+mSQDFdH2fkwhPwgEwvJ1kSzZRiinb0zF2Xb8u4+OqPChmyI6MEu4EezNJz+FQ==}
+    hasBin: true
+
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
+
+  tough-cookie@5.1.2:
+    resolution: {integrity: sha512-FVDYdxtnj0G6Qm/DhNPSb8Ju59ULcup3tuJxkFb5K8Bv2pUXILbf0xZWU8PX8Ov19OXljbUyveOFwRMwkXzO+A==}
+    engines: {node: '>=16'}
 
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
@@ -3799,7 +3857,7 @@ snapshots:
       '@babel/traverse': 7.27.1
       '@babel/types': 7.27.1
       convert-source-map: 2.0.0
-      debug: 4.4.1
+      debug: 4.4.3
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -3891,6 +3949,18 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
+
+  '@distube/ytdl-core@4.16.12':
+    dependencies:
+      http-cookie-agent: 7.0.3(tough-cookie@5.1.2)(undici@7.16.0)
+      https-proxy-agent: 7.0.6
+      m3u8stream: 0.8.6
+      miniget: 4.2.3
+      sax: 1.4.4
+      tough-cookie: 5.1.2
+      undici: 7.16.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@emotion/is-prop-valid@1.2.2':
     dependencies:
@@ -3985,7 +4055,7 @@ snapshots:
   '@eslint/config-array@0.20.0':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.1
+      debug: 4.4.3
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -3999,7 +4069,7 @@ snapshots:
   '@eslint/eslintrc@3.3.1':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.1
+      debug: 4.4.3
       espree: 10.3.0
       globals: 14.0.0
       ignore: 5.3.2
@@ -4018,6 +4088,14 @@ snapshots:
     dependencies:
       '@eslint/core': 0.13.0
       levn: 0.4.1
+
+  '@ffmpeg/ffmpeg@0.12.15':
+    dependencies:
+      '@ffmpeg/types': 0.12.4
+
+  '@ffmpeg/types@0.12.4': {}
+
+  '@ffmpeg/util@0.12.2': {}
 
   '@floating-ui/core@1.7.0':
     dependencies:
@@ -5517,6 +5595,9 @@ snapshots:
 
   cnecbzi@file:(@emotion/is-prop-valid@1.2.2)(@floating-ui/dom@1.7.0)(@tiptap/pm@3.15.3)(@types/node@24.8.1)(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(vite@6.3.5(@types/node@24.8.1)(jiti@2.4.2)(lightningcss@1.30.1))(ws@8.18.3):
     dependencies:
+      '@distube/ytdl-core': 4.16.12
+      '@ffmpeg/ffmpeg': 0.12.15
+      '@ffmpeg/util': 0.12.2
       '@google/generative-ai': 0.24.1
       '@hookform/resolvers': 5.0.1(react-hook-form@7.56.3(react@19.1.0))
       '@line/bot-sdk': 10.5.0
@@ -6225,6 +6306,13 @@ snapshots:
       domutils: 3.2.2
       entities: 6.0.1
 
+  http-cookie-agent@7.0.3(tough-cookie@5.1.2)(undici@7.16.0):
+    dependencies:
+      agent-base: 7.1.4
+      tough-cookie: 5.1.2
+    optionalDependencies:
+      undici: 7.16.0
+
   http-errors@2.0.0:
     dependencies:
       depd: 2.0.0
@@ -6464,6 +6552,11 @@ snapshots:
     dependencies:
       react: 19.1.0
 
+  m3u8stream@0.8.6:
+    dependencies:
+      miniget: 4.2.3
+      sax: 1.4.4
+
   magic-string@0.30.17:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.0
@@ -6498,6 +6591,8 @@ snapshots:
   mime-types@3.0.1:
     dependencies:
       mime-db: 1.54.0
+
+  miniget@4.2.3: {}
 
   minimatch@3.1.2:
     dependencies:
@@ -7035,6 +7130,8 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
+  sax@1.4.4: {}
+
   scheduler@0.26.0: {}
 
   scmp@2.1.0: {}
@@ -7247,7 +7344,17 @@ snapshots:
       fdir: 6.4.4(picomatch@4.0.2)
       picomatch: 4.0.2
 
+  tldts-core@6.1.86: {}
+
+  tldts@6.1.86:
+    dependencies:
+      tldts-core: 6.1.86
+
   toidentifier@1.0.1: {}
+
+  tough-cookie@5.1.2:
+    dependencies:
+      tldts: 6.1.86
 
   tslib@2.6.2: {}
 
