@@ -91,8 +91,6 @@ export default function YoutuberSearchPage() {
   const [generatingGif, setGeneratingGif] = useState(false)
   const [gifProgress, setGifProgress] = useState('')
   const [gifResult, setGifResult] = useState(null)
-  const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
-  const [ffmpegRef, setFfmpegRef] = useState(null)
 
   // 목록 상태
   const [activeTab, setActiveTab] = useState('search')
@@ -683,37 +681,6 @@ export default function YoutuberSearchPage() {
     }
   }
 
-  // YouTube 쇼츠 정보 조회
-  // ffmpeg.wasm 로드
-  const loadFfmpeg = async () => {
-    if (ffmpegRef) return ffmpegRef
-    setGifProgress('ffmpeg.wasm 로딩 중... (최초 1회)')
-    try {
-      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
-      const ffmpeg = new FFmpeg()
-      ffmpeg.on('log', ({ message }) => {
-        console.log('[ffmpeg]', message)
-      })
-      ffmpeg.on('progress', ({ progress }) => {
-        if (progress > 0) {
-          setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
-        }
-      })
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      })
-      setFfmpegRef(ffmpeg)
-      setFfmpegLoaded(true)
-      return ffmpeg
-    } catch (error) {
-      console.error('ffmpeg load error:', error)
-      throw new Error('ffmpeg.wasm 로드 실패: ' + error.message)
-    }
-  }
-
   // 영상 다운로드 (서버 → Supabase Storage)
   const handleGetVideoInfo = async () => {
     if (!shortsUrl.trim()) {
@@ -751,7 +718,7 @@ export default function YoutuberSearchPage() {
     }
   }
 
-  // ffmpeg.wasm으로 GIF 직접 생성
+  // Canvas + gifenc으로 GIF 생성 (SharedArrayBuffer 불필요)
   const handleGenerateGif = async () => {
     if (!videoInfo?.video_url) {
       alert('먼저 영상을 다운로드하세요')
@@ -761,74 +728,69 @@ export default function YoutuberSearchPage() {
     setGeneratingGif(true)
     setGifResult(null)
     try {
-      // ffmpeg 로드
-      const ffmpeg = await loadFfmpeg()
-
-      // 영상 다운로드
-      setGifProgress('영상 파일 로딩 중...')
-      const { fetchFile } = await import('@ffmpeg/util')
-      const videoData = await fetchFile(videoInfo.video_url)
-      await ffmpeg.writeFile('input.mp4', videoData)
+      setGifProgress('GIF 인코더 로딩 중...')
+      const { GIFEncoder, quantize, applyPalette } = await import('gifenc')
 
       const start = parseInt(gifStartTime) || 0
       const end = parseInt(gifEndTime) || 5
       const duration = Math.max(1, end - start)
       const width = parseInt(gifWidth) || 320
       const fps = parseInt(gifFps) || 10
+      const totalFrames = duration * fps
+      const delay = Math.round(1000 / fps)
 
-      // 1차 시도: 표준 품질
-      setGifProgress('GIF 변환 중... (팔레트 최적화)')
-      await ffmpeg.exec([
-        '-ss', start.toString(),
-        '-t', duration.toString(),
-        '-i', 'input.mp4',
-        '-vf', `fps=${fps},scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3`,
-        '-loop', '0',
-        'output.gif'
-      ])
+      // 비디오 요소 생성 및 로딩
+      setGifProgress('영상 로딩 중...')
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.preload = 'auto'
 
-      let gifData = await ffmpeg.readFile('output.gif')
-      let gifSize = gifData.length
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve
+        video.onerror = () => reject(new Error('영상 로딩 실패'))
+        video.src = videoInfo.video_url
+      })
 
-      // 5MB 초과 시 품질 낮춰서 재시도
-      if (gifSize > 5 * 1024 * 1024) {
-        setGifProgress(`GIF ${(gifSize / 1024 / 1024).toFixed(1)}MB → 5MB 이하로 최적화 중...`)
-        const reducedWidth = Math.min(width, 240)
-        const reducedFps = Math.min(fps, 8)
-        await ffmpeg.exec([
-          '-ss', start.toString(),
-          '-t', duration.toString(),
-          '-i', 'input.mp4',
-          '-vf', `fps=${reducedFps},scale=${reducedWidth}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
-          '-loop', '0',
-          'output2.gif'
-        ])
-        gifData = await ffmpeg.readFile('output2.gif')
-        gifSize = gifData.length
+      const aspectRatio = video.videoHeight / video.videoWidth
+      const height = Math.round(width * aspectRatio)
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      const gif = GIFEncoder()
+
+      for (let i = 0; i < totalFrames; i++) {
+        const time = start + (i / fps)
+        if (time > end) break
+
+        setGifProgress(`프레임 추출 중... ${i + 1}/${totalFrames}`)
+
+        video.currentTime = time
+        await new Promise((resolve) => {
+          video.onseeked = resolve
+        })
+
+        ctx.drawImage(video, 0, 0, width, height)
+        const imageData = ctx.getImageData(0, 0, width, height)
+
+        const palette = quantize(imageData.data, 256)
+        const index = applyPalette(imageData.data, palette)
+        gif.writeFrame(index, width, height, { palette, delay })
       }
 
-      // 여전히 5MB 초과 시 더 줄임
-      if (gifSize > 5 * 1024 * 1024) {
-        setGifProgress(`재최적화 중... (${(gifSize / 1024 / 1024).toFixed(1)}MB)`)
-        await ffmpeg.exec([
-          '-ss', start.toString(),
-          '-t', Math.min(duration, 3).toString(),
-          '-i', 'input.mp4',
-          '-vf', `fps=6,scale=200:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
-          '-loop', '0',
-          'output3.gif'
-        ])
-        gifData = await ffmpeg.readFile('output3.gif')
-        gifSize = gifData.length
-      }
+      gif.finish()
 
-      const blob = new Blob([gifData], { type: 'image/gif' })
+      const output = gif.bytes()
+      const blob = new Blob([output], { type: 'image/gif' })
       const gifUrl = URL.createObjectURL(blob)
 
       setGifResult({
         url: gifUrl,
         blob,
-        size: gifSize,
+        size: output.length,
         width,
         fps,
         duration,
@@ -848,7 +810,7 @@ export default function YoutuberSearchPage() {
     } catch (error) {
       console.error('GIF generation error:', error)
       setGifProgress('')
-      alert('GIF 생성 실패: ' + error.message)
+      alert('GIF 생성 실패: ' + (error?.message || String(error)))
     } finally {
       setGeneratingGif(false)
     }
@@ -2789,7 +2751,7 @@ export default function YoutuberSearchPage() {
                             <li>완성된 GIF를 바로 다운로드!</li>
                           </ol>
                           <p className="mt-2 text-xs text-blue-600">
-                            * 최초 실행 시 ffmpeg.wasm (~30MB)을 다운로드합니다 (이후 캐시됨)
+                            * 브라우저에서 직접 GIF를 생성합니다 (별도 설치 불필요)
                           </p>
                         </div>
                       </div>

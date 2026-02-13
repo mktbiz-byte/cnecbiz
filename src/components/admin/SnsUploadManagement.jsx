@@ -56,7 +56,6 @@ export default function SnsUploadManagement() {
   const [generatingGif, setGeneratingGif] = useState(false)
   const [gifProgress, setGifProgress] = useState('')
   const [gifResult, setGifResult] = useState(null)
-  const [ffmpegRef, setFfmpegRef] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -731,35 +730,6 @@ export default function SnsUploadManagement() {
            url.includes('video') || url.includes('storage')
   }
 
-  // ffmpeg.wasm 로드 (싱글스레드 - SharedArrayBuffer/COOP-COEP 헤더 불필요)
-  const loadFfmpeg = async () => {
-    if (ffmpegRef) return ffmpegRef
-    setGifProgress('ffmpeg.wasm 로딩 중... (최초 1회)')
-    try {
-      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
-      const ffmpeg = new FFmpeg()
-      ffmpeg.on('log', ({ message }) => {
-        console.log('[ffmpeg]', message)
-      })
-      ffmpeg.on('progress', ({ progress }) => {
-        if (progress > 0) {
-          setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
-        }
-      })
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      })
-      setFfmpegRef(ffmpeg)
-      return ffmpeg
-    } catch (error) {
-      console.error('ffmpeg load error:', error)
-      throw new Error('ffmpeg.wasm 로드 실패: ' + (error?.message || String(error)))
-    }
-  }
-
   // GIF 변환 모달 열기
   const openGifModal = (video, videoUrl = null) => {
     const url = videoUrl || video.video_file_url
@@ -776,71 +746,80 @@ export default function SnsUploadManagement() {
     setGifProgress('')
   }
 
-  // GIF 생성
+  // GIF 생성 (Canvas + gifenc - SharedArrayBuffer 불필요)
   const handleGenerateGif = async () => {
     if (!gifTargetVideo?.targetUrl) return
 
     setGeneratingGif(true)
     setGifResult(null)
     try {
-      const ffmpeg = await loadFfmpeg()
-
-      setGifProgress('영상 파일 로딩 중...')
-      const { fetchFile } = await import('@ffmpeg/util')
-      const videoData = await fetchFile(gifTargetVideo.targetUrl)
-      await ffmpeg.writeFile('input.mp4', videoData)
+      setGifProgress('GIF 인코더 로딩 중...')
+      const { GIFEncoder, quantize, applyPalette } = await import('gifenc')
 
       const start = parseInt(gifStartTime) || 0
       const end = parseInt(gifEndTime) || 3
       const duration = Math.max(1, end - start)
       const width = parseInt(gifWidth) || 320
       const fps = parseInt(gifFps) || 10
+      const totalFrames = duration * fps
+      const delay = Math.round(1000 / fps)
 
-      setGifProgress('GIF 변환 중... (팔레트 최적화)')
-      await ffmpeg.exec([
-        '-ss', start.toString(),
-        '-t', duration.toString(),
-        '-i', 'input.mp4',
-        '-vf', `fps=${fps},scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3`,
-        '-loop', '0',
-        'output.gif'
-      ])
+      // 비디오 요소 생성 및 로딩
+      setGifProgress('영상 로딩 중...')
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.preload = 'auto'
 
-      let gifData = await ffmpeg.readFile('output.gif')
-      let gifSize = gifData.length
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve
+        video.onerror = () => reject(new Error('영상 로딩 실패. CORS 문제일 수 있습니다.'))
+        video.src = gifTargetVideo.targetUrl
+      })
 
-      if (gifSize > 5 * 1024 * 1024) {
-        setGifProgress(`GIF ${(gifSize / 1024 / 1024).toFixed(1)}MB → 5MB 이하로 최적화 중...`)
-        await ffmpeg.exec([
-          '-ss', start.toString(),
-          '-t', duration.toString(),
-          '-i', 'input.mp4',
-          '-vf', `fps=${Math.min(fps, 8)},scale=${Math.min(width, 240)}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
-          '-loop', '0',
-          'output2.gif'
-        ])
-        gifData = await ffmpeg.readFile('output2.gif')
-        gifSize = gifData.length
+      // 비율 유지하며 높이 계산
+      const aspectRatio = video.videoHeight / video.videoWidth
+      const height = Math.round(width * aspectRatio)
+
+      // 캔버스 생성
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      // GIF 인코더 생성
+      const gif = GIFEncoder()
+
+      // 프레임 추출 및 인코딩
+      for (let i = 0; i < totalFrames; i++) {
+        const time = start + (i / fps)
+        if (time > end) break
+
+        setGifProgress(`프레임 추출 중... ${i + 1}/${totalFrames}`)
+
+        // 해당 시간으로 이동
+        video.currentTime = time
+        await new Promise((resolve) => {
+          video.onseeked = resolve
+        })
+
+        // 캔버스에 그리기
+        ctx.drawImage(video, 0, 0, width, height)
+        const imageData = ctx.getImageData(0, 0, width, height)
+
+        // 색상 양자화 및 프레임 추가
+        const palette = quantize(imageData.data, 256)
+        const index = applyPalette(imageData.data, palette)
+        gif.writeFrame(index, width, height, { palette, delay })
       }
 
-      if (gifSize > 5 * 1024 * 1024) {
-        setGifProgress(`재최적화 중... (${(gifSize / 1024 / 1024).toFixed(1)}MB)`)
-        await ffmpeg.exec([
-          '-ss', start.toString(),
-          '-t', Math.min(duration, 3).toString(),
-          '-i', 'input.mp4',
-          '-vf', `fps=6,scale=200:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
-          '-loop', '0',
-          'output3.gif'
-        ])
-        gifData = await ffmpeg.readFile('output3.gif')
-        gifSize = gifData.length
-      }
+      gif.finish()
 
-      const blob = new Blob([gifData], { type: 'image/gif' })
+      const output = gif.bytes()
+      const blob = new Blob([output], { type: 'image/gif' })
       const gifUrl = URL.createObjectURL(blob)
 
-      setGifResult({ url: gifUrl, blob, size: gifSize, width, fps, duration, start, end })
+      setGifResult({ url: gifUrl, blob, size: output.length, width, fps, duration, start, end })
       setGifProgress('')
     } catch (error) {
       console.error('GIF generation error:', error)
