@@ -700,7 +700,7 @@ export default function YoutuberSearchPage() {
           setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
         }
       })
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+      const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/umd'
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),

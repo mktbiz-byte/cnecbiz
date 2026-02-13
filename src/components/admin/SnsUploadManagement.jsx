@@ -731,25 +731,33 @@ export default function SnsUploadManagement() {
            url.includes('video') || url.includes('storage')
   }
 
-  // ffmpeg.wasm 로드
+  // ffmpeg.wasm 로드 (싱글스레드 - SharedArrayBuffer/COOP-COEP 헤더 불필요)
   const loadFfmpeg = async () => {
     if (ffmpegRef) return ffmpegRef
     setGifProgress('ffmpeg.wasm 로딩 중... (최초 1회)')
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-    const { toBlobURL } = await import('@ffmpeg/util')
-    const ffmpeg = new FFmpeg()
-    ffmpeg.on('progress', ({ progress }) => {
-      if (progress > 0) {
-        setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
-      }
-    })
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    })
-    setFfmpegRef(ffmpeg)
-    return ffmpeg
+    try {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { toBlobURL } = await import('@ffmpeg/util')
+      const ffmpeg = new FFmpeg()
+      ffmpeg.on('log', ({ message }) => {
+        console.log('[ffmpeg]', message)
+      })
+      ffmpeg.on('progress', ({ progress }) => {
+        if (progress > 0) {
+          setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
+        }
+      })
+      const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/umd'
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      })
+      setFfmpegRef(ffmpeg)
+      return ffmpeg
+    } catch (error) {
+      console.error('ffmpeg load error:', error)
+      throw new Error('ffmpeg.wasm 로드 실패: ' + (error?.message || String(error)))
+    }
   }
 
   // GIF 변환 모달 열기
@@ -837,7 +845,8 @@ export default function SnsUploadManagement() {
     } catch (error) {
       console.error('GIF generation error:', error)
       setGifProgress('')
-      alert('GIF 생성 실패: ' + error.message)
+      const msg = error?.message || String(error) || '알 수 없는 오류'
+      alert('GIF 생성 실패: ' + msg)
     } finally {
       setGeneratingGif(false)
     }
