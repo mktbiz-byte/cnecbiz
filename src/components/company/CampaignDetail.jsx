@@ -1865,9 +1865,10 @@ export default function CampaignDetail() {
         }
       }
 
-      // 5. Fallback: video_submissions에 데이터가 없으면 다른 테이블에서 영상 데이터 가져오기
-      if (allVideoSubmissions.length === 0) {
-        console.log('video_submissions 비어있음 → campaign_participants / campaign_applications / applications fallback 조회')
+      // 5. Fallback: video_submissions에 없는 사용자의 영상을 다른 테이블에서 가져오기
+      {
+        const existingUserIds = new Set(allVideoSubmissions.map(v => v.user_id))
+        console.log('video_submissions user_ids:', [...existingUserIds], '→ fallback으로 누락된 사용자 영상 조회')
 
         // 5-1. campaign_participants.video_files (JSONB array) fallback
         const fallbackFromCampaignParticipants = async (client, dbName) => {
@@ -2063,6 +2064,8 @@ export default function CampaignDetail() {
         ]
         allFallbacks.forEach(items => {
           items.forEach(item => {
+            // video_submissions에 이미 있는 사용자는 건너뛰기
+            if (existingUserIds.has(item.user_id)) return
             const key = `${item.user_id}_${item.version || 1}`
             if (!seenUserIds.has(key)) {
               seenUserIds.add(key)
@@ -6091,6 +6094,7 @@ Questions? Contact us.
       setShowAdminVideoUploadModal(false)
       setAdminVideoUploadTarget(null)
       fetchParticipants()
+      fetchVideoSubmissions()
     } catch (error) {
       console.error('Admin video upload error:', error)
       alert('영상 업로드 실패: ' + error.message)
