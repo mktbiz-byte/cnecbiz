@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
@@ -123,6 +124,145 @@ const VideoCard = ({ video, size = 'normal', autoPlay = true }) => {
   )
 }
 
+// 포트폴리오 자동 재생 비디오 카드 (Intersection Observer 기반)
+const PortfolioVideoCard = ({ short }) => {
+  const cardRef = useRef(null)
+  const [isInView, setIsInView] = useState(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.5 }
+    )
+    if (cardRef.current) observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={cardRef}
+      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 group"
+    >
+      {/* 썸네일 (iframe 로드 전 또는 뷰포트 밖일 때) */}
+      <img
+        src={short.thumbnail}
+        alt={short.title}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${isInView && iframeLoaded ? 'opacity-0' : 'opacity-100'}`}
+        loading="lazy"
+      />
+      <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent transition-opacity duration-500 ${isInView && iframeLoaded ? 'opacity-0' : 'opacity-100'}`} />
+
+      {/* YouTube iframe 자동 재생 (뷰포트 진입 시) */}
+      {isInView && (
+        <iframe
+          src={`https://www.youtube.com/embed/${short.video_id}?autoplay=1&mute=1&loop=1&playlist=${short.video_id}&playsinline=1&controls=0&rel=0&modestbranding=1&showinfo=0`}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          allow="autoplay; encrypted-media"
+          onLoad={() => setIframeLoaded(true)}
+        />
+      )}
+
+      {/* 로딩 스피너 */}
+      {isInView && !iframeLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* 재생 아이콘 (iframe 로드 전) */}
+      {!iframeLoaded && (
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+          <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <Play className="w-3 h-3 text-white ml-0.5" fill="white" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 포트폴리오 슬라이더 (자동 롤링 + 수동 네비게이션)
+const PortfolioSlider = ({ shorts, page, setPage, totalPages, totalPagesMobile, visibleDesktop, visibleMobile, selectedRegion }) => {
+  const [isMobile, setIsMobile] = useState(false)
+  const autoPlayRef = useRef(null)
+  const sliderRef = useRef(null)
+
+  // 반응형 감지
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  const currentVisible = isMobile ? visibleMobile : visibleDesktop
+  const currentTotalPages = isMobile ? totalPagesMobile : totalPages
+
+  // 자동 슬라이드 (5초 간격)
+  useEffect(() => {
+    autoPlayRef.current = setInterval(() => {
+      setPage(prev => (prev + 1) % currentTotalPages)
+    }, 5000)
+
+    return () => clearInterval(autoPlayRef.current)
+  }, [currentTotalPages, selectedRegion])
+
+  // 리전 변경 시 페이지 리셋
+  useEffect(() => {
+    setPage(0)
+  }, [selectedRegion])
+
+  // 마우스 호버 시 자동 슬라이드 일시정지
+  const pauseAutoPlay = () => clearInterval(autoPlayRef.current)
+  const resumeAutoPlay = () => {
+    autoPlayRef.current = setInterval(() => {
+      setPage(prev => (prev + 1) % currentTotalPages)
+    }, 5000)
+  }
+
+  const startIdx = page * currentVisible
+  const visibleShorts = shorts.slice(startIdx, startIdx + currentVisible)
+
+  return (
+    <div
+      ref={sliderRef}
+      onMouseEnter={pauseAutoPlay}
+      onMouseLeave={resumeAutoPlay}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${selectedRegion}-${page}`}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+          initial={{ opacity: 0, x: 60 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -60 }}
+          transition={{ duration: 0.4, ease: 'easeInOut' }}
+        >
+          {visibleShorts.map(short => (
+            <PortfolioVideoCard key={short.video_id} short={short} />
+          ))}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* 모바일용 dot indicators */}
+      {isMobile && shorts.length > visibleMobile && (
+        <div className="flex justify-center gap-1.5 mt-4">
+          {Array.from({ length: currentTotalPages }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                page === i ? 'w-6 bg-white' : 'w-1.5 bg-gray-700'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // 비디오 카테고리 섹션 컴포넌트
 const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-gray-900' }) => {
   if (!videos || videos.length === 0) return null
@@ -156,7 +296,7 @@ export default function LandingPage() {
   const [featuredNewsletters, setFeaturedNewsletters] = useState([])
   const [portfolioShorts, setPortfolioShorts] = useState({ korea: [], japan: [], usa: [] })
   const [selectedRegion, setSelectedRegion] = useState('korea')
-  const [playingVideoId, setPlayingVideoId] = useState(null)
+  const [portfolioPage, setPortfolioPage] = useState(0)
   const [pageContent, setPageContent] = useState({
     hero_title: 'K-뷰티를 세계로,',
     hero_subtitle: '14일 만에 완성하는 숏폼',
@@ -528,7 +668,7 @@ export default function LandingPage() {
                 return (
                 <button
                   key={tab.key}
-                  onClick={() => { setSelectedRegion(tab.key); setPlayingVideoId(null) }}
+                  onClick={() => { setSelectedRegion(tab.key); setPortfolioPage(0) }}
                   className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
                     selectedRegion === tab.key
                       ? 'bg-white text-black shadow-sm'
@@ -549,13 +689,12 @@ export default function LandingPage() {
               usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
             }
             const ch = channels[selectedRegion]
-            const shorts = portfolioShorts[selectedRegion] || []
-            const formatViews = (count) => {
-              if (!count) return '0'
-              if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M'
-              if (count >= 1000) return Math.round(count / 1000) + 'K'
-              return count.toString()
-            }
+            const shorts = (portfolioShorts[selectedRegion] || []).slice(0, 10)
+            const VISIBLE_COUNT_DESKTOP = 4
+            const VISIBLE_COUNT_MOBILE = 2
+            const totalPages = Math.max(1, Math.ceil(shorts.length / VISIBLE_COUNT_DESKTOP))
+            const totalPagesMobile = Math.max(1, Math.ceil(shorts.length / VISIBLE_COUNT_MOBILE))
+
             return (
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2fr] gap-5 lg:gap-6">
                 {/* Left: Info card */}
@@ -569,73 +708,88 @@ export default function LandingPage() {
                     <h3 className="text-white font-black text-3xl sm:text-4xl mb-4 italic">{ch.name}</h3>
                     <p className="text-gray-400 text-sm leading-relaxed">{ch.desc}</p>
                   </div>
-                  <a
-                    href={ch.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 mt-6 pt-5 border-t border-gray-800 group"
-                  >
-                    <div className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center group-hover:border-gray-500 transition-colors">
-                      <Play className="w-4 h-4 text-white ml-0.5" />
-                    </div>
-                    <span className="text-gray-400 text-xs font-medium tracking-wider uppercase group-hover:text-white transition-colors">Watch All Works</span>
-                    {shorts.length > 0 && (
-                      <div className="ml-auto flex items-center -space-x-2">
-                        {shorts.slice(0, 3).map((s, i) => (
-                          <div key={s.video_id} className="w-7 h-7 rounded-full border-2 border-gray-900 overflow-hidden">
-                            <img src={s.thumbnail} alt="" className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                        {shorts.length > 3 && (
-                          <div className="w-7 h-7 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center">
-                            <span className="text-gray-400 text-[9px] font-medium">+{shorts.length - 3}</span>
-                          </div>
-                        )}
+                  <div className="mt-6 pt-5 border-t border-gray-800">
+                    <a
+                      href={ch.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center group-hover:border-gray-500 transition-colors">
+                        <Play className="w-4 h-4 text-white ml-0.5" />
+                      </div>
+                      <span className="text-gray-400 text-xs font-medium tracking-wider uppercase group-hover:text-white transition-colors">Watch All Works</span>
+                      {shorts.length > 0 && (
+                        <div className="ml-auto flex items-center -space-x-2">
+                          {shorts.slice(0, 3).map((s) => (
+                            <div key={s.video_id} className="w-7 h-7 rounded-full border-2 border-gray-900 overflow-hidden">
+                              <img src={s.thumbnail} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                          {shorts.length > 3 && (
+                            <div className="w-7 h-7 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center">
+                              <span className="text-gray-400 text-[9px] font-medium">+{shorts.length - 3}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </a>
+                    {/* Slider controls */}
+                    {shorts.length > VISIBLE_COUNT_DESKTOP && (
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex gap-1.5">
+                          {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setPortfolioPage(i)}
+                              className={`h-1.5 rounded-full transition-all duration-300 ${
+                                portfolioPage === i ? 'w-6 bg-white' : 'w-1.5 bg-gray-700 hover:bg-gray-500'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setPortfolioPage(p => Math.max(0, p - 1))}
+                            disabled={portfolioPage === 0}
+                            className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setPortfolioPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={portfolioPage === totalPages - 1}
+                            className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     )}
-                  </a>
+                  </div>
                 </div>
 
-                {/* Right: Video grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {shorts.length > 0 ? shorts.slice(0, 4).map(short => (
-                    <div
-                      key={short.video_id}
-                      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 cursor-pointer group"
-                      onClick={() => setPlayingVideoId(playingVideoId === short.video_id ? null : short.video_id)}
-                    >
-                      {playingVideoId === short.video_id ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${short.video_id}?autoplay=1&mute=0&loop=1&playlist=${short.video_id}&playsinline=1&controls=1&rel=0&modestbranding=1`}
-                          className="absolute inset-0 w-full h-full"
-                          allow="autoplay; encrypted-media"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <>
-                          <img
-                            src={short.thumbnail}
-                            alt={short.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                          <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-                            <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                              <Play className="w-3 h-3 text-white ml-0.5" fill="white" />
-                            </div>
-                          </div>
-                        </>
-                      )}
+                {/* Right: Video slider */}
+                <div className="relative overflow-hidden">
+                  {shorts.length > 0 ? (
+                    <PortfolioSlider
+                      shorts={shorts}
+                      page={portfolioPage}
+                      setPage={setPortfolioPage}
+                      totalPages={totalPages}
+                      totalPagesMobile={totalPagesMobile}
+                      visibleDesktop={VISIBLE_COUNT_DESKTOP}
+                      visibleMobile={VISIBLE_COUNT_MOBILE}
+                      selectedRegion={selectedRegion}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 animate-pulse">
+                          <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-900" />
+                        </div>
+                      ))}
                     </div>
-                  )) : (
-                    // Skeleton loading
-                    Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 animate-pulse">
-                        <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-900" />
-                      </div>
-                    ))
                   )}
                 </div>
               </div>
