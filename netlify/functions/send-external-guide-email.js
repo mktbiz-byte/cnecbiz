@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 /**
- * 외부 가이드 (PDF/URL) 이메일 발송 Function
+ * 외부 가이드 (PDF/URL) 이메일 발송 Function (PDF 첨부 지원)
  *
  * 사용법:
  * POST /.netlify/functions/send-external-guide-email
@@ -15,6 +15,19 @@ const nodemailer = require('nodemailer');
  *   creators: [{ id, name, email }]
  * }
  */
+
+// PDF URL에서 파일 다운로드
+async function fetchPdfBuffer(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('[External Guide Email] PDF fetch error:', error.message);
+    return null;
+  }
+}
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -192,6 +205,31 @@ exports.handler = async (event) => {
       };
     }
 
+    // PDF인 경우 파일을 미리 다운로드하여 첨부
+    const isPdf = guide_url && (
+      guide_url.endsWith('.pdf') ||
+      guide_url.includes('.pdf?')
+    );
+    let pdfAttachments = [];
+    if (isPdf) {
+      console.log('[External Guide Email] PDF detected, downloading:', guide_url);
+      const pdfBuffer = await fetchPdfBuffer(guide_url);
+      if (pdfBuffer) {
+        const urlPath = guide_url.split('?')[0];
+        const urlParts = urlPath.split('/');
+        let fileName = decodeURIComponent(urlParts[urlParts.length - 1]) || 'guide.pdf';
+        if (!fileName.endsWith('.pdf')) fileName += '.pdf';
+        pdfAttachments = [{
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }];
+        console.log(`[External Guide Email] PDF downloaded: ${fileName} (${pdfBuffer.length} bytes)`);
+      } else {
+        console.warn('[External Guide Email] PDF download failed, sending with URL link only');
+      }
+    }
+
     const results = {
       total: creators.length,
       success: 0,
@@ -219,7 +257,8 @@ exports.handler = async (event) => {
           from: `"CNEC BIZ" <${process.env.GMAIL_USER}>`,
           to: creator.email,
           subject: template.subject,
-          html: template.html
+          html: template.html,
+          ...(pdfAttachments.length > 0 && { attachments: pdfAttachments })
         });
 
         results.success++;
