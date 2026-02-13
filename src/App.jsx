@@ -134,11 +134,13 @@ import RegularCampaignIntro from './pages/RegularCampaignIntro'
 import OliveYoungCampaignIntro from './pages/OliveYoungCampaignIntro'
 import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignIntro'
 import InvitationLanding from './pages/InvitationLanding'
+import HolidayNotice from './components/HolidayNotice'
 
 function App() {
   return (
     <Router>
       <ConsultationBanner />
+      <HolidayNotice />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
