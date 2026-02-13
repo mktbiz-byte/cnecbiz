@@ -135,7 +135,7 @@ exports.handler = async (event, context) => {
       if (supabaseRegion) {
         const { data, error: campaignError } = await supabaseRegion
           .from('campaigns')
-          .select('id, title, company_email, company_id, brand, campaign_type, estimated_cost')
+          .select('id, title, company_id, brand, campaign_type, estimated_cost')
           .eq('id', campaignId)
           .single()
         if (campaignError) {
@@ -237,13 +237,22 @@ exports.handler = async (event, context) => {
           }
           const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 
-          // 회사 정보 조회
+          // 회사 정보 조회 (company_email 또는 company_id)
           let companyName = campaign.brand || ''
           if (campaign.company_email && supabaseBiz) {
             const { data: companyData } = await supabaseBiz
               .from('companies')
               .select('company_name')
               .eq('email', campaign.company_email)
+              .maybeSingle()
+            if (companyData?.company_name) {
+              companyName = companyData.company_name
+            }
+          } else if (campaign.company_id && supabaseBiz) {
+            const { data: companyData } = await supabaseBiz
+              .from('companies')
+              .select('company_name')
+              .eq('user_id', campaign.company_id)
               .maybeSingle()
             if (companyData?.company_name) {
               companyName = companyData.company_name

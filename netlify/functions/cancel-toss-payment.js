@@ -194,7 +194,7 @@ exports.handler = async (event, context) => {
           if (campaignDb) {
             const { data } = await campaignDb
               .from('campaigns')
-              .select('id, title, company_email, brand, campaign_type')
+              .select('id, title, company_id, brand, campaign_type')
               .eq('id', payment.campaign_id)
               .single()
             campaignInfo = data
@@ -205,11 +205,11 @@ exports.handler = async (event, context) => {
         try {
           const campaign = campaignInfo
           let companyName = campaign?.brand || ''
-          if (campaign?.company_email && supabaseBiz) {
+          if (campaign?.company_id && supabaseBiz) {
             const { data: companyData } = await supabaseBiz
               .from('companies')
               .select('company_name')
-              .eq('email', campaign.company_email)
+              .eq('user_id', campaign.company_id)
               .maybeSingle()
             if (companyData?.company_name) companyName = companyData.company_name
           }
