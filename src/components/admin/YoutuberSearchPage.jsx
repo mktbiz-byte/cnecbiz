@@ -82,10 +82,17 @@ export default function YoutuberSearchPage() {
 
   // GIF 변환 상태
   const [shortsUrl, setShortsUrl] = useState('')
-  const [startTime, setStartTime] = useState('0')
-  const [gifDuration, setGifDuration] = useState('3')
+  const [gifStartTime, setGifStartTime] = useState('0')
+  const [gifEndTime, setGifEndTime] = useState('3')
+  const [gifWidth, setGifWidth] = useState('320')
+  const [gifFps, setGifFps] = useState('10')
   const [videoInfo, setVideoInfo] = useState(null)
   const [loadingVideo, setLoadingVideo] = useState(false)
+  const [generatingGif, setGeneratingGif] = useState(false)
+  const [gifProgress, setGifProgress] = useState('')
+  const [gifResult, setGifResult] = useState(null)
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
+  const [ffmpegRef, setFfmpegRef] = useState(null)
 
   // 목록 상태
   const [activeTab, setActiveTab] = useState('search')
@@ -677,6 +684,37 @@ export default function YoutuberSearchPage() {
   }
 
   // YouTube 쇼츠 정보 조회
+  // ffmpeg.wasm 로드
+  const loadFfmpeg = async () => {
+    if (ffmpegRef) return ffmpegRef
+    setGifProgress('ffmpeg.wasm 로딩 중... (최초 1회)')
+    try {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { toBlobURL } = await import('@ffmpeg/util')
+      const ffmpeg = new FFmpeg()
+      ffmpeg.on('log', ({ message }) => {
+        console.log('[ffmpeg]', message)
+      })
+      ffmpeg.on('progress', ({ progress }) => {
+        if (progress > 0) {
+          setGifProgress(`GIF 변환 중... ${Math.round(progress * 100)}%`)
+        }
+      })
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      })
+      setFfmpegRef(ffmpeg)
+      setFfmpegLoaded(true)
+      return ffmpeg
+    } catch (error) {
+      console.error('ffmpeg load error:', error)
+      throw new Error('ffmpeg.wasm 로드 실패: ' + error.message)
+    }
+  }
+
+  // 영상 다운로드 (서버 → Supabase Storage)
   const handleGetVideoInfo = async () => {
     if (!shortsUrl.trim()) {
       alert('YouTube 쇼츠 URL을 입력하세요')
@@ -684,29 +722,147 @@ export default function YoutuberSearchPage() {
     }
 
     setLoadingVideo(true)
+    setVideoInfo(null)
+    setGifResult(null)
     try {
+      setGifProgress('영상 다운로드 중...')
       const response = await fetch('/.netlify/functions/youtube-to-gif', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'generate_gif_url',
-          url: shortsUrl,
-          start_time: parseInt(startTime) || 0,
-          duration: parseInt(gifDuration) || 3
+          action: 'download_video',
+          url: shortsUrl
         })
       })
 
       const result = await response.json()
       if (result.success) {
         setVideoInfo(result.data)
+        setGifEndTime(Math.min(result.data.duration, parseInt(gifStartTime) + 5).toString())
+        setGifProgress('')
       } else {
         throw new Error(result.error)
       }
     } catch (error) {
-      alert('영상 정보 조회 실패: ' + error.message)
+      setGifProgress('')
+      alert('영상 다운로드 실패: ' + error.message)
     } finally {
       setLoadingVideo(false)
     }
+  }
+
+  // ffmpeg.wasm으로 GIF 직접 생성
+  const handleGenerateGif = async () => {
+    if (!videoInfo?.video_url) {
+      alert('먼저 영상을 다운로드하세요')
+      return
+    }
+
+    setGeneratingGif(true)
+    setGifResult(null)
+    try {
+      // ffmpeg 로드
+      const ffmpeg = await loadFfmpeg()
+
+      // 영상 다운로드
+      setGifProgress('영상 파일 로딩 중...')
+      const { fetchFile } = await import('@ffmpeg/util')
+      const videoData = await fetchFile(videoInfo.video_url)
+      await ffmpeg.writeFile('input.mp4', videoData)
+
+      const start = parseInt(gifStartTime) || 0
+      const end = parseInt(gifEndTime) || 5
+      const duration = Math.max(1, end - start)
+      const width = parseInt(gifWidth) || 320
+      const fps = parseInt(gifFps) || 10
+
+      // 1차 시도: 표준 품질
+      setGifProgress('GIF 변환 중... (팔레트 최적화)')
+      await ffmpeg.exec([
+        '-ss', start.toString(),
+        '-t', duration.toString(),
+        '-i', 'input.mp4',
+        '-vf', `fps=${fps},scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3`,
+        '-loop', '0',
+        'output.gif'
+      ])
+
+      let gifData = await ffmpeg.readFile('output.gif')
+      let gifSize = gifData.length
+
+      // 5MB 초과 시 품질 낮춰서 재시도
+      if (gifSize > 5 * 1024 * 1024) {
+        setGifProgress(`GIF ${(gifSize / 1024 / 1024).toFixed(1)}MB → 5MB 이하로 최적화 중...`)
+        const reducedWidth = Math.min(width, 240)
+        const reducedFps = Math.min(fps, 8)
+        await ffmpeg.exec([
+          '-ss', start.toString(),
+          '-t', duration.toString(),
+          '-i', 'input.mp4',
+          '-vf', `fps=${reducedFps},scale=${reducedWidth}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
+          '-loop', '0',
+          'output2.gif'
+        ])
+        gifData = await ffmpeg.readFile('output2.gif')
+        gifSize = gifData.length
+      }
+
+      // 여전히 5MB 초과 시 더 줄임
+      if (gifSize > 5 * 1024 * 1024) {
+        setGifProgress(`재최적화 중... (${(gifSize / 1024 / 1024).toFixed(1)}MB)`)
+        await ffmpeg.exec([
+          '-ss', start.toString(),
+          '-t', Math.min(duration, 3).toString(),
+          '-i', 'input.mp4',
+          '-vf', `fps=6,scale=200:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5`,
+          '-loop', '0',
+          'output3.gif'
+        ])
+        gifData = await ffmpeg.readFile('output3.gif')
+        gifSize = gifData.length
+      }
+
+      const blob = new Blob([gifData], { type: 'image/gif' })
+      const gifUrl = URL.createObjectURL(blob)
+
+      setGifResult({
+        url: gifUrl,
+        blob,
+        size: gifSize,
+        width,
+        fps,
+        duration,
+        start,
+        end
+      })
+      setGifProgress('')
+
+      // 임시 파일 정리 (서버)
+      if (videoInfo.storage_path) {
+        fetch('/.netlify/functions/youtube-to-gif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cleanup', storage_path: videoInfo.storage_path })
+        }).catch(() => {})
+      }
+    } catch (error) {
+      console.error('GIF generation error:', error)
+      setGifProgress('')
+      alert('GIF 생성 실패: ' + error.message)
+    } finally {
+      setGeneratingGif(false)
+    }
+  }
+
+  // GIF 다운로드
+  const handleDownloadGif = () => {
+    if (!gifResult?.blob) return
+    const a = document.createElement('a')
+    a.href = gifResult.url
+    a.download = `${videoInfo?.video_id || 'shorts'}_${gifResult.start}s-${gifResult.end}s.gif`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   // 저장된 prospects 목록 조회
@@ -2383,182 +2539,262 @@ export default function YoutuberSearchPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Film className="h-5 w-5" />
                   유튜브 쇼츠 → GIF 변환
+                  <Badge variant="secondary" className="text-xs">직접 생성</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* 입력 폼 */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        YouTube 쇼츠 URL
-                      </label>
+                  {/* Step 1: URL 입력 & 영상 다운로드 */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
+                      영상 불러오기
+                    </h3>
+                    <div className="flex gap-3">
                       <Input
                         placeholder="https://youtube.com/shorts/xxxxx"
                         value={shortsUrl}
                         onChange={(e) => setShortsUrl(e.target.value)}
+                        className="flex-1"
+                        onKeyDown={(e) => e.key === 'Enter' && handleGetVideoInfo()}
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        시작 시간 (초)
-                      </label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        길이 (초)
-                      </label>
-                      <Select value={gifDuration} onValueChange={setGifDuration}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2">2초</SelectItem>
-                          <SelectItem value="3">3초</SelectItem>
-                          <SelectItem value="4">4초</SelectItem>
-                          <SelectItem value="5">5초</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Button
+                        onClick={handleGetVideoInfo}
+                        disabled={loadingVideo || !shortsUrl.trim()}
+                      >
+                        {loadingVideo ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-2" />
+                        )}
+                        영상 불러오기
+                      </Button>
                     </div>
                   </div>
 
-                  <Button
-                    onClick={handleGetVideoInfo}
-                    disabled={loadingVideo || !shortsUrl}
-                    className="w-full md:w-auto"
-                  >
-                    {loadingVideo ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Image className="h-4 w-4 mr-2" />
-                    )}
-                    GIF 변환 옵션 생성
-                  </Button>
+                  {/* 진행 상태 */}
+                  {gifProgress && (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="text-sm text-blue-800 font-medium">{gifProgress}</span>
+                    </div>
+                  )}
 
-                  {/* 결과 */}
+                  {/* Step 2: 영상 정보 + GIF 설정 */}
                   {videoInfo && (
-                    <div className="border rounded-lg p-6 bg-gray-50">
-                      <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
-                        <Youtube className="h-5 w-5 text-red-600" />
-                        영상 정보
-                      </h3>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* 썸네일 */}
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">썸네일 (GIF 대용 가능)</p>
-                          <img
-                            src={videoInfo.thumbnails?.high}
-                            alt="Video thumbnail"
-                            className="rounded-lg w-full"
-                          />
-                          <div className="mt-2 flex gap-2">
-                            <a
-                              href={videoInfo.thumbnails?.maxres}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              고화질 다운로드
-                            </a>
-                          </div>
-                        </div>
-
-                        {/* GIF 변환 옵션 */}
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-2">GIF 변환 서비스</p>
-                            <p className="text-xs text-gray-500 mb-3">
-                              아래 서비스에서 {startTime}초 ~ {parseInt(startTime) + parseInt(gifDuration)}초 구간을 GIF로 변환하세요
-                            </p>
-                            <div className="space-y-2">
-                              <a
-                                href={videoInfo.external_services?.ezgif}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-blue-500 transition-colors"
-                              >
-                                <ExternalLink className="h-4 w-4 text-blue-600" />
-                                <span className="font-medium">EZGIF.com</span>
-                                <span className="text-xs text-gray-500">- 무료, 5MB 이하 최적화 가능</span>
-                              </a>
-                              <a
-                                href={videoInfo.external_services?.giphy}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-purple-500 transition-colors"
-                              >
-                                <ExternalLink className="h-4 w-4 text-purple-600" />
-                                <span className="font-medium">GIPHY</span>
-                                <span className="text-xs text-gray-500">- GIF 생성 및 호스팅</span>
-                              </a>
-                              <a
-                                href={videoInfo.external_services?.makeagif}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-green-500 transition-colors"
-                              >
-                                <ExternalLink className="h-4 w-4 text-green-600" />
-                                <span className="font-medium">MakeAGif</span>
-                                <span className="text-xs text-gray-500">- YouTube URL 직접 입력</span>
-                              </a>
-                            </div>
-                          </div>
-
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                            <p className="text-sm text-yellow-800">
-                              <strong>5MB 이하로 만들려면:</strong>
-                              <br />
-                              • 해상도: 480p 이하
-                              <br />
-                              • 길이: 3-4초
-                              <br />
-                              • 프레임: 10-15 fps
-                            </p>
+                    <div className="border rounded-lg p-6 bg-gray-50 space-y-6">
+                      {/* 영상 정보 */}
+                      <div className="flex items-start gap-4">
+                        <img
+                          src={videoInfo.thumbnails?.high}
+                          alt="thumbnail"
+                          className="w-24 h-auto rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate">{videoInfo.title}</h4>
+                          <p className="text-sm text-gray-500">{videoInfo.author_name}</p>
+                          <div className="flex gap-3 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {videoInfo.duration}초
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {(videoInfo.file_size / 1024 / 1024).toFixed(1)}MB
+                            </Badge>
                           </div>
                         </div>
                       </div>
 
-                      {/* 미리보기 임베드 */}
-                      <div className="mt-6">
-                        <p className="text-sm font-medium text-gray-700 mb-2">
-                          영상 미리보기 ({startTime}초 ~ {parseInt(startTime) + parseInt(gifDuration)}초)
-                        </p>
-                        <div className="aspect-[9/16] max-w-xs bg-black rounded-lg overflow-hidden">
+                      {/* GIF 설정 */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">2</span>
+                          GIF 설정
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">시작 (초)</label>
+                            <Input
+                              type="number"
+                              value={gifStartTime}
+                              onChange={(e) => setGifStartTime(e.target.value)}
+                              min="0"
+                              max={videoInfo.duration - 1}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">끝 (초)</label>
+                            <Input
+                              type="number"
+                              value={gifEndTime}
+                              onChange={(e) => setGifEndTime(e.target.value)}
+                              min={parseInt(gifStartTime) + 1}
+                              max={videoInfo.duration}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">너비 (px)</label>
+                            <Select value={gifWidth} onValueChange={setGifWidth}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="200">200px (최소)</SelectItem>
+                                <SelectItem value="240">240px</SelectItem>
+                                <SelectItem value="320">320px (추천)</SelectItem>
+                                <SelectItem value="480">480px</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">FPS</label>
+                            <Select value={gifFps} onValueChange={setGifFps}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="6">6fps (가벼움)</SelectItem>
+                                <SelectItem value="8">8fps</SelectItem>
+                                <SelectItem value="10">10fps (추천)</SelectItem>
+                                <SelectItem value="12">12fps</SelectItem>
+                                <SelectItem value="15">15fps (부드러움)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* 예상 구간 표시 */}
+                        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {gifStartTime}초 ~ {gifEndTime}초
+                            ({Math.max(1, parseInt(gifEndTime) - parseInt(gifStartTime))}초 구간)
+                          </span>
+                          {parseInt(gifEndTime) - parseInt(gifStartTime) > 5 && (
+                            <span className="text-yellow-600 font-medium">
+                              * 5초 이상은 5MB 초과할 수 있음
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 영상 미리보기 */}
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-2">미리보기</p>
+                        <div className="aspect-[9/16] max-w-[200px] bg-black rounded-lg overflow-hidden">
                           <iframe
-                            src={videoInfo.embed_url}
+                            src={`https://www.youtube.com/embed/${videoInfo.video_id}?start=${gifStartTime}&autoplay=0&playsinline=1&controls=1&rel=0`}
                             className="w-full h-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                           />
+                        </div>
+                      </div>
+
+                      {/* GIF 생성 버튼 */}
+                      <Button
+                        onClick={handleGenerateGif}
+                        disabled={generatingGif}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        size="lg"
+                      >
+                        {generatingGif ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Film className="h-4 w-4 mr-2" />
+                        )}
+                        {generatingGif ? 'GIF 생성 중...' : 'GIF 직접 생성 (5MB 이하 자동 최적화)'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Step 3: GIF 결과 */}
+                  {gifResult && (
+                    <div className="border-2 border-green-500 rounded-lg p-6 bg-green-50">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center">3</span>
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        GIF 생성 완료!
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* GIF 미리보기 */}
+                        <div>
+                          <img
+                            src={gifResult.url}
+                            alt="Generated GIF"
+                            className="rounded-lg w-full border border-gray-200 bg-white"
+                          />
+                        </div>
+
+                        {/* 정보 & 다운로드 */}
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-white rounded-lg p-3 border">
+                              <p className="text-gray-500 text-xs">파일 크기</p>
+                              <p className={`font-bold text-lg ${gifResult.size > 5 * 1024 * 1024 ? 'text-red-600' : 'text-green-600'}`}>
+                                {(gifResult.size / 1024 / 1024).toFixed(2)}MB
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border">
+                              <p className="text-gray-500 text-xs">구간</p>
+                              <p className="font-bold text-lg">{gifResult.start}~{gifResult.end}초</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border">
+                              <p className="text-gray-500 text-xs">너비</p>
+                              <p className="font-bold text-lg">{gifResult.width}px</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border">
+                              <p className="text-gray-500 text-xs">FPS</p>
+                              <p className="font-bold text-lg">{gifResult.fps}</p>
+                            </div>
+                          </div>
+
+                          {gifResult.size <= 5 * 1024 * 1024 && (
+                            <div className="flex items-center gap-2 p-2 bg-green-100 rounded-lg">
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm text-green-700 font-medium">5MB 이하 조건 충족!</span>
+                            </div>
+                          )}
+
+                          <Button
+                            onClick={handleDownloadGif}
+                            className="w-full"
+                            size="lg"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            GIF 다운로드 ({(gifResult.size / 1024 / 1024).toFixed(2)}MB)
+                          </Button>
+
+                          <p className="text-xs text-gray-500 text-center">
+                            설정을 변경하고 다시 생성할 수 있습니다
+                          </p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 사용 안내 */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">GIF 변환 방법</p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li>YouTube 쇼츠 URL을 입력합니다</li>
-                          <li>시작 시간과 길이를 설정합니다</li>
-                          <li>"GIF 변환 옵션 생성" 버튼을 클릭합니다</li>
-                          <li>외부 서비스(EZGIF 추천)에서 GIF를 생성합니다</li>
-                          <li>5MB 이하로 최적화하여 다운로드합니다</li>
-                        </ol>
+                  {/* 안내 */}
+                  {!videoInfo && !gifProgress && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium mb-1">사용 방법</p>
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>YouTube 쇼츠 URL을 입력하고 "영상 불러오기" 클릭</li>
+                            <li>시작/끝 시간, 너비, FPS를 설정</li>
+                            <li>"GIF 직접 생성" 버튼 클릭</li>
+                            <li>5MB 초과 시 자동으로 품질을 낮춰 재생성</li>
+                            <li>완성된 GIF를 바로 다운로드!</li>
+                          </ol>
+                          <p className="mt-2 text-xs text-blue-600">
+                            * 최초 실행 시 ffmpeg.wasm (~30MB)을 다운로드합니다 (이후 캐시됨)
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

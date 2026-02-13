@@ -3,16 +3,16 @@
  *
  * 기능:
  * 1. 유튜브 쇼츠 URL에서 영상 정보 추출
- * 2. 지정된 시작 시간부터 3-4초 구간을 GIF로 변환
- * 3. 5MB 이하로 최적화
- *
- * 제한사항:
- * - Netlify Functions 실행 시간 제한 (10초)
- * - 응답 크기 제한 (6MB)
+ * 2. 영상 다운로드 → Supabase Storage 업로드
+ * 3. 클라이언트에서 ffmpeg.wasm으로 GIF 변환
  */
 
 const https = require('https')
 const http = require('http')
+const { createClient } = require('@supabase/supabase-js')
+
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // YouTube 영상 ID 추출
 function extractVideoId(url) {
@@ -60,6 +60,25 @@ function getThumbnailUrls(videoId) {
   }
 }
 
+// URL에서 바이너리 데이터 다운로드
+function downloadUrl(url) {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http
+    protocol.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return downloadUrl(res.headers.location).then(resolve).catch(reject)
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`HTTP ${res.statusCode}`))
+      }
+      const chunks = []
+      res.on('data', chunk => chunks.push(chunk))
+      res.on('end', () => resolve(Buffer.concat(chunks)))
+      res.on('error', reject)
+    }).on('error', reject)
+  })
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -86,7 +105,6 @@ exports.handler = async (event) => {
 
     switch (action) {
       case 'get_info': {
-        // 영상 정보 조회
         const targetVideoId = video_id || extractVideoId(url)
 
         if (!targetVideoId) {
@@ -112,24 +130,111 @@ exports.handler = async (event) => {
               author_url: videoInfo.author_url,
               thumbnail_url: videoInfo.thumbnail_url,
               thumbnails,
-              html: videoInfo.html,
-              // GIF 변환 안내
-              gif_instructions: {
-                note: 'GIF 변환은 클라이언트에서 처리됩니다',
-                recommended_tools: [
-                  'gifshot.js (브라우저)',
-                  'ezgif.com (외부 서비스)',
-                  'Cloudinary (API)'
-                ],
-                embed_url: `https://www.youtube.com/embed/${targetVideoId}?autoplay=1&start=0&end=4`
-              }
+              embed_url: `https://www.youtube.com/embed/${targetVideoId}?autoplay=1&start=0&end=4`
+            }
+          })
+        }
+      }
+
+      case 'download_video': {
+        // YouTube 영상 다운로드 → Supabase Storage 업로드
+        const targetVideoId = video_id || extractVideoId(url)
+
+        if (!targetVideoId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Invalid YouTube URL' })
+          }
+        }
+
+        const ytdl = require('@distube/ytdl-core')
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        console.log(`[youtube-to-gif] Downloading video: ${targetVideoId}`)
+
+        // 영상 정보 조회
+        const info = await ytdl.getInfo(targetVideoId)
+
+        // 가장 작은 MP4 포맷 선택 (비디오+오디오)
+        const formats = info.formats.filter(f =>
+          f.container === 'mp4' &&
+          f.hasVideo &&
+          f.contentLength
+        ).sort((a, b) => parseInt(a.contentLength) - parseInt(b.contentLength))
+
+        let selectedFormat = formats[0]
+
+        // 비디오만 있는 낮은 화질 포맷도 확인
+        if (!selectedFormat) {
+          selectedFormat = ytdl.chooseFormat(info.formats, {
+            quality: 'lowest',
+            filter: 'videoandaudio'
+          })
+        }
+
+        if (!selectedFormat) {
+          selectedFormat = ytdl.chooseFormat(info.formats, {
+            quality: 'lowest'
+          })
+        }
+
+        console.log(`[youtube-to-gif] Selected format: ${selectedFormat.qualityLabel || 'unknown'}, size: ${selectedFormat.contentLength || 'unknown'}`)
+
+        // 영상 다운로드 (Buffer)
+        const videoBuffer = await new Promise((resolve, reject) => {
+          const chunks = []
+          const stream = ytdl.downloadFromInfo(info, { format: selectedFormat })
+          stream.on('data', chunk => chunks.push(chunk))
+          stream.on('end', () => resolve(Buffer.concat(chunks)))
+          stream.on('error', reject)
+        })
+
+        console.log(`[youtube-to-gif] Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`)
+
+        // Supabase Storage에 업로드
+        const filename = `temp-gif/${targetVideoId}_${Date.now()}.mp4`
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(filename, videoBuffer, {
+            contentType: 'video/mp4',
+            upsert: true
+          })
+
+        if (uploadError) {
+          console.error('[youtube-to-gif] Upload error:', uploadError)
+          throw new Error(`Storage upload failed: ${uploadError.message}`)
+        }
+
+        // 공개 URL 생성
+        const { data: urlData } = supabase.storage
+          .from('media')
+          .getPublicUrl(filename)
+
+        const videoInfo = await getVideoInfo(targetVideoId)
+        const duration = info.videoDetails.lengthSeconds
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: {
+              video_id: targetVideoId,
+              video_url: urlData.publicUrl,
+              storage_path: filename,
+              title: videoInfo.title,
+              author_name: videoInfo.author_name,
+              duration: parseInt(duration),
+              file_size: videoBuffer.length,
+              thumbnails: getThumbnailUrls(targetVideoId)
             }
           })
         }
       }
 
       case 'generate_gif_url': {
-        // 외부 서비스 URL 생성 (ezgif.com 등)
+        // 외부 서비스 URL 생성 (레거시 지원)
         const targetVideoId = video_id || extractVideoId(url)
         const { start_time = 0, duration = 3 } = body
 
@@ -141,7 +246,6 @@ exports.handler = async (event) => {
           }
         }
 
-        // 다양한 GIF 변환 옵션 제공
         const youtubeUrl = `https://www.youtube.com/watch?v=${targetVideoId}`
 
         return {
@@ -154,25 +258,36 @@ exports.handler = async (event) => {
               youtube_url: youtubeUrl,
               start_time,
               duration,
-              // 외부 서비스 링크
               external_services: {
                 ezgif: `https://ezgif.com/video-to-gif?url=${encodeURIComponent(youtubeUrl)}`,
                 giphy: `https://giphy.com/create/gifmaker`,
                 makeagif: `https://makeagif.com/youtube-to-gif`
               },
-              // 임베드 URL (특정 구간)
               embed_url: `https://www.youtube.com/embed/${targetVideoId}?start=${start_time}&end=${start_time + duration}&autoplay=1`,
-              // 썸네일 (GIF 대용)
-              thumbnails: getThumbnailUrls(targetVideoId),
-              // 클라이언트 변환 가이드
-              client_guide: {
-                step1: '영상을 canvas에 로드',
-                step2: 'requestAnimationFrame으로 프레임 캡처',
-                step3: 'gif.js로 GIF 생성',
-                libraries: ['gif.js', 'gifshot', 'jsgif']
-              }
+              thumbnails: getThumbnailUrls(targetVideoId)
             }
           })
+        }
+      }
+
+      case 'cleanup': {
+        // 임시 파일 정리
+        const { storage_path } = body
+        if (!storage_path) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'storage_path required' })
+          }
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        await supabase.storage.from('media').remove([storage_path])
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true })
         }
       }
 
@@ -185,11 +300,11 @@ exports.handler = async (event) => {
     }
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('[youtube-to-gif] Error:', error)
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ success: false, error: error.message })
     }
   }
 }
