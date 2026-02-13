@@ -125,5 +125,10 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# GIF 변환용 SharedArrayBuffer 헤더 (관리자 페이지에서만 적용)
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
     Cross-Origin-Opener-Policy = "same-origin"
     Cross-Origin-Embedder-Policy = "credentialless"
