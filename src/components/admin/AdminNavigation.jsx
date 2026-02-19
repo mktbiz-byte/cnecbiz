@@ -4,7 +4,8 @@ import {
   Shield, Building2, TrendingUp, Users, Video,
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
-  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target
+  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target,
+  Bot
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -104,6 +105,21 @@ export default function AdminNavigation() {
         { path: '/admin/withdrawal-audit', icon: AlertTriangle, label: '출금 감사' },
         { path: '/admin/point-history', icon: Coins, label: '포인트 지급 내역' },
         { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
+      ]
+    },
+    {
+      id: 'openclo',
+      type: 'group',
+      icon: Bot,
+      label: '오픈클로',
+      items: [
+        { path: '/admin/openclo', icon: Bot, label: '대시보드' },
+        { path: '/admin/openclo/creators', icon: Users, label: '크리에이터' },
+        { path: '/admin/openclo/review', icon: Shield, label: '검토 대기열' },
+        { path: '/admin/openclo/bot-status', icon: TrendingUp, label: '봇 상태' },
+        { path: '/admin/openclo/bot-config', icon: Settings, label: '봇 설정' },
+        { path: '/admin/openclo/emails', icon: Mail, label: '이메일 관리' },
+        { path: '/admin/openclo/kpi', icon: BarChart3, label: 'KPI 통계' },
       ]
     },
     {

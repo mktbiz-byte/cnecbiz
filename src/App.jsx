@@ -128,6 +128,8 @@ import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
+import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
+import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -275,6 +277,9 @@ function App() {
         <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
+        {/* OpenClo Routes */}
+        <Route path="/admin/openclo" element={<OpenCloDashboard />} />
+        <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />

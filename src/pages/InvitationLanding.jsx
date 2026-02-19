@@ -12,7 +12,8 @@ import {
   ArrowRight,
   X,
   Phone,
-  Mail
+  Mail,
+  MapPin
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../lib/supabaseClients'
 
@@ -34,6 +35,12 @@ export default function InvitationLanding() {
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState(false)
   const [expired, setExpired] = useState(false)
+  const [addressData, setAddressData] = useState({
+    phone_number: '',
+    postal_code: '',
+    address: '',
+    detail_address: ''
+  })
 
   useEffect(() => {
     if (id) {
@@ -132,6 +139,14 @@ export default function InvitationLanding() {
 
       setCreator(creatorData)
 
+      // 크리에이터 연락처 prefill
+      if (creatorData) {
+        setAddressData(prev => ({
+          ...prev,
+          phone_number: creatorData.phone || creatorData.phone_number || ''
+        }))
+      }
+
     } catch (err) {
       console.error('Error fetching invitation:', err)
       setError('데이터를 불러오는 중 오류가 발생했습니다.')
@@ -143,6 +158,16 @@ export default function InvitationLanding() {
   const handleApply = async () => {
     if (!invitation || !campaign || !creator) return
 
+    // 주소 유효성 검사
+    if (!addressData.address.trim()) {
+      alert('배송지 주소를 입력해주세요.')
+      return
+    }
+    if (!addressData.phone_number.trim()) {
+      alert('연락처를 입력해주세요.')
+      return
+    }
+
     setApplying(true)
 
     try {
@@ -152,7 +177,13 @@ export default function InvitationLanding() {
         body: JSON.stringify({
           invitationId: invitation.id,
           campaignId: campaign.id,
-          creatorId: creator.id
+          creatorId: creator.id,
+          shippingInfo: {
+            phone_number: addressData.phone_number.trim(),
+            postal_code: addressData.postal_code.trim(),
+            address: addressData.address.trim(),
+            detail_address: addressData.detail_address.trim()
+          }
         })
       })
 
@@ -431,25 +462,79 @@ export default function InvitationLanding() {
           </div>
         )}
 
-        {/* 신청 버튼 */}
+        {/* 배송지 입력 + 신청 버튼 */}
         {!applied && !expired && (
-          <button
-            onClick={handleApply}
-            disabled={applying}
-            className="w-full py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {applying ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                신청 중...
-              </>
-            ) : (
-              <>
-                지금 바로 지원하기
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
+          <>
+            <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="w-5 h-5 text-violet-500" />
+                <h3 className="text-lg font-bold text-gray-900">배송지 정보</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                제품 배송을 위해 아래 정보를 입력해주세요.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">연락처 <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    value={addressData.phone_number}
+                    onChange={(e) => setAddressData({ ...addressData, phone_number: e.target.value })}
+                    placeholder="010-0000-0000"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
+                  <input
+                    type="text"
+                    value={addressData.postal_code}
+                    onChange={(e) => setAddressData({ ...addressData, postal_code: e.target.value })}
+                    placeholder="12345"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={addressData.address}
+                    onChange={(e) => setAddressData({ ...addressData, address: e.target.value })}
+                    placeholder="시/도, 시/군/구, 도로명 주소"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
+                  <input
+                    type="text"
+                    value={addressData.detail_address}
+                    onChange={(e) => setAddressData({ ...addressData, detail_address: e.target.value })}
+                    placeholder="아파트, 동/호수, 건물명 등"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              className="w-full py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {applying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  신청 중...
+                </>
+              ) : (
+                <>
+                  지원하기
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </>
         )}
 
         {/* 에러 메시지 */}

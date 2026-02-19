@@ -659,28 +659,28 @@ export default function WithdrawalManagement() {
 
       // 알림 발송 (크리에이터 정보 조회 후 발송)
       if (isJapanDB) {
-        // 일본 크리에이터: LINE + SMS + Email via send-japan-notification
+        // 일본 크리에이터: 입금 완료 알림 (LINE + SMS + Email via send-japan-notification)
         try {
           const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
           const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
           const jpToday = new Date().toLocaleDateString('ja-JP')
           const jpBaseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
 
-          console.log('일본 크리에이터 출금 완료 알림 발송:', jpCreatorName)
+          console.log('일본 크리에이터 입금 완료 알림 발송:', jpCreatorName)
           await axios.post(
             `${jpBaseUrl}/.netlify/functions/send-japan-notification`,
             {
-              type: 'withdrawal_complete',
+              type: 'deposit_complete',
               creatorId: withdrawal.user_id,
               data: {
                 creatorName: jpCreatorName,
                 amount: jpAmount,
-                expectedDate: jpToday
+                depositDate: jpToday
               }
             },
             { timeout: 15000 }
           )
-          console.log('일본 크리에이터 출금 완료 LINE 알림 발송 완료:', jpCreatorName)
+          console.log('일본 크리에이터 입금 완료 LINE 알림 발송 완료:', jpCreatorName)
         } catch (jpNotifyError) {
           console.error('일본 크리에이터 알림 발송 오류:', jpNotifyError)
           // 알림 실패해도 완료 처리는 성공한 것으로 처리
@@ -878,7 +878,34 @@ export default function WithdrawalManagement() {
             if (error) throw error
           }
 
-          // 이메일 발송 (승인 시에는 알림톡 없이 이메일만)
+          // 일본 크리에이터: 출금 승인 알림 (LINE + SMS + Email via send-japan-notification)
+          if (isJapanDB) {
+            try {
+              const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
+              const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
+
+              console.log(`일본 크리에이터 출금 승인 알림 발송: ${jpCreatorName}`)
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-japan-notification`,
+                {
+                  type: 'withdrawal_complete',
+                  creatorId: withdrawal.user_id,
+                  data: {
+                    creatorName: jpCreatorName,
+                    amount: jpAmount,
+                    expectedDate: new Date().toLocaleDateString('ja-JP')
+                  }
+                },
+                { timeout: 15000 }
+              )
+              console.log(`일본 크리에이터 출금 승인 LINE 알림 발송 완료: ${jpCreatorName}`)
+            } catch (jpNotifyError) {
+              console.error('일본 크리에이터 출금 승인 알림 발송 오류:', jpNotifyError)
+            }
+          }
+
+          // 한국 크리에이터: 이메일 발송 (승인 시에는 알림톡 없이 이메일만)
+          if (!isJapanDB) {
           try {
             let creatorEmail = null
             const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
@@ -930,6 +957,7 @@ export default function WithdrawalManagement() {
             }
           } catch (notifyError) {
             console.error('이메일 발송 오류:', notifyError)
+          }
           }
 
           successCount++
@@ -1012,27 +1040,27 @@ export default function WithdrawalManagement() {
 
           // 알림 발송
           if (isJapanDB) {
-            // 일본 크리에이터: LINE + SMS + Email via send-japan-notification
+            // 일본 크리에이터: 입금 완료 알림 (LINE + SMS + Email via send-japan-notification)
             try {
               const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
               const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
               const jpToday = new Date().toLocaleDateString('ja-JP')
 
-              console.log(`일본 크리에이터 출금 완료 알림 발송: ${jpCreatorName}`)
+              console.log(`일본 크리에이터 입금 완료 알림 발송: ${jpCreatorName}`)
               await axios.post(
                 `${baseUrl}/.netlify/functions/send-japan-notification`,
                 {
-                  type: 'withdrawal_complete',
+                  type: 'deposit_complete',
                   creatorId: withdrawal.user_id,
                   data: {
                     creatorName: jpCreatorName,
                     amount: jpAmount,
-                    expectedDate: jpToday
+                    depositDate: jpToday
                   }
                 },
                 { timeout: 15000 }
               )
-              console.log(`일본 크리에이터 출금 완료 LINE 알림 발송 완료: ${jpCreatorName}`)
+              console.log(`일본 크리에이터 입금 완료 LINE 알림 발송 완료: ${jpCreatorName}`)
             } catch (jpNotifyError) {
               console.error('일본 크리에이터 알림 발송 오류:', jpNotifyError)
             }

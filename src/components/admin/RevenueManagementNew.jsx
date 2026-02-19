@@ -98,6 +98,7 @@ export default function RevenueManagementNew() {
   const [withdrawalData, setWithdrawalData] = useState([])
   const [voucherTransactions, setVoucherTransactions] = useState([])
   const [voucherSummary, setVoucherSummary] = useState([])
+  const [cardPayments, setCardPayments] = useState([])
   const [contractAmounts, setContractAmounts] = useState({}) // { company_id: amount }
   const [contractDates, setContractDates] = useState({}) // { company_id: date_string }
   const [voucherManualEntries, setVoucherManualEntries] = useState([])
@@ -193,6 +194,33 @@ export default function RevenueManagementNew() {
         .select('*')
         .order('contract_date', { ascending: false })
       setVoucherManualEntries(manualEntries || [])
+
+      // 카드결제(토스) 내역 조회 → 하우파파 매출에 자동 합산
+      const { data: cardPaymentsData } = await supabaseBiz
+        .from('payments')
+        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info, company_id, campaign_id')
+        .eq('payment_method', 'toss_card')
+        .eq('status', 'completed')
+        .order('paid_at', { ascending: false })
+
+      // 업체명/캠페인명 매핑
+      const companyIds = [...new Set((cardPaymentsData || []).map(p => p.company_id).filter(Boolean))]
+      const campaignIds = [...new Set((cardPaymentsData || []).map(p => p.campaign_id).filter(Boolean))]
+      let companyMap = {}
+      let campaignMap = {}
+      if (companyIds.length > 0) {
+        const { data: companies } = await supabaseBiz.from('companies').select('user_id, company_name').in('user_id', companyIds)
+        if (companies) companyMap = Object.fromEntries(companies.map(c => [c.user_id, c.company_name]))
+      }
+      if (campaignIds.length > 0) {
+        const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, title').in('id', campaignIds)
+        if (campaigns) campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.title]))
+      }
+      setCardPayments((cardPaymentsData || []).map(p => ({
+        ...p,
+        _companyName: companyMap[p.company_id] || '',
+        _campaignTitle: campaignMap[p.campaign_id] || ''
+      })))
 
       // 수출바우처(포인트) 거래 내역 조회
       const { data: transactions } = await supabaseBiz
@@ -323,7 +351,7 @@ export default function RevenueManagementNew() {
     setLoading(false)
   }
 
-  // 월별 요약 계산
+  // 월별 요약 계산 (카드결제 → 하우파파 매출 자동 합산)
   const monthlySummary = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) =>
       `${selectedYear}-${String(i + 1).padStart(2, '0')}`
@@ -334,6 +362,14 @@ export default function RevenueManagementNew() {
         .filter(r => r.year_month === month && r.corporation_id === 'haupapa')
         .reduce((sum, r) => sum + (r.amount || 0), 0)
 
+      // 카드결제(토스) 금액을 하우파파 매출에 자동 합산
+      const cardRevenue = cardPayments
+        .filter(p => {
+          const paidMonth = (p.paid_at || p.created_at || '').substring(0, 7)
+          return paidMonth === month
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
+
       const haulabRevenue = revenueData
         .filter(r => r.year_month === month && r.corporation_id === 'haulab')
         .reduce((sum, r) => sum + (r.amount || 0), 0)
@@ -342,17 +378,21 @@ export default function RevenueManagementNew() {
         .filter(e => e.year_month === month)
         .reduce((sum, e) => sum + (e.amount || 0), 0)
 
+      const totalHaupapa = haupapaRevenue + cardRevenue
+
       return {
         month,
         name: `${idx + 1}월`,
-        haupapaRevenue,
+        haupapaRevenue: totalHaupapa,
+        haupapaManual: haupapaRevenue,
+        haupapaCard: cardRevenue,
         haulabRevenue,
-        totalRevenue: haupapaRevenue + haulabRevenue,
+        totalRevenue: totalHaupapa + haulabRevenue,
         totalExpense,
-        netProfit: haupapaRevenue + haulabRevenue - totalExpense
+        netProfit: totalHaupapa + haulabRevenue - totalExpense
       }
     })
-  }, [revenueData, expenseData, selectedYear])
+  }, [revenueData, expenseData, cardPayments, selectedYear])
 
   // 카테고리별 매입 요약
   const expenseByCategory = useMemo(() => {
@@ -399,11 +439,12 @@ export default function RevenueManagementNew() {
   const yearlyTotals = useMemo(() => {
     return monthlySummary.reduce((acc, m) => ({
       haupapaRevenue: acc.haupapaRevenue + m.haupapaRevenue,
+      haupapaCard: acc.haupapaCard + (m.haupapaCard || 0),
       haulabRevenue: acc.haulabRevenue + m.haulabRevenue,
       totalRevenue: acc.totalRevenue + m.totalRevenue,
       totalExpense: acc.totalExpense + m.totalExpense,
       netProfit: acc.netProfit + m.netProfit
-    }), { haupapaRevenue: 0, haulabRevenue: 0, totalRevenue: 0, totalExpense: 0, netProfit: 0 })
+    }), { haupapaRevenue: 0, haupapaCard: 0, haulabRevenue: 0, totalRevenue: 0, totalExpense: 0, netProfit: 0 })
   }, [monthlySummary])
 
   // 전월 대비 계산
@@ -1510,10 +1551,18 @@ export default function RevenueManagementNew() {
                     </thead>
                     <tbody>
                       <tr className="border-b border-slate-100 bg-blue-50/50">
-                        <td className="px-4 py-3 text-sm font-medium text-blue-700">하우파파</td>
+                        <td className="px-4 py-3 text-sm font-medium text-blue-700">
+                          하우파파
+                          {yearlyTotals.haupapaCard > 0 && (
+                            <span className="block text-xs text-blue-400 font-normal">카드결제 포함</span>
+                          )}
+                        </td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-3 py-3 text-right text-sm text-blue-600">
+                          <td key={i} className="px-3 py-3 text-right text-sm text-blue-600" title={m.haupapaCard > 0 ? `수동: ${m.haupapaManual?.toLocaleString()}원\n카드: ${m.haupapaCard?.toLocaleString()}원` : ''}>
                             {m.haupapaRevenue > 0 ? formatCompact(m.haupapaRevenue) : '-'}
+                            {m.haupapaCard > 0 && (
+                              <span className="block text-xs text-indigo-400">({formatCompact(m.haupapaCard)} 카드)</span>
+                            )}
                           </td>
                         ))}
                         <td className="px-4 py-3 text-right text-sm font-bold text-blue-700 bg-blue-100/50">
@@ -1773,17 +1822,56 @@ export default function RevenueManagementNew() {
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg font-semibold text-slate-700">매출 내역 (개별 항목)</CardTitle>
-                  <span className="text-sm text-slate-500">총 {revenueData.length}건</span>
+                  <span className="text-sm text-slate-500">총 {revenueData.length + cardPayments.length}건 (카드결제 {cardPayments.length}건 포함)</span>
                 </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {revenueData.length === 0 ? (
+                  {revenueData.length === 0 && cardPayments.length === 0 ? (
                     <div className="text-center py-12 text-slate-400">
                       <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
                       <p>매출 데이터가 없습니다.</p>
                     </div>
                   ) : (
-                    revenueData.map(revenue => (
+                    <>
+                    {/* 카드결제 내역 (자동) */}
+                    {cardPayments.map(payment => {
+                      const paidDate = payment.paid_at || payment.created_at || ''
+                      const yearMonth = paidDate.substring(0, 7)
+                      const dateStr = paidDate.substring(0, 10)
+                      const companyName = payment._companyName || ''
+                      const campaignTitle = payment._campaignTitle || payment.bank_transfer_info?.campaignTitle || ''
+                      return (
+                        <div key={`card-${payment.id}`}
+                          className="flex items-center justify-between p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
+                          <div className="flex items-center gap-4">
+                            <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs mr-2 bg-indigo-100 text-indigo-700">
+                                  <CreditCard className="w-3 h-3 mr-1" />카드결제
+                                </span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs mr-2 bg-blue-100 text-blue-700">
+                                  하우파파
+                                </span>
+                                {yearMonth}
+                              </div>
+                              <div className="text-sm text-slate-500 mt-1">
+                                {companyName && <span className="font-medium text-slate-700">{companyName}</span>}
+                                {companyName && campaignTitle && <span className="mx-1">·</span>}
+                                {campaignTitle && <span>{campaignTitle}</span>}
+                                {!companyName && !campaignTitle && <span>토스 카드결제</span>}
+                                <span className="text-slate-400 ml-1">({dateStr})</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-lg text-indigo-700">{formatNumber(payment.amount)}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* 수동 입력 매출 내역 */}
+                    {revenueData.map(revenue => (
                       <div key={revenue.id}
                         className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4">
@@ -1827,7 +1915,8 @@ export default function RevenueManagementNew() {
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}
+                    </>
                   )}
                 </div>
               </CardContent>

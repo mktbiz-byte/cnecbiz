@@ -3,7 +3,7 @@ import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, XCircle, Search, Loader2, CreditCard, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, Search, Loader2, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react'
 
 export default function CardPaymentsTab() {
   const [payments, setPayments] = useState([])
@@ -14,6 +14,7 @@ export default function CardPaymentsTab() {
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     fetchCardPayments()
@@ -44,7 +45,8 @@ export default function CardPaymentsTab() {
       }
 
       // 캠페인 정보 조회 (supabaseBiz + supabaseKorea 모두 확인)
-      const campaignIds = [...new Set(paymentsData.map(p => p.campaign_id).filter(Boolean))]
+      // campaign_id가 없는 경우 bank_transfer_info.campaignId에서 가져옴
+      const campaignIds = [...new Set(paymentsData.map(p => p.campaign_id || p.bank_transfer_info?.campaignId).filter(Boolean))]
       let campaignsMap = {}
       if (campaignIds.length > 0) {
         // supabaseBiz에서 먼저 조회
@@ -79,9 +81,10 @@ export default function CardPaymentsTab() {
         companies?.forEach(c => { companiesMap[c.email] = c })
       }
 
-      // 데이터 조합
+      // 데이터 조합 (campaign_id 또는 bank_transfer_info.campaignId 사용)
       const enriched = paymentsData.map(p => {
-        const campaign = campaignsMap[p.campaign_id] || null
+        const effectiveCampaignId = p.campaign_id || p.bank_transfer_info?.campaignId
+        const campaign = campaignsMap[effectiveCampaignId] || null
         const company = campaign?.company_email ? companiesMap[campaign.company_email] : null
         return {
           ...p,
@@ -152,6 +155,42 @@ export default function CardPaymentsTab() {
       alert('결제 취소 실패: ' + error.message)
     } finally {
       setProcessing(false)
+    }
+  }
+
+  // 토스 거래내역 동기화
+  const handleSyncTossPayments = async () => {
+    if (!confirm('토스페이먼츠에서 최근 30일 거래내역을 동기화합니다.\nDB에 누락된 결제만 추가됩니다.\n\n진행하시겠습니까?')) return
+
+    setSyncing(true)
+    try {
+      const response = await fetch('/.netlify/functions/sync-toss-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '동기화 실패')
+      }
+
+      // 실패 건이 있으면 에러 상세 표시
+      let msg = result.message
+      if (result.details?.length > 0) {
+        const errors = result.details.filter(d => d.error)
+        if (errors.length > 0) {
+          msg += '\n\n[에러 상세]\n' + errors.map(d => `${d.paymentKey}: ${d.error}`).join('\n')
+        }
+      }
+      alert(`동기화 완료!\n\n${msg}`)
+      fetchCardPayments() // 목록 새로고침
+    } catch (error) {
+      console.error('[CardPaymentsTab] 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -258,6 +297,19 @@ export default function CardPaymentsTab() {
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={fetchCardPayments}>새로고침</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncTossPayments}
+              disabled={syncing}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              {syncing ? (
+                <><Loader2 className="w-4 h-4 mr-1 animate-spin" />동기화 중...</>
+              ) : (
+                <><RefreshCw className="w-4 h-4 mr-1" />토스 동기화</>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>

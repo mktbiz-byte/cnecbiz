@@ -362,6 +362,37 @@ ${data.stepInfo ? `<p style="color:#991b1b;font-weight:bold;margin:0 0 10px;">�
 </html>`
   }),
 
+  // 입금 완료 알림
+  deposit_complete: (data) => ({
+    line: `✅ 입금 완료!\n\n${data.creatorName}님, 출금 신청하신 금액이 입금 완료되었습니다.\n\n입금 금액: ¥${data.amount?.toLocaleString() || 0}\n입금일: ${data.depositDate || '본일'}\n\n등록하신 계좌를 확인해주세요.\n감사합니다! 🙏`,
+    sms: `[CNEC] ¥${data.amount?.toLocaleString() || 0} 입금 완료! 등록하신 계좌를 확인해주세요. LINE친구추가: https://lin.ee/GuwmxOH`,
+    emailSubject: `[CNEC] ✅ 입금 완료 안내`,
+    emailHtml: (translated) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:sans-serif;">
+<table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#059669,#047857);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:24px;">✅ 入金完了</h1>
+</td></tr>
+<tr><td style="padding:30px;">
+<p style="font-size:16px;color:#333;">${translated.greeting}</p>
+<div style="background:#ecfdf5;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #6ee7b7;text-align:center;">
+<p style="font-size:14px;color:#065f46;margin:0 0 10px;">入金金額</p>
+<p style="font-size:32px;font-weight:bold;color:#059669;margin:0;">¥${data.amount?.toLocaleString() || 0}</p>
+<p style="font-size:14px;color:#065f46;margin:15px 0 0;">入金日：${data.depositDate || '本日'}</p>
+</div>
+<p style="font-size:14px;color:#666;line-height:1.6;text-align:center;">ご登録の口座への入金が完了いたしました。<br>ご確認ください。ありがとうございます！</p>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
+<p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>
+</td></tr>
+</table>
+</body>
+</html>`
+  }),
+
   // 일반 알림
   general: (data) => ({
     line: data.message || '알림이 있습니다.',
@@ -587,6 +618,26 @@ exports.handler = async (event) => {
       results.sms.error = smsResult.error;
 
       console.log(`[Japan Notification] SMS result:`, smsResult);
+    }
+
+    // 2-1. LINE 미등록 시 LINE 초대장 발송 (SMS + Email)
+    if (!creator.line_user_id && (creator.email || creator.phone)) {
+      try {
+        const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+        await fetch(`${baseUrl}/.netlify/functions/send-line-invitation-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: creator.email,
+            phone: creator.phone,
+            creatorName: data.creatorName,
+            language: 'ja'
+          })
+        });
+        console.log(`[Japan Notification] LINE invitation sent to ${creator.email || creator.phone}`);
+      } catch (lineInviteError) {
+        console.error('[Japan Notification] LINE invitation failed:', lineInviteError.message);
+      }
     }
 
     // 3. 이메일 발송 (항상)

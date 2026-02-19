@@ -154,9 +154,19 @@ exports.handler = async (event, context) => {
       }
 
       if (campaign) {
+        // supabaseBiz에 해당 campaign이 존재하는지 확인 (FK 제약 대비)
+        let campaignExistsInBiz = false
+        if (supabaseBiz) {
+          const { data: bizCampaign } = await supabaseBiz
+            .from('campaigns')
+            .select('id')
+            .eq('id', campaignId)
+            .maybeSingle()
+          campaignExistsInBiz = !!bizCampaign
+        }
+
         // payments 테이블에 결제 기록 저장 (supabaseBiz 중앙 DB에 저장)
         const paymentData = {
-          campaign_id: campaignId,
           amount: tossResult.totalAmount || amount,
           currency: 'KRW',
           payment_method: 'toss_card',
@@ -168,6 +178,7 @@ exports.handler = async (event, context) => {
             paymentKey: tossResult.paymentKey,
             orderId: tossResult.orderId,
             method: tossResult.method,
+            campaignId: campaignId,
             card: tossResult.card ? {
               issuerCode: tossResult.card.issuerCode,
               number: tossResult.card.number,
@@ -180,9 +191,24 @@ exports.handler = async (event, context) => {
           }
         }
 
+        // campaign_id는 supabaseBiz에 캠페인이 존재할 때만 FK로 설정
+        if (campaignExistsInBiz) {
+          paymentData.campaign_id = campaignId
+        } else {
+          console.log('[confirm-toss-payment] 캠페인이 supabaseBiz에 없어 campaign_id FK 생략 (bank_transfer_info에 저장)')
+        }
+
         // company_id 설정 (캠페인에서 가져오거나, company_email로 companies 조회)
         if (campaign.company_id) {
-          paymentData.company_id = campaign.company_id
+          // supabaseBiz의 companies 테이블에 해당 user_id가 있는지 확인
+          const { data: compCheck } = await supabaseBiz
+            .from('companies')
+            .select('user_id')
+            .eq('user_id', campaign.company_id)
+            .maybeSingle()
+          if (compCheck) {
+            paymentData.company_id = campaign.company_id
+          }
         } else if (campaign.company_email && supabaseBiz) {
           const { data: companyData } = await supabaseBiz
             .from('companies')
@@ -202,6 +228,20 @@ exports.handler = async (event, context) => {
 
           if (insertError) {
             console.error('[confirm-toss-payment] 결제 기록 저장 실패 (supabaseBiz):', insertError)
+            // FK 제약 위반 시 campaign_id, company_id 제외하고 재시도
+            if (insertError.code === '23503') {
+              console.log('[confirm-toss-payment] FK 제약 위반, campaign_id/company_id 제외하고 재시도')
+              delete paymentData.campaign_id
+              delete paymentData.company_id
+              const { error: retryError } = await supabaseBiz
+                .from('payments')
+                .insert(paymentData)
+              if (retryError) {
+                console.error('[confirm-toss-payment] 재시도도 실패:', retryError)
+              } else {
+                console.log('[confirm-toss-payment] FK 제외 재시도 성공')
+              }
+            }
           } else {
             console.log('[confirm-toss-payment] 결제 기록 저장 완료 (supabaseBiz)')
           }

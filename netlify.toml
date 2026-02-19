@@ -101,6 +101,46 @@
 [functions."upload-to-tiktok"]
   timeout = 300
 
+# ============================================================
+# OpenClo (오픈클로) 설정
+# ============================================================
+
+# 오픈클로 봇 크롤링 (매 30분)
+[functions."scheduled-openclo-crawl"]
+  schedule = "*/30 * * * *"
+  timeout = 120
+
+# 오픈클로 이메일 자동 발송 (매일 오전 10시 KST = UTC 01:00)
+[functions."scheduled-openclo-email"]
+  schedule = "0 1 * * *"
+  timeout = 120
+
+# 오픈클로 일일 리포트 → 네이버웍스 (매일 오후 6시 KST = UTC 09:00)
+[functions."scheduled-openclo-report"]
+  schedule = "0 9 * * *"
+
+# 오픈클로 가입 여부 재확인 (매시간)
+[functions."scheduled-openclo-registration-check"]
+  schedule = "0 * * * *"
+
+# 오픈클로 AI 분석 타임아웃
+[functions."openclo-ai-analyze"]
+  timeout = 60
+
+[functions."openclo-bot-youtube"]
+  timeout = 60
+
+[functions."openclo-bot-instagram"]
+  timeout = 60
+
+[functions."openclo-bot-tiktok"]
+  timeout = 60
+
+# 오픈클로 IP 제한 Edge Function
+[[edge_functions]]
+  function = "ip-restrict-openclo"
+  path = "/admin/openclo/*"
+
 # SEO: Sitemaps
 [[redirects]]
   from = "/sitemap.xml"

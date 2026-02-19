@@ -32,7 +32,7 @@ import {
   Download, ExternalLink, Search, RefreshCw,
   Video, Globe, User, Eye, ChevronDown, ChevronUp, Play, X, Film, Image, Loader2
 } from 'lucide-react'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function SnsUploadManagement() {
@@ -460,6 +460,276 @@ export default function SnsUploadManagement() {
               })
             }
           })
+        }
+      }
+
+      // 5. Japan DB에서 조회
+      if (supabaseJapan) {
+        try {
+          // 캠페인 정보 조회
+          const { data: japanCampaigns } = await supabaseJapan
+            .from('campaigns')
+            .select('id, title, campaign_type, target_country')
+
+          const japanCampaignMap = new Map()
+          japanCampaigns?.forEach(c => japanCampaignMap.set(c.id, c))
+
+          // user_profiles 조회
+          const japanProfileMap = new Map()
+          try {
+            const { data: japanProfiles } = await supabaseJapan
+              .from('user_profiles')
+              .select('*')
+            japanProfiles?.forEach(p => {
+              if (p.id) japanProfileMap.set(p.id, p)
+            })
+            console.log('[SnsUploadManagement] Japan user_profiles loaded:', japanProfiles?.length || 0)
+          } catch (e) {
+            console.log('[SnsUploadManagement] Japan user_profiles query failed, continuing')
+          }
+
+          const getJapanCreatorName = (userId, fallbackData) => {
+            const profile = japanProfileMap.get(userId)
+            if (profile?.name && !profile.name.includes('@')) return profile.name
+            if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+            return resolveCreatorName(fallbackData)
+          }
+
+          // applications 조회
+          const { data: japanApps, error: japanAppError } = await supabaseJapan
+            .from('applications')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!japanAppError && japanApps) {
+            console.log('[SnsUploadManagement] Japan applications:', japanApps.length)
+            japanApps.forEach(app => {
+              const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
+                               app.week3_url || app.week4_url || app.step1_url ||
+                               app.step2_url || app.step3_url
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
+
+              if (hasSnsUrl || hasVideoStatus) {
+                const campaign = japanCampaignMap.get(app.campaign_id)
+                const isDuplicate = allVideos.some(v =>
+                  v.campaign_id === app.campaign_id && v.user_id === app.user_id
+                )
+                if (!isDuplicate) {
+                  if (campaign) {
+                    campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                  }
+                  allVideos.push({
+                    id: `japan_app_${app.id}`,
+                    application_id: app.id,
+                    campaign_id: app.campaign_id,
+                    user_id: app.user_id,
+                    sns_upload_url: app.sns_upload_url,
+                    partnership_code: app.partnership_code,
+                    video_file_url: app.video_file_url,
+                    created_at: app.updated_at || app.created_at,
+                    status: app.status,
+                    source: 'japan',
+                    country: campaign?.target_country || 'jp',
+                    campaignTitle: campaign?.title || '-',
+                    campaignType: campaign?.campaign_type,
+                    creatorName: getJapanCreatorName(app.user_id, app),
+                    creatorEmail: app.email,
+                    week1_url: app.week1_url, week2_url: app.week2_url,
+                    week3_url: app.week3_url, week4_url: app.week4_url,
+                    step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                    week1_partnership_code: app.week1_partnership_code,
+                    week2_partnership_code: app.week2_partnership_code,
+                    week3_partnership_code: app.week3_partnership_code,
+                    week4_partnership_code: app.week4_partnership_code,
+                    step1_2_partnership_code: app.step1_2_partnership_code,
+                    step3_partnership_code: app.step3_partnership_code,
+                  })
+                }
+              }
+            })
+          }
+
+          // video_submissions 조회
+          const { data: japanSubs, error: japanSubError } = await supabaseJapan
+            .from('video_submissions')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!japanSubError && japanSubs) {
+            console.log('[SnsUploadManagement] Japan video_submissions:', japanSubs.length)
+            japanSubs.forEach(sub => {
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+              if (!hasVideoStatus && !sub.sns_upload_url) return
+
+              const campaign = japanCampaignMap.get(sub.campaign_id)
+              const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+              const isDuplicate = allVideos.some(v =>
+                v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+              )
+
+              if (!isDuplicate || isMultiVideoCampaign) {
+                if (campaign) {
+                  campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                }
+                allVideos.push({
+                  id: `japan_sub_${sub.id}`,
+                  submission_id: sub.id,
+                  application_id: sub.application_id,
+                  campaign_id: sub.campaign_id,
+                  user_id: sub.user_id,
+                  sns_upload_url: sub.sns_upload_url,
+                  partnership_code: sub.partnership_code || sub.ad_code,
+                  video_file_url: sub.video_file_url,
+                  created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                  status: sub.status,
+                  source: 'japan_submission',
+                  country: campaign?.target_country || 'jp',
+                  campaignTitle: campaign?.title || '-',
+                  campaignType: campaign?.campaign_type,
+                  creatorName: getJapanCreatorName(sub.user_id, sub),
+                  creatorEmail: sub.email,
+                  week_number: sub.week_number,
+                })
+              }
+            })
+          }
+        } catch (jpError) {
+          console.error('[SnsUploadManagement] Japan DB error:', jpError)
+        }
+      }
+
+      // 6. US DB에서 조회
+      if (supabaseUS) {
+        try {
+          // 캠페인 정보 조회
+          const { data: usCampaigns } = await supabaseUS
+            .from('campaigns')
+            .select('id, title, campaign_type, target_country')
+
+          const usCampaignMap = new Map()
+          usCampaigns?.forEach(c => usCampaignMap.set(c.id, c))
+
+          // user_profiles 조회
+          const usProfileMap = new Map()
+          try {
+            const { data: usProfiles } = await supabaseUS
+              .from('user_profiles')
+              .select('*')
+            usProfiles?.forEach(p => {
+              if (p.id) usProfileMap.set(p.id, p)
+            })
+            console.log('[SnsUploadManagement] US user_profiles loaded:', usProfiles?.length || 0)
+          } catch (e) {
+            console.log('[SnsUploadManagement] US user_profiles query failed, continuing')
+          }
+
+          const getUSCreatorName = (userId, fallbackData) => {
+            const profile = usProfileMap.get(userId)
+            if (profile?.name && !profile.name.includes('@')) return profile.name
+            if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+            return resolveCreatorName(fallbackData)
+          }
+
+          // applications 조회
+          const { data: usApps, error: usAppError } = await supabaseUS
+            .from('applications')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!usAppError && usApps) {
+            console.log('[SnsUploadManagement] US applications:', usApps.length)
+            usApps.forEach(app => {
+              const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
+                               app.week3_url || app.week4_url || app.step1_url ||
+                               app.step2_url || app.step3_url
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
+
+              if (hasSnsUrl || hasVideoStatus) {
+                const campaign = usCampaignMap.get(app.campaign_id)
+                const isDuplicate = allVideos.some(v =>
+                  v.campaign_id === app.campaign_id && v.user_id === app.user_id
+                )
+                if (!isDuplicate) {
+                  if (campaign) {
+                    campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                  }
+                  allVideos.push({
+                    id: `us_app_${app.id}`,
+                    application_id: app.id,
+                    campaign_id: app.campaign_id,
+                    user_id: app.user_id,
+                    sns_upload_url: app.sns_upload_url,
+                    partnership_code: app.partnership_code,
+                    video_file_url: app.video_file_url,
+                    created_at: app.updated_at || app.created_at,
+                    status: app.status,
+                    source: 'us',
+                    country: campaign?.target_country || 'us',
+                    campaignTitle: campaign?.title || '-',
+                    campaignType: campaign?.campaign_type,
+                    creatorName: getUSCreatorName(app.user_id, app),
+                    creatorEmail: app.email,
+                    week1_url: app.week1_url, week2_url: app.week2_url,
+                    week3_url: app.week3_url, week4_url: app.week4_url,
+                    step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                    week1_partnership_code: app.week1_partnership_code,
+                    week2_partnership_code: app.week2_partnership_code,
+                    week3_partnership_code: app.week3_partnership_code,
+                    week4_partnership_code: app.week4_partnership_code,
+                    step1_2_partnership_code: app.step1_2_partnership_code,
+                    step3_partnership_code: app.step3_partnership_code,
+                  })
+                }
+              }
+            })
+          }
+
+          // video_submissions 조회
+          const { data: usSubs, error: usSubError } = await supabaseUS
+            .from('video_submissions')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!usSubError && usSubs) {
+            console.log('[SnsUploadManagement] US video_submissions:', usSubs.length)
+            usSubs.forEach(sub => {
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+              if (!hasVideoStatus && !sub.sns_upload_url) return
+
+              const campaign = usCampaignMap.get(sub.campaign_id)
+              const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+              const isDuplicate = allVideos.some(v =>
+                v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+              )
+
+              if (!isDuplicate || isMultiVideoCampaign) {
+                if (campaign) {
+                  campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                }
+                allVideos.push({
+                  id: `us_sub_${sub.id}`,
+                  submission_id: sub.id,
+                  application_id: sub.application_id,
+                  campaign_id: sub.campaign_id,
+                  user_id: sub.user_id,
+                  sns_upload_url: sub.sns_upload_url,
+                  partnership_code: sub.partnership_code || sub.ad_code,
+                  video_file_url: sub.video_file_url,
+                  created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                  status: sub.status,
+                  source: 'us_submission',
+                  country: campaign?.target_country || 'us',
+                  campaignTitle: campaign?.title || '-',
+                  campaignType: campaign?.campaign_type,
+                  creatorName: getUSCreatorName(sub.user_id, sub),
+                  creatorEmail: sub.email,
+                  week_number: sub.week_number,
+                })
+              }
+            })
+          }
+        } catch (usError) {
+          console.error('[SnsUploadManagement] US DB error:', usError)
         }
       }
 
