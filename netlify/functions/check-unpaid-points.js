@@ -1,5 +1,42 @@
 const { createClient } = require('@supabase/supabase-js')
 
+// 크리에이터 포인트 계산 함수 (1인당)
+const calculateCreatorPoints = (campaign) => {
+  if (!campaign) return 0
+  if (campaign.creator_points_override) return campaign.creator_points_override
+
+  const campaignType = campaign.campaign_type
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1
+  const region = campaign.region || 'korea'
+
+  if (region === 'japan' || region === 'us') {
+    return campaign.reward_amount || 0
+  }
+
+  if (campaignType === '4week_challenge') {
+    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
+                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
+    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  if (campaignType === 'planned') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.6) / totalSlots)
+  }
+
+  if (campaignType === 'oliveyoung') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+}
+
 // BIZ DB
 const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseBizKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -106,7 +143,7 @@ exports.handler = async (event) => {
               // 해당 리전 DB에서 먼저 조회
               const { data: regionCampaigns } = await regionDB
                 .from('campaigns')
-                .select('id, title, campaign_type, reward_points, creator_points_override')
+                .select('id, title, campaign_type, reward_points, creator_points_override, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
                 .in('id', campaignIds)
 
               if (regionCampaigns) {
@@ -118,7 +155,7 @@ exports.handler = async (event) => {
               if (missingIds.length > 0) {
                 const { data: bizCampaigns } = await supabaseBiz
                   .from('campaigns')
-                  .select('id, title, campaign_type, reward_points, creator_points_override')
+                  .select('id, title, campaign_type, reward_points, creator_points_override, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
                   .in('id', missingIds)
 
                 if (bizCampaigns) {
@@ -212,8 +249,8 @@ exports.handler = async (event) => {
                 }
               }
 
-              // 포인트 금액
-              const pointAmount = campaign.creator_points_override || campaign.reward_points || 0
+              // 포인트 금액 (1인당 계산)
+              const pointAmount = calculateCreatorPoints(campaign)
 
               if (pointAmount === 0) {
                 reason = reason ? `${reason}, 보상 포인트 미설정` : '보상 포인트 미설정'
@@ -283,7 +320,7 @@ exports.handler = async (event) => {
               if (campaignIds.length > 0) {
                 const { data: campaigns } = await regionDB
                   .from('campaigns')
-                  .select('id, title, reward_points, creator_points_override')
+                  .select('id, title, reward_points, creator_points_override, campaign_type, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
                   .in('id', campaignIds)
 
                 if (campaigns) {
@@ -295,7 +332,7 @@ exports.handler = async (event) => {
                 if (missingIds.length > 0) {
                   const { data: bizCampaigns } = await supabaseBiz
                     .from('campaigns')
-                    .select('id, title, reward_points, creator_points_override')
+                    .select('id, title, reward_points, creator_points_override, campaign_type, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
                     .in('id', missingIds)
 
                   if (bizCampaigns) {
@@ -353,7 +390,7 @@ exports.handler = async (event) => {
 
                 const campaign = campaignMap[app.campaign_id]
                 const profile = profileMap[app.user_id]
-                const pointAmount = campaign?.creator_points_override || campaign?.reward_points || 0
+                const pointAmount = calculateCreatorPoints(campaign)
 
                 let reason = 'completed 상태이나 point_transactions에 캠페인 지급 기록 없음'
 

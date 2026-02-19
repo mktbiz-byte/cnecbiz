@@ -215,69 +215,69 @@ export default function AdminDashboard() {
   return (
     <>
       <AdminNavigation />
-      <div className="min-h-screen bg-gray-50 p-6 lg:ml-64">
+      <div className="min-h-screen bg-[#F8F9FA] p-6 lg:p-8 lg:ml-60">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">슈퍼 관리자 대시보드</h1>
-          <p className="text-gray-500 mt-1">전체 현황을 한눈에 확인하세요</p>
+          <h1 className="text-2xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Pretendard', sans-serif" }}>슈퍼 관리자 대시보드</h1>
+          <p className="text-[#636E72] mt-1 text-sm">전체 현황을 한눈에 확인하세요</p>
         </div>
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/companies')}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 border-[#DFE6E9] rounded-2xl" onClick={() => navigate('/admin/companies')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">총 기업</CardTitle>
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-sm font-medium text-[#636E72]">총 기업</CardTitle>
+              <div className="w-9 h-9 bg-[#F0EDFF] rounded-[10px] flex items-center justify-center">
+                <Building2 className="w-[18px] h-[18px] text-[#6C5CE7]" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{stats.companies}</div>
-              <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+              <div className="text-[28px] font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.companies}</div>
+              <p className="text-xs text-[#6C5CE7] mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> 클릭하여 관리
               </p>
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/campaigns')}>
+          <Card className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 border-[#DFE6E9] rounded-2xl" onClick={() => navigate('/admin/campaigns')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">총 캠페인</CardTitle>
-              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Package className="w-5 h-5 text-purple-600" />
+              <CardTitle className="text-sm font-medium text-[#636E72]">총 캠페인</CardTitle>
+              <div className="w-9 h-9 bg-[#F0EDFF] rounded-[10px] flex items-center justify-center">
+                <Package className="w-[18px] h-[18px] text-[#6C5CE7]" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{stats.campaigns}</div>
-              <p className="text-xs text-purple-600 mt-2 flex items-center gap-1">
+              <div className="text-[28px] font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.campaigns}</div>
+              <p className="text-xs text-[#6C5CE7] mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> 클릭하여 관리
               </p>
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/featured-creators')}>
+          <Card className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 border-[#DFE6E9] rounded-2xl" onClick={() => navigate('/admin/featured-creators')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">크리에이터</CardTitle>
-              <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-pink-600" />
+              <CardTitle className="text-sm font-medium text-[#636E72]">크리에이터</CardTitle>
+              <div className="w-9 h-9 bg-[#F0EDFF] rounded-[10px] flex items-center justify-center">
+                <Users className="w-[18px] h-[18px] text-[#6C5CE7]" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{stats.creators}</div>
-              <p className="text-xs text-pink-600 mt-2 flex items-center gap-1">
+              <div className="text-[28px] font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.creators}</div>
+              <p className="text-xs text-[#6C5CE7] mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> 클릭하여 관리
               </p>
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/revenue-charts')}>
+          <Card className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 border-[#DFE6E9] rounded-2xl" onClick={() => navigate('/admin/revenue-charts')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">{new Date().getFullYear()}년 매출</CardTitle>
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-green-600" />
+              <CardTitle className="text-sm font-medium text-[#636E72]">{new Date().getFullYear()}년 매출</CardTitle>
+              <div className="w-9 h-9 bg-[#F0EDFF] rounded-[10px] flex items-center justify-center">
+                <DollarSign className="w-[18px] h-[18px] text-[#6C5CE7]" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">₩{stats.thisYearRevenue.toLocaleString()}</div>
-              <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+              <div className="text-[28px] font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>₩{stats.thisYearRevenue.toLocaleString()}</div>
+              <p className="text-xs text-[#6C5CE7] mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> 상세 보고서 보기
               </p>
             </CardContent>
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-purple-600" />
+                <PieChart className="w-5 h-5 text-[#6C5CE7]" />
                 캠페인 진행 현황
               </CardTitle>
             </CardHeader>
@@ -396,21 +396,21 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 요약 카드 */}
-                <div className="grid grid-cols-3 gap-3 mt-6 pt-4 border-t">
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
-                    <div className="text-lg font-bold text-yellow-700">{campaignStats.pending}</div>
-                    <div className="text-xs text-yellow-600">승인대기</div>
+                <div className="grid grid-cols-3 gap-3 mt-6 pt-4 border-t border-[#DFE6E9]">
+                  <div className="text-center p-3 bg-[rgba(253,203,110,0.1)] rounded-xl">
+                    <Clock className="w-5 h-5 text-[#E17055] mx-auto mb-1" />
+                    <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{campaignStats.pending}</div>
+                    <div className="text-xs text-[#636E72]">승인대기</div>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <BarChart3 className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                    <div className="text-lg font-bold text-blue-700">{campaignStats.in_progress + campaignStats.approved}</div>
-                    <div className="text-xs text-blue-600">진행중</div>
+                  <div className="text-center p-3 bg-[#F0EDFF] rounded-xl">
+                    <BarChart3 className="w-5 h-5 text-[#6C5CE7] mx-auto mb-1" />
+                    <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{campaignStats.in_progress + campaignStats.approved}</div>
+                    <div className="text-xs text-[#636E72]">진행중</div>
                   </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                    <div className="text-lg font-bold text-green-700">{campaignStats.completed}</div>
-                    <div className="text-xs text-green-600">완료</div>
+                  <div className="text-center p-3 bg-[rgba(0,184,148,0.1)] rounded-xl">
+                    <CheckCircle className="w-5 h-5 text-[#00B894] mx-auto mb-1" />
+                    <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{campaignStats.completed}</div>
+                    <div className="text-xs text-[#636E72]">완료</div>
                   </div>
                 </div>
               </div>
@@ -421,7 +421,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-green-600" />
+                <BarChart3 className="w-5 h-5 text-[#6C5CE7]" />
                 월별 매출 추이
               </CardTitle>
             </CardHeader>
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
                     <div key={index} className="flex-1 flex flex-col items-center">
                       <div className="w-full bg-gray-100 rounded-t-lg relative" style={{ height: '160px' }}>
                         <div
-                          className="absolute bottom-0 w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500"
+                          className="absolute bottom-0 w-full bg-gradient-to-t from-[#6C5CE7] to-[#A29BFE] rounded-t-lg transition-all duration-500"
                           style={{ height: `${maxRevenue ? (data.revenue / maxRevenue) * 100 : 0}%` }}
                         >
                           {data.revenue > 0 && (
@@ -452,7 +452,7 @@ export default function AdminDashboard() {
                 {/* 총합 */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <span className="text-sm text-gray-600">최근 6개월 총 매출</span>
-                  <span className="text-xl font-bold text-green-600">
+                  <span className="text-xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>
                     ₩{monthlyRevenue.reduce((sum, m) => sum + m.revenue, 0).toLocaleString()}
                   </span>
                 </div>
@@ -465,7 +465,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-600" />
+              <Calendar className="w-5 h-5 text-[#636E72]" />
               빠른 액션
             </CardTitle>
           </CardHeader>
@@ -473,42 +473,42 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Button
                 variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-yellow-50 hover:border-yellow-300"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-[#F0EDFF] hover:border-[#6C5CE7] border-[#DFE6E9] rounded-xl"
                 onClick={() => navigate('/admin/campaigns?filter=pending')}
               >
-                <Clock className="w-6 h-6 text-yellow-600" />
-                <span className="text-sm">승인 대기 캠페인</span>
-                <span className="text-lg font-bold text-yellow-600">{campaignStats.pending}건</span>
+                <Clock className="w-6 h-6 text-[#6C5CE7]" />
+                <span className="text-sm text-[#636E72]">승인 대기 캠페인</span>
+                <span className="text-lg font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>{campaignStats.pending}건</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-blue-50 hover:border-blue-300"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-[#F0EDFF] hover:border-[#6C5CE7] border-[#DFE6E9] rounded-xl"
                 onClick={() => navigate('/admin/companies')}
               >
-                <Building2 className="w-6 h-6 text-blue-600" />
-                <span className="text-sm">기업 관리</span>
-                <span className="text-lg font-bold text-blue-600">{stats.companies}개</span>
+                <Building2 className="w-6 h-6 text-[#6C5CE7]" />
+                <span className="text-sm text-[#636E72]">기업 관리</span>
+                <span className="text-lg font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.companies}개</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-purple-50 hover:border-purple-300"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-[#F0EDFF] hover:border-[#6C5CE7] border-[#DFE6E9] rounded-xl"
                 onClick={() => navigate('/admin/consultations')}
               >
-                <Users className="w-6 h-6 text-purple-600" />
-                <span className="text-sm">상담 관리</span>
-                <span className="text-lg font-bold text-purple-600">바로가기</span>
+                <Users className="w-6 h-6 text-[#6C5CE7]" />
+                <span className="text-sm text-[#636E72]">상담 관리</span>
+                <span className="text-lg font-bold text-[#6C5CE7]">바로가기</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-green-50 hover:border-green-300"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-[#F0EDFF] hover:border-[#6C5CE7] border-[#DFE6E9] rounded-xl"
                 onClick={() => navigate('/admin/revenue-charts')}
               >
-                <DollarSign className="w-6 h-6 text-green-600" />
-                <span className="text-sm">매출 보고서</span>
-                <span className="text-lg font-bold text-green-600">상세보기</span>
+                <DollarSign className="w-6 h-6 text-[#6C5CE7]" />
+                <span className="text-sm text-[#636E72]">매출 보고서</span>
+                <span className="text-lg font-bold text-[#6C5CE7]">상세보기</span>
               </Button>
             </div>
           </CardContent>
