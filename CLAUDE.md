@@ -604,6 +604,35 @@ const supabaseKorea = createClient(
 
 ---
 
+## 디자인 시스템
+
+> **필독**: UI/스타일 관련 작업 시 반드시 아래 문서를 먼저 참고하세요.
+
+### 디자인 가이드 파일
+| 파일 | 적용 영역 |
+|------|----------|
+| `docs/DESIGN-SYSTEM-LANDING.md` | 메인페이지 (비로그인, Dark 테마) |
+| `docs/DESIGN-SYSTEM-ADMIN.md` | 관리자 대시보드 (로그인 후, Light 테마) |
+| `docs/cnec-design-tokens.json` | 코드용 디자인 토큰 (import용) |
+
+### 핵심 규칙 요약
+1. **랜딩 페이지**: 다크 배경 `#0A0A0F`, 액센트 `#C084FC`, 텍스트 `#FFFFFF`/`#A0A0B0`
+2. **관리자 페이지**: 라이트 배경 `#F8F9FA`, Primary `#6C5CE7`, Surface `#FFFFFF`
+3. **색상 절제**: 한 화면에 유채색 3개 이상 금지. 상태 컬러(성공/경고/에러)는 상태 표시에만 사용
+4. **통계 카드 아이콘**: 전부 `#F0EDFF` 배경 + `#6C5CE7` 단일 색상. 카드별 다른 색상 금지
+5. **캠페인 금액**: `#6C5CE7` (빨간색 금지), 폰트 Outfit Bold
+6. **태그**: border 없이 배경색만 사용
+7. **폰트**: 한글 Pretendard, 영문/숫자 Outfit, 일본어 Noto Sans JP
+8. **border-radius**: 카드 16px, 버튼 12px, 태그 6px, 풀라운드 9999px
+
+### 디자인 수정 작업 시 체크리스트
+- [ ] 해당 영역의 디자인 시스템 MD 파일을 먼저 읽었는가?
+- [ ] 새로운 색상을 추가하지 않았는가? (토큰에 정의된 색상만 사용)
+- [ ] 컴포넌트 스타일이 가이드와 일치하는가?
+- [ ] Tailwind 클래스가 디자인 토큰 값과 일치하는가?
+
+---
+
 ## 연락처
 
 문제 발생 시 GitHub Issues에 등록: https://github.com/anthropics/claude-code/issues
