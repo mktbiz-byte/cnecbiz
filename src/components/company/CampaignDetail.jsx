@@ -2892,42 +2892,28 @@ JSON만 출력.`
             } catch (e) { console.error('알림톡 발송 실패:', e) }
           }
 
-          // 일본: LINE + SMS
+          // 일본: LINE + SMS + Email via send-japan-notification (LINE 미등록 시 LINE 초대장도 자동 발송)
           if (region === 'japan') {
-            if (creatorLineUserId) {
-              try {
-                await fetch('/.netlify/functions/send-line-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userId: creatorLineUserId,
-                    templateType: 'guide_delivered',
-                    templateData: {
-                      creatorName,
-                      campaignName: campaign?.title || 'キャンペーン',
-                      deadline
-                    },
-                    translate: true,
-                    targetLanguage: 'ja'
-                  })
+            try {
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'guide_confirm_request',
+                  creatorId: participant.user_id,
+                  lineUserId: creatorLineUserId,
+                  creatorEmail: creatorEmail,
+                  creatorPhone: creatorPhone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'キャンペーン',
+                    brandName: campaign?.brand_name || campaign?.brand,
+                    guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`
+                  }
                 })
-                results.notification++
-              } catch (e) { console.error('LINE 발송 실패:', e) }
-            }
-            // LINE 없거나 실패 시 SMS
-            if (!creatorLineUserId && creatorPhone) {
-              try {
-                await fetch('/.netlify/functions/send-sms', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    to: creatorPhone,
-                    message: `[CNEC] ${creatorName}様、「${campaign?.title || 'キャンペーン'}」の撮影ガイドが届きました。メールをご確認ください。締切: ${deadline}`
-                  })
-                })
-                results.notification++
-              } catch (e) { console.error('SMS 발송 실패:', e) }
-            }
+              })
+              results.notification++
+            } catch (e) { console.error('일본 가이드 알림 발송 실패:', e) }
           }
 
           // 미국: SMS
@@ -3817,37 +3803,28 @@ Questions? Contact us.
       } catch (e) { console.error('알림톡 발송 실패:', e) }
     }
 
-    // 일본: LINE + SMS fallback
+    // 일본: LINE + SMS + Email via send-japan-notification (LINE 미등록 시 LINE 초대장도 자동 발송)
     if (region === 'japan') {
-      if (creatorLineUserId) {
-        try {
-          await fetch('/.netlify/functions/send-line-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: creatorLineUserId,
-              templateType: 'guide_delivered',
-              templateData: { creatorName, campaignName: campaignTitle, deadline: deadlineText },
-              translate: true,
-              targetLanguage: 'ja'
-            })
+      try {
+        await fetch('/.netlify/functions/send-japan-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'guide_confirm_request',
+            creatorId: participant.user_id,
+            lineUserId: creatorLineUserId,
+            creatorEmail: creatorEmail,
+            creatorPhone: creatorPhone,
+            data: {
+              creatorName,
+              campaignName: campaignTitle,
+              brandName: campaign?.brand_name || campaign?.brand,
+              guideUrl: campaign?.guide_pdf_url || `https://cnec.jp/creator/campaigns/${id}`
+            }
           })
-          results.notification = true
-        } catch (e) { console.error('LINE 발송 실패:', e) }
-      }
-      if (!creatorLineUserId && creatorPhone) {
-        try {
-          await fetch('/.netlify/functions/send-sms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: creatorPhone,
-              message: `[CNEC] ${creatorName}様、「${campaignTitle}」の撮影ガイドが届きました。メールをご確認ください。締切: ${deadlineText}`
-            })
-          })
-          results.notification = true
-        } catch (e) { console.error('SMS 발송 실패:', e) }
-      }
+        })
+        results.notification = true
+      } catch (e) { console.error('일본 가이드 알림 발송 실패:', e) }
     }
 
     // 미국: SMS

@@ -159,6 +159,18 @@ const MESSAGE_TEMPLATES = {
     text: `📋 촬영 가이드 전달\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 촬영 가이드가 도착했습니다!\n\n📅 제출 마감일: ${data.deadline || '확인 필요'}\n\n이메일을 확인하시고 가이드에 따라 촬영을 진행해주세요.\n\n문의사항이 있으시면 언제든 연락 주세요! 🙏`
   }),
 
+  // 출금 신청 완료 알림
+  withdrawal_complete: (data) => ({
+    type: 'text',
+    text: `💸 출금 신청 완료!\n\n${data.creatorName}님, 출금 신청이 완료되었습니다.\n\n출금 금액: ¥${data.amount?.toLocaleString() || 0}\n입금 예정일: ${data.expectedDate || '영업일 기준 3-5일 이내'}\n\n등록하신 계좌로 입금될 예정입니다.\n감사합니다! 🙏`
+  }),
+
+  // 입금 완료 알림
+  deposit_complete: (data) => ({
+    type: 'text',
+    text: `✅ 입금 완료!\n\n${data.creatorName}님, 출금 신청하신 금액이 입금 완료되었습니다.\n\n입금 금액: ¥${data.amount?.toLocaleString() || 0}\n입금일: ${data.depositDate || '본일'}\n\n등록하신 계좌를 확인해주세요.\n감사합니다! 🙏`
+  }),
+
   // 일반 알림
   general: (data) => ({
     type: 'text',
