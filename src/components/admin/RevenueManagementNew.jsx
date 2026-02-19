@@ -198,11 +198,29 @@ export default function RevenueManagementNew() {
       // 카드결제(토스) 내역 조회 → 하우파파 매출에 자동 합산
       const { data: cardPaymentsData } = await supabaseBiz
         .from('payments')
-        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info, company_id, campaign_id, companies:company_id(company_name), campaigns:campaign_id(title)')
+        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info, company_id, campaign_id')
         .eq('payment_method', 'toss_card')
         .eq('status', 'completed')
         .order('paid_at', { ascending: false })
-      setCardPayments(cardPaymentsData || [])
+
+      // 업체명/캠페인명 매핑
+      const companyIds = [...new Set((cardPaymentsData || []).map(p => p.company_id).filter(Boolean))]
+      const campaignIds = [...new Set((cardPaymentsData || []).map(p => p.campaign_id).filter(Boolean))]
+      let companyMap = {}
+      let campaignMap = {}
+      if (companyIds.length > 0) {
+        const { data: companies } = await supabaseBiz.from('companies').select('user_id, company_name').in('user_id', companyIds)
+        if (companies) companyMap = Object.fromEntries(companies.map(c => [c.user_id, c.company_name]))
+      }
+      if (campaignIds.length > 0) {
+        const { data: campaigns } = await supabaseBiz.from('campaigns').select('id, title').in('id', campaignIds)
+        if (campaigns) campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.title]))
+      }
+      setCardPayments((cardPaymentsData || []).map(p => ({
+        ...p,
+        _companyName: companyMap[p.company_id] || '',
+        _campaignTitle: campaignMap[p.campaign_id] || ''
+      })))
 
       // 수출바우처(포인트) 거래 내역 조회
       const { data: transactions } = await supabaseBiz
@@ -1820,8 +1838,8 @@ export default function RevenueManagementNew() {
                       const paidDate = payment.paid_at || payment.created_at || ''
                       const yearMonth = paidDate.substring(0, 7)
                       const dateStr = paidDate.substring(0, 10)
-                      const companyName = payment.companies?.company_name || ''
-                      const campaignTitle = payment.campaigns?.title || payment.bank_transfer_info?.campaignTitle || ''
+                      const companyName = payment._companyName || ''
+                      const campaignTitle = payment._campaignTitle || payment.bank_transfer_info?.campaignTitle || ''
                       return (
                         <div key={`card-${payment.id}`}
                           className="flex items-center justify-between p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
