@@ -35,7 +35,6 @@ export default function InvitationLanding() {
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState(false)
   const [expired, setExpired] = useState(false)
-  const [showAddressForm, setShowAddressForm] = useState(false)
   const [addressData, setAddressData] = useState({
     phone_number: '',
     postal_code: '',
@@ -140,23 +139,20 @@ export default function InvitationLanding() {
 
       setCreator(creatorData)
 
+      // 크리에이터 연락처 prefill
+      if (creatorData) {
+        setAddressData(prev => ({
+          ...prev,
+          phone_number: creatorData.phone || creatorData.phone_number || ''
+        }))
+      }
+
     } catch (err) {
       console.error('Error fetching invitation:', err)
       setError('데이터를 불러오는 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
-  }
-
-  // 지원하기 버튼 클릭 → 주소 입력 폼 표시
-  const handleApplyClick = () => {
-    if (!invitation || !campaign || !creator) return
-    // 크리에이터 기존 연락처 정보 prefill
-    setAddressData(prev => ({
-      ...prev,
-      phone_number: creator.phone || creator.phone_number || ''
-    }))
-    setShowAddressForm(true)
   }
 
   const handleApply = async () => {
@@ -195,7 +191,6 @@ export default function InvitationLanding() {
 
       if (result.success) {
         setApplied(true)
-        setShowAddressForm(false)
         // 초대장 상태 업데이트
         setInvitation(prev => ({ ...prev, status: 'accepted' }))
       } else {
@@ -467,85 +462,65 @@ export default function InvitationLanding() {
           </div>
         )}
 
-        {/* 주소 입력 폼 */}
-        {!applied && !expired && showAddressForm && (
-          <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-violet-500" />
-              <h3 className="text-lg font-bold text-gray-900">배송지 정보 입력</h3>
+        {/* 배송지 입력 + 신청 버튼 */}
+        {!applied && !expired && (
+          <>
+            <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="w-5 h-5 text-violet-500" />
+                <h3 className="text-lg font-bold text-gray-900">배송지 정보</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                제품 배송을 위해 아래 정보를 입력해주세요.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">연락처 <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    value={addressData.phone_number}
+                    onChange={(e) => setAddressData({ ...addressData, phone_number: e.target.value })}
+                    placeholder="010-0000-0000"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
+                  <input
+                    type="text"
+                    value={addressData.postal_code}
+                    onChange={(e) => setAddressData({ ...addressData, postal_code: e.target.value })}
+                    placeholder="12345"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={addressData.address}
+                    onChange={(e) => setAddressData({ ...addressData, address: e.target.value })}
+                    placeholder="시/도, 시/군/구, 도로명 주소"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
+                  <input
+                    type="text"
+                    value={addressData.detail_address}
+                    onChange={(e) => setAddressData({ ...addressData, detail_address: e.target.value })}
+                    placeholder="아파트, 동/호수, 건물명 등"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
-              제품 배송을 위해 배송지 정보를 입력해주세요.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처 <span className="text-red-500">*</span></label>
-                <input
-                  type="tel"
-                  value={addressData.phone_number}
-                  onChange={(e) => setAddressData({ ...addressData, phone_number: e.target.value })}
-                  placeholder="010-0000-0000"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
-                <input
-                  type="text"
-                  value={addressData.postal_code}
-                  onChange={(e) => setAddressData({ ...addressData, postal_code: e.target.value })}
-                  placeholder="12345"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={addressData.address}
-                  onChange={(e) => setAddressData({ ...addressData, address: e.target.value })}
-                  placeholder="시/도, 시/군/구, 도로명 주소"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
-                <input
-                  type="text"
-                  value={addressData.detail_address}
-                  onChange={(e) => setAddressData({ ...addressData, detail_address: e.target.value })}
-                  placeholder="아파트, 동/호수, 건물명 등"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* 신청 버튼 */}
-        {!applied && !expired && !showAddressForm && (
-          <button
-            onClick={handleApplyClick}
-            className="w-full py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all flex items-center justify-center gap-2"
-          >
-            지금 바로 지원하기
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* 주소 입력 후 최종 신청 버튼 */}
-        {!applied && !expired && showAddressForm && (
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowAddressForm(false)}
-              className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all"
-            >
-              이전
-            </button>
             <button
               onClick={handleApply}
               disabled={applying}
-              className="flex-[2] py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {applying ? (
                 <>
@@ -554,12 +529,12 @@ export default function InvitationLanding() {
                 </>
               ) : (
                 <>
-                  지원 완료하기
-                  <CheckCircle className="w-5 h-5" />
+                  지원하기
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
-          </div>
+          </>
         )}
 
         {/* 에러 메시지 */}
