@@ -131,8 +131,6 @@ import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
 import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
 import OpenCloReviewQueue from './components/admin/openclo/OpenCloReviewQueue'
-import OpenCloBotStatus from './components/admin/openclo/OpenCloBotStatus'
-import OpenCloBotConfig from './components/admin/openclo/OpenCloBotConfig'
 import OpenCloEmailManager from './components/admin/openclo/OpenCloEmailManager'
 import OpenCloKPI from './components/admin/openclo/OpenCloKPI'
 import NewsletterShowcase from './pages/NewsletterShowcase'
@@ -286,8 +284,6 @@ function App() {
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
         <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
         <Route path="/admin/openclo/review" element={<OpenCloReviewQueue />} />
-        <Route path="/admin/openclo/bot-status" element={<OpenCloBotStatus />} />
-        <Route path="/admin/openclo/bot-config" element={<OpenCloBotConfig />} />
         <Route path="/admin/openclo/emails" element={<OpenCloEmailManager />} />
         <Route path="/admin/openclo/kpi" element={<OpenCloKPI />} />
 
