@@ -44,7 +44,8 @@ export default function CardPaymentsTab() {
       }
 
       // 캠페인 정보 조회 (supabaseBiz + supabaseKorea 모두 확인)
-      const campaignIds = [...new Set(paymentsData.map(p => p.campaign_id).filter(Boolean))]
+      // campaign_id가 없는 경우 bank_transfer_info.campaignId에서 가져옴
+      const campaignIds = [...new Set(paymentsData.map(p => p.campaign_id || p.bank_transfer_info?.campaignId).filter(Boolean))]
       let campaignsMap = {}
       if (campaignIds.length > 0) {
         // supabaseBiz에서 먼저 조회
@@ -79,9 +80,10 @@ export default function CardPaymentsTab() {
         companies?.forEach(c => { companiesMap[c.email] = c })
       }
 
-      // 데이터 조합
+      // 데이터 조합 (campaign_id 또는 bank_transfer_info.campaignId 사용)
       const enriched = paymentsData.map(p => {
-        const campaign = campaignsMap[p.campaign_id] || null
+        const effectiveCampaignId = p.campaign_id || p.bank_transfer_info?.campaignId
+        const campaign = campaignsMap[effectiveCampaignId] || null
         const company = campaign?.company_email ? companiesMap[campaign.company_email] : null
         return {
           ...p,
