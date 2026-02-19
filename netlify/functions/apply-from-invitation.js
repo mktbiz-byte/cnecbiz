@@ -42,9 +42,9 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { invitationId, campaignId, creatorId } = JSON.parse(event.body);
+    const { invitationId, campaignId, creatorId, shippingInfo } = JSON.parse(event.body);
 
-    console.log('[INFO] Apply from invitation:', { invitationId, campaignId, creatorId });
+    console.log('[INFO] Apply from invitation:', { invitationId, campaignId, creatorId, hasShippingInfo: !!shippingInfo });
 
     if (!invitationId || !campaignId || !creatorId) {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: '필수 파라미터가 누락되었습니다.' }) };
@@ -231,6 +231,14 @@ exports.handler = async (event) => {
 
     let application = null;
 
+    // 배송지 정보 준비
+    const addressFields = shippingInfo ? {
+      phone_number: shippingInfo.phone_number || '',
+      postal_code: shippingInfo.postal_code || '',
+      address: shippingInfo.address || '',
+      detail_address: shippingInfo.detail_address || ''
+    } : {};
+
     // 1차 시도: 전체 컬럼으로 insert
     const { data: appData, error: appErr } = await campaignClient
       .from('applications')
@@ -248,7 +256,8 @@ exports.handler = async (event) => {
         profile_photo_url: profileImage,
         status: 'selected',
         source: 'invitation',
-        invitation_id: invitationId
+        invitation_id: invitationId,
+        ...addressFields
       })
       .select()
       .single();
@@ -265,7 +274,8 @@ exports.handler = async (event) => {
           applicant_name: creatorName,
           phone: creator.phone,
           status: 'selected',
-          source: 'invitation'
+          source: 'invitation',
+          ...addressFields
         })
         .select()
         .single();
