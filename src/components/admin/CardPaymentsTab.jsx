@@ -3,7 +3,7 @@ import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, XCircle, Search, Loader2, CreditCard, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, Search, Loader2, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react'
 
 export default function CardPaymentsTab() {
   const [payments, setPayments] = useState([])
@@ -14,6 +14,7 @@ export default function CardPaymentsTab() {
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     fetchCardPayments()
@@ -157,6 +158,34 @@ export default function CardPaymentsTab() {
     }
   }
 
+  // 토스 거래내역 동기화
+  const handleSyncTossPayments = async () => {
+    if (!confirm('토스페이먼츠에서 최근 30일 거래내역을 동기화합니다.\nDB에 누락된 결제만 추가됩니다.\n\n진행하시겠습니까?')) return
+
+    setSyncing(true)
+    try {
+      const response = await fetch('/.netlify/functions/sync-toss-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '동기화 실패')
+      }
+
+      alert(`동기화 완료!\n\n${result.message}`)
+      fetchCardPayments() // 목록 새로고침
+    } catch (error) {
+      console.error('[CardPaymentsTab] 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       completed: { text: '결제 완료', color: 'bg-green-100 text-green-800', icon: CheckCircle },
@@ -260,6 +289,19 @@ export default function CardPaymentsTab() {
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={fetchCardPayments}>새로고침</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncTossPayments}
+              disabled={syncing}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              {syncing ? (
+                <><Loader2 className="w-4 h-4 mr-1 animate-spin" />동기화 중...</>
+              ) : (
+                <><RefreshCw className="w-4 h-4 mr-1" />토스 동기화</>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
