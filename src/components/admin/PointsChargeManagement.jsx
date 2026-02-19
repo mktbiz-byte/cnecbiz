@@ -47,11 +47,32 @@ export default function PointsChargeManagement() {
     }
   })
   const [companies, setCompanies] = useState([])
+  const [cardPaymentStats, setCardPaymentStats] = useState({ completed: 0, totalAmount: 0 })
 
   useEffect(() => {
     fetchChargeRequests()
     fetchCompanies()
+    fetchCardPaymentStats()
   }, [filter])
+
+  const fetchCardPaymentStats = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('payments')
+        .select('amount, status')
+        .eq('payment_method', 'toss_card')
+        .eq('status', 'completed')
+
+      if (error) throw error
+
+      setCardPaymentStats({
+        completed: data?.length || 0,
+        totalAmount: data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+      })
+    } catch (error) {
+      console.error('카드결제 통계 조회 오류:', error)
+    }
+  }
 
   const fetchCompanies = async () => {
     try {
@@ -344,13 +365,16 @@ export default function PointsChargeManagement() {
     )
   }
 
+  const chargeCompleted = chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length
+  const chargeAmount = chargeRequests
+    .filter(r => r.status === 'completed' || r.status === 'confirmed')
+    .reduce((sum, r) => sum + r.amount, 0)
+
   const stats = {
-    total: chargeRequests.filter(r => r.status !== 'cancelled').length,
+    total: chargeRequests.filter(r => r.status !== 'cancelled').length + cardPaymentStats.completed,
     pending: chargeRequests.filter(r => r.status === 'pending').length,
-    completed: chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length,
-    totalAmount: chargeRequests
-      .filter(r => r.status === 'completed' || r.status === 'confirmed')
-      .reduce((sum, r) => sum + r.amount, 0)
+    completed: chargeCompleted + cardPaymentStats.completed,
+    totalAmount: chargeAmount + cardPaymentStats.totalAmount
   }
 
   if (loading) {
