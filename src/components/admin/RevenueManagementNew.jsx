@@ -1804,17 +1804,48 @@ export default function RevenueManagementNew() {
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg font-semibold text-slate-700">매출 내역 (개별 항목)</CardTitle>
-                  <span className="text-sm text-slate-500">총 {revenueData.length}건</span>
+                  <span className="text-sm text-slate-500">총 {revenueData.length + cardPayments.length}건 (카드결제 {cardPayments.length}건 포함)</span>
                 </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {revenueData.length === 0 ? (
+                  {revenueData.length === 0 && cardPayments.length === 0 ? (
                     <div className="text-center py-12 text-slate-400">
                       <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
                       <p>매출 데이터가 없습니다.</p>
                     </div>
                   ) : (
-                    revenueData.map(revenue => (
+                    <>
+                    {/* 카드결제 내역 (자동) */}
+                    {cardPayments.map(payment => {
+                      const paidDate = payment.paid_at || payment.created_at || ''
+                      const yearMonth = paidDate.substring(0, 7)
+                      const dateStr = paidDate.substring(0, 10)
+                      return (
+                        <div key={`card-${payment.id}`}
+                          className="flex items-center justify-between p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
+                          <div className="flex items-center gap-4">
+                            <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs mr-2 bg-indigo-100 text-indigo-700">
+                                  <CreditCard className="w-3 h-3 mr-1" />카드결제
+                                </span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs mr-2 bg-blue-100 text-blue-700">
+                                  하우파파
+                                </span>
+                                {yearMonth}
+                              </div>
+                              <div className="text-sm text-slate-500 mt-1">토스 카드결제 ({dateStr})</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-lg text-indigo-700">{formatNumber(payment.amount)}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* 수동 입력 매출 내역 */}
+                    {revenueData.map(revenue => (
                       <div key={revenue.id}
                         className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4">
@@ -1858,7 +1889,8 @@ export default function RevenueManagementNew() {
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}
+                    </>
                   )}
                 </div>
               </CardContent>
