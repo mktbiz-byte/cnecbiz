@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Download, ExternalLink, Search, RefreshCw,
-  Video, Globe, User, Eye, ChevronDown, ChevronUp, Play, X
+  Video, Globe, User, Eye, ChevronDown, ChevronUp, Play, X, Film, Image, Loader2
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -47,6 +47,15 @@ export default function SnsUploadManagement() {
   const [downloading, setDownloading] = useState(null)
   const [expandedRows, setExpandedRows] = useState({})
   const [previewVideo, setPreviewVideo] = useState(null)
+  // GIF 변환 상태
+  const [gifTargetVideo, setGifTargetVideo] = useState(null)
+  const [gifStartTime, setGifStartTime] = useState('0')
+  const [gifEndTime, setGifEndTime] = useState('3')
+  const [gifWidth, setGifWidth] = useState('320')
+  const [gifFps, setGifFps] = useState('10')
+  const [generatingGif, setGeneratingGif] = useState(false)
+  const [gifProgress, setGifProgress] = useState('')
+  const [gifResult, setGifResult] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -274,7 +283,7 @@ export default function SnsUploadManagement() {
         // 캠페인 정보 별도 조회
         const { data: koreaCampaigns } = await supabaseKorea
           .from('campaigns')
-          .select('id, title, campaign_type')
+          .select('id, title, campaign_type, target_country')
 
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
@@ -365,7 +374,7 @@ export default function SnsUploadManagement() {
                 created_at: p.updated_at || p.created_at,
                 status: p.status,
                 source: 'korea',
-                country: 'kr',
+                country: campaign?.target_country || 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: getKoreaCreatorName(p.user_id, p),
@@ -442,7 +451,7 @@ export default function SnsUploadManagement() {
                 created_at: sub.approved_at || sub.updated_at || sub.created_at,
                 status: sub.status,
                 source: 'korea_submission',
-                country: 'kr',
+                country: campaign?.target_country || 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: creatorName,
@@ -721,6 +730,118 @@ export default function SnsUploadManagement() {
            url.includes('video') || url.includes('storage')
   }
 
+  // GIF 변환 모달 열기
+  const openGifModal = (video, videoUrl = null) => {
+    const url = videoUrl || video.video_file_url
+    if (!url) {
+      alert('다운로드 가능한 영상 파일이 없습니다.')
+      return
+    }
+    setGifTargetVideo({ ...video, targetUrl: url })
+    setGifStartTime('0')
+    setGifEndTime('3')
+    setGifWidth('320')
+    setGifFps('10')
+    setGifResult(null)
+    setGifProgress('')
+  }
+
+  // GIF 생성 (Canvas + gifenc - SharedArrayBuffer 불필요)
+  const handleGenerateGif = async () => {
+    if (!gifTargetVideo?.targetUrl) return
+
+    setGeneratingGif(true)
+    setGifResult(null)
+    try {
+      setGifProgress('GIF 인코더 로딩 중...')
+      const { GIFEncoder, quantize, applyPalette } = await import('gifenc')
+
+      const start = parseInt(gifStartTime) || 0
+      const end = parseInt(gifEndTime) || 3
+      const duration = Math.max(1, end - start)
+      const width = parseInt(gifWidth) || 320
+      const fps = parseInt(gifFps) || 10
+      const totalFrames = duration * fps
+      const delay = Math.round(1000 / fps)
+
+      // 비디오 요소 생성 및 로딩
+      setGifProgress('영상 로딩 중...')
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.preload = 'auto'
+
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve
+        video.onerror = () => reject(new Error('영상 로딩 실패. CORS 문제일 수 있습니다.'))
+        video.src = gifTargetVideo.targetUrl
+      })
+
+      // 비율 유지하며 높이 계산
+      const aspectRatio = video.videoHeight / video.videoWidth
+      const height = Math.round(width * aspectRatio)
+
+      // 캔버스 생성
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      // GIF 인코더 생성
+      const gif = GIFEncoder()
+
+      // 프레임 추출 및 인코딩
+      for (let i = 0; i < totalFrames; i++) {
+        const time = start + (i / fps)
+        if (time > end) break
+
+        setGifProgress(`프레임 추출 중... ${i + 1}/${totalFrames}`)
+
+        // 해당 시간으로 이동
+        video.currentTime = time
+        await new Promise((resolve) => {
+          video.onseeked = resolve
+        })
+
+        // 캔버스에 그리기
+        ctx.drawImage(video, 0, 0, width, height)
+        const imageData = ctx.getImageData(0, 0, width, height)
+
+        // 색상 양자화 및 프레임 추가
+        const palette = quantize(imageData.data, 256)
+        const index = applyPalette(imageData.data, palette)
+        gif.writeFrame(index, width, height, { palette, delay })
+      }
+
+      gif.finish()
+
+      const output = gif.bytes()
+      const blob = new Blob([output], { type: 'image/gif' })
+      const gifUrl = URL.createObjectURL(blob)
+
+      setGifResult({ url: gifUrl, blob, size: output.length, width, fps, duration, start, end })
+      setGifProgress('')
+    } catch (error) {
+      console.error('GIF generation error:', error)
+      setGifProgress('')
+      const msg = error?.message || String(error) || '알 수 없는 오류'
+      alert('GIF 생성 실패: ' + msg)
+    } finally {
+      setGeneratingGif(false)
+    }
+  }
+
+  // GIF 다운로드
+  const handleDownloadGif = () => {
+    if (!gifResult?.blob) return
+    const a = document.createElement('a')
+    a.href = gifResult.url
+    a.download = `${gifTargetVideo?.creatorName || 'video'}_${gifTargetVideo?.campaignTitle || ''}_${gifResult.start}s-${gifResult.end}s.gif`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 사이드바 네비게이션 */}
@@ -956,6 +1077,17 @@ export default function SnsUploadManagement() {
                                     <Play className="w-4 h-4" />
                                   </Button>
                                 )}
+                                {video.video_file_url && isVideoUrl(video.video_file_url) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openGifModal(video)}
+                                    title="GIF 만들기"
+                                    className="text-purple-600 hover:text-purple-700"
+                                  >
+                                    <Film className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 {video.video_file_url && (
                                   <Button
                                     variant="outline"
@@ -1008,6 +1140,18 @@ export default function SnsUploadManagement() {
                                             >
                                               <ExternalLink className="w-4 h-4" />
                                             </a>
+                                            {/* 주차별 GIF 버튼 */}
+                                            {item.videoFileUrl && isVideoUrl(item.videoFileUrl) && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="p-1 h-6 w-6"
+                                                onClick={() => openGifModal(video, item.videoFileUrl)}
+                                                title="GIF 만들기"
+                                              >
+                                                <Film className="w-4 h-4 text-purple-600" />
+                                              </Button>
+                                            )}
                                             {/* 주차별 다운로드 버튼 */}
                                             {item.videoFileUrl && (
                                               <Button
@@ -1058,6 +1202,128 @@ export default function SnsUploadManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* GIF 변환 모달 */}
+      <Dialog open={!!gifTargetVideo} onOpenChange={() => { setGifTargetVideo(null); setGifResult(null); setGifProgress('') }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-purple-500" />
+              GIF 만들기
+              {gifTargetVideo && (
+                <span className="text-sm font-normal text-gray-500">
+                  - {gifTargetVideo.creatorName} / {gifTargetVideo.campaignTitle}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {gifTargetVideo && (
+            <div className="space-y-4">
+              {/* 영상 미리보기 */}
+              <div className="aspect-video bg-black rounded-lg overflow-hidden max-h-[300px]">
+                <video
+                  src={gifTargetVideo.targetUrl}
+                  controls
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              {/* GIF 설정 */}
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">시작 (초)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={gifStartTime}
+                    onChange={(e) => setGifStartTime(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">끝 (초)</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={gifEndTime}
+                    onChange={(e) => setGifEndTime(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">너비 (px)</label>
+                  <Select value={gifWidth} onValueChange={setGifWidth}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="200">200px</SelectItem>
+                      <SelectItem value="280">280px</SelectItem>
+                      <SelectItem value="320">320px</SelectItem>
+                      <SelectItem value="400">400px</SelectItem>
+                      <SelectItem value="480">480px</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">FPS</label>
+                  <Select value={gifFps} onValueChange={setGifFps}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6 fps</SelectItem>
+                      <SelectItem value="8">8 fps</SelectItem>
+                      <SelectItem value="10">10 fps</SelectItem>
+                      <SelectItem value="12">12 fps</SelectItem>
+                      <SelectItem value="15">15 fps</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {parseInt(gifEndTime) - parseInt(gifStartTime) > 5 && (
+                <p className="text-xs text-amber-600">5초 이상은 파일이 커질 수 있습니다. 자동으로 최적화됩니다.</p>
+              )}
+
+              {/* 생성 버튼 */}
+              <Button
+                onClick={handleGenerateGif}
+                disabled={generatingGif}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                {generatingGif ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Image className="w-4 h-4 mr-2" />
+                )}
+                {gifProgress || 'GIF 생성하기'}
+              </Button>
+
+              {/* GIF 결과 */}
+              {gifResult && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex justify-center bg-gray-100 rounded-lg p-2">
+                    <img src={gifResult.url} alt="Generated GIF" className="max-h-[250px] rounded" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>
+                      {(gifResult.size / 1024 / 1024).toFixed(2)}MB
+                      {gifResult.size <= 5 * 1024 * 1024 && ' ✓'}
+                      {' | '}{gifResult.start}s~{gifResult.end}s
+                      {' | '}{gifResult.width}px / {gifResult.fps}fps
+                    </span>
+                    <Button onClick={handleDownloadGif} size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      다운로드
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 영상 미리보기 모달 */}
       <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>

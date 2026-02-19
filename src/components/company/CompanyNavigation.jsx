@@ -15,7 +15,8 @@ import {
   Settings,
   HelpCircle,
   ChevronRight,
-  MoreHorizontal
+  MoreHorizontal,
+  BookOpen
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -124,6 +125,17 @@ export default function CompanyNavigation() {
                 <Settings className="w-4 h-4" />
                 <span className="text-sm">프로필 설정</span>
               </button>
+              <button
+                onClick={() => navigate('/company/campaign-guide')}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
+                  location.pathname === '/company/campaign-guide'
+                    ? 'bg-indigo-50 text-indigo-600 font-medium'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="text-sm">캠페인 생성 가이드</span>
+              </button>
               <a
                 href="https://pf.kakao.com/_xgNdxlG"
                 target="_blank"
@@ -225,6 +237,20 @@ export default function CompanyNavigation() {
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">프로필 설정</p>
                     <p className="text-xs text-gray-500">기업 정보 수정</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+
+                <button
+                  onClick={() => { navigate('/company/campaign-guide'); setShowMoreSheet(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-gray-900">캠페인 생성 가이드</p>
+                    <p className="text-xs text-gray-500">단계별 캠페인 생성 안내</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </button>

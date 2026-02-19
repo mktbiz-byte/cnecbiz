@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Video, HelpCircle, Edit, Plus, Trash2, Save, 
+import {
+  Video, HelpCircle, Edit, Plus, Trash2, Save,
   Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature,
-  ChevronUp, ChevronDown, ChevronsUp, ChevronsDown
+  ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Upload, Download, Loader2
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -92,6 +92,11 @@ export default function SiteManagement() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [previewContent, setPreviewContent] = useState({ title: '', html: '' })
 
+  // 브로슈어 PDF
+  const [brochureFile, setBrochureFile] = useState(null)
+  const [brochureUploading, setBrochureUploading] = useState(false)
+  const [brochureUrl, setBrochureUrl] = useState('')
+
   useEffect(() => {
     checkAuth()
     fetchVideos()
@@ -108,6 +113,8 @@ export default function SiteManagement() {
       fetchEmailTemplates()
     } else if (activeTab === 'contracts') {
       fetchContracts()
+    } else if (activeTab === 'brochure') {
+      loadBrochure()
     }
   }, [templateType, activeTab])
 
@@ -674,6 +681,120 @@ export default function SiteManagement() {
     }
   }
 
+  // 브로슈어 PDF 관리
+  const BROCHURE_FILE_NAME = 'cnec_brochure.pdf'
+  const BROCHURE_BUCKET = 'campaign-guides'
+
+  const loadBrochure = async () => {
+    try {
+      const { data: files, error } = await supabaseBiz
+        .storage
+        .from(BROCHURE_BUCKET)
+        .list('', { search: 'cnec_brochure' })
+
+      if (error) throw error
+
+      const found = files?.find(f => f.name === BROCHURE_FILE_NAME)
+      if (found) {
+        setBrochureFile(found)
+        const { data: { publicUrl } } = supabaseBiz
+          .storage
+          .from(BROCHURE_BUCKET)
+          .getPublicUrl(BROCHURE_FILE_NAME)
+        setBrochureUrl(publicUrl)
+      } else {
+        setBrochureFile(null)
+        setBrochureUrl('')
+      }
+    } catch (error) {
+      console.error('브로슈어 로드 오류:', error)
+    }
+  }
+
+  const handleBrochureUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      alert('PDF 파일만 업로드 가능합니다.')
+      return
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      alert('파일 크기는 50MB 이하만 가능합니다.')
+      return
+    }
+
+    setBrochureUploading(true)
+    try {
+      // 기존 파일 삭제
+      if (brochureFile) {
+        await supabaseBiz.storage.from(BROCHURE_BUCKET).remove([BROCHURE_FILE_NAME])
+      }
+
+      const { error: uploadError } = await supabaseBiz
+        .storage
+        .from(BROCHURE_BUCKET)
+        .upload(BROCHURE_FILE_NAME, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      alert('브로슈어 PDF가 업로드되었습니다!')
+      await loadBrochure()
+    } catch (error) {
+      console.error('브로슈어 업로드 오류:', error)
+      alert('업로드 실패: ' + error.message)
+    } finally {
+      setBrochureUploading(false)
+    }
+  }
+
+  const handleBrochureDownload = async () => {
+    if (!brochureFile) return
+    try {
+      const { data, error } = await supabaseBiz
+        .storage
+        .from(BROCHURE_BUCKET)
+        .download(BROCHURE_FILE_NAME)
+
+      if (error) throw error
+
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'CNEC_브로슈어.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('브로슈어 다운로드 오류:', error)
+      alert('다운로드 실패: ' + error.message)
+    }
+  }
+
+  const handleBrochureDelete = async () => {
+    if (!brochureFile) return
+    if (!confirm('브로슈어 PDF를 삭제하시겠습니까?')) return
+
+    try {
+      const { error } = await supabaseBiz
+        .storage
+        .from(BROCHURE_BUCKET)
+        .remove([BROCHURE_FILE_NAME])
+
+      if (error) throw error
+
+      alert('브로슈어 PDF가 삭제되었습니다.')
+      setBrochureFile(null)
+      setBrochureUrl('')
+    } catch (error) {
+      console.error('브로슈어 삭제 오류:', error)
+      alert('삭제 실패: ' + error.message)
+    }
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: { text: '대기', color: 'bg-gray-100 text-gray-800' },
@@ -747,7 +868,7 @@ export default function SiteManagement() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-9">
+            <TabsList className="grid w-full grid-cols-11">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 영상
@@ -787,6 +908,10 @@ export default function SiteManagement() {
               <TabsTrigger value="campaign-videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 캠페인 영상
+              </TabsTrigger>
+              <TabsTrigger value="brochure" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                브로슈어
               </TabsTrigger>
             </TabsList>
 
@@ -1922,6 +2047,93 @@ export default function SiteManagement() {
             {/* 캠페인 레퍼런스 영상 탭 */}
             <TabsContent value="campaign-videos">
               <CampaignReferenceVideos />
+            </TabsContent>
+
+            {/* 브로슈어 PDF 관리 탭 */}
+            <TabsContent value="brochure" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    CNEC 브로슈어 PDF 관리
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <p className="text-sm text-gray-600">
+                    메인 페이지에서 다운로드할 수 있는 CNEC 소개 브로슈어 PDF를 관리합니다.
+                  </p>
+
+                  {/* 현재 브로슈어 상태 */}
+                  {brochureFile ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-green-800">브로슈어가 업로드되어 있습니다</p>
+                          <p className="text-sm text-green-600 mt-1">
+                            파일: {brochureFile.name} ({(brochureFile.metadata?.size / 1024 / 1024)?.toFixed(2) || '?'} MB)
+                          </p>
+                          <p className="text-sm text-green-600">
+                            업로드일: {brochureFile.updated_at ? new Date(brochureFile.updated_at).toLocaleString('ko-KR') : '-'}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={handleBrochureDownload}>
+                            <Download className="w-4 h-4 mr-1" />
+                            다운로드
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={handleBrochureDelete}>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            삭제
+                          </Button>
+                        </div>
+                      </div>
+                      {brochureUrl && (
+                        <div className="mt-3 p-2 bg-white rounded border">
+                          <p className="text-xs text-gray-500 mb-1">공개 URL (메인페이지에서 사용됨):</p>
+                          <p className="text-xs text-blue-600 break-all">{brochureUrl}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-600">아직 브로슈어가 업로드되지 않았습니다.</p>
+                    </div>
+                  )}
+
+                  {/* 업로드 영역 */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">
+                      {brochureFile ? '새 브로슈어로 교체하려면 PDF를 선택하세요' : 'PDF 파일을 선택하여 업로드하세요'}
+                    </p>
+                    <p className="text-sm text-gray-400 mb-4">최대 50MB, PDF 형식만 가능</p>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={handleBrochureUpload}
+                        className="hidden"
+                        disabled={brochureUploading}
+                      />
+                      <Button asChild disabled={brochureUploading}>
+                        <span>
+                          {brochureUploading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              업로드 중...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4 mr-2" />
+                              PDF 파일 선택
+                            </>
+                          )}
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
           </Tabs>

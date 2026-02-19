@@ -4,7 +4,7 @@ import {
   Shield, Building2, TrendingUp, Users, Video,
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
-  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle
+  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -86,6 +86,7 @@ export default function AdminNavigation() {
       items: [
         { path: '/admin/sns-uploads', icon: Upload, label: 'SNS 자동 업로드' },
         { path: '/admin/sns-completed', icon: Video, label: 'SNS 업로드 완료' },
+        { path: '/admin/meta-ads', icon: Target, label: 'Meta 광고 관리' },
         { path: '/admin/line-chat', icon: MessageCircle, label: 'LINE 채팅' },
         { path: '/admin/whatsapp-chat', icon: Phone, label: 'WhatsApp 채팅' },
         { path: '/admin/guide-templates', icon: FileSignature, label: '가이드 템플릿' },

@@ -128,6 +128,7 @@ export default function SnsAutoUploadPage() {
   const [uploads, setUploads] = useState([])
   const [pendingVideos, setPendingVideos] = useState([])
   const [selectedVideos, setSelectedVideos] = useState([])
+  const [selectedCountry, setSelectedCountry] = useState('all')
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -142,6 +143,10 @@ export default function SnsAutoUploadPage() {
     scheduleAt: null, // 예약 업로드 시간 (null이면 즉시)
     isScheduled: false
   })
+
+  // 채널 추가 다이얼로그
+  const [channelAddDialogOpen, setChannelAddDialogOpen] = useState(false)
+  const [channelAddRegion, setChannelAddRegion] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -366,6 +371,7 @@ export default function SnsAutoUploadPage() {
               campaign_id: app.campaign_id,
               campaign_name: campaign?.title || app.campaign_name || '-',
               campaign_type: campaign?.campaign_type,
+              country: campaign?.target_country || 'kr',
               creator_name: resolveCreatorName(app, null),
               user_id: app.user_id,
               status: app.status,
@@ -416,6 +422,7 @@ export default function SnsAutoUploadPage() {
                 campaign_id: sub.campaign_id,
                 campaign_name: campaign?.title || sub.campaign_name || '-',
                 campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'kr',
                 creator_name: getBizCreatorName(sub),
                 user_id: sub.user_id,
                 status: sub.status,
@@ -535,6 +542,7 @@ export default function SnsAutoUploadPage() {
                 campaign_id: p.campaign_id,
                 campaign_name: campaign?.title || '-',
                 campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'kr',
                 creator_name: resolveCreatorName(p, koreaProfileMap),
                 user_id: p.user_id,
                 status: p.status,
@@ -584,6 +592,7 @@ export default function SnsAutoUploadPage() {
                   campaign_id: sub.campaign_id,
                   campaign_name: campaign?.title || '-',
                   campaign_type: campaign?.campaign_type,
+                  country: campaign?.target_country || 'kr',
                   creator_name: getKoreaCreatorName(sub),
                   user_id: sub.user_id,
                   status: sub.status,
@@ -1028,7 +1037,7 @@ export default function SnsAutoUploadPage() {
                     <RefreshCw className="w-4 h-4 mr-1" />
                     새로고침
                   </Button>
-                  <Button size="sm" onClick={() => handleConnectAccount('youtube')}>
+                  <Button size="sm" onClick={() => { setChannelAddRegion(''); setChannelAddDialogOpen(true) }}>
                     <Plus className="w-4 h-4 mr-1" />
                     채널 추가
                   </Button>
@@ -1042,7 +1051,7 @@ export default function SnsAutoUploadPage() {
                     <p className="text-xs text-gray-400 mb-4">
                       "채널 추가" 클릭 → Google 로그인 시 채널(Brand Account) 선택 → 연동 완료
                     </p>
-                    <Button onClick={() => handleConnectAccount('youtube')}>
+                    <Button onClick={() => { setChannelAddRegion(''); setChannelAddDialogOpen(true) }}>
                       <Link2 className="w-4 h-4 mr-2" />
                       첫 번째 채널 연동하기
                     </Button>
@@ -1170,6 +1179,52 @@ export default function SnsAutoUploadPage() {
               </CardContent>
             </Card>
 
+            {/* 채널 추가 지역 선택 다이얼로그 */}
+            <Dialog open={channelAddDialogOpen} onOpenChange={setChannelAddDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Youtube className="w-5 h-5 text-red-500" />
+                    YouTube 채널 추가
+                  </DialogTitle>
+                  <DialogDescription>
+                    연동할 채널의 지역을 선택한 후 Google 계정으로 로그인하세요.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-3 gap-3 py-4">
+                  {Object.entries(YOUTUBE_REGIONS).map(([key, config]) => (
+                    <button
+                      key={key}
+                      onClick={() => setChannelAddRegion(key)}
+                      className={`p-4 rounded-lg border-2 text-center transition-all ${
+                        channelAddRegion === key
+                          ? `${config.borderColor} ${config.bgColor} ring-2 ring-offset-1 ring-blue-400`
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{config.flag}</div>
+                      <div className="text-sm font-medium">{config.name}</div>
+                    </button>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setChannelAddDialogOpen(false)}>
+                    취소
+                  </Button>
+                  <Button
+                    disabled={!channelAddRegion}
+                    onClick={() => {
+                      setChannelAddDialogOpen(false)
+                      handleConnectAccount('youtube', channelAddRegion)
+                    }}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    {channelAddRegion ? `${YOUTUBE_REGIONS[channelAddRegion].flag} ${YOUTUBE_REGIONS[channelAddRegion].name} 채널 연동` : '지역을 선택하세요'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             {/* 연동 안내 */}
             <Card className="mb-6 border-blue-200 bg-blue-50/30">
               <CardContent className="pt-4">
@@ -1178,10 +1233,10 @@ export default function SnsAutoUploadPage() {
                   <div className="text-sm space-y-3">
                     <p className="font-medium text-blue-800">YouTube 채널 연동 방법</p>
                     <ol className="text-blue-700 space-y-1 list-decimal list-inside">
-                      <li>"채널 추가" 버튼 클릭</li>
+                      <li>"채널 추가" 버튼 클릭 → <strong>지역(한국/일본/미국) 선택</strong></li>
                       <li>Google 계정 선택 → <strong>연동할 채널의 Brand Account</strong> 선택</li>
                       <li>권한 허용 → 자동 연동 완료</li>
-                      <li>다른 채널 추가하려면 다시 "채널 추가" 클릭 후 다른 Brand Account 선택</li>
+                      <li>다른 채널 추가하려면 다시 "채널 추가" 클릭 후 다른 지역/Brand Account 선택</li>
                     </ol>
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="font-medium text-amber-800 mb-1">⚠️ 관리자 권한 채널이 안 보이는 경우</p>
@@ -1417,7 +1472,7 @@ export default function SnsAutoUploadPage() {
                 <div>
                   <CardTitle>업로드 대기 영상</CardTitle>
                   <CardDescription>
-                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다 ({pendingVideos.length}건)
+                    승인된 영상 중 아직 SNS에 업로드되지 않은 영상입니다 (총 {pendingVideos.length}건)
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -1435,7 +1490,49 @@ export default function SnsAutoUploadPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {pendingVideos.length === 0 ? (
+                {/* 국가별 필터 */}
+                <div className="flex gap-2 mb-4">
+                  {[
+                    { key: 'all', label: '전체', flag: '🌍' },
+                    { key: 'kr', label: '한국', flag: '🇰🇷' },
+                    { key: 'jp', label: '일본', flag: '🇯🇵' },
+                    { key: 'us', label: '미국', flag: '🇺🇸' },
+                  ].map(({ key, label, flag }) => {
+                    const count = key === 'all'
+                      ? pendingVideos.length
+                      : pendingVideos.filter(v => {
+                          if (key === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
+                          if (key === 'jp') return v.country === 'jp' || v.country === 'japan'
+                          if (key === 'us') return v.country === 'us' || v.country === 'usa'
+                          return false
+                        }).length
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => { setSelectedCountry(key); setSelectedVideos([]) }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                          selectedCountry === key
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {flag} {label} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {(() => {
+                  const filteredVideos = selectedCountry === 'all'
+                    ? pendingVideos
+                    : pendingVideos.filter(v => {
+                        if (selectedCountry === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
+                        if (selectedCountry === 'jp') return v.country === 'jp' || v.country === 'japan'
+                        if (selectedCountry === 'us') return v.country === 'us' || v.country === 'usa'
+                        return true
+                      })
+
+                  return filteredVideos.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <FileVideo className="w-12 h-12 mx-auto mb-4 opacity-30" />
                     <p>업로드 대기중인 영상이 없습니다</p>
@@ -1447,16 +1544,17 @@ export default function SnsAutoUploadPage() {
                         <TableHead className="w-12">
                           <input
                             type="checkbox"
-                            checked={selectedVideos.length === pendingVideos.length && pendingVideos.length > 0}
+                            checked={selectedVideos.length === filteredVideos.length && filteredVideos.length > 0}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedVideos(pendingVideos)
+                                setSelectedVideos(filteredVideos)
                               } else {
                                 setSelectedVideos([])
                               }
                             }}
                           />
                         </TableHead>
+                        <TableHead>국가</TableHead>
                         <TableHead>크리에이터</TableHead>
                         <TableHead>캠페인</TableHead>
                         <TableHead>주차</TableHead>
@@ -1466,7 +1564,7 @@ export default function SnsAutoUploadPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingVideos.map((video) => (
+                      {filteredVideos.map((video) => (
                         <TableRow key={`${video.source_type}_${video.id}`}>
                           <TableCell>
                             <input
@@ -1480,6 +1578,11 @@ export default function SnsAutoUploadPage() {
                                 }
                               }}
                             />
+                          </TableCell>
+                          <TableCell>
+                            {(!video.country || video.country === 'kr' || video.country === 'korea') ? '🇰🇷' :
+                             (video.country === 'jp' || video.country === 'japan') ? '🇯🇵' :
+                             (video.country === 'us' || video.country === 'usa') ? '🇺🇸' : '🌍'}
                           </TableCell>
                           <TableCell className="font-medium">{video.creator_name || '-'}</TableCell>
                           <TableCell className="max-w-[180px] truncate">
@@ -1535,7 +1638,8 @@ export default function SnsAutoUploadPage() {
                       ))}
                     </TableBody>
                   </Table>
-                )}
+                )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

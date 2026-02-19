@@ -46,6 +46,7 @@ import PointsManagement from './components/company/PointsManagement'
 import PointsChargePage from './components/company/PointsChargePage'
 import CompanyProfileSetup from './components/company/CompanyProfileSetup'
 import CompanyProfileEdit from './components/company/CompanyProfileEdit'
+import CampaignCreationGuide from './components/company/CampaignCreationGuide'
 import PaymentHistory from './components/company/PaymentHistory'
 import PaymentMethodSelection from './components/company/PaymentMethodSelection'
 import TossPaymentWidget from './components/payment/TossPaymentWidget'
@@ -77,6 +78,7 @@ import FeaturedCreatorManagementPageNew from './components/admin/FeaturedCreator
 import SnsUploadManagement from './components/admin/SnsUploadManagement'
 import SnsAutoUploadPage from './components/admin/SnsAutoUploadPage'
 import SnsOAuthCallback from './components/admin/SnsOAuthCallback'
+import MetaAdsManagement from './components/admin/MetaAdsManagement'
 import CreatorMyPage from './components/creator/CreatorMyPage'
 import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
@@ -134,11 +136,13 @@ import RegularCampaignIntro from './pages/RegularCampaignIntro'
 import OliveYoungCampaignIntro from './pages/OliveYoungCampaignIntro'
 import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignIntro'
 import InvitationLanding from './pages/InvitationLanding'
+import HolidayNotice from './components/HolidayNotice'
 
 function App() {
   return (
     <Router>
       <ConsultationBanner />
+      <HolidayNotice />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -200,6 +204,7 @@ function App() {
         {/* <Route path="/company/points/charge" element={<PointsChargePage />} /> */} {/* 포인트 시스템 제거로 비활성화 */}
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
+        <Route path="/company/campaign-guide" element={<CampaignCreationGuide />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         <Route path="/company/campaigns/payment" element={<PaymentMethodSelection />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -266,6 +271,8 @@ function App() {
         <Route path="/admin/sns-uploads" element={<SnsAutoUploadPage />} />
         <Route path="/admin/sns-uploads/callback/:platform" element={<SnsOAuthCallback />} />
         <Route path="/admin/sns-completed" element={<SnsUploadManagement />} />
+        <Route path="/admin/meta-ads" element={<MetaAdsManagement />} />
+        <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 

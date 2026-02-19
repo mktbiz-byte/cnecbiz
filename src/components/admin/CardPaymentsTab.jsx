@@ -22,14 +22,14 @@ export default function CardPaymentsTab() {
   const fetchCardPayments = async () => {
     setLoading(true)
     try {
-      if (!supabaseKorea) {
-        console.error('[CardPaymentsTab] supabaseKorea가 없습니다.')
+      if (!supabaseBiz) {
+        console.error('[CardPaymentsTab] supabaseBiz가 없습니다.')
         setLoading(false)
         return
       }
 
-      // payments 테이블에서 toss_card 결제만 조회
-      const { data: paymentsData, error } = await supabaseKorea
+      // payments 테이블에서 toss_card 결제만 조회 (payments 테이블은 supabaseBiz에 있음)
+      const { data: paymentsData, error } = await supabaseBiz
         .from('payments')
         .select('*')
         .eq('payment_method', 'toss_card')
@@ -43,16 +43,26 @@ export default function CardPaymentsTab() {
         return
       }
 
-      // 캠페인 정보 조회
+      // 캠페인 정보 조회 (supabaseBiz + supabaseKorea 모두 확인)
       const campaignIds = [...new Set(paymentsData.map(p => p.campaign_id).filter(Boolean))]
       let campaignsMap = {}
       if (campaignIds.length > 0) {
-        const { data: campaigns } = await supabaseKorea
+        // supabaseBiz에서 먼저 조회
+        const { data: bizCampaigns } = await supabaseBiz
           .from('campaigns')
           .select('id, title, company_email, brand, campaign_type')
           .in('id', campaignIds)
+        bizCampaigns?.forEach(c => { campaignsMap[c.id] = c })
 
-        campaigns?.forEach(c => { campaignsMap[c.id] = c })
+        // supabaseKorea에서 나머지 조회
+        const remainingIds = campaignIds.filter(id => !campaignsMap[id])
+        if (remainingIds.length > 0 && supabaseKorea) {
+          const { data: koreaCampaigns } = await supabaseKorea
+            .from('campaigns')
+            .select('id, title, company_email, brand, campaign_type')
+            .in('id', remainingIds)
+          koreaCampaigns?.forEach(c => { campaignsMap[c.id] = c })
+        }
       }
 
       // 회사 정보 조회 (company_email 기반)
