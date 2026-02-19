@@ -98,6 +98,7 @@ export default function RevenueManagementNew() {
   const [withdrawalData, setWithdrawalData] = useState([])
   const [voucherTransactions, setVoucherTransactions] = useState([])
   const [voucherSummary, setVoucherSummary] = useState([])
+  const [cardPayments, setCardPayments] = useState([])
   const [contractAmounts, setContractAmounts] = useState({}) // { company_id: amount }
   const [contractDates, setContractDates] = useState({}) // { company_id: date_string }
   const [voucherManualEntries, setVoucherManualEntries] = useState([])
@@ -193,6 +194,15 @@ export default function RevenueManagementNew() {
         .select('*')
         .order('contract_date', { ascending: false })
       setVoucherManualEntries(manualEntries || [])
+
+      // 카드결제(토스) 내역 조회 → 하우파파 매출에 자동 합산
+      const { data: cardPaymentsData } = await supabaseBiz
+        .from('payments')
+        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info')
+        .eq('payment_method', 'toss_card')
+        .eq('status', 'completed')
+        .order('paid_at', { ascending: false })
+      setCardPayments(cardPaymentsData || [])
 
       // 수출바우처(포인트) 거래 내역 조회
       const { data: transactions } = await supabaseBiz
@@ -323,7 +333,7 @@ export default function RevenueManagementNew() {
     setLoading(false)
   }
 
-  // 월별 요약 계산
+  // 월별 요약 계산 (카드결제 → 하우파파 매출 자동 합산)
   const monthlySummary = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) =>
       `${selectedYear}-${String(i + 1).padStart(2, '0')}`
@@ -334,6 +344,14 @@ export default function RevenueManagementNew() {
         .filter(r => r.year_month === month && r.corporation_id === 'haupapa')
         .reduce((sum, r) => sum + (r.amount || 0), 0)
 
+      // 카드결제(토스) 금액을 하우파파 매출에 자동 합산
+      const cardRevenue = cardPayments
+        .filter(p => {
+          const paidMonth = (p.paid_at || p.created_at || '').substring(0, 7)
+          return paidMonth === month
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
+
       const haulabRevenue = revenueData
         .filter(r => r.year_month === month && r.corporation_id === 'haulab')
         .reduce((sum, r) => sum + (r.amount || 0), 0)
@@ -342,17 +360,21 @@ export default function RevenueManagementNew() {
         .filter(e => e.year_month === month)
         .reduce((sum, e) => sum + (e.amount || 0), 0)
 
+      const totalHaupapa = haupapaRevenue + cardRevenue
+
       return {
         month,
         name: `${idx + 1}월`,
-        haupapaRevenue,
+        haupapaRevenue: totalHaupapa,
+        haupapaManual: haupapaRevenue,
+        haupapaCard: cardRevenue,
         haulabRevenue,
-        totalRevenue: haupapaRevenue + haulabRevenue,
+        totalRevenue: totalHaupapa + haulabRevenue,
         totalExpense,
-        netProfit: haupapaRevenue + haulabRevenue - totalExpense
+        netProfit: totalHaupapa + haulabRevenue - totalExpense
       }
     })
-  }, [revenueData, expenseData, selectedYear])
+  }, [revenueData, expenseData, cardPayments, selectedYear])
 
   // 카테고리별 매입 요약
   const expenseByCategory = useMemo(() => {
@@ -399,11 +421,12 @@ export default function RevenueManagementNew() {
   const yearlyTotals = useMemo(() => {
     return monthlySummary.reduce((acc, m) => ({
       haupapaRevenue: acc.haupapaRevenue + m.haupapaRevenue,
+      haupapaCard: acc.haupapaCard + (m.haupapaCard || 0),
       haulabRevenue: acc.haulabRevenue + m.haulabRevenue,
       totalRevenue: acc.totalRevenue + m.totalRevenue,
       totalExpense: acc.totalExpense + m.totalExpense,
       netProfit: acc.netProfit + m.netProfit
-    }), { haupapaRevenue: 0, haulabRevenue: 0, totalRevenue: 0, totalExpense: 0, netProfit: 0 })
+    }), { haupapaRevenue: 0, haupapaCard: 0, haulabRevenue: 0, totalRevenue: 0, totalExpense: 0, netProfit: 0 })
   }, [monthlySummary])
 
   // 전월 대비 계산
@@ -1510,10 +1533,18 @@ export default function RevenueManagementNew() {
                     </thead>
                     <tbody>
                       <tr className="border-b border-slate-100 bg-blue-50/50">
-                        <td className="px-4 py-3 text-sm font-medium text-blue-700">하우파파</td>
+                        <td className="px-4 py-3 text-sm font-medium text-blue-700">
+                          하우파파
+                          {yearlyTotals.haupapaCard > 0 && (
+                            <span className="block text-xs text-blue-400 font-normal">카드결제 포함</span>
+                          )}
+                        </td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-3 py-3 text-right text-sm text-blue-600">
+                          <td key={i} className="px-3 py-3 text-right text-sm text-blue-600" title={m.haupapaCard > 0 ? `수동: ${m.haupapaManual?.toLocaleString()}원\n카드: ${m.haupapaCard?.toLocaleString()}원` : ''}>
                             {m.haupapaRevenue > 0 ? formatCompact(m.haupapaRevenue) : '-'}
+                            {m.haupapaCard > 0 && (
+                              <span className="block text-xs text-indigo-400">({formatCompact(m.haupapaCard)} 카드)</span>
+                            )}
                           </td>
                         ))}
                         <td className="px-4 py-3 text-right text-sm font-bold text-blue-700 bg-blue-100/50">
