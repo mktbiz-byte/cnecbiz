@@ -198,7 +198,7 @@ export default function RevenueManagementNew() {
       // 카드결제(토스) 내역 조회 → 하우파파 매출에 자동 합산
       const { data: cardPaymentsData } = await supabaseBiz
         .from('payments')
-        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info')
+        .select('id, amount, status, paid_at, created_at, payment_method, bank_transfer_info, company_id, campaign_id, companies:company_id(company_name), campaigns:campaign_id(title)')
         .eq('payment_method', 'toss_card')
         .eq('status', 'completed')
         .order('paid_at', { ascending: false })
@@ -1820,6 +1820,8 @@ export default function RevenueManagementNew() {
                       const paidDate = payment.paid_at || payment.created_at || ''
                       const yearMonth = paidDate.substring(0, 7)
                       const dateStr = paidDate.substring(0, 10)
+                      const companyName = payment.companies?.company_name || ''
+                      const campaignTitle = payment.campaigns?.title || payment.bank_transfer_info?.campaignTitle || ''
                       return (
                         <div key={`card-${payment.id}`}
                           className="flex items-center justify-between p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
@@ -1835,7 +1837,13 @@ export default function RevenueManagementNew() {
                                 </span>
                                 {yearMonth}
                               </div>
-                              <div className="text-sm text-slate-500 mt-1">토스 카드결제 ({dateStr})</div>
+                              <div className="text-sm text-slate-500 mt-1">
+                                {companyName && <span className="font-medium text-slate-700">{companyName}</span>}
+                                {companyName && campaignTitle && <span className="mx-1">·</span>}
+                                {campaignTitle && <span>{campaignTitle}</span>}
+                                {!companyName && !campaignTitle && <span>토스 카드결제</span>}
+                                <span className="text-slate-400 ml-1">({dateStr})</span>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
