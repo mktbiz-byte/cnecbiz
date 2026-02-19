@@ -142,19 +142,77 @@ function buildPrompt(creator) {
     ? '한국어로 응답해.'
     : lang === 'ja' ? '日本語で応答してください。' : 'Respond in English.'
 
+  const platform = (creator.platform || '').toLowerCase()
+
+  // 플랫폼별 프로필 정보 구성
+  let profileInfo = ''
+  if (platform === 'youtube') {
+    profileInfo = `- 플랫폼: YouTube
+- 유저네임: ${creator.username}
+- 채널명: ${creator.full_name || 'N/A'}
+- 구독자: ${creator.followers || '정보 없음'}
+- 동영상 수: ${creator.post_count || '정보 없음'}
+- 채널 설명: ${creator.bio || 'N/A'}
+- 채널 URL: ${creator.platform_url || 'N/A'}
+- 리전: ${creator.region}`
+  } else if (platform === 'tiktok') {
+    profileInfo = `- 플랫폼: TikTok
+- 유저네임: ${creator.username}
+- 이름: ${creator.full_name || 'N/A'}
+- 팔로워: ${creator.followers || '정보 없음'}
+- 팔로잉: ${creator.following || '정보 없음'}
+- 동영상 수: ${creator.post_count || '정보 없음'}
+- 평균 좋아요: ${creator.avg_likes || '정보 없음'}
+- 바이오: ${creator.bio || 'N/A'}
+- 리전: ${creator.region}`
+  } else {
+    // Instagram 등
+    profileInfo = `- 플랫폼: ${creator.platform || 'Instagram'}
+- 유저네임: ${creator.username}
+- 이름: ${creator.full_name || 'N/A'}
+- 팔로워: ${creator.followers || '정보 없음'}
+- 팔로잉: ${creator.following || '정보 없음'}
+- 게시물 수: ${creator.post_count || '정보 없음'}
+- 평균 좋아요: ${creator.avg_likes || '정보 없음'}
+- 평균 댓글: ${creator.avg_comments || '정보 없음'}
+- 바이오: ${creator.bio || 'N/A'}
+- 리전: ${creator.region}`
+  }
+
+  // 플랫폼별 점수 기준
+  let scoringCriteria = ''
+  if (platform === 'youtube') {
+    scoringCriteria = `점수 기준 (YouTube):
+- content_quality: 구독자 수, 동영상 수 기반 채널 활성도 판단
+- follower_quality: 구독자 수 적정성, 채널 신뢰도
+- content_consistency: 동영상 수와 채널 활동 일관성
+- growth_pattern: 비정상적 성장 패턴 징후
+
+중요: YouTube는 '팔로잉' 개념이 없으므로 팔로잉=0은 정상입니다.
+구독자 수와 동영상 수를 중심으로 판단하세요.
+데이터가 '정보 없음'인 항목은 감점하지 마세요 - 해당 항목은 건너뛰세요.`
+  } else if (platform === 'tiktok') {
+    scoringCriteria = `점수 기준 (TikTok):
+- engagement_rate: 팔로워 대비 좋아요 비율 (너무 낮거나 높으면 의심)
+- follower_quality: 팔로잉/팔로워 비율, 팔로워 수 적정성
+- content_consistency: 동영상 수와 활동 일관성
+- growth_pattern: 비정상적 성장 패턴 징후
+
+데이터가 '정보 없음'인 항목은 감점하지 마세요 - 해당 항목은 건너뛰세요.`
+  } else {
+    scoringCriteria = `점수 기준 (Instagram):
+- engagement_rate: 팔로워 대비 좋아요/댓글 비율 (너무 낮거나 높으면 의심)
+- follower_quality: 팔로잉/팔로워 비율, 팔로워 수 적정성
+- content_consistency: 게시물 수와 활동 일관성
+- growth_pattern: 비정상적 성장 패턴 징후
+
+데이터가 '정보 없음'인 항목은 감점하지 마세요 - 해당 항목은 건너뛰세요.`
+  }
+
   return `크리에이터 마케팅 전문가로서 아래 프로필을 분석해. ${langInstruction}
 
 프로필:
-- 플랫폼: ${creator.platform}
-- 유저네임: ${creator.username}
-- 이름: ${creator.full_name || 'N/A'}
-- 팔로워: ${creator.followers}
-- 팔로잉: ${creator.following}
-- 게시물 수: ${creator.post_count}
-- 평균 좋아요: ${creator.avg_likes}
-- 평균 댓글: ${creator.avg_comments}
-- 바이오: ${creator.bio || 'N/A'}
-- 리전: ${creator.region}
+${profileInfo}
 
 다음 JSON 형식으로 응답:
 {
@@ -170,11 +228,7 @@ function buildPrompt(creator) {
   "summary": "한줄 요약"
 }
 
-점수 기준:
-- engagement_rate: 팔로워 대비 좋아요/댓글 비율 (너무 낮거나 높으면 의심)
-- follower_quality: 팔로잉/팔로워 비율, 팔로워 수 적정성
-- content_consistency: 게시물 수와 활동 일관성
-- growth_pattern: 비정상적 성장 패턴 징후`
+${scoringCriteria}`
 }
 
 function sleep(ms) {
