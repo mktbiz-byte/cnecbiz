@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Users, Search, ChevronLeft, ChevronRight, Loader2,
-  ExternalLink, RotateCcw, Trash2, Mail, CheckCircle2, X
+  ExternalLink, RotateCcw, Trash2, Mail, CheckCircle2, X, Plus, Link
 } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
@@ -59,6 +59,11 @@ export default function OpenCloCreatorList() {
   const [analysisLogs, setAnalysisLogs] = useState([])
   const [contactLogs, setContactLogs] = useState([])
   const [actionLoading, setActionLoading] = useState(false)
+  // 수동 등록
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addForm, setAddForm] = useState({ platform_url: '', platform: '', username: '', full_name: '', email: '', followers: '', bio: '' })
+  const [addLoading, setAddLoading] = useState(false)
+  const [urlParseLoading, setUrlParseLoading] = useState(false)
 
   const fetchCreators = useCallback(async () => {
     setLoading(true)
@@ -171,6 +176,92 @@ export default function OpenCloCreatorList() {
     }
   }
 
+  // URL 입력 시 플랫폼/유저네임 자동 파싱
+  const parseUrl = (url) => {
+    const trimmed = url.trim()
+    let platform = ''
+    let username = ''
+
+    if (trimmed.includes('instagram.com')) {
+      platform = 'instagram'
+      const match = trimmed.match(/instagram\.com\/([^/?#]+)/)
+      if (match) username = match[1].replace('@', '')
+    } else if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
+      platform = 'youtube'
+      const match = trimmed.match(/youtube\.com\/(?:@|channel\/|c\/)?([^/?#]+)/)
+      if (match) username = match[1].replace('@', '')
+    } else if (trimmed.includes('tiktok.com')) {
+      platform = 'tiktok'
+      const match = trimmed.match(/tiktok\.com\/@?([^/?#]+)/)
+      if (match) username = match[1].replace('@', '')
+    }
+
+    setAddForm(prev => ({
+      ...prev,
+      platform_url: trimmed,
+      platform: platform || prev.platform,
+      username: username || prev.username
+    }))
+  }
+
+  // 수동 등록 저장
+  const handleAddCreator = async () => {
+    if (!addForm.platform || !addForm.username) {
+      alert('플랫폼과 유저네임은 필수입니다')
+      return
+    }
+
+    setAddLoading(true)
+    try {
+      // 중복 체크
+      const { data: existing } = await supabaseBiz
+        .from('oc_creators')
+        .select('id')
+        .eq('platform', addForm.platform)
+        .eq('username', addForm.username)
+        .eq('region', region)
+        .maybeSingle()
+
+      if (existing) {
+        alert('이미 등록된 크리에이터입니다')
+        setAddLoading(false)
+        return
+      }
+
+      // 플랫폼 URL 자동 생성 (없으면)
+      let platformUrl = addForm.platform_url
+      if (!platformUrl) {
+        if (addForm.platform === 'instagram') platformUrl = `https://instagram.com/${addForm.username}`
+        else if (addForm.platform === 'youtube') platformUrl = `https://youtube.com/@${addForm.username}`
+        else if (addForm.platform === 'tiktok') platformUrl = `https://tiktok.com/@${addForm.username}`
+      }
+
+      const { error } = await supabaseBiz.from('oc_creators').insert({
+        region,
+        platform: addForm.platform,
+        platform_url: platformUrl,
+        username: addForm.username,
+        full_name: addForm.full_name || null,
+        email: addForm.email || null,
+        followers: parseInt(addForm.followers) || 0,
+        bio: addForm.bio || null,
+        discovered_by: 'manual',
+        status: 'pending'
+      })
+
+      if (error) throw error
+
+      alert('크리에이터가 등록되었습니다. AI 분석을 실행하시겠습니까?')
+      setShowAddModal(false)
+      setAddForm({ platform_url: '', platform: '', username: '', full_name: '', email: '', followers: '', bio: '' })
+      fetchCreators()
+    } catch (err) {
+      alert('등록 실패: ' + err.message)
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   const toggleAll = () => {
@@ -190,6 +281,14 @@ export default function OpenCloCreatorList() {
       <AdminNavigation />
       <div className="flex-1 ml-0 md:ml-56 p-6">
         <OpenCloNav currentRegion={region} onRegionChange={setRegion} />
+
+        {/* 상단 액션 */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">크리에이터 목록</h2>
+          <Button size="sm" onClick={() => setShowAddModal(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> 크리에이터 수동 등록
+          </Button>
+        </div>
 
         {/* 필터 */}
         <div className="flex flex-wrap gap-2 mb-4">
@@ -354,6 +453,7 @@ export default function OpenCloCreatorList() {
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-bold">@{detailCreator.username}</h2>
                     {detailCreator.is_registered && <Badge className="bg-green-100 text-green-700">CNEC 가입자</Badge>}
+                    {detailCreator.discovered_by === 'manual' && <Badge variant="outline" className="text-xs">수동 등록</Badge>}
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setDetailCreator(null)}><X className="w-4 h-4" /></Button>
                 </div>
@@ -415,6 +515,121 @@ export default function OpenCloCreatorList() {
                   <a href={detailCreator.platform_url} target="_blank" rel="noreferrer">
                     <Button size="sm" variant="outline"><ExternalLink className="w-3 h-3 mr-1" /> 프로필 보기</Button>
                   </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 수동 등록 모달 */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowAddModal(false)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-lg font-bold">크리에이터 수동 등록</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}><X className="w-4 h-4" /></Button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* URL 입력 → 자동 파싱 */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">
+                      프로필 URL <span className="text-xs text-gray-400">(붙여넣으면 자동 파싱)</span>
+                    </label>
+                    <div className="relative">
+                      <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="https://instagram.com/username 또는 youtube.com/@channel"
+                        value={addForm.platform_url}
+                        onChange={e => parseUrl(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {addForm.platform && addForm.username && (
+                      <p className="text-xs text-green-600 mt-1">
+                        {addForm.platform} / @{addForm.username} 자동 감지됨
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">플랫폼 *</label>
+                      <select
+                        value={addForm.platform}
+                        onChange={e => setAddForm(prev => ({ ...prev, platform: e.target.value }))}
+                        className="w-full border rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="">선택</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="tiktok">TikTok</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">유저네임 *</label>
+                      <Input
+                        placeholder="@없이 입력"
+                        value={addForm.username}
+                        onChange={e => setAddForm(prev => ({ ...prev, username: e.target.value.replace('@', '') }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">이름</label>
+                      <Input
+                        placeholder="크리에이터 이름"
+                        value={addForm.full_name}
+                        onChange={e => setAddForm(prev => ({ ...prev, full_name: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">팔로워 수</label>
+                      <Input
+                        type="number"
+                        placeholder="예: 50000"
+                        value={addForm.followers}
+                        onChange={e => setAddForm(prev => ({ ...prev, followers: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">이메일</label>
+                    <Input
+                      type="email"
+                      placeholder="creator@example.com"
+                      value={addForm.email}
+                      onChange={e => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">바이오 / 메모</label>
+                    <textarea
+                      placeholder="크리에이터 소개나 메모"
+                      value={addForm.bio}
+                      onChange={e => setAddForm(prev => ({ ...prev, bio: e.target.value }))}
+                      rows={2}
+                      className="w-full border rounded-lg px-3 py-2 text-sm resize-y"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
+                    <p>현재 리전: <strong>{region === 'korea' ? '한국' : region === 'japan' ? '일본' : '미국'}</strong></p>
+                    <p>등록 후 AI 분석을 실행하면 자동으로 의심 점수와 카테고리가 설정됩니다.</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-5">
+                  <Button variant="outline" onClick={() => setShowAddModal(false)}>취소</Button>
+                  <Button onClick={handleAddCreator} disabled={addLoading || !addForm.platform || !addForm.username}>
+                    {addLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+                    등록
+                  </Button>
                 </div>
               </div>
             </div>
