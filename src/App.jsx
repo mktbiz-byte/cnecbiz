@@ -128,6 +128,13 @@ import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
+import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
+import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
+import OpenCloReviewQueue from './components/admin/openclo/OpenCloReviewQueue'
+import OpenCloBotStatus from './components/admin/openclo/OpenCloBotStatus'
+import OpenCloBotConfig from './components/admin/openclo/OpenCloBotConfig'
+import OpenCloEmailManager from './components/admin/openclo/OpenCloEmailManager'
+import OpenCloKPI from './components/admin/openclo/OpenCloKPI'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -275,6 +282,14 @@ function App() {
         <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
+        {/* OpenClo Routes */}
+        <Route path="/admin/openclo" element={<OpenCloDashboard />} />
+        <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
+        <Route path="/admin/openclo/review" element={<OpenCloReviewQueue />} />
+        <Route path="/admin/openclo/bot-status" element={<OpenCloBotStatus />} />
+        <Route path="/admin/openclo/bot-config" element={<OpenCloBotConfig />} />
+        <Route path="/admin/openclo/emails" element={<OpenCloEmailManager />} />
+        <Route path="/admin/openclo/kpi" element={<OpenCloKPI />} />
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
