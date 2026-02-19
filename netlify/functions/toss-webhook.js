@@ -314,7 +314,7 @@ async function handlePaymentCanceled(payment) {
       amount: latestCancel?.cancelAmount || totalAmount,
       currency: 'KRW',
       payment_method: 'toss_card',
-      status: status === 'PARTIAL_CANCELED' ? 'partial_refunded' : 'refunded',
+      status: status === 'PARTIAL_CANCELED' ? 'refunded' : 'refunded',
       paid_at: new Date().toISOString(),
       region: 'korea',
       bank_transfer_info: {
@@ -334,7 +334,7 @@ async function handlePaymentCanceled(payment) {
   }
 
   // 기존 결제 상태 업데이트
-  const newStatus = status === 'PARTIAL_CANCELED' ? 'partial_refunded' : 'refunded'
+  const newStatus = status === 'PARTIAL_CANCELED' ? 'refunded' : 'refunded'
   await supabaseBiz
     .from('payments')
     .update({

@@ -176,7 +176,15 @@ export default function CardPaymentsTab() {
         throw new Error(result.error || '동기화 실패')
       }
 
-      alert(`동기화 완료!\n\n${result.message}`)
+      // 실패 건이 있으면 에러 상세 표시
+      let msg = result.message
+      if (result.details?.length > 0) {
+        const errors = result.details.filter(d => d.error)
+        if (errors.length > 0) {
+          msg += '\n\n[에러 상세]\n' + errors.map(d => `${d.paymentKey}: ${d.error}`).join('\n')
+        }
+      }
+      alert(`동기화 완료!\n\n${msg}`)
       fetchCardPayments() // 목록 새로고침
     } catch (error) {
       console.error('[CardPaymentsTab] 동기화 오류:', error)

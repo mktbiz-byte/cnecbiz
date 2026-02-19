@@ -221,96 +221,114 @@ exports.handler = async (event) => {
       }
 
       // 결제 데이터 구성
-      const paymentStatus = status === 'DONE' ? 'completed'
-        : status === 'PARTIAL_CANCELED' ? 'partial_refunded'
-        : 'refunded'
+      // status CHECK: ('pending', 'completed', 'failed', 'refunded') 만 허용
+      const paymentStatus = status === 'DONE' ? 'completed' : 'refunded'
 
-      const paymentData = {
-        amount: totalAmount,
-        currency: 'KRW',
-        payment_method: 'toss_card',
-        status: paymentStatus,
-        paid_at: approvedAt || new Date().toISOString(),
-        region: campaignRegion,
-        bank_transfer_info: {
-          provider: 'toss',
-          paymentKey,
-          orderId,
-          method,
-          campaignId,
-          campaignTitle: campaign?.title || null,
-          source: 'sync',
-          card: card ? {
-            issuerCode: card.issuerCode,
-            number: card.number,
-            cardType: card.cardType,
-            ownerType: card.ownerType,
-            acquirerCode: card.acquirerCode
-          } : null,
-          receipt: tx.receipt,
-          approvedAt,
-          cancels: tx.cancels || null
-        }
+      const bankTransferInfo = {
+        provider: 'toss',
+        paymentKey,
+        orderId,
+        method,
+        campaignId,
+        campaignTitle: campaign?.title || null,
+        source: 'sync',
+        tossStatus: status,
+        card: card ? {
+          issuerCode: card.issuerCode,
+          number: card.number,
+          cardType: card.cardType,
+          ownerType: card.ownerType,
+          acquirerCode: card.acquirerCode
+        } : null,
+        receipt: tx.receipt,
+        approvedAt,
+        cancels: tx.cancels || null
       }
 
       // FK 제약 대비: supabaseBiz에 캠페인이 있을 때만 campaign_id 설정
+      let safeCampaignId = null
       if (campaignId) {
         const { data: bizCampaign } = await supabaseBiz
           .from('campaigns')
           .select('id')
           .eq('id', campaignId)
           .maybeSingle()
-        if (bizCampaign) {
-          paymentData.campaign_id = campaignId
-        }
+        if (bizCampaign) safeCampaignId = campaignId
       }
 
-      // company_id 설정
+      // company_id 설정 (auth.users에 존재하는지 확인)
+      let safeCompanyId = null
       if (campaign?.company_id) {
         const { data: compCheck } = await supabaseBiz
           .from('companies')
           .select('user_id')
           .eq('user_id', campaign.company_id)
           .maybeSingle()
-        if (compCheck) {
-          paymentData.company_id = campaign.company_id
-        }
+        if (compCheck) safeCompanyId = campaign.company_id
       } else if (campaign?.company_email) {
         const { data: companyData } = await supabaseBiz
           .from('companies')
           .select('user_id')
           .eq('email', campaign.company_email)
           .maybeSingle()
-        if (companyData?.user_id) {
-          paymentData.company_id = companyData.user_id
-        }
+        if (companyData?.user_id) safeCompanyId = companyData.user_id
       }
 
-      // DB 저장
-      const { error: insertError } = await supabaseBiz
-        .from('payments')
-        .insert(paymentData)
-
-      if (insertError) {
-        // FK 위반 시 재시도
-        if (insertError.code === '23503') {
-          delete paymentData.campaign_id
-          delete paymentData.company_id
-          const { error: retryError } = await supabaseBiz
-            .from('payments')
-            .insert(paymentData)
-          if (retryError) {
-            console.error('[sync-toss-payments] 저장 실패:', paymentKey, retryError.message)
-            results.failed++
-            results.details.push({ paymentKey, error: retryError.message })
-            continue
-          }
-        } else {
-          console.error('[sync-toss-payments] 저장 실패:', paymentKey, insertError.message)
-          results.failed++
-          results.details.push({ paymentKey, error: insertError.message })
-          continue
+      // 단계적 insert: 전체 컬럼 → FK 제외 → 최소 컬럼
+      const insertAttempts = [
+        // 1차: 전체 컬럼
+        {
+          amount: totalAmount,
+          currency: 'KRW',
+          payment_method: 'toss_card',
+          status: paymentStatus,
+          paid_at: approvedAt || new Date().toISOString(),
+          region: campaignRegion,
+          bank_transfer_info: bankTransferInfo,
+          ...(safeCampaignId ? { campaign_id: safeCampaignId } : {}),
+          ...(safeCompanyId ? { company_id: safeCompanyId } : {})
+        },
+        // 2차: FK 제외
+        {
+          amount: totalAmount,
+          currency: 'KRW',
+          payment_method: 'toss_card',
+          status: paymentStatus,
+          paid_at: approvedAt || new Date().toISOString(),
+          region: campaignRegion,
+          bank_transfer_info: bankTransferInfo
+        },
+        // 3차: 최소 컬럼 (region, bank_transfer_info 없이)
+        {
+          amount: totalAmount,
+          currency: 'KRW',
+          payment_method: 'toss_card',
+          status: paymentStatus,
+          paid_at: approvedAt || new Date().toISOString(),
+          stripe_payment_intent_id: `toss_${paymentKey}`
         }
+      ]
+
+      let inserted = false
+      let lastError = null
+      for (let i = 0; i < insertAttempts.length; i++) {
+        const { error: err } = await supabaseBiz
+          .from('payments')
+          .insert(insertAttempts[i])
+
+        if (!err) {
+          inserted = true
+          if (i > 0) console.log(`[sync-toss-payments] ${i+1}차 시도에 성공:`, paymentKey)
+          break
+        }
+        lastError = err
+        console.error(`[sync-toss-payments] ${i+1}차 시도 실패:`, paymentKey, err.message, err.code)
+      }
+
+      if (!inserted) {
+        results.failed++
+        results.details.push({ paymentKey, error: lastError?.message || '알 수 없는 오류', code: lastError?.code })
+        continue
       }
 
       results.synced++
