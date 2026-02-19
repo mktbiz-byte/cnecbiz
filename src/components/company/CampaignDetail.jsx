@@ -6039,29 +6039,69 @@ Questions? Contact us.
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
       try {
-        // 기업 전화번호 조회
-        const { data: companyData } = await supabaseBiz
-          .from('companies')
-          .select('phone, company_name')
-          .eq('email', campaign?.company_email)
-          .maybeSingle()
+        // 기업 전화번호 조회 (여러 방법으로 시도)
+        let companyPhone = null
+        let companyDisplayName = campaign?.brand_name || campaign?.brand || '기업'
 
-        if (companyData?.phone) {
+        // 1순위: BIZ DB에서 company_email로 조회
+        if (campaign?.company_email) {
+          const { data: byEmail } = await supabaseBiz
+            .from('companies')
+            .select('phone, contact_phone, company_name')
+            .eq('email', campaign.company_email)
+            .maybeSingle()
+          if (byEmail) {
+            companyPhone = byEmail.phone || byEmail.contact_phone
+            companyDisplayName = byEmail.company_name || companyDisplayName
+          }
+        }
+
+        // 2순위: BIZ DB에서 company_id (user_id)로 조회
+        if (!companyPhone && campaign?.company_id) {
+          const { data: byUserId } = await supabaseBiz
+            .from('companies')
+            .select('phone, contact_phone, company_name')
+            .eq('user_id', campaign.company_id)
+            .maybeSingle()
+          if (byUserId) {
+            companyPhone = byUserId.phone || byUserId.contact_phone
+            companyDisplayName = byUserId.company_name || companyDisplayName
+          }
+        }
+
+        // 3순위: BIZ DB에서 company_id (id)로 조회
+        if (!companyPhone && campaign?.company_id) {
+          const { data: byId } = await supabaseBiz
+            .from('companies')
+            .select('phone, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .maybeSingle()
+          if (byId) {
+            companyPhone = byId.phone || byId.contact_phone
+            companyDisplayName = byId.company_name || companyDisplayName
+          }
+        }
+
+        console.log('기업 전화번호 조회 결과:', { companyPhone, companyDisplayName, company_email: campaign?.company_email, company_id: campaign?.company_id })
+
+        if (companyPhone) {
           await fetch('/.netlify/functions/send-kakao-notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              receiverNum: companyData.phone,
-              receiverName: companyData.company_name || campaign?.brand_name || '기업',
+              receiverNum: companyPhone.replace(/-/g, ''),
+              receiverName: companyDisplayName,
               templateCode: '025100001008',
               variables: {
-                '회사명': companyData.company_name || campaign?.brand_name || '기업',
+                '회사명': companyDisplayName,
                 '캠페인명': campaign?.title || '',
                 '크리에이터명': creatorName
               }
             })
           })
           console.log('영상 제출 알림톡 발송 완료:', creatorName)
+        } else {
+          console.warn('기업 전화번호를 찾을 수 없어 알림톡 스킵')
         }
       } catch (notifErr) {
         console.error('알림톡 발송 실패:', notifErr)
@@ -7125,7 +7165,15 @@ Questions? Contact us.
                                   size="sm"
                                   variant="outline"
                                   onClick={() => {
-                                    setAdminVideoUploadTarget({ participant, videoSlot: slot, version: 1 })
+                                    // 기존 버전 수 확인하여 다음 버전 번호 계산
+                                    const existingVersions = videoSubmissions.filter(
+                                      v => v.user_id === participant.user_id &&
+                                        (v.video_number === slot || v.week_number === slot)
+                                    )
+                                    const nextVersion = existingVersions.length > 0
+                                      ? Math.max(...existingVersions.map(v => v.version || 1)) + 1
+                                      : 1
+                                    setAdminVideoUploadTarget({ participant, videoSlot: slot, version: nextVersion })
                                     setShowAdminVideoUploadModal(true)
                                   }}
                                   className={`text-xs px-2 py-1 h-auto ${
@@ -10361,11 +10409,9 @@ Questions? Contact us.
                                   {is4WeekChallenge ? `${selectedStep}주차` : `영상 ${selectedStep}`}
                                 </span>
                               )}
-                              {submission.version && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
-                                  V{submission.version}
-                                </span>
-                              )}
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                V{submission.version || 1}
+                              </span>
                             </div>
 
                             {submission.video_file_url && (
