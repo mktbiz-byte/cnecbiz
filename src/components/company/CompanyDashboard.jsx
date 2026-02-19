@@ -374,19 +374,19 @@ export default function CompanyDashboard() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="min-h-screen bg-[#F8F9FA] lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         {/* Main Content */}
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Dashboard Header - 모바일: 컴팩트 / PC: 기존 */}
             <div className="mb-5 lg:mb-8">
               <div className="flex items-center gap-3 lg:gap-4">
-                <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 flex-shrink-0">
-                  <LayoutDashboard className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                  <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6 text-[#6C5CE7]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg lg:text-3xl font-bold text-gray-900 truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
-                  <p className="text-xs lg:text-sm text-gray-500 mt-0.5">캠페인 현황을 확인하세요</p>
+                  <h1 className="text-lg lg:text-2xl font-bold text-[#1A1A2E] truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
+                  <p className="text-xs lg:text-sm text-[#636E72] mt-0.5">캠페인 현황을 확인하세요</p>
                 </div>
               </div>
             </div>
@@ -400,7 +400,7 @@ export default function CompanyDashboard() {
                   placeholder="캠페인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-gray-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 max-w-2xl"
+                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-[#DFE6E9] bg-white shadow-sm focus:border-[#6C5CE7] focus:ring-[#6C5CE7]/20 max-w-2xl"
                 />
               </div>
             </div>
@@ -410,126 +410,114 @@ export default function CompanyDashboard() {
               {/* 진행 예산 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-500">진행 예산</span>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                      <Wallet className="w-5 h-5 text-white" />
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-[#636E72]">진행 예산</span>
+                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
+                    <Wallet className="w-[18px] h-[18px] text-[#6C5CE7]" />
                   </div>
-                  <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    {(stats.totalSpent / 10000).toFixed(0)}
-                    <span className="text-base font-medium text-gray-400 ml-1">만원</span>
-                  </div>
-                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-indigo-500 transition-colors">
-                    진행 중 캠페인 예산 합계
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
                 </div>
+                <div className="text-2xl md:text-3xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {(stats.totalSpent / 10000).toFixed(0)}
+                  <span className="text-base font-medium text-[#B2BEC3] ml-1">만원</span>
+                </div>
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                  진행 중 캠페인 예산 합계
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
               {/* 진행 캠페인 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-500">진행 캠페인</span>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                      <Play className="w-5 h-5 text-white" />
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-[#636E72]">진행 캠페인</span>
+                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
+                    <Play className="w-[18px] h-[18px] text-[#6C5CE7]" />
                   </div>
-                  <div className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {stats.active}
-                    <span className="text-base font-medium text-gray-400 ml-1">개</span>
-                  </div>
-                  {stats.total > 0 && (
-                    <div className="mt-2">
-                      <div className="h-1.5 rounded-full bg-gray-100">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all"
-                          style={{ width: `${(stats.active / stats.total) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-blue-500 transition-colors">
-                    전체 {stats.total}개 중
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
                 </div>
+                <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.active}
+                  <span className="text-base font-medium text-[#B2BEC3] ml-1">개</span>
+                </div>
+                {stats.total > 0 && (
+                  <div className="mt-2">
+                    <div className="h-1.5 rounded-full bg-[#F0EDFF]">
+                      <div
+                        className="bg-[#6C5CE7] h-full rounded-full transition-all"
+                        style={{ width: `${(stats.active / stats.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                  전체 {stats.total}개 중
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
               {/* 확정 크리에이터 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=active')}
-                className="relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group"
+                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs lg:text-sm font-medium text-gray-500">확정 크리에이터</span>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                      <UserCheck className="w-5 h-5 text-white" />
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs lg:text-sm font-medium text-[#636E72]">확정 크리에이터</span>
+                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
+                    <UserCheck className="w-[18px] h-[18px] text-[#6C5CE7]" />
                   </div>
-                  <div className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {stats.confirmedCreators}
-                    <span className="text-base font-medium text-gray-400 ml-1">명</span>
-                  </div>
-                  <span className="text-xs text-gray-400 mt-2 flex items-center gap-1 group-hover:text-emerald-500 transition-colors">
-                    캠페인 선정 완료
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
                 </div>
+                <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.confirmedCreators}
+                  <span className="text-base font-medium text-[#B2BEC3] ml-1">명</span>
+                </div>
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                  캠페인 선정 완료
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
               {/* 확인 필요 */}
               <button
                 onClick={() => navigate('/company/campaigns?filter=attention')}
-                className={`relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3.5 lg:p-5 border shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}
+                className={`bg-white rounded-2xl p-3.5 lg:p-5 border cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-[#E17055]' : 'border-[#DFE6E9]'}`}
               >
-                <div className={`absolute top-0 right-0 w-24 h-24 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 ${stats.needsAttention > 0 ? 'bg-gradient-to-br from-red-100 to-orange-100' : 'bg-gradient-to-br from-amber-100 to-orange-100'}`} />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-500">확인 필요</span>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${stats.needsAttention > 0 ? 'bg-gradient-to-br from-red-500 to-orange-500' : 'bg-gradient-to-br from-amber-500 to-orange-500'}`}>
-                      <AlertCircle className="w-5 h-5 text-white" />
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-[#636E72]">확인 필요</span>
+                  <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${stats.needsAttention > 0 ? 'bg-[rgba(225,112,85,0.1)]' : 'bg-[#F0EDFF]'}`}>
+                    <AlertCircle className={`w-[18px] h-[18px] ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#6C5CE7]'}`} />
                   </div>
-                  <div className={`text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                    {stats.needsAttention}
-                    <span className="text-base font-medium text-gray-400 ml-1">건</span>
-                  </div>
-                  <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-amber-500'}`}>
-                    {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
                 </div>
+                <div className={`text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#1A1A2E]'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.needsAttention}
+                  <span className="text-base font-medium text-[#B2BEC3] ml-1">건</span>
+                </div>
+                <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#B2BEC3] group-hover:text-[#6C5CE7]'}`}>
+                  {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
             </div>
 
             {/* Recent Campaigns */}
             <div className="mb-6">
-              <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 md:p-6">
+              <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 sm:p-5 md:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#6C5CE7]" />
                       </div>
-                      <h2 className="text-base sm:text-lg font-bold text-gray-900">최근 캠페인</h2>
+                      <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">최근 캠페인</h2>
                     </div>
                     {/* 필터 표시 및 리셋 */}
                     {statusFilter && (
                       <button
                         onClick={() => setStatusFilter(null)}
-                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium hover:bg-indigo-100 transition-colors"
+                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-[#F0EDFF] text-[#6C5CE7] rounded-full text-xs font-medium hover:bg-[#E8E3FF] transition-colors"
                       >
                         {statusFilter === 'all' && '전체'}
                         {statusFilter === 'completed' && '완료'}
@@ -544,14 +532,14 @@ export default function CompanyDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => navigate('/company/campaigns')}
-                      className="text-gray-600 border-gray-200 hover:bg-gray-50 text-xs sm:text-sm"
+                      className="text-[#636E72] border-[#DFE6E9] hover:bg-[#F8F9FA] text-xs sm:text-sm"
                     >
                       전체보기
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 text-xs sm:text-sm"
+                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs sm:text-sm"
                     >
                       <Plus className="w-4 h-4 mr-1" />
                       <span className="hidden xs:inline">새 </span>캠페인
@@ -566,7 +554,7 @@ export default function CompanyDashboard() {
                     <p className="text-sm text-gray-500 mb-6">첫 번째 캠페인을 만들어 크리에이터들과 협업해보세요</p>
                     <Button
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       첫 캠페인 만들기
@@ -611,7 +599,7 @@ export default function CompanyDashboard() {
                       return (
                         <div
                           key={campaign.id}
-                          className="border border-gray-100 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white"
+                          className="border border-[#DFE6E9] rounded-2xl p-4 hover:border-[#6C5CE7]/30 hover:shadow-md cursor-pointer transition-all bg-white"
                           onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -651,7 +639,7 @@ export default function CompanyDashboard() {
 
                             {/* Price */}
                             <div className="text-right flex-shrink-0">
-                              <div className="text-base lg:text-xl font-bold text-indigo-500 whitespace-nowrap">
+                              <div className="text-base lg:text-xl font-bold text-[#6C5CE7] whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                 {totalCost.toLocaleString()}원
                               </div>
                               <span className="text-xs text-gray-400">{campaign.package_type}</span>
@@ -669,13 +657,13 @@ export default function CompanyDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
               {/* Upcoming Schedules - 2 columns */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm p-4 lg:p-6">
+                <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 lg:p-6">
                   <div className="flex items-center gap-2 mb-4 lg:mb-5">
-                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-600" />
+                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
+                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-[#6C5CE7]" />
                     </div>
-                    <h2 className="text-base lg:text-lg font-bold text-gray-900">다가오는 일정</h2>
-                    <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full text-xs font-medium">
+                    <h2 className="text-base lg:text-lg font-bold text-[#1A1A2E]">다가오는 일정</h2>
+                    <span className="px-2 py-0.5 bg-[#F0EDFF] text-[#6C5CE7] rounded-[6px] text-xs font-medium">
                       {upcomingDeadlines.length}개
                     </span>
                   </div>
@@ -692,7 +680,7 @@ export default function CompanyDashboard() {
                       {upcomingDeadlines.map((item, index) => (
                         <div
                           key={`${item.id}-${index}`}
-                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30"
+                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-2xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md cursor-pointer transition-all bg-white"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
                           <div className={`w-2 h-2 rounded-full ${item.type.dotColor} flex-shrink-0`} />
@@ -719,14 +707,14 @@ export default function CompanyDashboard() {
 
               {/* Delayed Items - 1 column */}
               <div className="lg:col-span-1">
-                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl lg:rounded-2xl border border-red-100 p-4 lg:p-6">
-                  <div className="flex items-center gap-2 mb-5 text-red-700">
-                    <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                      <AlertCircle className="w-4 h-4 text-red-600" />
+                <div className="bg-white rounded-2xl border border-[#E17055]/30 p-4 lg:p-6">
+                  <div className="flex items-center gap-2 mb-5 text-[#E17055]">
+                    <div className="w-8 h-8 rounded-lg bg-[rgba(225,112,85,0.1)] flex items-center justify-center">
+                      <AlertCircle className="w-4 h-4 text-[#E17055]" />
                     </div>
                     <span className="font-bold">지연된 일정</span>
                     {delayedItems.length > 0 && (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-medium">
+                      <span className="px-2 py-0.5 bg-[rgba(225,112,85,0.1)] text-[#E17055] rounded-[6px] text-xs font-medium">
                         {delayedItems.length}건
                       </span>
                     )}
@@ -744,15 +732,15 @@ export default function CompanyDashboard() {
                       {delayedItems.map((item, index) => (
                         <div
                           key={`delayed-${item.id}-${index}`}
-                          className="flex items-start gap-3 p-3 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all"
+                          className="flex items-start gap-3 p-3 bg-[#F8F9FA] rounded-2xl cursor-pointer hover:shadow-md transition-all"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-5 h-5 text-red-600" />
+                          <div className="w-10 h-10 rounded-xl bg-[rgba(225,112,85,0.1)] flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-5 h-5 text-[#E17055]" />
                           </div>
                           <div className="flex-1 min-w-0 overflow-hidden">
                             <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.title}</p>
-                            <p className="text-xs lg:text-sm text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
+                            <p className="text-xs lg:text-sm text-[#E17055]">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                         </div>

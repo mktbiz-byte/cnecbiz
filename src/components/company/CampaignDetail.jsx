@@ -516,6 +516,49 @@ const getGradeRecommendation = (gradeLevel) => {
   }
 }
 
+// 크리에이터 포인트 계산 함수 (1인당)
+const calculateCreatorPoints = (campaign) => {
+  if (!campaign) return 0
+
+  // 수동 설정값이 있으면 우선 사용
+  if (campaign.creator_points_override) {
+    return campaign.creator_points_override
+  }
+
+  const campaignType = campaign.campaign_type
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1
+  const region = campaign.region || 'korea'
+
+  // 일본/미국은 reward_amount 사용 (크리에이터당 보상금액)
+  if (region === 'japan' || region === 'us') {
+    return campaign.reward_amount || 0
+  }
+
+  // 한국: 캠페인 타입별 계산
+  if (campaignType === '4week_challenge') {
+    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
+                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
+    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  if (campaignType === 'planned') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.6) / totalSlots)
+  }
+
+  if (campaignType === 'oliveyoung') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+}
+
 export default function CampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -4807,7 +4850,7 @@ Questions? Contact us.
       }
 
       const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
-      const pointAmount = campaign.reward_points || campaign.point || 0
+      const pointAmount = calculateCreatorPoints(campaign)
       const confirmedAt = new Date().toISOString()
 
       // 1. video_submissions를 completed로 업데이트 (에러 체크 필수)
@@ -5036,7 +5079,7 @@ Questions? Contact us.
         return
       }
 
-      const pointAmount = campaign.creator_points_override || campaign.reward_points || 0
+      const pointAmount = calculateCreatorPoints(campaign)
       const userId = participant.user_id
 
       // 1. Korea DB의 applications 상태 업데이트

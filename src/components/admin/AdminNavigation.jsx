@@ -140,16 +140,16 @@ export default function AdminNavigation() {
   return (
     <>
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-56' : 'w-0'} bg-white border-r transition-all duration-300 overflow-hidden flex flex-col fixed left-0 top-0 h-full z-50`}>
-        <div className="p-4 flex-1 overflow-y-auto">
+      <aside className={`${sidebarOpen ? 'w-60' : 'w-0'} bg-white border-r border-[#DFE6E9] transition-all duration-300 overflow-hidden flex flex-col fixed left-0 top-0 h-full z-50`}>
+        <div className="p-5 flex-1 overflow-y-auto">
           {/* 로고 */}
-          <div className="flex items-center gap-2 mb-6 pl-1">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">C</span>
+          <div className="flex items-center gap-2 mb-8 px-1">
+            <div className="w-8 h-8 bg-[#6C5CE7] rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>C</span>
             </div>
             <div>
-              <span className="font-bold text-gray-900">CNEC</span>
-              <p className="text-xs text-gray-400">관리자</p>
+              <span className="font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
+              <p className="text-[10px] text-[#B2BEC3] font-semibold uppercase tracking-[0.1em]">관리자</p>
             </div>
           </div>
 
@@ -161,10 +161,10 @@ export default function AdminNavigation() {
                   // 단일 메뉴 아이템
                   <button
                     onClick={() => navigate(group.path)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-sm ${
                       isActive(group.path)
-                        ? 'bg-orange-50 text-orange-600 font-medium'
-                        : 'hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                        ? 'bg-[#F0EDFF] text-[#6C5CE7] font-semibold border-l-[3px] border-[#6C5CE7]'
+                        : 'hover:bg-[#F8F9FA] text-[#636E72] hover:text-[#1A1A2E]'
                     }`}
                   >
                     <group.icon className="w-4 h-4 flex-shrink-0" />
@@ -175,10 +175,10 @@ export default function AdminNavigation() {
                   <>
                     <button
                       onClick={() => toggleGroup(group.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm ${
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-sm ${
                         isGroupActive(group.items)
-                          ? 'bg-gray-100 text-gray-900 font-medium'
-                          : 'hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                          ? 'bg-[#F0EDFF]/50 text-[#1A1A2E] font-semibold'
+                          : 'hover:bg-[#F8F9FA] text-[#636E72] hover:text-[#1A1A2E]'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -196,15 +196,15 @@ export default function AdminNavigation() {
                     <div className={`overflow-hidden transition-all duration-200 ${
                       expandedGroups.includes(group.id) ? 'max-h-96' : 'max-h-0'
                     }`}>
-                      <div className="ml-4 mt-1 space-y-0.5 border-l border-gray-200 pl-2">
+                      <div className="ml-4 mt-1 space-y-0.5 border-l border-[#DFE6E9] pl-2">
                         {group.items.map((item) => (
                           <button
                             key={item.path}
                             onClick={() => navigate(item.path)}
                             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-all text-xs ${
                               isActive(item.path)
-                                ? 'bg-orange-50 text-orange-600 font-medium'
-                                : 'hover:bg-gray-50 text-gray-500 hover:text-gray-700'
+                                ? 'bg-[#F0EDFF] text-[#6C5CE7] font-semibold'
+                                : 'hover:bg-[#F8F9FA] text-[#636E72] hover:text-[#1A1A2E]'
                             }`}
                           >
                             <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -220,12 +220,12 @@ export default function AdminNavigation() {
           </nav>
 
           {/* 구분선 */}
-          <div className="border-t my-3" />
+          <div className="border-t border-[#DFE6E9] my-3" />
 
           {/* 기업 뷰 버튼 */}
           <button
             onClick={() => navigate('/company/dashboard')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-600 text-sm transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#F0EDFF] text-[#6C5CE7] text-sm transition-colors"
           >
             <Building2 className="w-4 h-4" />
             <span>기업 뷰로 보기</span>
@@ -253,7 +253,7 @@ export default function AdminNavigation() {
       </button>
 
       {/* Spacer for content */}
-      <div className={`${sidebarOpen ? 'ml-56' : 'ml-0'} transition-all duration-300`} />
+      <div className={`${sidebarOpen ? 'ml-60' : 'ml-0'} transition-all duration-300`} />
     </>
   )
 }

@@ -7,6 +7,43 @@
 
 const { createClient } = require('@supabase/supabase-js')
 
+// 크리에이터 포인트 계산 함수 (1인당)
+const calculateCreatorPoints = (campaign) => {
+  if (!campaign) return 0
+  if (campaign.creator_points_override) return campaign.creator_points_override
+
+  const campaignType = campaign.campaign_type
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1
+  const region = campaign.region || 'korea'
+
+  if (region === 'japan' || region === 'us') {
+    return campaign.reward_amount || 0
+  }
+
+  if (campaignType === '4week_challenge') {
+    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
+                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
+    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  if (campaignType === 'planned') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.6) / totalSlots)
+  }
+
+  if (campaignType === 'oliveyoung') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round((totalReward * 0.7) / totalSlots)
+  }
+
+  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -196,7 +233,7 @@ exports.handler = async (event) => {
         if (cIds.length > 0) {
           const { data: camps } = await supabase
             .from('campaigns')
-            .select('id, title, reward_points, creator_points_override')
+            .select('id, title, reward_points, creator_points_override, campaign_type, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
             .in('id', cIds)
           if (camps) camps.forEach(c => { cMap[c.id] = c })
         }
@@ -216,7 +253,7 @@ exports.handler = async (event) => {
           seenCampaigns.add(v.campaign_id)
 
           const camp = cMap[v.campaign_id]
-          const amount = camp?.creator_points_override || camp?.reward_points || 0
+          const amount = calculateCreatorPoints(camp)
           if (amount > 0) {
             reconstructedPayments.push({
               id: `vs_${v.id}`,
@@ -337,7 +374,7 @@ exports.handler = async (event) => {
         if (allCampaignIds.length > 0) {
           const { data: camps } = await supabase
             .from('campaigns')
-            .select('id, title, brand, campaign_type, creator_points_override, reward_points, estimated_cost')
+            .select('id, title, brand, campaign_type, creator_points_override, reward_points, estimated_cost, total_slots, max_participants, reward_amount, region, week1_reward, week2_reward, week3_reward, week4_reward, step1_reward, step2_reward, step3_reward')
             .in('id', allCampaignIds)
           if (camps) camps.forEach(c => { campaignsMap[c.id] = c })
         }
@@ -373,8 +410,7 @@ exports.handler = async (event) => {
 
           const campaign = campaignsMap[payment.related_campaign_id] || {}
           const profile = userProfilesMap[payment.user_id] || {}
-          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
-            Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+          const pointAmount = calculateCreatorPoints(campaign)
 
           results.confirmed.push({
             id: matchingSub?.id || `pt_${payment.user_id}_${payment.related_campaign_id}`,
@@ -418,8 +454,7 @@ exports.handler = async (event) => {
 
           const campaign = campaignsMap[sub.campaign_id] || {}
           const profile = userProfilesMap[sub.user_id] || {}
-          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
-            Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+          const pointAmount = calculateCreatorPoints(campaign)
 
           results.unpaid.push({
             id: sub.id,
@@ -466,8 +501,7 @@ exports.handler = async (event) => {
 
           const campaign = campaignsMap[sub.campaign_id] || {}
           const profile = userProfilesMap[sub.user_id] || {}
-          const pointAmount = campaign.creator_points_override || campaign.reward_points ||
-            Math.round((campaign.estimated_cost || 0) / 1.1 / 10) || 0
+          const pointAmount = calculateCreatorPoints(campaign)
 
           results.pendingConfirmation.push({
             id: sub.id,
