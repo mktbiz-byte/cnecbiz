@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Users, Mail, UserPlus, Activity, Bot, AlertTriangle,
-  RefreshCw, Loader2, ExternalLink, Globe, TrendingUp
+  RefreshCw, Loader2, ExternalLink, Globe, TrendingUp, Send, MessageSquare
 } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
@@ -88,6 +88,33 @@ export default function OpenCloDashboard() {
   const [recentLogs, setRecentLogs] = useState([])
   const [registeredCount, setRegisteredCount] = useState(0)
   const [platformStats, setPlatformStats] = useState({})
+  const [naverSending, setNaverSending] = useState(false)
+
+  const handleSendNaverWorks = async () => {
+    const regionLabels = { korea: '한국', japan: '일본', us: '미국' }
+    const statusLabels = { running: '가동중', delayed: '지연', stopped: '중단', unknown: '미확인' }
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    const msg = `📊 오픈클로 현황 리포트 (수동)\n━━━━━━━━━━━━━━━━━\n📅 ${now}\n🌏 리전: ${regionLabels[region] || region}\n\n🤖 봇 상태: ${statusLabels[botStatus]}\n⚠️ 오늘 에러: ${todayErrors}건\n\n📈 오늘 KPI\n• 프로필 탐색: ${kpi.profiles_visited || 0}개\n• 신규 크리에이터: ${kpi.new_creators || 0}명\n• 이메일 발송: ${kpi.emails_sent || 0}건\n• 가입 전환: ${kpi.new_registrations || 0}명\n\n📱 플랫폼별\n• Instagram: ${platformStats.instagram || 0}명\n• YouTube: ${platformStats.youtube || 0}명\n• TikTok: ${platformStats.tiktok || 0}명\n\n✅ 누적 가입: ${registeredCount}명\n\n🔗 https://cnecbiz.com/admin/openclo`
+
+    setNaverSending(true)
+    try {
+      const res = await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAdminNotification: true, message: msg })
+      })
+      const result = await res.json()
+      if (result.success) {
+        alert('네이버웍스로 리포트가 발송되었습니다!')
+      } else {
+        alert('발송 실패: ' + (result.error || result.details || 'Unknown'))
+      }
+    } catch (err) {
+      alert('발송 실패: ' + err.message)
+    } finally {
+      setNaverSending(false)
+    }
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -207,6 +234,20 @@ export default function OpenCloDashboard() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* 네이버웍스 발송 버튼 */}
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSendNaverWorks}
+                disabled={naverSending}
+                className="border-green-300 text-green-700 hover:bg-green-50"
+              >
+                {naverSending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                네이버웍스 리포트 발송
+              </Button>
+            </div>
+
             {/* KPI 카드 4개 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>

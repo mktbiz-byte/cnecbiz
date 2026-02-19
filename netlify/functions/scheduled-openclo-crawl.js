@@ -78,6 +78,12 @@ exports.handler = async (event) => {
       }
     }
 
+    // 에러가 있으면 네이버웍스 알림
+    const errors = results.filter(r => r.error)
+    if (errors.length > 0) {
+      await sendNaverWorksAlert(`⚠️ 오픈클로 크롤링 에러 알림\n━━━━━━━━━━━━━━━━━\n${errors.map(e => `• ${e.region}/${e.platform}: ${e.error}`).join('\n')}\n\n🔗 https://cnecbiz.com/admin/openclo/bot-status`)
+    }
+
     console.log('[scheduled-openclo-crawl] Complete:', JSON.stringify(results))
 
     return {
@@ -86,10 +92,24 @@ exports.handler = async (event) => {
     }
   } catch (error) {
     console.error('[scheduled-openclo-crawl] Fatal error:', error)
+    await sendNaverWorksAlert(`🚨 오픈클로 크롤링 치명적 에러\n${error.message}`)
     return {
       statusCode: 500,
       body: JSON.stringify({ success: false, error: error.message })
     }
+  }
+}
+
+async function sendNaverWorksAlert(text) {
+  const siteUrl = process.env.URL || 'https://cnecbiz.com'
+  try {
+    await fetch(`${siteUrl}/.netlify/functions/send-naver-works-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdminNotification: true, message: text })
+    })
+  } catch (err) {
+    console.error('[scheduled-openclo-crawl] Naver Works alert failed:', err.message)
   }
 }
 

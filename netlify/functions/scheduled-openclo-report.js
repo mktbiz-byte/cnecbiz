@@ -1,6 +1,4 @@
 const { createClient } = require('@supabase/supabase-js')
-const https = require('https')
-const crypto = require('crypto')
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
@@ -131,71 +129,25 @@ exports.handler = async (event) => {
 }
 
 async function sendNaverWorksMessage(text) {
-  // 1차: oc_bot_config에서 웹훅 URL 확인
-  const { data: config } = await supabase
-    .from('oc_bot_config')
-    .select('naver_works_webhook_url')
-    .not('naver_works_webhook_url', 'is', null)
-    .limit(1)
-    .maybeSingle()
-
-  // 2차: 기존 네이버웍스 API 사용 (JWT 인증)
-  const clientId = process.env.NAVER_WORKS_CLIENT_ID
-  const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
-  const botId = process.env.NAVER_WORKS_BOT_ID
-  const channelId = process.env.NAVER_WORKS_CHANNEL_ID
-
-  if (!clientId || !botId || !channelId) {
-    console.log('[scheduled-openclo-report] Naver Works not configured, skipping')
-    return
-  }
+  // 기존 send-naver-works-message 함수를 호출하여 네이버웍스 발송
+  const siteUrl = process.env.URL || 'https://cnecbiz.com'
 
   try {
-    // JWT 생성
-    const now = Math.floor(Date.now() / 1000)
-    const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url')
-    const payload = Buffer.from(JSON.stringify({
-      iss: clientId,
-      sub: process.env.NAVER_WORKS_SERVICE_ACCOUNT || clientId,
-      iat: now,
-      exp: now + 3600
-    })).toString('base64url')
-
-    const privateKey = process.env.NAVER_WORKS_PRIVATE_KEY
-    if (!privateKey) {
-      console.log('[scheduled-openclo-report] No NAVER_WORKS_PRIVATE_KEY, skipping')
-      return
-    }
-
-    const sign = crypto.createSign('RSA-SHA256')
-    sign.update(`${header}.${payload}`)
-    const signature = sign.sign(privateKey.replace(/\\n/g, '\n'), 'base64url')
-    const jwt = `${header}.${payload}.${signature}`
-
-    // Access Token 획득
-    const tokenRes = await fetch('https://auth.worksmobile.com/oauth2/v2.0/token', {
+    const res = await fetch(`${siteUrl}/.netlify/functions/send-naver-works-message`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}&client_id=${clientId}&client_secret=${clientSecret}&scope=bot`
-    })
-
-    const tokenData = await tokenRes.json()
-    if (!tokenData.access_token) {
-      console.error('[scheduled-openclo-report] Failed to get access token:', tokenData)
-      return
-    }
-
-    // 메시지 발송
-    await fetch(`https://www.worksapis.com/v1.0/bots/${botId}/channels/${channelId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${tokenData.access_token}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: { type: 'text', text }
+        isAdminNotification: true,
+        message: text
       })
     })
+
+    const result = await res.json()
+    if (!result.success) {
+      console.error('[scheduled-openclo-report] Naver Works send failed:', result.error)
+    } else {
+      console.log('[scheduled-openclo-report] Naver Works message sent successfully')
+    }
   } catch (err) {
     console.error('[scheduled-openclo-report] Naver Works send error:', err.message)
   }

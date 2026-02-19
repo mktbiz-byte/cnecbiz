@@ -98,12 +98,27 @@ exports.handler = async (event) => {
 
     console.log('[scheduled-openclo-email] Complete:', allResults.length, 'processed')
 
+    // 발송 결과 네이버웍스 알림
+    const sentCount = allResults.filter(r => r.status === 'sent').length
+    const failedCount = allResults.filter(r => r.status === 'failed').length
+    if (sentCount > 0 || failedCount > 0) {
+      const regionSummary = regions.map(r => {
+        const regionSent = allResults.filter(a => a.region === r && a.status === 'sent').length
+        return regionSent > 0 ? `${r}: ${regionSent}건` : null
+      }).filter(Boolean).join(', ')
+
+      await sendNaverWorksAlert(
+        `📧 오픈클로 이메일 발송 완료\n━━━━━━━━━━━━━━━━━\n• 발송 성공: ${sentCount}건 (${regionSummary})\n• 발송 실패: ${failedCount}건\n\n🔗 https://cnecbiz.com/admin/openclo/emails`
+      )
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true, results: allResults })
     }
   } catch (error) {
     console.error('[scheduled-openclo-email] Fatal error:', error)
+    await sendNaverWorksAlert(`🚨 오픈클로 이메일 발송 치명적 에러\n${error.message}`)
     return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) }
   }
 }
@@ -285,6 +300,19 @@ async function handleNoResponse(region, intervalDays) {
 }
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
+
+async function sendNaverWorksAlert(text) {
+  const siteUrl = process.env.URL || 'https://cnecbiz.com'
+  try {
+    await fetch(`${siteUrl}/.netlify/functions/send-naver-works-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdminNotification: true, message: text })
+    })
+  } catch (err) {
+    console.error('[scheduled-openclo-email] Naver Works alert failed:', err.message)
+  }
+}
 
 async function updateDailyKPI(region, updates) {
   const today = new Date().toISOString().split('T')[0]

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Mail, Send, Loader2, RefreshCw, UserPlus, ArrowRight, CheckCircle
+  Mail, Send, Loader2, RefreshCw, UserPlus, ArrowRight, CheckCircle, MessageSquare
 } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
@@ -22,6 +22,7 @@ export default function OpenCloEmailManager() {
   const [templates, setTemplates] = useState({})
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [dateRange, setDateRange] = useState('7')
+  const [naverSending, setNaverSending] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -137,6 +138,41 @@ export default function OpenCloEmailManager() {
     }
   }
 
+  const handleSendNaverWorksEmail = async () => {
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    let msg = `📧 오픈클로 이메일 현황 (수동)\n━━━━━━━━━━━━━━━━━\n📅 ${now}\n🌏 리전: ${region}\n\n`
+    msg += `📊 이메일 퍼널\n`
+    msg += `• 미발송: ${funnelData.none || 0}명\n`
+    msg += `• 1차 발송: ${funnelData.email_1 || 0}명\n`
+    msg += `• 2차 발송: ${funnelData.email_2 || 0}명\n`
+    msg += `• 3차 발송: ${funnelData.email_3 || 0}명\n`
+    msg += `• 회신: ${funnelData.replied || 0}명\n`
+    msg += `• 가입: ${funnelData.registered_total || 0}명\n\n`
+    msg += `📬 발송 대기: ${pendingEmails.length}명\n`
+    msg += `💬 회신 관리: ${replies.length}건\n`
+    msg += `✅ 가입 전환: ${conversions.length}명\n\n`
+    msg += `🔗 https://cnecbiz.com/admin/openclo/emails`
+
+    setNaverSending(true)
+    try {
+      const res = await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAdminNotification: true, message: msg })
+      })
+      const result = await res.json()
+      if (result.success) {
+        alert('네이버웍스로 이메일 현황이 발송되었습니다!')
+      } else {
+        alert('발송 실패: ' + (result.error || result.details || 'Unknown'))
+      }
+    } catch (err) {
+      alert('발송 실패: ' + err.message)
+    } finally {
+      setNaverSending(false)
+    }
+  }
+
   const handleCollab = async (id) => {
     await supabaseBiz.from('oc_creators').update({ contact_status: 'collab' }).eq('id', id)
     fetchData()
@@ -162,8 +198,18 @@ export default function OpenCloEmailManager() {
           <div className="space-y-6">
             {/* 퍼널 */}
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 flex-row items-center justify-between">
                 <CardTitle className="text-sm font-medium">이메일 발송 퍼널</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSendNaverWorksEmail}
+                  disabled={naverSending}
+                  className="border-green-300 text-green-700 hover:bg-green-50"
+                >
+                  {naverSending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                  네이버웍스 발송
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">

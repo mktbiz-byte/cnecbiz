@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Bot, Play, Loader2, RefreshCw, AlertTriangle
+  Bot, Play, Loader2, RefreshCw, AlertTriangle, MessageSquare, Send
 } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
@@ -21,6 +21,48 @@ export default function OpenCloBotStatus() {
   const [filterPlatform, setFilterPlatform] = useState('all')
   const [filterSuccess, setFilterSuccess] = useState('all')
   const [pendingCount, setPendingCount] = useState(0)
+  const [naverSending, setNaverSending] = useState(false)
+
+  const handleSendErrorReport = async () => {
+    const errorLogs = logs.filter(l => !l.success).slice(0, 10)
+    const statusLabels = { running: '가동중', delayed: '지연', stopped: '중단', unknown: '미확인' }
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+
+    let msg = `⚠️ 오픈클로 봇 상태 리포트 (수동)\n━━━━━━━━━━━━━━━━━\n📅 ${now}\n🌏 리전: ${region}\n\n`
+    msg += `🤖 봇 상태: ${statusLabels[botStatus]}\n`
+    msg += `📊 오늘 활동: ${todayStats.total}건\n`
+    msg += `⚠️ 오늘 에러: ${todayStats.errors}건\n`
+    msg += `🔍 미분석 대기: ${pendingCount}명\n`
+
+    if (errorLogs.length > 0) {
+      msg += `\n🚨 최근 에러 목록:\n`
+      errorLogs.forEach((log, i) => {
+        const time = new Date(log.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        msg += `${i + 1}. [${time}] ${log.platform || '-'}/${log.action}: ${log.error_message || '알 수 없는 에러'}\n`
+      })
+    }
+
+    msg += `\n🔗 https://cnecbiz.com/admin/openclo/bot-status`
+
+    setNaverSending(true)
+    try {
+      const res = await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAdminNotification: true, message: msg })
+      })
+      const result = await res.json()
+      if (result.success) {
+        alert('네이버웍스로 에러 리포트가 발송되었습니다!')
+      } else {
+        alert('발송 실패: ' + (result.error || result.details || 'Unknown'))
+      }
+    } catch (err) {
+      alert('발송 실패: ' + err.message)
+    } finally {
+      setNaverSending(false)
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -193,6 +235,15 @@ export default function OpenCloBotStatus() {
               >
                 {triggerLoading === 'analyze' ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bot className="w-3 h-3 mr-1" />}
                 AI 일괄 분석 ({pendingCount}명)
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                onClick={handleSendErrorReport}
+                disabled={naverSending}
+                className="border-green-300 text-green-700 hover:bg-green-50"
+              >
+                {naverSending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                네이버웍스 상태 발송
               </Button>
             </div>
           </CardContent>
