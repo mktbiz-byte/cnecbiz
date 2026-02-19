@@ -130,9 +130,6 @@ import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnal
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
 import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
-import OpenCloReviewQueue from './components/admin/openclo/OpenCloReviewQueue'
-import OpenCloEmailManager from './components/admin/openclo/OpenCloEmailManager'
-import OpenCloKPI from './components/admin/openclo/OpenCloKPI'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -283,9 +280,6 @@ function App() {
         {/* OpenClo Routes */}
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
         <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
-        <Route path="/admin/openclo/review" element={<OpenCloReviewQueue />} />
-        <Route path="/admin/openclo/emails" element={<OpenCloEmailManager />} />
-        <Route path="/admin/openclo/kpi" element={<OpenCloKPI />} />
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
