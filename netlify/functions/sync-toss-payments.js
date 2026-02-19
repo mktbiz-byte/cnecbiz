@@ -147,6 +147,12 @@ exports.handler = async (event) => {
     const transactions = await fetchTossTransactions(startDate, endDate)
     console.log('[sync-toss-payments] 토스 거래 조회:', transactions.length, '건')
 
+    // 첫 번째 거래의 전체 필드를 로그에 남겨서 구조 확인
+    if (transactions.length > 0) {
+      console.log('[sync-toss-payments] 거래 샘플 필드:', JSON.stringify(Object.keys(transactions[0])))
+      console.log('[sync-toss-payments] 거래 샘플:', JSON.stringify(transactions[0]).substring(0, 500))
+    }
+
     if (transactions.length === 0) {
       return {
         statusCode: 200,
@@ -180,7 +186,9 @@ exports.handler = async (event) => {
     const results = { synced: 0, skipped: 0, failed: 0, details: [] }
 
     for (const tx of transactions) {
-      const { paymentKey, orderId, totalAmount, method, card, status, approvedAt } = tx
+      const { paymentKey, orderId, method, card, status, approvedAt } = tx
+      // 토스 transactions API는 amount 또는 totalAmount로 내려올 수 있음
+      const totalAmount = tx.totalAmount || tx.amount || 0
 
       // 이미 DB에 있으면 스킵
       if (existingKeys.has(paymentKey)) {
