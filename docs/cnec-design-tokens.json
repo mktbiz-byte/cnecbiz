@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "name": "CNEC Design Tokens",
+    "version": "1.0.0",
+    "updated": "2026-02-19"
+  },
+  "shared": {
+    "font": {
+      "base": "'Pretendard', 'Noto Sans JP', -apple-system, sans-serif",
+      "display": "'Outfit', 'Pretendard', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "spacing": { "xs": "4px", "sm": "8px", "md": "16px", "lg": "24px", "xl": "32px", "2xl": "48px", "3xl": "64px" },
+    "radius": { "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px", "full": "9999px" },
+    "transition": { "fast": "150ms ease", "base": "250ms ease", "slow": "400ms ease" }
+  },
+  "landing": {
+    "color": {
+      "base": "#0A0A0F", "surface1": "#121218", "surface2": "#1A1A24", "surface3": "#24243A",
+      "textPrimary": "#FFFFFF", "textSecondary": "#A0A0B0", "textTertiary": "#5A5A6E",
+      "accent": "#C084FC", "accentGlow": "rgba(192,132,252,0.15)",
+      "border": "rgba(255,255,255,0.08)", "borderHover": "rgba(255,255,255,0.15)"
+    }
+  },
+  "admin": {
+    "color": {
+      "primary": "#6C5CE7", "primaryLight": "#A29BFE", "primarySurface": "#F0EDFF",
+      "success": "#00B894", "warning": "#FDCB6E", "error": "#FF6B6B", "info": "#74B9FF",
+      "textPrimary": "#1A1A2E", "textSecondary": "#636E72", "textTertiary": "#B2BEC3",
+      "border": "#DFE6E9", "background": "#F8F9FA", "surface": "#FFFFFF"
+    },
+    "components": {
+      "tag": {
+        "category": { "bg": "#F0EDFF", "text": "#6C5CE7" },
+        "success": { "bg": "rgba(0,184,148,0.1)", "text": "#00B894" },
+        "warning": { "bg": "rgba(253,203,110,0.15)", "text": "#E17055" },
+        "error": { "bg": "rgba(255,107,107,0.1)", "text": "#FF6B6B" },
+        "neutral": { "bg": "#F0F0F0", "text": "#636E72" }
+      }
+    }
+  },
+  "siteConfig": {
+    "cnecbiz": { "domain": "cnecbiz.com", "lang": "ko", "font": "Pretendard", "currency": "₩" },
+    "cnec-kr": { "domain": "cnec-kr.netlify.app", "lang": "ko", "font": "Pretendard", "currency": "₩" },
+    "cnecjp": { "domain": "cnec.jp", "lang": "ja", "font": "Noto Sans JP", "currency": "¥" },
+    "cnecus": { "domain": "cnec-us.com", "lang": "en", "font": "Outfit", "currency": "$" }
+  }
+}
