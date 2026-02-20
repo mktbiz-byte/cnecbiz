@@ -6035,14 +6035,41 @@ Questions? Contact us.
       // 리전별 스토리지 버킷명 (KR: campaign-videos, JP: campaign-videos, US: videos)
       const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
-      // Supabase Storage 업로드
-      const { error: uploadError } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, { cacheControl: '3600', upsert: false })
-      if (uploadError) throw uploadError
+      let videoUrl = ''
 
-      const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
-      const videoUrl = urlData?.publicUrl
+      if (region === 'korea') {
+        // 한국: Netlify Function(service role key)으로 업로드 (RLS 우회)
+        const reader = new FileReader()
+        const fileBase64 = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result.split(',')[1])
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+
+        const uploadRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'storage_upload',
+            fileName: filePath,
+            fileBase64,
+            fileMimeType: file.type || 'video/mp4'
+          })
+        })
+        const uploadResult = await uploadRes.json()
+        if (!uploadResult.success) throw new Error(uploadResult.error || '스토리지 업로드 실패')
+        videoUrl = uploadResult.publicUrl
+      } else {
+        // 일본/미국: 직접 스토리지 업로드
+        const { error: uploadError } = await client.storage
+          .from(bucketName)
+          .upload(filePath, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
+        videoUrl = urlData?.publicUrl
+      }
+
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블 insert (없을 수 있으므로 에러 무시)

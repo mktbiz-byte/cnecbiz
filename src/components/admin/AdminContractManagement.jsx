@@ -9,7 +9,7 @@ import {
   CheckCircle, XCircle, Plus, Search, RefreshCw, Trash2,
   Video, Loader2, Users
 } from 'lucide-react'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import { CompanyContractTemplate } from '../../templates/CompanyContractTemplate'
 import { CreatorConsentTemplate } from '../../templates/CreatorConsentTemplate'
@@ -278,39 +278,11 @@ export default function AdminContractManagement() {
   const fetchConsentCampaigns = async () => {
     setConsentCampaignsLoading(true)
     try {
-      // 모든 리전에서 캠페인 조회
-      const results = []
-
-      // BIZ DB
-      const { data: bizCampaigns } = await supabaseBiz
-        .from('campaigns')
-        .select('id, title, brand_name, brand, company_id, status, end_date, campaign_type, target_country')
-        .order('created_at', { ascending: false })
-        .limit(100)
-      if (bizCampaigns) {
-        results.push(...bizCampaigns.map(c => ({ ...c, region: 'biz' })))
-      }
-
-      // Korea DB
-      const koreaClient = getSupabaseClient('korea')
-      if (koreaClient) {
-        const { data: koreaCampaigns } = await koreaClient
-          .from('campaigns')
-          .select('id, title, brand_name, brand, company_id, status, end_date, campaign_type, target_country')
-          .order('created_at', { ascending: false })
-          .limit(100)
-        if (koreaCampaigns) {
-          // BIZ와 중복 제거 (title 기준)
-          const bizTitles = new Set(results.map(c => c.title))
-          koreaCampaigns.forEach(c => {
-            if (!bizTitles.has(c.title)) {
-              results.push({ ...c, region: 'korea' })
-            }
-          })
-        }
-      }
-
-      setConsentCampaigns(results)
+      // 모든 리전(biz, korea, japan, us, taiwan)에서 캠페인 조회
+      const allCampaigns = await getCampaignsFromAllRegions()
+      // 최신순 정렬
+      allCampaigns.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      setConsentCampaigns(allCampaigns)
     } catch (error) {
       console.error('캠페인 조회 오류:', error)
     } finally {
@@ -318,24 +290,28 @@ export default function AdminContractManagement() {
     }
   }
 
-  const handleCampaignSelect = async (campaignId) => {
-    setSelectedCampaignId(campaignId)
+  const handleCampaignSelect = async (value) => {
+    setSelectedCampaignId(value)
     setSelectedCreatorIds([])
     setCampaignCreators([])
 
-    if (!campaignId) {
+    if (!value) {
       setSelectedCampaign(null)
       return
     }
 
-    const campaign = consentCampaigns.find(c => c.id === campaignId)
+    // value 형식: "region::campaignId"
+    const [regionKey, campaignId] = value.split('::')
+    const campaign = consentCampaigns.find(c => c.id === campaignId && c.region === regionKey)
     setSelectedCampaign(campaign)
+
+    if (!campaign) return
 
     // 해당 캠페인의 크리에이터(선정된 참여자) 조회
     setCreatorsLoading(true)
     try {
-      const region = campaign?.region || 'biz'
-      const client = region === 'biz' ? supabaseBiz : getSupabaseClient(region)
+      const region = campaign.region || 'biz'
+      const client = getSupabaseClient(region)
       if (!client) return
 
       const { data: apps } = await client
@@ -347,10 +323,25 @@ export default function AdminContractManagement() {
       if (apps && apps.length > 0) {
         // user_profiles에서 이름/채널 정보 가져오기
         const userIds = [...new Set(apps.map(a => a.user_id).filter(Boolean))]
-        const { data: profiles } = await client
+        let profiles = []
+
+        // 리전 DB에서 프로필 조회
+        const { data: regionProfiles } = await client
           .from('user_profiles')
           .select('id, name, full_name, nickname, instagram_url, youtube_url, tiktok_url')
           .in('id', userIds)
+        if (regionProfiles) profiles = regionProfiles
+
+        // 리전 DB에서 못 찾은 유저는 BIZ DB에서 조회
+        const foundIds = new Set(profiles.map(p => p.id))
+        const missingIds = userIds.filter(uid => !foundIds.has(uid))
+        if (missingIds.length > 0 && region !== 'biz') {
+          const { data: bizProfiles } = await supabaseBiz
+            .from('user_profiles')
+            .select('id, name, full_name, nickname, instagram_url, youtube_url, tiktok_url')
+            .in('id', missingIds)
+          if (bizProfiles) profiles = [...profiles, ...bizProfiles]
+        }
 
         const enriched = apps.map(app => {
           const profile = profiles?.find(p => p.id === app.user_id)
@@ -575,8 +566,8 @@ export default function AdminContractManagement() {
                     >
                       <option value="">캠페인을 선택하세요...</option>
                       {consentCampaigns.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.title} {c.brand_name || c.brand ? `(${c.brand_name || c.brand})` : ''} {c.status === 'completed' ? ' - 완료' : ''}
+                        <option key={`${c.region}-${c.id}`} value={`${c.region}::${c.id}`}>
+                          [{c.region?.toUpperCase()}] {c.campaign_name || c.title} {c.brand_name || c.brand ? `(${c.brand_name || c.brand})` : ''} {c.status === 'completed' ? ' ✓완료' : ''}
                         </option>
                       ))}
                     </select>
