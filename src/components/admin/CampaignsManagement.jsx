@@ -1496,6 +1496,10 @@ export default function CampaignsManagement() {
                                     <Pause className="w-3.5 h-3.5 mr-1" />
                                     중지
                                   </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign, 'completed')} disabled={confirming || campaign.status === 'completed'} className="h-8 px-3 text-xs font-medium border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200">
+                                    <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                                    완료
+                                  </Button>
                                   <Button size="sm" variant="outline" onClick={() => handleDelete(campaign)} disabled={confirming} className="h-8 px-3 text-xs font-medium border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200">
                                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                                     삭제

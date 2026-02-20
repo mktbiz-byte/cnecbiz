@@ -155,6 +155,81 @@ exports.handler = async (event, context) => {
 
     console.log('[update-campaign-status] Campaign updated successfully:', campaignId)
 
+    // completed로 변경 시 biz DB에도 동기화 + 네이버 웍스 알림
+    if (newStatus === 'completed' && region !== 'biz') {
+      try {
+        const bizClient = getSupabaseClient('biz')
+        if (bizClient) {
+          await bizClient
+            .from('campaigns')
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .eq('id', campaignId)
+          console.log('[update-campaign-status] biz DB sync completed')
+        }
+      } catch (bizSyncError) {
+        console.warn('[update-campaign-status] biz DB sync failed:', bizSyncError.message)
+      }
+
+      // 네이버 웍스 알림 (완료)
+      try {
+        const regionClient = getSupabaseClient(region)
+        let campaignTitle = '캠페인'
+        if (regionClient) {
+          const { data: cData } = await regionClient
+            .from('campaigns')
+            .select('title, campaign_name')
+            .eq('id', campaignId)
+            .single()
+          if (cData) campaignTitle = cData.title || cData.campaign_name || '캠페인'
+        }
+        const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', kr: '한국' }[region] || region || '한국'
+        const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+        await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+            message: `✅ 캠페인 수동 완료\n\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+          })
+        })
+        console.log('[update-campaign-status] 완료 네이버 웍스 알림 발송 완료')
+      } catch (worksError) {
+        console.error('[update-campaign-status] 완료 네이버 웍스 알림 오류:', worksError)
+      }
+    }
+
+    // completed로 변경 시 biz 리전이면 직접 네이버 웍스 알림
+    if (newStatus === 'completed' && region === 'biz') {
+      try {
+        const bizClient = getSupabaseClient('biz')
+        let campaignTitle = '캠페인'
+        if (bizClient) {
+          const { data: cData } = await bizClient
+            .from('campaigns')
+            .select('title, campaign_name')
+            .eq('id', campaignId)
+            .single()
+          if (cData) campaignTitle = cData.title || cData.campaign_name || '캠페인'
+        }
+        const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+        await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+            message: `✅ 캠페인 수동 완료\n\n• 캠페인: ${campaignTitle}\n• 리전: biz\n• 시간: ${koreanTime}`
+          })
+        })
+        console.log('[update-campaign-status] biz 완료 네이버 웍스 알림 발송 완료')
+      } catch (worksError) {
+        console.error('[update-campaign-status] biz 완료 네이버 웍스 알림 오류:', worksError)
+      }
+    }
+
     // active로 변경 시 캠페인 승인 알림톡 발송 (한국 캠페인만)
     const isKorea = ['korea', 'kr', 'KR', 'biz'].includes(region) || !region
     console.log('[update-campaign-status] isKorea:', isKorea, 'region:', region)

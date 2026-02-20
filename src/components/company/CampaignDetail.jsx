@@ -824,7 +824,20 @@ export default function CampaignDetail() {
       }
     }
   }, [campaign, user, isAdmin])
-  
+
+  // 캠페인 자동 완료 체크: 페이지 로드 시 / 참가자 데이터 변경 시 모든 선정 크리에이터가 completed인지 확인
+  useEffect(() => {
+    if (campaign && campaign.status !== 'completed' && participants.length > 0) {
+      const selectedParticipantStatuses = participants.filter(p =>
+        ['selected', 'guide_sent', 'product_shipped', 'video_submitted', 'video_approved', 'completed'].includes(p.status)
+      )
+      if (selectedParticipantStatuses.length > 0 && selectedParticipantStatuses.every(p => p.status === 'completed')) {
+        console.log('[자동완료 체크] 페이지 로드 시 모든 크리에이터 완료 감지 - 캠페인 자동 완료 실행')
+        checkAndCompleteCampaign()
+      }
+    }
+  }, [participants, campaign?.status])
+
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
