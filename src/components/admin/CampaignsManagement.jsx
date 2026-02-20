@@ -1165,6 +1165,14 @@ export default function CampaignsManagement() {
             >
               💰 포인트 미지급
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => navigate('/admin/campaigns/dummy')}
+            >
+              🧪 더미 캠페인
+            </Button>
           </div>
 
           {/* 통계 카드 */}
