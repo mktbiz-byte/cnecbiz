@@ -123,47 +123,14 @@ export const CompanyContractTemplate = (data) => {
       color: #6b7280;
       font-size: 14px;
     }
-    .company-stamp {
-      display: inline-block;
-      width: 75px;
-      height: 75px;
-      border: 3px solid #c41e3a;
-      color: #c41e3a;
-      font-weight: bold;
-      text-align: center;
-      position: relative;
-      background:
-        linear-gradient(#c41e3a, #c41e3a) center/calc(100% - 10px) 2px no-repeat,
-        linear-gradient(#c41e3a, #c41e3a) center/2px calc(100% - 10px) no-repeat;
-    }
-    .company-stamp::before {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      right: 3px;
-      bottom: 3px;
-      border: 1.5px solid #c41e3a;
-    }
-    .stamp-text {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: repeat(4, 1fr);
-      height: 100%;
-      padding: 6px;
-      box-sizing: border-box;
-    }
-    .stamp-text span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-family: '바탕', 'Batang', serif;
-      font-weight: 900;
-    }
     .stamp-area {
       text-align: right;
       margin-top: 15px;
+    }
+    .stamp-area img {
+      width: 85px;
+      height: 85px;
+      object-fit: contain;
     }
     .signer-signature-area {
       min-height: 80px;
@@ -315,14 +282,7 @@ export const CompanyContractTemplate = (data) => {
         <div class="signature-value">박현용</div>
       </div>
       <div class="stamp-area">
-        <div class="company-stamp">
-          <div class="stamp-text">
-            <span>하</span><span>주</span>
-            <span>우</span><span>식</span>
-            <span>파</span><span>회</span>
-            <span>파</span><span>사</span>
-          </div>
-        </div>
+        <img src="/company-seal.png" alt="법인인감" />
       </div>
     </div>
 
