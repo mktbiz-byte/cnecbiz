@@ -6218,9 +6218,9 @@ Questions? Contact us.
       }
 
       // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (리전 DB + BIZ DB 모두)
+      // 주의: Korea DB applications에는 video_file_url, video_file_name, video_file_size, video_uploaded_at 컬럼이 없음
+      // 영상 정보는 video_submissions 테이블에 저장되므로 applications에는 status만 업데이트
       const appUpdateData = {
-        video_file_url: videoUrl, video_file_name: file.name,
-        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
         status: 'video_submitted', updated_at: new Date().toISOString()
       }
       const campaignType = campaign?.campaign_type || ''
