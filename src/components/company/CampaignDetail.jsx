@@ -1829,82 +1829,104 @@ export default function CampaignDetail() {
     try {
       let allVideoSubmissions = []
 
-      // 1. Korea DB에서 video_submissions 가져오기
-      if (supabaseKorea) {
-        console.log('Fetching video submissions from Korea DB for campaign_id:', id)
-        const { data: koreaData, error: koreaError } = await supabaseKorea
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', id)
-          .order('created_at', { ascending: false })
-
-        if (koreaError) {
-          console.error('Korea video submissions query error:', koreaError)
-        } else if (koreaData && koreaData.length > 0) {
-          allVideoSubmissions = [...koreaData]
-          console.log('Fetched video submissions from Korea DB:', koreaData.length)
+      // Netlify Function으로 모든 리전의 video_submissions 조회 (RLS 우회, service role key 사용)
+      try {
+        console.log('Fetching video submissions via Netlify Function for campaign_id:', id)
+        const apiRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fetch_video_submissions', campaignId: id })
+        })
+        const apiResult = await apiRes.json()
+        if (apiResult.success && apiResult.data && apiResult.data.length > 0) {
+          allVideoSubmissions = apiResult.data
+          console.log('Fetched video submissions via API:', allVideoSubmissions.length)
+        } else {
+          console.log('API returned no video submissions, falling back to direct DB query')
         }
+      } catch (apiError) {
+        console.error('API fetch failed, falling back to direct DB query:', apiError.message)
       }
 
-      // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
-      if (supabaseJapan) {
-        console.log('Fetching video submissions from Japan DB for campaign_id:', id)
-        const { data: japanData, error: japanError } = await supabaseJapan
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', id)
-          .order('created_at', { ascending: false })
+      // API 실패 시 기존 직접 DB 쿼리로 fallback
+      if (allVideoSubmissions.length === 0) {
+        // 1. Korea DB에서 video_submissions 가져오기
+        if (supabaseKorea) {
+          console.log('Fetching video submissions from Korea DB for campaign_id:', id)
+          const { data: koreaData, error: koreaError } = await supabaseKorea
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
 
-        if (japanError) {
-          console.error('Japan video submissions query error:', japanError)
-        } else if (japanData && japanData.length > 0) {
-          const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-          const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
-          if (newFromJapan.length > 0) {
-            allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
-            console.log('Added video submissions from Japan DB:', newFromJapan.length)
+          if (koreaError) {
+            console.error('Korea video submissions query error:', koreaError)
+          } else if (koreaData && koreaData.length > 0) {
+            allVideoSubmissions = [...koreaData]
+            console.log('Fetched video submissions from Korea DB:', koreaData.length)
           }
         }
-      }
 
-      // 3. US DB에서 video_submissions 가져오기 (중복 제외)
-      if (supabaseUS) {
-        console.log('Fetching video submissions from US DB for campaign_id:', id)
-        const { data: usData, error: usError } = await supabaseUS
+        // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
+        if (supabaseJapan) {
+          console.log('Fetching video submissions from Japan DB for campaign_id:', id)
+          const { data: japanData, error: japanError } = await supabaseJapan
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
+
+          if (japanError) {
+            console.error('Japan video submissions query error:', japanError)
+          } else if (japanData && japanData.length > 0) {
+            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+            const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
+            if (newFromJapan.length > 0) {
+              allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
+              console.log('Added video submissions from Japan DB:', newFromJapan.length)
+            }
+          }
+        }
+
+        // 3. US DB에서 video_submissions 가져오기 (중복 제외)
+        if (supabaseUS) {
+          console.log('Fetching video submissions from US DB for campaign_id:', id)
+          const { data: usData, error: usError } = await supabaseUS
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
+
+          if (usError) {
+            console.error('US video submissions query error:', usError)
+          } else if (usData && usData.length > 0) {
+            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+            const newFromUS = usData.filter(v => !existingIds.has(v.id))
+            if (newFromUS.length > 0) {
+              allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
+              console.log('Added video submissions from US DB:', newFromUS.length)
+            }
+          }
+        }
+
+        // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
+        console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
+        const { data: bizData, error: bizError } = await supabaseBiz
           .from('video_submissions')
           .select('*')
           .eq('campaign_id', id)
           .order('created_at', { ascending: false })
 
-        if (usError) {
-          console.error('US video submissions query error:', usError)
-        } else if (usData && usData.length > 0) {
+        if (bizError) {
+          console.error('BIZ video submissions query error:', bizError)
+        } else if (bizData && bizData.length > 0) {
+          // 중복 제외하고 병합 (id로 체크)
           const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-          const newFromUS = usData.filter(v => !existingIds.has(v.id))
-          if (newFromUS.length > 0) {
-            allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
-            console.log('Added video submissions from US DB:', newFromUS.length)
+          const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
+          if (newFromBiz.length > 0) {
+            allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
+            console.log('Added video submissions from BIZ DB:', newFromBiz.length)
           }
-        }
-      }
-
-      // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
-      console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
-      const { data: bizData, error: bizError } = await supabaseBiz
-        .from('video_submissions')
-        .select('*')
-        .eq('campaign_id', id)
-        .order('created_at', { ascending: false })
-
-      if (bizError) {
-        console.error('BIZ video submissions query error:', bizError)
-      } else if (bizData && bizData.length > 0) {
-        // 중복 제외하고 병합 (id로 체크)
-        const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-        const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
-        if (newFromBiz.length > 0) {
-          allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
-          console.log('Added video submissions from BIZ DB:', newFromBiz.length)
         }
       }
 

@@ -312,6 +312,64 @@ exports.handler = async (event) => {
       }
     }
 
+    // 8. video_submissions 조회 (RLS 우회) - 모든 리전 병렬 조회
+    if (action === 'fetch_video_submissions') {
+      const { campaignId } = body
+      if (!campaignId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'campaignId 필수' })
+        }
+      }
+
+      // 모든 리전에서 병렬 조회
+      const clients = [
+        { name: 'korea', client: supabaseKorea },
+        { name: 'biz', client: supabaseBiz },
+        { name: 'japan', client: getRegionClient('japan') },
+        { name: 'us', client: getRegionClient('us') }
+      ]
+
+      const results = await Promise.all(
+        clients.map(async ({ name, client: c }) => {
+          try {
+            const { data: d, error: e } = await c
+              .from('video_submissions')
+              .select('*')
+              .eq('campaign_id', campaignId)
+              .order('created_at', { ascending: false })
+            if (e) {
+              console.log(`[save-video-upload] ${name} video_submissions query error:`, e.message)
+              return []
+            }
+            return (d || []).map(r => ({ ...r, _source_region: name }))
+          } catch (err) {
+            console.log(`[save-video-upload] ${name} video_submissions exception:`, err.message)
+            return []
+          }
+        })
+      )
+
+      // ID 기준 중복 제거
+      const seen = new Set()
+      const all = []
+      results.flat().forEach(r => {
+        if (!seen.has(r.id)) {
+          seen.add(r.id)
+          all.push(r)
+        }
+      })
+
+      console.log(`[save-video-upload] fetch_video_submissions: ${all.length} total for campaign ${campaignId}`)
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, data: all })
+      }
+    }
+
     return {
       statusCode: 400,
       headers,
