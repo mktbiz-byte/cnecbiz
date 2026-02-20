@@ -316,7 +316,7 @@ export default function AdminContractManagement() {
 
       const { data: apps } = await client
         .from('applications')
-        .select('id, user_id, applicant_name, status')
+        .select('id, user_id, applicant_name, status, sns_upload_url, final_confirmed_at, video_uploaded_at, updated_at')
         .eq('campaign_id', campaignId)
         .in('status', ['approved', 'selected', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'guide_approved', 'sns_uploaded', 'completed'])
 
@@ -346,11 +346,15 @@ export default function AdminContractManagement() {
         const enriched = apps.map(app => {
           const profile = profiles?.find(p => p.id === app.user_id)
           const channelName = profile?.instagram_url || profile?.youtube_url || profile?.tiktok_url || ''
+          // 검수 완료일 = final_confirmed_at > video_uploaded_at > updated_at
+          const reviewCompletedDate = app.final_confirmed_at || app.video_uploaded_at || app.updated_at || ''
           return {
             id: app.id,
             user_id: app.user_id,
             name: profile?.nickname || profile?.name || profile?.full_name || app.applicant_name || '크리에이터',
             channelName: channelName ? channelName.replace(/https?:\/\/(www\.)?/i, '').replace(/\/$/, '') : '',
+            snsUploadUrl: app.sns_upload_url || '',
+            reviewCompletedDate,
             status: app.status
           }
         })
@@ -380,13 +384,19 @@ export default function AdminContractManagement() {
   const generateConsentAndDownload = (creator) => {
     if (!selectedCampaign) return
 
+    // 동의일 = 영상 검수 완료일 (없으면 오늘)
+    const consentDate = creator.reviewCompletedDate
+      ? new Date(creator.reviewCompletedDate).toLocaleDateString('ko-KR')
+      : new Date().toLocaleDateString('ko-KR')
+
     const html = VideoSecondaryUseConsentTemplate({
       creatorName: creator.name,
       channelName: creator.channelName,
-      campaignTitle: selectedCampaign.title || '',
+      snsUploadUrl: creator.snsUploadUrl || '',
+      campaignTitle: selectedCampaign.campaign_name || selectedCampaign.title || '',
       companyName: selectedCampaign.brand_name || selectedCampaign.brand || '',
       videoCompletionDate: selectedCampaign.end_date || new Date().toISOString().split('T')[0],
-      consentDate: new Date().toLocaleDateString('ko-KR')
+      consentDate
     })
 
     openPrintWindow(html)
@@ -395,13 +405,19 @@ export default function AdminContractManagement() {
   const generateConsentPreview = (creator) => {
     if (!selectedCampaign) return
 
+    // 동의일 = 영상 검수 완료일 (없으면 오늘)
+    const consentDate = creator.reviewCompletedDate
+      ? new Date(creator.reviewCompletedDate).toLocaleDateString('ko-KR')
+      : new Date().toLocaleDateString('ko-KR')
+
     const html = VideoSecondaryUseConsentTemplate({
       creatorName: creator.name,
       channelName: creator.channelName,
-      campaignTitle: selectedCampaign.title || '',
+      snsUploadUrl: creator.snsUploadUrl || '',
+      campaignTitle: selectedCampaign.campaign_name || selectedCampaign.title || '',
       companyName: selectedCampaign.brand_name || selectedCampaign.brand || '',
       videoCompletionDate: selectedCampaign.end_date || new Date().toISOString().split('T')[0],
-      consentDate: new Date().toLocaleDateString('ko-KR')
+      consentDate
     })
 
     setConsentPreviewHtml(html)

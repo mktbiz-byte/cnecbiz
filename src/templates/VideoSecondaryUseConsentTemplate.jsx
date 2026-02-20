@@ -1,29 +1,36 @@
 /**
  * 영상 2차 활용 동의서 템플릿
- * 크리에이터가 제작한 영상의 2차 활용에 대한 동의서
+ * 크리에이터가 캠페인 지원 시 이미 동의한 내용을 기반으로 한 통보형 동의서
  */
 export const VideoSecondaryUseConsentTemplate = (data) => {
   const {
     creatorName = '',
     channelName = '',
+    snsUploadUrl = '',
     campaignTitle = '',
     companyName = '',
     videoCompletionDate = '',
     consentDate = new Date().toLocaleDateString('ko-KR'),
   } = data
 
-  // 1년 후 날짜 계산
-  const completionDate = videoCompletionDate ? new Date(videoCompletionDate) : new Date()
-  const expiryDate = new Date(completionDate)
+  // 동의일 기준 날짜 계산
+  const completionDate = consentDate ? new Date(consentDate.replace(/\./g, '-').replace(/\s/g, '')) : (videoCompletionDate ? new Date(videoCompletionDate) : new Date())
+  // consentDate가 한국어 형식(예: 2026. 2. 20.)이면 파싱 실패할 수 있으므로 fallback
+  const baseDate = isNaN(completionDate.getTime()) ? new Date() : completionDate
+
+  const expiryDate = new Date(baseDate)
   expiryDate.setFullYear(expiryDate.getFullYear() + 1)
   const expiryDateStr = expiryDate.toLocaleDateString('ko-KR')
 
   // 6개월 후 날짜 (영상 보관 기한)
-  const retentionDate = new Date(completionDate)
+  const retentionDate = new Date(baseDate)
   retentionDate.setMonth(retentionDate.getMonth() + 6)
   const retentionDateStr = retentionDate.toLocaleDateString('ko-KR')
 
-  const completionDateStr = completionDate.toLocaleDateString('ko-KR')
+  const consentDateStr = consentDate || baseDate.toLocaleDateString('ko-KR')
+
+  // 채널명: SNS 업로드 URL이 있으면 사용, 없으면 channelName
+  const displayChannel = snsUploadUrl || channelName || ''
 
   return `
 <!DOCTYPE html>
@@ -132,11 +139,8 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     }
     .signature-section {
       margin-top: 50px;
-      display: flex;
-      gap: 30px;
     }
     .signature-box {
-      flex: 1;
       padding: 20px;
       border: 1px solid #d1d5db;
       border-radius: 8px;
@@ -204,30 +208,20 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
       text-align: right;
       margin-top: 15px;
     }
-    .signer-signature-area {
-      min-height: 80px;
-      border: 1px dashed #d1d5db;
-      border-radius: 4px;
-      margin-top: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #9ca3af;
-      font-size: 12px;
-    }
-    .confirmation-section {
+    .notice-section {
       margin-top: 40px;
       padding: 20px;
-      background: #fef3c7;
-      border: 1px solid #fcd34d;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
       border-radius: 8px;
     }
-    .confirmation-title {
+    .notice-title {
       font-weight: bold;
-      color: #92400e;
+      color: #0369a1;
       margin-bottom: 15px;
+      font-size: 15px;
     }
-    .confirmation-item {
+    .notice-item {
       display: flex;
       align-items: flex-start;
       gap: 10px;
@@ -235,13 +229,11 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
       font-size: 14px;
       line-height: 1.6;
     }
-    .checkbox {
-      width: 18px;
-      height: 18px;
-      border: 2px solid #d97706;
-      border-radius: 3px;
+    .notice-bullet {
+      color: #0284c7;
+      font-weight: bold;
       flex-shrink: 0;
-      margin-top: 2px;
+      margin-top: 1px;
     }
     .footer {
       margin-top: 40px;
@@ -266,8 +258,8 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
       <div class="info-value">${creatorName || '___________________________'}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">채널명</div>
-      <div class="info-value">${channelName || '___________________________'}</div>
+      <div class="info-label">채널</div>
+      <div class="info-value">${displayChannel || '___________________________'}</div>
     </div>
     <div class="info-row">
       <div class="info-label">캠페인명</div>
@@ -278,20 +270,20 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
       <div class="info-value">${companyName || '___________________________'}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">영상 완료일</div>
-      <div class="info-value">${completionDateStr}</div>
+      <div class="info-label">2차 활용 동의일</div>
+      <div class="info-value">${consentDateStr}</div>
     </div>
     <div class="info-row">
       <div class="info-label">2차 활용 기간</div>
-      <div class="info-value">${completionDateStr} ~ ${expiryDateStr} (1년)</div>
+      <div class="info-value">${consentDateStr} ~ ${expiryDateStr} (1년)</div>
     </div>
   </div>
 
   <div class="article">
     <div class="article-title">제1조 (동의 목적)</div>
     <div class="article-content">
-      본 동의서는 크리에이터(이하 "크리에이터")가 제작한 영상 콘텐츠를 주식회사 하우파파(이하 "회사")가
-      광고주에게 2차적으로 활용할 수 있도록 제공하는 것에 대한 동의를 목적으로 합니다.
+      본 동의서는 크리에이터(이하 "크리에이터")가 캠페인 지원 시 동의한 영상 콘텐츠의 2차 활용에 대해,
+      주식회사 하우파파(이하 "회사")가 광고주에게 해당 영상을 제공하여 활용할 수 있도록 하는 구체적인 조건을 명시합니다.
     </div>
   </div>
 
@@ -316,8 +308,8 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     <div class="article-title">제3조 (2차 활용 기간)</div>
     <div class="article-content">
       <ol>
-        <li>영상 2차 활용 기간은 <span class="highlight">영상 완료일(${completionDateStr})로부터 1년간</span> 유효합니다.</li>
-        <li>활용 기간: ${completionDateStr} ~ ${expiryDateStr}</li>
+        <li>영상 2차 활용 기간은 <span class="highlight">2차 활용 동의일(${consentDateStr})로부터 1년간</span> 유효합니다.</li>
+        <li>활용 기간: ${consentDateStr} ~ ${expiryDateStr}</li>
         <li>기간 만료 후 2차 활용 연장이 필요한 경우, 회사와 크리에이터 간 별도 협의 후 진행합니다.</li>
       </ol>
     </div>
@@ -327,8 +319,8 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     <div class="article-title">제4조 (회사의 영상 보관)</div>
     <div class="article-content">
       <ol>
-        <li>회사는 크리에이터가 제작한 영상 원본을 <span class="highlight">영상 완료일로부터 6개월간</span> 보관합니다.</li>
-        <li>보관 기한: ${completionDateStr} ~ ${retentionDateStr}</li>
+        <li>회사는 크리에이터가 제작한 영상 원본을 <span class="highlight">2차 활용 동의일로부터 6개월간</span> 보관합니다.</li>
+        <li>보관 기한: ${consentDateStr} ~ ${retentionDateStr}</li>
         <li>보관 기한 경과 후, 회사는 보관 중인 영상 원본을 삭제합니다.</li>
         <li>보관 기한 내에 광고주가 영상을 전달받아 직접 관리하는 것을 원칙으로 합니다.</li>
       </ol>
@@ -356,7 +348,7 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     <div class="article-content">
       <ol>
         <li>크리에이터가 자신의 SNS 계정에 업로드한 영상은 2차 활용 기간 만료 후에도 <span class="highlight">삭제 의무가 없으며 계속 게시</span>할 수 있습니다.</li>
-        <li>단, 크리에이터의 SNS에 게시된 영상을 활용하여 <span class="highlight">Meta 광고(Facebook/Instagram 광고) 집행은 금지</span>합니다.</li>
+        <li>단, 크리에이터의 SNS에 게시된 영상을 활용하여 <span class="highlight">Meta 광고(Facebook/Instagram 광고) 집행은 금지</span>합니다. 이 제한은 <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후</span> 즉시 적용됩니다.</li>
         <li>광고주 또는 제3자가 크리에이터의 SNS 게시물을 Meta 광고에 무단 활용한 것이 발견될 경우, 별도의 2차 활용료가 발생하며 이는 회사(크넥)를 통해 협의합니다.</li>
       </ol>
     </div>
@@ -364,7 +356,7 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
 
   <div class="warning-box">
     <strong>중요 안내:</strong> Meta 광고(Facebook/Instagram 광고)에 크리에이터 영상을 활용하는 경우,
-    반드시 사전에 별도 2차 활용 동의 및 추가 비용 협의가 필요합니다.
+    <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후</span> 반드시 사전에 별도 2차 활용 동의 및 추가 비용 협의가 필요합니다.
     무단 활용 시 2차 활용료가 청구되며, 이는 주식회사 하우파파(크넥)를 통해 협의됩니다.
   </div>
 
@@ -387,29 +379,33 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     </div>
   </div>
 
-  <div class="confirmation-section">
-    <div class="confirmation-title">확인 사항 (체크 필수)</div>
-    <div class="confirmation-item">
-      <div class="checkbox"></div>
-      <div>영상 2차 활용 기간은 영상 완료일로부터 1년이며, 기간 만료 후에는 신규 업로드 및 상업적 사용이 금지됨을 확인합니다.</div>
+  <div class="notice-section">
+    <div class="notice-title">안내 사항</div>
+    <div class="notice-item">
+      <div class="notice-bullet">•</div>
+      <div>영상 2차 활용 기간은 2차 활용 동의일(${consentDateStr})로부터 1년이며, 기간 만료 후에는 신규 업로드 및 상업적 사용이 금지됩니다.</div>
     </div>
-    <div class="confirmation-item">
-      <div class="checkbox"></div>
-      <div>SNS에 게시된 영상은 삭제 의무가 없으나, Meta 광고(Facebook/Instagram 광고)에는 활용할 수 없으며, 위반 시 2차 활용료가 발생함을 확인합니다.</div>
+    <div class="notice-item">
+      <div class="notice-bullet">•</div>
+      <div>SNS에 게시된 영상은 삭제 의무가 없으나, Meta 광고(Facebook/Instagram 광고)에는 활용할 수 없으며, 위반 시 2차 활용료가 발생합니다.</div>
     </div>
-    <div class="confirmation-item">
-      <div class="checkbox"></div>
-      <div>회사(크넥)는 영상 완료일로부터 6개월간만 영상 원본을 보관하며, 이후 삭제됨을 확인합니다.</div>
+    <div class="notice-item">
+      <div class="notice-bullet">•</div>
+      <div>회사(크넥)는 2차 활용 동의일로부터 6개월간만 영상 원본을 보관하며, 이후 삭제됩니다.</div>
+    </div>
+    <div class="notice-item">
+      <div class="notice-bullet">•</div>
+      <div>본 동의는 캠페인 지원 시 크리에이터가 사전 동의한 내용에 기반합니다.</div>
     </div>
   </div>
 
   <div style="text-align: center; margin-top: 40px; font-size: 14px; color: #6b7280;">
-    동의일: ${consentDate}
+    2차 활용 동의일: ${consentDateStr}
   </div>
 
   <div class="signature-section">
     <div class="signature-box">
-      <div class="signature-title">[회사 (갑)]</div>
+      <div class="signature-title">[회사]</div>
       <div class="signature-row">
         <div class="signature-label">회사명:</div>
         <div class="signature-value">주식회사 하우파파</div>
@@ -437,25 +433,10 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
         </div>
       </div>
     </div>
-
-    <div class="signature-box">
-      <div class="signature-title">[크리에이터 (을)]</div>
-      <div class="signature-row">
-        <div class="signature-label">크리에이터명:</div>
-        <div class="signature-value" id="signer-name">${creatorName || '___________________________'}</div>
-      </div>
-      <div class="signature-row">
-        <div class="signature-label">채널명:</div>
-        <div class="signature-value" id="signer-channel">${channelName || '___________________________'}</div>
-      </div>
-      <div class="signer-signature-area" id="signer-signature">
-        서명란
-      </div>
-    </div>
   </div>
 
   <div class="footer">
-    <p>본 동의서는 전자문서 및 전자거래 기본법에 따라 전자적 형태로 작성되었으며, 법적 효력을 가집니다.</p>
+    <p>본 동의서는 캠페인 지원 시 크리에이터의 사전 동의에 기반하여 작성되었습니다.</p>
     <p style="margin-top: 10px;">주식회사 하우파파 | 대표 박현용 | 사업자등록번호 575-81-02253</p>
     <p>서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</p>
     <p>&copy; ${new Date().getFullYear()} HOWPAPA Inc. All rights reserved.</p>

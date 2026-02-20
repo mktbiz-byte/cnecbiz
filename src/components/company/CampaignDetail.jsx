@@ -6038,27 +6038,23 @@ Questions? Contact us.
       let videoUrl = ''
 
       if (region === 'korea') {
-        // 한국: Netlify Function(service role key)으로 업로드 (RLS 우회)
-        const reader = new FileReader()
-        const fileBase64 = await new Promise((resolve, reject) => {
-          reader.onload = () => resolve(reader.result.split(',')[1])
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
-
-        const uploadRes = await fetch('/.netlify/functions/save-video-upload', {
+        // 한국: Netlify Function으로 signed URL 생성 후 직접 업로드 (RLS 우회, 대용량 지원)
+        const signedRes = await fetch('/.netlify/functions/save-video-upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'storage_upload',
-            fileName: filePath,
-            fileBase64,
-            fileMimeType: file.type || 'video/mp4'
-          })
+          body: JSON.stringify({ action: 'create_signed_url', fileName: filePath })
         })
-        const uploadResult = await uploadRes.json()
-        if (!uploadResult.success) throw new Error(uploadResult.error || '스토리지 업로드 실패')
-        videoUrl = uploadResult.publicUrl
+        const signedResult = await signedRes.json()
+        if (!signedResult.success) throw new Error(signedResult.error || '서명 URL 생성 실패')
+
+        // signed URL로 직접 업로드 (파일 크기 제한 없음)
+        const uploadRes = await fetch(signedResult.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'video/mp4' },
+          body: file
+        })
+        if (!uploadRes.ok) throw new Error(`스토리지 업로드 실패: ${uploadRes.status}`)
+        videoUrl = signedResult.publicUrl
       } else {
         // 일본/미국: 직접 스토리지 업로드
         const { error: uploadError } = await client.storage
@@ -6099,35 +6095,50 @@ Questions? Contact us.
         }
       }
 
-      const { error: appError } = await client
-        .from('applications')
-        .update(appUpdateData)
-        .eq('campaign_id', id)
-        .eq('user_id', userId)
-      if (appError) throw appError
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 DB 업데이트 (RLS 우회)
+        const appRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_application', campaignId: id, userId, updateData: appUpdateData })
+        })
+        const appResult = await appRes.json()
+        if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
+      } else {
+        const { error: appError } = await client
+          .from('applications')
+          .update(appUpdateData)
+          .eq('campaign_id', id)
+          .eq('user_id', userId)
+        if (appError) throw appError
+      }
 
-      // 한국 캠페인: campaign_participants.video_files도 업데이트
+      // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
       if (region === 'korea') {
         try {
-          const { data: cpData } = await client
-            .from('campaign_participants')
-            .select('id, video_files, video_status')
-            .eq('campaign_id', id)
-            .eq('user_id', userId)
-            .maybeSingle()
-          if (cpData) {
-            const existingFiles = cpData.video_files || []
+          // 기존 video_files 조회
+          const getRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_video_files', participantId: userId })
+          })
+          const getResult = await getRes.json()
+          if (getResult.success) {
+            const existingFiles = getResult.videoFiles || []
             const newVideoFile = {
               name: file.name, path: filePath, url: videoUrl,
               uploaded_at: new Date().toISOString(), version
             }
-            await client.from('campaign_participants')
-              .update({
-                video_files: [...existingFiles, newVideoFile],
-                video_status: 'uploaded',
-                updated_at: new Date().toISOString()
+            await fetch('/.netlify/functions/save-video-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'update_participant',
+                participantId: userId,
+                videoFiles: [...existingFiles, newVideoFile],
+                videoStatus: 'uploaded'
               })
-              .eq('id', cpData.id)
+            })
             console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
           }
         } catch (cpErr) {
