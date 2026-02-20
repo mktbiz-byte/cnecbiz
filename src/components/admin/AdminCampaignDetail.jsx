@@ -1160,8 +1160,8 @@ export default function AdminCampaignDetail() {
                     setShowGuideModal={setShowGuideModal}
                   />
 
-                  {/* JP/US/KR 영상 관리 섹션 (슈퍼 관리자 전용) */}
-                  {isSuperAdmin && (region === 'japan' || region === 'us' || region === 'korea') && (selectedApplications.length > 0 || completedApplications.length > 0) && (
+                  {/* JP/US/KR 영상 관리 섹션 */}
+                  {(region === 'japan' || region === 'us' || region === 'korea') && (selectedApplications.length > 0 || completedApplications.length > 0) && (
                     <Card className="mt-6 border-blue-200">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-900">

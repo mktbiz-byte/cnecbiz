@@ -6017,14 +6017,14 @@ Questions? Contact us.
   }
 
 
-  // 슈퍼관리자 영상 업로드 핸들러 (JP/US 전용)
+  // 관리자 영상 업로드 핸들러 (JP/US/KR)
   const handleAdminVideoUpload = async (file) => {
     if (!adminVideoUploadTarget || !file) return
     setAdminVideoUploading(true)
 
     try {
       const { participant, videoSlot, version } = adminVideoUploadTarget
-      const client = getSupabaseClient(region === 'japan' ? 'japan' : 'us')
+      const client = getSupabaseClient(region)
       if (!client) throw new Error('Supabase client not found')
 
       const ext = file.name.split('.').pop()
@@ -6032,7 +6032,7 @@ Questions? Contact us.
       const userId = participant.user_id || participant.id
       const filePath = `${id}/${userId}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
-      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      // 리전별 스토리지 버킷명 (KR: campaign-videos, JP: campaign-videos, US: videos)
       const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
       // Supabase Storage 업로드
@@ -6078,6 +6078,35 @@ Questions? Contact us.
         .eq('campaign_id', id)
         .eq('user_id', userId)
       if (appError) throw appError
+
+      // 한국 캠페인: campaign_participants.video_files도 업데이트
+      if (region === 'korea') {
+        try {
+          const { data: cpData } = await client
+            .from('campaign_participants')
+            .select('id, video_files, video_status')
+            .eq('campaign_id', id)
+            .eq('user_id', userId)
+            .maybeSingle()
+          if (cpData) {
+            const existingFiles = cpData.video_files || []
+            const newVideoFile = {
+              name: file.name, path: filePath, url: videoUrl,
+              uploaded_at: new Date().toISOString(), version
+            }
+            await client.from('campaign_participants')
+              .update({
+                video_files: [...existingFiles, newVideoFile],
+                video_status: 'uploaded',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', cpData.id)
+            console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 업데이트 스킵:', cpErr.message)
+        }
+      }
 
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -7194,8 +7223,8 @@ Questions? Contact us.
                           </div>
                         )}
 
-                        {/* 슈퍼관리자 영상 업로드 (JP/US 전용) */}
-                        {isSuperAdmin && (region === 'japan' || region === 'us') && (
+                        {/* 관리자 영상 업로드 (JP/US/KR) */}
+                        {isAdmin && (region === 'japan' || region === 'us' || region === 'korea') && (
                           <div className="flex items-center gap-1.5 mt-1">
                             {getAdminVideoSlots().map(({ slot, label }) => {
                               const type = campaign?.campaign_type || ''
@@ -16238,7 +16267,7 @@ Questions? Contact us.
         </div>
       )}
 
-      {/* 슈퍼관리자 영상 업로드 모달 (JP/US) */}
+      {/* 관리자 영상 업로드 모달 (JP/US/KR) */}
       {showAdminVideoUploadModal && adminVideoUploadTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
