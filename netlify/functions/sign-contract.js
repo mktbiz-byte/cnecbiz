@@ -176,6 +176,26 @@ exports.handler = async (event) => {
       signatureType
     });
 
+    // 네이버 웍스 알림 발송
+    try {
+      const companyName = contract.company_name || signerInfo?.companyName || '기업'
+      const creatorName = contract.creator_name || contract.signer_name || '크리에이터'
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `📝 계약서 서명 완료\n\n• 기업: ${companyName}\n• 서명자: ${creatorName}\n• 계약서 ID: ${contractId}\n• 서명 시간: ${koreanTime}`
+        })
+      })
+      console.log('[sign-contract] 네이버 웍스 알림 발송 완료')
+    } catch (worksError) {
+      console.error('[sign-contract] 네이버 웍스 알림 오류:', worksError)
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({

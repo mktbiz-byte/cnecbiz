@@ -277,6 +277,27 @@ exports.handler = async (event, context) => {
           } else {
             console.log('[update-campaign-status] No company phone found')
           }
+
+          // 네이버 웍스 알림 (active 변경 시)
+          try {
+            const companyDisplayName = company?.company_name || '기업'
+            const campaignTitle = campaign.title || campaign.campaign_name || '캠페인'
+            const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', biz: '한국', kr: '한국' }[region] || region || '한국'
+            const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+            await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                message: `✅ 캠페인 활성화 (입금확인 후 자동승인)\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+              })
+            })
+            console.log('[update-campaign-status] 네이버 웍스 알림 발송 완료')
+          } catch (worksError) {
+            console.error('[update-campaign-status] 네이버 웍스 알림 오류:', worksError)
+          }
         }
       } catch (notifError) {
         console.error('[update-campaign-status] Notification error:', notifError)

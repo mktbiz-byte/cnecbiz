@@ -8,13 +8,13 @@ export async function handler(event) {
   }
 
   try {
-    const { 
+    const {
       campaignTitle,
       creatorName,
       companyName,
       revisionRequest
     } = JSON.parse(event.body)
-    
+
     if (!campaignTitle || !creatorName || !revisionRequest) {
       return {
         statusCode: 400,
@@ -22,60 +22,34 @@ export async function handler(event) {
       }
     }
 
-    // 네이버 웍스 액세스 토큰 발급
-    const tokenResponse = await fetch('https://auth.worksmobile.com/oauth2/v2.0/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: process.env.NAVER_WORKS_CLIENT_ID,
-        client_secret: process.env.NAVER_WORKS_CLIENT_SECRET,
-        scope: 'bot'
-      })
-    })
-
-    if (!tokenResponse.ok) {
-      throw new Error('Failed to get Naver Works access token')
-    }
-
-    const { access_token } = await tokenResponse.json()
-
     // 메시지 내용 구성
-    const message = `🔔 **가이드 수정요청**
+    const message = `🔔 가이드 수정요청
 
-📋 **캠페인**: ${campaignTitle}
-👤 **크리에이터**: ${creatorName}
-🏢 **기업**: ${companyName || '미확인'}
+📋 캠페인: ${campaignTitle}
+👤 크리에이터: ${creatorName}
+🏢 기업: ${companyName || '미확인'}
 
-📝 **수정요청 내용**:
+📝 수정요청 내용:
 ${revisionRequest}
 
 ---
-관리자 페이지에서 확인하세요: https://cnectotal.netlify.app/admin`
+관리자 페이지에서 확인하세요: https://cnecbiz.com/admin`
 
-    // 네이버 웍스 메시지 전송
-    const messageResponse = await fetch(
-      `https://www.worksapis.com/v1.0/bots/${process.env.NAVER_WORKS_BOT_ID}/channels/${process.env.NAVER_WORKS_CHANNEL_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: {
-            type: 'text',
-            text: message
-          }
-        })
-      }
-    )
+    // send-naver-works-message 함수를 통해 JWT 인증으로 전송
+    const worksResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isAdminNotification: true,
+        channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+        message: message
+      })
+    })
 
-    if (!messageResponse.ok) {
-      const errorData = await messageResponse.text()
-      console.error('Naver Works message send error:', errorData)
+    const worksResult = await worksResponse.json()
+
+    if (!worksResult.success) {
+      console.error('Naver Works message send error:', worksResult)
       throw new Error('Failed to send message to Naver Works')
     }
 
@@ -94,9 +68,9 @@ ${revisionRequest}
     console.error('Guide revision request error:', error)
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: 'Failed to send guide revision request',
-        message: error.message 
+        message: error.message
       })
     }
   }
