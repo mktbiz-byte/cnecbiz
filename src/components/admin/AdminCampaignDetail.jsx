@@ -393,25 +393,40 @@ export default function AdminCampaignDetail() {
       const timestamp = Date.now()
       const filePath = `${id}/${application.user_id}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
-      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      // 리전별 스토리지 버킷명 (KR: campaign-videos, JP: campaign-videos, US: videos)
       const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
-      // Supabase Storage에 업로드
-      const { data: uploadData, error: uploadError } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      let videoUrl = ''
+
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 signed URL 생성 후 직접 업로드 (RLS 우회, 대용량 지원)
+        const signedRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_signed_url', fileName: filePath })
         })
+        const signedResult = await signedRes.json()
+        if (!signedResult.success) throw new Error(signedResult.error || '서명 URL 생성 실패')
 
-      if (uploadError) throw uploadError
+        // signed URL로 직접 업로드 (파일 크기 제한 없음)
+        const uploadRes = await fetch(signedResult.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'video/mp4' },
+          body: file
+        })
+        if (!uploadRes.ok) throw new Error(`스토리지 업로드 실패: ${uploadRes.status}`)
+        videoUrl = signedResult.publicUrl
+      } else {
+        // 일본/미국: 직접 스토리지 업로드
+        const { error: uploadError } = await client.storage
+          .from(bucketName)
+          .upload(filePath, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
 
-      // 공개 URL 가져오기
-      const { data: urlData } = client.storage
-        .from(bucketName)
-        .getPublicUrl(filePath)
+        const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
+        videoUrl = urlData?.publicUrl
+      }
 
-      const videoUrl = urlData?.publicUrl
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블에 레코드 생성 (JP/US는 테이블 없을 수 있음 - 에러 무시)
@@ -460,26 +475,35 @@ export default function AdminCampaignDetail() {
         }
       }
 
-      const { error: appUpdateError } = await client
-        .from('applications')
-        .update(appUpdateData)
-        .eq('id', application.id)
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 DB 업데이트 (RLS 우회)
+        const appRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_application', campaignId: id, userId: application.user_id, updateData: appUpdateData })
+        })
+        const appResult = await appRes.json()
+        if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
+      } else {
+        const { error: appUpdateError } = await client
+          .from('applications')
+          .update(appUpdateData)
+          .eq('id', application.id)
+        if (appUpdateError) throw appUpdateError
+      }
 
-      if (appUpdateError) throw appUpdateError
-
-      // 한국 캠페인: campaign_participants.video_files도 업데이트 (크리에이터 CreatorMyPage에서 확인 가능하게)
+      // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
       if (region === 'korea') {
         try {
-          // campaign_participants에서 해당 크리에이터 찾기 (user_id로)
-          const { data: participant } = await client
-            .from('campaign_participants')
-            .select('id, video_files, video_status')
-            .eq('campaign_id', id)
-            .eq('user_id', application.user_id)
-            .maybeSingle()
-
-          if (participant) {
-            const existingFiles = participant.video_files || []
+          // 기존 video_files 조회
+          const getRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_video_files', participantId: application.user_id })
+          })
+          const getResult = await getRes.json()
+          if (getResult.success) {
+            const existingFiles = getResult.videoFiles || []
             const newVideoFile = {
               name: file.name,
               path: filePath,
@@ -487,24 +511,17 @@ export default function AdminCampaignDetail() {
               uploaded_at: new Date().toISOString(),
               version: version
             }
-            const updatedFiles = [...existingFiles, newVideoFile]
-
-            const { error: cpUpdateError } = await client
-              .from('campaign_participants')
-              .update({
-                video_files: updatedFiles,
-                video_status: 'uploaded',
-                updated_at: new Date().toISOString()
+            await fetch('/.netlify/functions/save-video-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'update_participant',
+                participantId: application.user_id,
+                videoFiles: [...existingFiles, newVideoFile],
+                videoStatus: 'uploaded'
               })
-              .eq('id', participant.id)
-
-            if (cpUpdateError) {
-              console.warn('campaign_participants 업데이트 실패:', cpUpdateError.message)
-            } else {
-              console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
-            }
-          } else {
-            console.warn('campaign_participants에서 해당 크리에이터를 찾을 수 없음:', application.user_id)
+            })
+            console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
           }
         } catch (cpErr) {
           console.warn('campaign_participants 업데이트 스킵:', cpErr.message)

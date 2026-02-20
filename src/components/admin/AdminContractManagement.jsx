@@ -307,102 +307,43 @@ export default function AdminContractManagement() {
 
     if (!campaign) return
 
-    // 해당 캠페인의 크리에이터(선정된 참여자) 조회 — BIZ DB + 리전 DB 모두
+    // 해당 캠페인의 크리에이터(선정된 참여자) 조회
     setCreatorsLoading(true)
     try {
       const region = campaign.region || 'biz'
-      const validStatuses = ['approved', 'selected', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'guide_approved', 'sns_uploaded', 'completed']
-      const selectFields = 'id, user_id, applicant_name, status, sns_upload_url, final_confirmed_at, video_uploaded_at, updated_at'
-      let allApps = []
+      const client = getSupabaseClient(region)
+      if (!client) return
 
-      // 1. BIZ DB에서 조회
-      try {
-        const { data: bizApps } = await supabaseBiz
-          .from('applications')
-          .select(selectFields)
-          .eq('campaign_id', campaignId)
-          .in('status', validStatuses)
-        if (bizApps && bizApps.length > 0) {
-          allApps.push(...bizApps)
-        }
-      } catch (e) {
-        console.log('BIZ applications 조회 스킵:', e.message)
-      }
+      const { data: apps } = await client
+        .from('applications')
+        .select('id, user_id, applicant_name, status, sns_upload_url, final_confirmed_at, video_uploaded_at, updated_at')
+        .eq('campaign_id', campaignId)
+        .in('status', ['approved', 'selected', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'guide_approved', 'sns_uploaded', 'completed'])
 
-      // 2. 리전 DB에서 조회 (BIZ가 아닌 경우)
-      if (region !== 'biz') {
-        const regionClient = getSupabaseClient(region)
-        if (regionClient) {
-          try {
-            const { data: regionApps } = await regionClient
-              .from('applications')
-              .select(selectFields)
-              .eq('campaign_id', campaignId)
-              .in('status', validStatuses)
-            if (regionApps && regionApps.length > 0) {
-              // BIZ와 중복 제거 (user_id 기준)
-              const existingUserIds = new Set(allApps.map(a => a.user_id).filter(Boolean))
-              regionApps.forEach(app => {
-                if (!app.user_id || !existingUserIds.has(app.user_id)) {
-                  allApps.push(app)
-                  if (app.user_id) existingUserIds.add(app.user_id)
-                } else {
-                  // 리전 DB 데이터로 sns_upload_url 등 병합
-                  const idx = allApps.findIndex(a => a.user_id === app.user_id)
-                  if (idx >= 0) {
-                    allApps[idx] = {
-                      ...allApps[idx],
-                      sns_upload_url: app.sns_upload_url || allApps[idx].sns_upload_url,
-                      final_confirmed_at: app.final_confirmed_at || allApps[idx].final_confirmed_at,
-                      video_uploaded_at: app.video_uploaded_at || allApps[idx].video_uploaded_at,
-                    }
-                  }
-                }
-              })
-            }
-          } catch (e) {
-            console.log(`${region} applications 조회 스킵:`, e.message)
-          }
-        }
-      }
-
-      if (allApps.length > 0) {
+      if (apps && apps.length > 0) {
         // user_profiles에서 이름/채널 정보 가져오기
-        const userIds = [...new Set(allApps.map(a => a.user_id).filter(Boolean))]
+        const userIds = [...new Set(apps.map(a => a.user_id).filter(Boolean))]
         let profiles = []
 
-        // BIZ DB에서 프로필 조회
-        try {
+        // 리전 DB에서 프로필 조회
+        const { data: regionProfiles } = await client
+          .from('user_profiles')
+          .select('id, name, full_name, nickname, instagram_url, youtube_url, tiktok_url')
+          .in('id', userIds)
+        if (regionProfiles) profiles = regionProfiles
+
+        // 리전 DB에서 못 찾은 유저는 BIZ DB에서 조회
+        const foundIds = new Set(profiles.map(p => p.id))
+        const missingIds = userIds.filter(uid => !foundIds.has(uid))
+        if (missingIds.length > 0 && region !== 'biz') {
           const { data: bizProfiles } = await supabaseBiz
             .from('user_profiles')
             .select('id, name, full_name, nickname, instagram_url, youtube_url, tiktok_url')
-            .in('id', userIds)
-          if (bizProfiles) profiles = bizProfiles
-        } catch (e) {
-          console.log('BIZ user_profiles 조회 스킵:', e.message)
+            .in('id', missingIds)
+          if (bizProfiles) profiles = [...profiles, ...bizProfiles]
         }
 
-        // BIZ에서 못 찾은 유저는 리전 DB에서 조회
-        if (region !== 'biz') {
-          const foundIds = new Set(profiles.map(p => p.id))
-          const missingIds = userIds.filter(uid => !foundIds.has(uid))
-          if (missingIds.length > 0) {
-            const regionClient = getSupabaseClient(region)
-            if (regionClient) {
-              try {
-                const { data: regionProfiles } = await regionClient
-                  .from('user_profiles')
-                  .select('id, name, full_name, nickname, instagram_url, youtube_url, tiktok_url')
-                  .in('id', missingIds)
-                if (regionProfiles) profiles = [...profiles, ...regionProfiles]
-              } catch (e) {
-                console.log(`${region} user_profiles 조회 스킵:`, e.message)
-              }
-            }
-          }
-        }
-
-        const enriched = allApps.map(app => {
+        const enriched = apps.map(app => {
           const profile = profiles?.find(p => p.id === app.user_id)
           const channelName = profile?.instagram_url || profile?.youtube_url || profile?.tiktok_url || ''
           // 검수 완료일 = final_confirmed_at > video_uploaded_at > updated_at
