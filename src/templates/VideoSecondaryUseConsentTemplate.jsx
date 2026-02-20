@@ -391,7 +391,7 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
           </div>
           <div class="signature-row">
             <div class="signature-label">대표자:</div>
-            <div class="signature-value">박현용 (인)</div>
+            <div class="signature-value">박현용</div>
           </div>
           <div class="signature-row">
             <div class="signature-label">사업자번호:</div>
