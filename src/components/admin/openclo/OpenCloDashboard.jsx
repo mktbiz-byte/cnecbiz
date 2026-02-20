@@ -19,7 +19,8 @@ const REGIONS = [
 
 const NAV_ITEMS = [
   { path: '/admin/openclo', label: '계정 조회' },
-  { path: '/admin/openclo/creators', label: '크리에이터 목록' }
+  { path: '/admin/openclo/creators', label: '크리에이터 목록' },
+  { path: '/admin/openclo/report', label: '오류 수정 요청' }
 ]
 
 export function OpenCloNav({ currentRegion, onRegionChange }) {
