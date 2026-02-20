@@ -276,13 +276,16 @@ export default function AdminCampaignDetail() {
     }
   }
 
-  // JP/US 영상 제출 데이터 조회
+  // JP/US/KR 영상 제출 데이터 조회
   const fetchVideoSubmissions = async () => {
-    if (region !== 'japan' && region !== 'us') return
+    if (region !== 'japan' && region !== 'us' && region !== 'korea') return
     try {
       const client = getSupabaseClient(region)
       if (!client) return
 
+      let allSubmissions = []
+
+      // 1. video_submissions 테이블 조회
       const { data, error } = await client
         .from('video_submissions')
         .select('*')
@@ -291,8 +294,49 @@ export default function AdminCampaignDetail() {
         .order('version', { ascending: false })
 
       if (!error && data) {
-        setVideoSubmissions(data)
+        allSubmissions = [...data]
       }
+
+      // 2. 한국 캠페인: campaign_participants.video_files에서도 병합 (크리에이터 직접 업로드분)
+      if (region === 'korea') {
+        try {
+          const { data: participants } = await client
+            .from('campaign_participants')
+            .select('id, user_id, video_files, video_status')
+            .eq('campaign_id', id)
+
+          if (participants) {
+            participants.forEach(p => {
+              if (p.video_files && Array.isArray(p.video_files)) {
+                p.video_files.forEach(file => {
+                  // video_submissions에 같은 user_id + version이 없으면 추가
+                  const exists = allSubmissions.some(s =>
+                    s.user_id === p.user_id && s.version === file.version
+                  )
+                  if (!exists) {
+                    allSubmissions.push({
+                      id: `cp_${p.id}_v${file.version}`,
+                      campaign_id: id,
+                      user_id: p.user_id,
+                      video_number: 1,
+                      version: file.version || 1,
+                      video_file_url: file.url,
+                      video_file_name: file.name,
+                      status: p.video_status === 'approved' ? 'approved' : 'submitted',
+                      submitted_at: file.uploaded_at || new Date().toISOString(),
+                      _from_campaign_participants: true
+                    })
+                  }
+                })
+              }
+            })
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 조회 스킵:', cpErr.message)
+        }
+      }
+
+      setVideoSubmissions(allSubmissions)
     } catch (err) {
       console.error('Error fetching video submissions:', err)
     }
@@ -300,7 +344,7 @@ export default function AdminCampaignDetail() {
 
   // 영상 업로드 시작
   useEffect(() => {
-    if (campaign && (region === 'japan' || region === 'us')) {
+    if (campaign && (region === 'japan' || region === 'us' || region === 'korea')) {
       fetchVideoSubmissions()
     }
   }, [campaign, region])
@@ -422,6 +466,50 @@ export default function AdminCampaignDetail() {
         .eq('id', application.id)
 
       if (appUpdateError) throw appUpdateError
+
+      // 한국 캠페인: campaign_participants.video_files도 업데이트 (크리에이터 CreatorMyPage에서 확인 가능하게)
+      if (region === 'korea') {
+        try {
+          // campaign_participants에서 해당 크리에이터 찾기 (user_id로)
+          const { data: participant } = await client
+            .from('campaign_participants')
+            .select('id, video_files, video_status')
+            .eq('campaign_id', id)
+            .eq('user_id', application.user_id)
+            .maybeSingle()
+
+          if (participant) {
+            const existingFiles = participant.video_files || []
+            const newVideoFile = {
+              name: file.name,
+              path: filePath,
+              url: videoUrl,
+              uploaded_at: new Date().toISOString(),
+              version: version
+            }
+            const updatedFiles = [...existingFiles, newVideoFile]
+
+            const { error: cpUpdateError } = await client
+              .from('campaign_participants')
+              .update({
+                video_files: updatedFiles,
+                video_status: 'uploaded',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', participant.id)
+
+            if (cpUpdateError) {
+              console.warn('campaign_participants 업데이트 실패:', cpUpdateError.message)
+            } else {
+              console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
+            }
+          } else {
+            console.warn('campaign_participants에서 해당 크리에이터를 찾을 수 없음:', application.user_id)
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 업데이트 스킵:', cpErr.message)
+        }
+      }
 
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = application.display_name || application.applicant_name || '크리에이터'
@@ -713,8 +801,8 @@ export default function AdminCampaignDetail() {
 
   // 상태별로 applications 분류
   const pendingApplications = applications.filter(app => app.status === 'pending')
-  const selectedApplications = applications.filter(app => 
-    ['approved', 'virtual_selected', 'selected'].includes(app.status)
+  const selectedApplications = applications.filter(app =>
+    ['approved', 'virtual_selected', 'selected', 'video_submitted', 'revision_requested'].includes(app.status)
   )
   const completedApplications = applications.filter(app => app.status === 'completed')
   const rejectedApplications = applications.filter(app => app.status === 'rejected')
@@ -1066,8 +1154,8 @@ export default function AdminCampaignDetail() {
                     setShowGuideModal={setShowGuideModal}
                   />
 
-                  {/* JP/US 영상 관리 섹션 (슈퍼 관리자 전용) */}
-                  {isSuperAdmin && (region === 'japan' || region === 'us') && selectedApplications.length > 0 && (
+                  {/* JP/US/KR 영상 관리 섹션 (슈퍼 관리자 전용) */}
+                  {isSuperAdmin && (region === 'japan' || region === 'us' || region === 'korea') && selectedApplications.length > 0 && (
                     <Card className="mt-6 border-blue-200">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-900">
