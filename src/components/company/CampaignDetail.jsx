@@ -10137,7 +10137,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'not_submitted' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
                       onClick={() => setVideoReviewFilter('not_submitted')}
                     >
-                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id)).length})
+                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url).length})
                     </Button>
                   </div>
                 </div>
@@ -10226,11 +10226,16 @@ Questions? Contact us.
                         v.user_id === p.user_id &&
                         (v[stepFieldName] === currentStepNumber || v.video_number === currentStepNumber || v.week_number === currentStepNumber)
                       )
-                      return !hasSubmitted
+                      if (hasSubmitted) return false
+                      // 멀티스텝: 해당 차수 URL이 있으면 제출된 것으로 간주
+                      if (stepFieldName === 'week_number' && p[`week${currentStepNumber}_url`]) return false
+                      if (stepFieldName === 'video_number' && p[`step${currentStepNumber}_url`]) return false
+                      if (p.video_file_url) return false
+                      return true
                     })
                   } else {
                     // 일반 캠페인: 영상이 없는 참가자
-                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url)
                   }
 
                   // 연락처 가져오기 헬퍼 함수

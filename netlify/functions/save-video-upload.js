@@ -361,7 +361,58 @@ exports.handler = async (event) => {
         }
       })
 
-      console.log(`[save-video-upload] fetch_video_submissions: ${all.length} total for campaign ${campaignId}`)
+      // applications 테이블에서 video_file_url이 있는데 video_submissions에 없는 레코드 추가 (fallback)
+      const existingUserIds = new Set(all.map(r => r.user_id))
+      const appFallbackResults = await Promise.all(
+        clients.map(async ({ name, client: c }) => {
+          try {
+            const { data: apps, error: appErr } = await c
+              .from('applications')
+              .select('id, campaign_id, user_id, video_file_url, video_file_name, video_file_size, video_uploaded_at, clean_video_file_url, clean_video_url, sns_upload_url, ad_code, partnership_code, final_confirmed_at, status')
+              .eq('campaign_id', campaignId)
+              .not('video_file_url', 'is', null)
+            if (appErr || !apps) return []
+            return apps
+              .filter(a => a.user_id && !existingUserIds.has(a.user_id))
+              .map(a => ({
+                id: `app_${a.id}`,
+                campaign_id: a.campaign_id,
+                application_id: a.id,
+                user_id: a.user_id,
+                video_number: 1,
+                version: 1,
+                video_file_url: a.video_file_url,
+                video_file_name: a.video_file_name,
+                video_file_size: a.video_file_size,
+                clean_video_url: a.clean_video_file_url || a.clean_video_url,
+                sns_upload_url: a.sns_upload_url,
+                ad_code: a.ad_code,
+                partnership_code: a.partnership_code,
+                status: a.final_confirmed_at ? 'confirmed' : 'submitted',
+                final_confirmed_at: a.final_confirmed_at,
+                submitted_at: a.video_uploaded_at || new Date().toISOString(),
+                updated_at: a.video_uploaded_at || new Date().toISOString(),
+                created_at: a.video_uploaded_at || new Date().toISOString(),
+                _from_applications: true,
+                _source_region: name
+              }))
+          } catch (err) {
+            console.log(`[save-video-upload] ${name} applications fallback error:`, err.message)
+            return []
+          }
+        })
+      )
+
+      // applications fallback 결과 중복 제거 후 추가
+      const seenFallbackUsers = new Set()
+      appFallbackResults.flat().forEach(r => {
+        if (!existingUserIds.has(r.user_id) && !seenFallbackUsers.has(r.user_id)) {
+          seenFallbackUsers.add(r.user_id)
+          all.push(r)
+        }
+      })
+
+      console.log(`[save-video-upload] fetch_video_submissions: ${all.length} total (incl. ${seenFallbackUsers.size} app fallbacks) for campaign ${campaignId}`)
 
       return {
         statusCode: 200,
