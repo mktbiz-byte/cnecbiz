@@ -191,16 +191,29 @@ exports.handler = async (event) => {
 
       // 네이버 웍스 알림 발송
       try {
-        // 크리에이터 이름 조회
-        let creatorName = '크리에이터'
+        // 크리에이터 이름 조회 (user_profiles → applications 순서로 시도)
+        let creatorName = ''
         const { data: creatorProfile } = await supabase
           .from('user_profiles')
-          .select('name, full_name, nickname')
+          .select('name, full_name, nickname, channel_name')
           .eq('id', userId)
           .maybeSingle()
         if (creatorProfile) {
-          creatorName = creatorProfile.nickname || creatorProfile.name || creatorProfile.full_name || '크리에이터'
+          creatorName = creatorProfile.nickname || creatorProfile.channel_name || creatorProfile.name || creatorProfile.full_name || ''
         }
+        if (!creatorName) {
+          const { data: appData } = await supabase
+            .from('applications')
+            .select('creator_name, applicant_name')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (appData) {
+            creatorName = appData.creator_name || appData.applicant_name || ''
+          }
+        }
+        if (!creatorName) creatorName = '크리에이터'
 
         const regionLabel = { korea: '한국', kr: '한국', japan: '일본', jp: '일본', us: '미국', usa: '미국' }[region] || region || '한국'
         const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
