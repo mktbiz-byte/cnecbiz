@@ -6176,11 +6176,12 @@ Questions? Contact us.
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블 insert (Netlify Function으로 RLS 우회 - 리전 DB + BIZ DB 모두)
+      // 주의: video_submissions 테이블에 존재하는 컬럼만 포함 (video_uploaded_at 등 존재하지 않는 컬럼 제외)
       const submissionData = {
         campaign_id: id, user_id: userId,
         video_number: videoSlot, version,
         video_file_url: videoUrl, video_file_name: file.name,
-        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+        video_file_size: file.size,
         status: 'submitted', submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }
@@ -6189,6 +6190,8 @@ Questions? Contact us.
       const insertTargets = [region]
       if (region !== 'biz') insertTargets.push('biz')
 
+      let insertSucceeded = false
+      const insertErrors = []
       await Promise.all(insertTargets.map(async (targetRegion) => {
         try {
           const insertRes = await fetch('/.netlify/functions/save-video-upload', {
@@ -6198,14 +6201,21 @@ Questions? Contact us.
           })
           const insertResult = await insertRes.json()
           if (!insertResult.success) {
-            console.warn(`video_submissions insert failed (${targetRegion}):`, insertResult.error)
+            console.error(`video_submissions insert failed (${targetRegion}):`, insertResult.error)
+            insertErrors.push(`${targetRegion}: ${insertResult.error}`)
           } else {
             console.log(`video_submissions insert 성공 (${targetRegion})`)
+            insertSucceeded = true
           }
         } catch (e) {
-          console.warn(`video_submissions insert skipped (${targetRegion}):`, e.message)
+          console.error(`video_submissions insert error (${targetRegion}):`, e.message)
+          insertErrors.push(`${targetRegion}: ${e.message}`)
         }
       }))
+
+      if (!insertSucceeded) {
+        throw new Error(`영상 DB 등록 실패: ${insertErrors.join(', ')}`)
+      }
 
       // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (리전 DB + BIZ DB 모두)
       const appUpdateData = {
