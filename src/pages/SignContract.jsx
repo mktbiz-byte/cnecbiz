@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, Edit3, Stamp, CheckCircle, Loader2, Type, RefreshCw } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import { CompanyContractTemplate } from '../templates/CompanyContractTemplate'
+import { CreatorConsentTemplate } from '../templates/CreatorConsentTemplate'
+import { VideoSecondaryUseConsentTemplate } from '../templates/VideoSecondaryUseConsentTemplate'
 
 // 서명 스타일 정의
 const SIGNATURE_STYLES = [
@@ -249,6 +251,34 @@ export default function SignContract() {
       } catch (e) {
         return content
       }
+    }
+
+    if (contractData.contract_type === 'video_secondary_use') {
+      return VideoSecondaryUseConsentTemplate({
+        creatorName: contentData.creatorName || contractData.recipient_name || '',
+        channelName: contentData.channelName || '',
+        campaignTitle: contentData.campaignTitle || '',
+        companyName: contentData.companyName || '',
+        videoCompletionDate: contentData.videoCompletionDate || '',
+        consentDate: contractData.created_at
+          ? new Date(contractData.created_at).toLocaleDateString('ko-KR')
+          : new Date().toLocaleDateString('ko-KR')
+      })
+    }
+
+    if (contractData.contract_type === 'portrait_rights') {
+      return CreatorConsentTemplate({
+        creatorName: contentData.creatorName || contractData.recipient_name || '',
+        channelName: contentData.channelName || '',
+        email: contentData.recipientEmail || '',
+        phone: contentData.phone || '',
+        contentTitle: contentData.contentTitle || '',
+        usagePeriod: contentData.usagePeriod || '',
+        compensation: contentData.compensation || '',
+        consentDate: contractData.created_at
+          ? new Date(contractData.created_at).toLocaleDateString('ko-KR')
+          : new Date().toLocaleDateString('ko-KR')
+      })
     }
 
     return CompanyContractTemplate({

@@ -774,6 +774,12 @@ export default function AdminCampaignDetail() {
       approved: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       virtual_selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      filming: { label: '촬영중', color: 'bg-blue-100 text-blue-700', icon: Clock },
+      guide_confirmation: { label: '가이드 확인중', color: 'bg-purple-100 text-purple-700', icon: Clock },
+      guide_approved: { label: '가이드 승인', color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
+      video_submitted: { label: '영상 제출', color: 'bg-indigo-100 text-indigo-700', icon: CheckCircle },
+      revision_requested: { label: '수정 요청', color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
+      sns_uploaded: { label: 'SNS 업로드', color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
       rejected: { label: '거절됨', color: 'bg-red-100 text-red-700', icon: XCircle },
       completed: { label: '완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle }
     }
@@ -802,7 +808,7 @@ export default function AdminCampaignDetail() {
   // 상태별로 applications 분류
   const pendingApplications = applications.filter(app => app.status === 'pending')
   const selectedApplications = applications.filter(app =>
-    ['approved', 'virtual_selected', 'selected', 'video_submitted', 'revision_requested'].includes(app.status)
+    ['approved', 'virtual_selected', 'selected', 'video_submitted', 'revision_requested', 'filming', 'guide_confirmation', 'guide_approved', 'sns_uploaded'].includes(app.status)
   )
   const completedApplications = applications.filter(app => app.status === 'completed')
   const rejectedApplications = applications.filter(app => app.status === 'rejected')
@@ -1155,7 +1161,7 @@ export default function AdminCampaignDetail() {
                   />
 
                   {/* JP/US/KR 영상 관리 섹션 (슈퍼 관리자 전용) */}
-                  {isSuperAdmin && (region === 'japan' || region === 'us' || region === 'korea') && selectedApplications.length > 0 && (
+                  {isSuperAdmin && (region === 'japan' || region === 'us' || region === 'korea') && (selectedApplications.length > 0 || completedApplications.length > 0) && (
                     <Card className="mt-6 border-blue-200">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-900">
@@ -1168,7 +1174,7 @@ export default function AdminCampaignDetail() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-6">
-                          {selectedApplications.map(app => {
+                          {[...selectedApplications, ...completedApplications].map(app => {
                             const slots = getVideoSlots()
                             // applications 테이블에서 fallback 영상 URL 가져오기
                             const getAppVideoUrl = (slot) => {
@@ -1189,13 +1195,20 @@ export default function AdminCampaignDetail() {
                                   </h4>
                                   <Badge className={
                                     app.status === 'video_submitted' ? 'bg-green-100 text-green-700' :
-                                    app.status === 'selected' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'selected' || app.status === 'approved' || app.status === 'virtual_selected' ? 'bg-blue-100 text-blue-700' :
                                     app.status === 'revision_requested' ? 'bg-orange-100 text-orange-700' :
+                                    app.status === 'filming' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'sns_uploaded' ? 'bg-purple-100 text-purple-700' :
+                                    app.status === 'guide_confirmation' || app.status === 'guide_approved' ? 'bg-purple-100 text-purple-700' :
                                     'bg-gray-100 text-gray-600'
                                   }>
                                     {app.status === 'video_submitted' ? '영상 제출' :
-                                     app.status === 'selected' ? '선정' :
+                                     app.status === 'selected' || app.status === 'approved' || app.status === 'virtual_selected' ? '선정' :
                                      app.status === 'revision_requested' ? '수정 요청' :
+                                     app.status === 'filming' ? '촬영중' :
+                                     app.status === 'sns_uploaded' ? 'SNS 업로드' :
+                                     app.status === 'guide_confirmation' ? '가이드 확인중' :
+                                     app.status === 'guide_approved' ? '가이드 승인' :
                                      app.status === 'completed' ? '완료' :
                                      app.status || '-'}
                                   </Badge>

@@ -12,6 +12,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import { CompanyContractTemplate } from '../../templates/CompanyContractTemplate'
 import { CreatorConsentTemplate } from '../../templates/CreatorConsentTemplate'
+import { VideoSecondaryUseConsentTemplate } from '../../templates/VideoSecondaryUseConsentTemplate'
 
 export default function AdminContractManagement() {
   const navigate = useNavigate()
@@ -125,18 +126,50 @@ export default function AdminContractManagement() {
 
   const handlePreview = (contract) => {
     setSelectedContract(contract)
-    
+
     // 계약서 타입에 따라 템플릿 생성
     let html = ''
     const contractData = contract.content ? JSON.parse(contract.content) : {}
     if (contract.contract_type === 'campaign') {
       html = CompanyContractTemplate(contractData)
+    } else if (contract.contract_type === 'video_secondary_use') {
+      html = VideoSecondaryUseConsentTemplate(contractData)
     } else {
       html = CreatorConsentTemplate(contractData)
     }
-    
+
     setPreviewContent(html)
     setPreviewModal(true)
+  }
+
+  // PDF 다운로드
+  const handleDownloadPDF = async (contract) => {
+    try {
+      const contractData = contract.content ? JSON.parse(contract.content) : {}
+      let html = ''
+      if (contract.contract_type === 'campaign') {
+        html = CompanyContractTemplate(contractData)
+      } else if (contract.contract_type === 'video_secondary_use') {
+        html = VideoSecondaryUseConsentTemplate(contractData)
+      } else {
+        html = CreatorConsentTemplate(contractData)
+      }
+
+      // 새 창에서 HTML 열어 인쇄(PDF 저장) 유도
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(html)
+        printWindow.document.close()
+        setTimeout(() => {
+          printWindow.print()
+        }, 500)
+      } else {
+        alert('팝업이 차단되어 PDF 다운로드를 할 수 없습니다. 팝업을 허용해주세요.')
+      }
+    } catch (error) {
+      console.error('PDF 다운로드 오류:', error)
+      alert('PDF 다운로드에 실패했습니다.')
+    }
   }
 
   const handleSendContract = async (contractId) => {
@@ -160,9 +193,12 @@ export default function AdminContractManagement() {
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')
 
       // 이메일 템플릿 발송
-      const templateKey = contract.contract_type === 'campaign'
-        ? 'contract_sign_request'
-        : 'portrait_rights_sign_request'
+      const templateKeys = {
+        campaign: 'contract_sign_request',
+        portrait_rights: 'portrait_rights_sign_request',
+        video_secondary_use: 'portrait_rights_sign_request'
+      }
+      const templateKey = templateKeys[contract.contract_type] || 'contract_sign_request'
 
       const emailResponse = await fetch('/.netlify/functions/send-template-email', {
         method: 'POST',
@@ -222,11 +258,17 @@ export default function AdminContractManagement() {
         ...newContract.data,
         recipientName: newContract.recipientName,
         recipientEmail: newContract.recipientEmail,
-        companyName: newContract.companyName || 'CNEC',
+        companyName: newContract.companyName || newContract.data?.companyName || 'CNEC',
+        creatorName: newContract.recipientName,
         date: new Date().toLocaleDateString('ko-KR')
       }
 
-      const contractTitle = newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서')
+      const defaultTitles = {
+        campaign: '크리에이터 섭외 계약서',
+        portrait_rights: '콘텐츠 2차 활용 동의서',
+        video_secondary_use: '영상 2차 활용 동의서'
+      }
+      const contractTitle = newContract.title || defaultTitles[contractType] || '계약서'
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
       const { data: createdContract, error } = await supabaseBiz
@@ -249,9 +291,12 @@ export default function AdminContractManagement() {
       // 생성 시 바로 발송 옵션이 켜져 있으면 이메일 발송
       if (sendImmediately && createdContract) {
         const signUrl = `${window.location.origin}/sign-contract/${createdContract.id}`
-        const templateKey = contractType === 'campaign'
-          ? 'contract_sign_request'
-          : 'portrait_rights_sign_request'
+        const createTemplateKeys = {
+          campaign: 'contract_sign_request',
+          portrait_rights: 'portrait_rights_sign_request',
+          video_secondary_use: 'portrait_rights_sign_request'
+        }
+        const templateKey = createTemplateKeys[contractType] || 'contract_sign_request'
 
         const emailResponse = await fetch('/.netlify/functions/send-template-email', {
           method: 'POST',
@@ -335,9 +380,12 @@ export default function AdminContractManagement() {
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')
 
       // 이메일 템플릿 발송
-      const templateKey = resendContract.contract_type === 'campaign'
-        ? 'contract_sign_request'
-        : 'portrait_rights_sign_request'
+      const resendTemplateKeys = {
+        campaign: 'contract_sign_request',
+        portrait_rights: 'portrait_rights_sign_request',
+        video_secondary_use: 'portrait_rights_sign_request'
+      }
+      const templateKey = resendTemplateKeys[resendContract.contract_type] || 'contract_sign_request'
 
       const emailResponse = await fetch('/.netlify/functions/send-template-email', {
         method: 'POST',
@@ -545,9 +593,13 @@ export default function AdminContractManagement() {
                             <tr key={contract.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm">
                                 <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                   contract.contract_type === 'campaign' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                                   contract.contract_type === 'campaign' ? 'bg-blue-100 text-blue-800' :
+                                   contract.contract_type === 'video_secondary_use' ? 'bg-purple-100 text-purple-800' :
+                                   'bg-orange-100 text-orange-800'
                                 }`}>
-                                   {contract.contract_type === 'campaign' ? '기업용' : '크리에이터용'}
+                                   {contract.contract_type === 'campaign' ? '기업용' :
+                                    contract.contract_type === 'video_secondary_use' ? '영상2차활용' :
+                                    '크리에이터용'}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-sm">
@@ -573,6 +625,15 @@ export default function AdminContractManagement() {
                                   >
                                     <Eye className="w-4 h-4 mr-1" />
                                     미리보기
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadPDF(contract)}
+                                    className="text-purple-600 hover:bg-purple-50"
+                                  >
+                                    <Download className="w-4 h-4 mr-1" />
+                                    PDF
                                   </Button>
                                   {contract.status === 'pending' && (
                                     <Button
@@ -637,6 +698,7 @@ export default function AdminContractManagement() {
                   >
                     <option value="campaign">기업용 - 크리에이터 섭외 계약서</option>
                     <option value="portrait_rights">크리에이터용 - 콘텐츠 2차 활용 동의서</option>
+                    <option value="video_secondary_use">영상 2차 활용 동의서</option>
                   </select>
                 </div>
 
@@ -676,11 +738,63 @@ export default function AdminContractManagement() {
                       <Input
                         type="text"
                         value={newContract.data?.campaignName || ''}
-                        onChange={(e) => setNewContract({ 
-                          ...newContract, 
-                          data: { ...newContract.data, campaignName: e.target.value } 
+                        onChange={(e) => setNewContract({
+                          ...newContract,
+                          data: { ...newContract.data, campaignName: e.target.value }
                         })}
                         placeholder="캠페인 이름"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {contractType === 'video_secondary_use' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">채널명</label>
+                      <Input
+                        type="text"
+                        value={newContract.data?.channelName || ''}
+                        onChange={(e) => setNewContract({
+                          ...newContract,
+                          data: { ...newContract.data, channelName: e.target.value }
+                        })}
+                        placeholder="크리에이터 채널명"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">캠페인명</label>
+                      <Input
+                        type="text"
+                        value={newContract.data?.campaignTitle || ''}
+                        onChange={(e) => setNewContract({
+                          ...newContract,
+                          data: { ...newContract.data, campaignTitle: e.target.value }
+                        })}
+                        placeholder="캠페인 이름"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">광고주명</label>
+                      <Input
+                        type="text"
+                        value={newContract.data?.companyName || ''}
+                        onChange={(e) => setNewContract({
+                          ...newContract,
+                          data: { ...newContract.data, companyName: e.target.value }
+                        })}
+                        placeholder="광고주 회사명"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">영상 완료일</label>
+                      <Input
+                        type="date"
+                        value={newContract.data?.videoCompletionDate || ''}
+                        onChange={(e) => setNewContract({
+                          ...newContract,
+                          data: { ...newContract.data, videoCompletionDate: e.target.value }
+                        })}
                       />
                     </div>
                   </>
