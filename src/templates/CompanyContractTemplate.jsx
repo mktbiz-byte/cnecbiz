@@ -123,19 +123,24 @@ export const CompanyContractTemplate = (data) => {
       color: #6b7280;
       font-size: 14px;
     }
-    .seal-wrap {
-      position: relative;
-      display: inline;
+    .signature-table {
+      display: table;
+      width: 100%;
     }
-    .seal-wrap img {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 80px;
-      height: 80px;
+    .signature-info {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .signature-seal {
+      display: table-cell;
+      width: 110px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .signature-seal img {
+      width: 100px;
+      height: 100px;
       object-fit: contain;
-      opacity: 0.85;
     }
     .signer-signature-area {
       min-height: 80px;
@@ -274,17 +279,24 @@ export const CompanyContractTemplate = (data) => {
   <div class="signature-section">
     <div class="signature-box">
       <div class="signature-title">[지식재산권자 (갑)]</div>
-      <div class="signature-row">
-        <div class="signature-label">회사명:</div>
-        <div class="signature-value">주식회사 하우파파</div>
-      </div>
-      <div class="signature-row">
-        <div class="signature-label">주소:</div>
-        <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
-      </div>
-      <div class="signature-row">
-        <div class="signature-label">대표자:</div>
-        <div class="signature-value">박현용 <span class="seal-wrap">(인)<img src="/company-seal.png" alt="법인인감" /></span></div>
+      <div class="signature-table">
+        <div class="signature-info">
+          <div class="signature-row">
+            <div class="signature-label">회사명:</div>
+            <div class="signature-value">주식회사 하우파파</div>
+          </div>
+          <div class="signature-row">
+            <div class="signature-label">주소:</div>
+            <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
+          </div>
+          <div class="signature-row">
+            <div class="signature-label">대표자:</div>
+            <div class="signature-value">박현용 (인)</div>
+          </div>
+        </div>
+        <div class="signature-seal">
+          <img src="/company-seal.png" alt="법인인감" />
+        </div>
       </div>
     </div>
 
