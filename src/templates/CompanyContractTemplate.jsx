@@ -123,18 +123,19 @@ export const CompanyContractTemplate = (data) => {
       color: #6b7280;
       font-size: 14px;
     }
-    .ceo-row {
+    .seal-wrap {
       position: relative;
+      display: inline;
     }
-    .ceo-row .seal-overlay {
+    .seal-wrap img {
       position: absolute;
-      right: 0;
+      left: 50%;
       top: 50%;
-      transform: translateY(-50%);
-      width: 85px;
-      height: 85px;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
       object-fit: contain;
-      opacity: 0.9;
+      opacity: 0.85;
     }
     .signer-signature-area {
       min-height: 80px;
@@ -281,10 +282,9 @@ export const CompanyContractTemplate = (data) => {
         <div class="signature-label">주소:</div>
         <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
       </div>
-      <div class="signature-row ceo-row">
+      <div class="signature-row">
         <div class="signature-label">대표자:</div>
-        <div class="signature-value">박현용 (인)</div>
-        <img class="seal-overlay" src="/company-seal.png" alt="법인인감" />
+        <div class="signature-value">박현용 <span class="seal-wrap">(인)<img src="/company-seal.png" alt="법인인감" /></span></div>
       </div>
     </div>
 

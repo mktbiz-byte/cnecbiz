@@ -166,18 +166,19 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
       flex: 1;
       color: #1f2937;
     }
-    .ceo-row {
+    .seal-wrap {
       position: relative;
+      display: inline;
     }
-    .ceo-row .seal-overlay {
+    .seal-wrap img {
       position: absolute;
-      right: 0;
+      left: 50%;
       top: 50%;
-      transform: translateY(-50%);
-      width: 85px;
-      height: 85px;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
       object-fit: contain;
-      opacity: 0.9;
+      opacity: 0.85;
     }
     .notice-section {
       margin-top: 40px;
@@ -381,10 +382,9 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
         <div class="signature-label">회사명:</div>
         <div class="signature-value">주식회사 하우파파</div>
       </div>
-      <div class="signature-row ceo-row">
+      <div class="signature-row">
         <div class="signature-label">대표자:</div>
-        <div class="signature-value">박현용 (인)</div>
-        <img class="seal-overlay" src="/company-seal.png" alt="법인인감" />
+        <div class="signature-value">박현용 <span class="seal-wrap">(인)<img src="/company-seal.png" alt="법인인감" /></span></div>
       </div>
       <div class="signature-row">
         <div class="signature-label">사업자번호:</div>
