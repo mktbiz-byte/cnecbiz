@@ -244,6 +244,7 @@ exports.handler = async (event) => {
     }
 
     // 6. video_submissions INSERT (RLS 우회) - 모든 리전 지원
+    // 리전별 스키마 차이 자동 대응: 없는 컬럼은 자동 제거 후 재시도
     if (action === 'insert_video_submission') {
       const { submissionData } = body
       if (!submissionData) {
@@ -254,26 +255,45 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data, error } = await client
-        .from('video_submissions')
-        .insert([submissionData])
-        .select()
+      let dataToInsert = { ...submissionData }
+      let lastError = null
 
-      if (error) {
-        console.error('[save-video-upload] video_submissions insert failed:', error)
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({ success: false, error: `video_submissions INSERT 실패: ${error.message}` })
+      // 최대 5회 재시도 (없는 컬럼을 하나씩 제거하며 재시도)
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data, error } = await client
+          .from('video_submissions')
+          .insert([dataToInsert])
+          .select()
+
+        if (!error) {
+          console.log(`[save-video-upload] Inserted video_submission for user ${submissionData.user_id}, campaign ${submissionData.campaign_id}`)
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, data: data?.[0] || null })
+          }
         }
+
+        // "Could not find the 'xxx' column" 에러면 해당 컬럼 제거 후 재시도
+        const colMatch = error.message.match(/Could not find the '(\w+)' column/)
+        if (colMatch) {
+          const badColumn = colMatch[1]
+          console.log(`[save-video-upload] Stripping unknown column '${badColumn}' from insert data (attempt ${attempt + 1})`)
+          delete dataToInsert[badColumn]
+          lastError = error
+          continue
+        }
+
+        // 다른 에러는 재시도하지 않음
+        lastError = error
+        break
       }
 
-      console.log(`[save-video-upload] Inserted video_submission for user ${submissionData.user_id}, campaign ${submissionData.campaign_id}`)
-
+      console.error('[save-video-upload] video_submissions insert failed:', lastError)
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({ success: true, data: data?.[0] || null })
+        body: JSON.stringify({ success: false, error: `video_submissions INSERT 실패: ${lastError.message}` })
       }
     }
 

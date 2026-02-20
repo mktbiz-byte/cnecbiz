@@ -429,7 +429,7 @@ export default function AdminCampaignDetail() {
 
       if (!videoUrl) throw new Error('Failed to get public URL')
 
-      // video_submissions 테이블에 레코드 생성 (JP/US는 테이블 없을 수 있음 - 에러 무시)
+      // video_submissions 테이블에 레코드 생성 (Netlify Function으로 RLS 우회 + 없는 컬럼 자동 제거)
       const submissionData = {
         campaign_id: id,
         user_id: application.user_id,
@@ -438,7 +438,6 @@ export default function AdminCampaignDetail() {
         video_file_url: videoUrl,
         video_file_name: file.name,
         video_file_size: file.size,
-        video_uploaded_at: new Date().toISOString(),
         status: 'submitted',
         submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -446,11 +445,14 @@ export default function AdminCampaignDetail() {
       }
 
       try {
-        const { error: insertError } = await client
-          .from('video_submissions')
-          .insert([submissionData])
-        if (insertError) {
-          console.warn('video_submissions insert failed (table may not exist):', insertError.message)
+        const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'insert_video_submission', region, submissionData })
+        })
+        const insertResult = await insertRes.json()
+        if (!insertResult.success) {
+          console.warn('video_submissions insert failed:', insertResult.error)
         }
       } catch (e) {
         console.warn('video_submissions insert skipped:', e.message)
