@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, Upload, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, Upload, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
 import { supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReviewView() {
@@ -25,11 +25,38 @@ export default function VideoReviewView() {
   const [isPaused, setIsPaused] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+  const [useCrossOrigin, setUseCrossOrigin] = useState(true)
 
   useEffect(() => {
     loadSubmission()
     loadComments()
   }, [submissionId])
+
+  // Video error handling for compatibility
+  const handleVideoError = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // First retry: remove crossOrigin attribute (CORS issue fallback)
+    if (useCrossOrigin) {
+      console.log('[VideoReviewView] Video load failed with crossOrigin, retrying without it')
+      setUseCrossOrigin(false)
+      return
+    }
+
+    console.error('[VideoReviewView] Video failed to load:', signedVideoUrl || submission?.video_file_url)
+    setVideoError(true)
+  }, [useCrossOrigin, signedVideoUrl, submission])
+
+  const handleVideoRetry = useCallback(() => {
+    setVideoError(false)
+    setUseCrossOrigin(true)
+    const video = videoRef.current
+    if (video) {
+      video.load()
+    }
+  }, [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -348,13 +375,49 @@ export default function VideoReviewView() {
                 <video
                   ref={videoRef}
                   controls
-                  crossOrigin="anonymous"
+                  crossOrigin={useCrossOrigin ? "anonymous" : undefined}
                   className="w-full h-full"
                   src={signedVideoUrl || submission.video_file_url}
+                  playsInline
+                  preload="metadata"
+                  onError={handleVideoError}
                 >
                   브라우저가 비디오를 지원하지 않습니다.
                 </video>
-                
+
+                {/* 영상 로드 에러 UI */}
+                {videoError && (
+                  <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-30">
+                    <div className="text-center text-white p-6 max-w-sm">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
+                      <p className="text-lg font-semibold mb-2">영상을 재생할 수 없습니다</p>
+                      <p className="text-sm text-gray-300 mb-4">
+                        브라우저에서 지원하지 않는 형식이거나 네트워크 오류일 수 있습니다.
+                        다른 브라우저(Chrome, Safari)에서 시도해 보세요.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          onClick={handleVideoRetry}
+                          variant="outline"
+                          className="text-white border-white/50 hover:bg-white/20"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          다시 시도
+                        </Button>
+                        <a
+                          href={signedVideoUrl || submission.video_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline py-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          새 탭에서 영상 열기
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Feedback markers */}
                 {comments.map((comment, index) => {
                   const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))

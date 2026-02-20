@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabaseBiz } from '../../lib/supabaseClients';
+import { AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 
 export default function VideoFeedback() {
   const [videos, setVideos] = useState([]);
@@ -27,7 +28,8 @@ export default function VideoFeedback() {
   const [expandedFeedback, setExpandedFeedback] = useState(null);
   const [editingComment, setEditingComment] = useState(null); // 수정 중인 댓글 ID
   const [editingFeedback, setEditingFeedback] = useState(null); // 수정 중인 피드백
-  
+  const [videoError, setVideoError] = useState(false);
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -70,6 +72,25 @@ export default function VideoFeedback() {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
+  }, [selectedVideo]);
+
+  // Video error handling for compatibility
+  const handleVideoError = useCallback(() => {
+    console.error('[VideoFeedback] Video failed to load:', selectedVideo?.video_url);
+    setVideoError(true);
+  }, [selectedVideo]);
+
+  const handleVideoRetry = useCallback(() => {
+    setVideoError(false);
+    const video = videoRef.current;
+    if (video) {
+      video.load();
+    }
+  }, []);
+
+  // Reset error state when video changes
+  useEffect(() => {
+    setVideoError(false);
   }, [selectedVideo]);
 
   const loadVideos = async () => {
@@ -727,7 +748,43 @@ export default function VideoFeedback() {
                   src={selectedVideo.video_url}
                   className="w-full h-full"
                   style={{ display: 'block' }}
+                  playsInline
+                  preload="metadata"
+                  onError={handleVideoError}
                 />
+                {/* 영상 로드 에러 UI */}
+                {videoError && (
+                  <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-30">
+                    <div className="text-center text-white p-6 max-w-sm">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
+                      <p className="text-lg font-semibold mb-2">영상을 재생할 수 없습니다</p>
+                      <p className="text-sm text-gray-300 mb-4">
+                        브라우저에서 지원하지 않는 형식이거나 네트워크 오류일 수 있습니다.
+                        다른 브라우저(Chrome, Safari)에서 시도해 보세요.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={handleVideoRetry}
+                          className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/50 rounded font-semibold text-sm"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4" />
+                            다시 시도
+                          </span>
+                        </button>
+                        <a
+                          href={selectedVideo.video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline py-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          새 탭에서 영상 열기
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <canvas
                   ref={canvasRef}
                   width={containerRef.current?.offsetWidth || 800}
