@@ -90,7 +90,7 @@ exports.handler = async (event) => {
     }
 
     console.log('🔍 [STEP 1] 입력 데이터 확인...');
-    console.log('   - 공급자: 주식회사 하우랩 (' + HAULAB_CORP_NUM + ')');
+    console.log('   - 공급자: 하우랩주식회사 (' + HAULAB_CORP_NUM + ')');
     console.log('   - 공급받는자:', invoiceData.companyName);
     console.log('   - 사업자번호:', invoiceData.businessNumber);
     console.log('   - 금액:', amount.toLocaleString(), '원');
@@ -145,7 +145,7 @@ exports.handler = async (event) => {
     console.log('   - 문서번호(MgtKey):', mgtKey)
 
     // 공급자 정보: 팝빌 등록 정보 > 환경변수 > 기본값 순서로 적용
-    const invoicerCorpName = corpInfo?.corpName || process.env.POPBILL_HAULAB_CORP_NAME || '주식회사 하우랩';
+    const invoicerCorpName = corpInfo?.corpName || process.env.POPBILL_HAULAB_CORP_NAME || '하우랩주식회사';
     const invoicerCEOName = corpInfo?.ceoname || process.env.POPBILL_HAULAB_CEO_NAME || '박현용';
     const invoicerAddr = corpInfo?.addr || process.env.POPBILL_HAULAB_ADDR || '';
     const invoicerBizClass = corpInfo?.bizClass || process.env.POPBILL_HAULAB_BIZ_CLASS || '';
@@ -320,7 +320,7 @@ exports.handler = async (event) => {
         const emailHtml = `
           <h2>하우랩 세금계산서가 발행되었습니다</h2>
           <table border="1" cellpadding="10" style="border-collapse: collapse;">
-            <tr><td><strong>공급자</strong></td><td>주식회사 하우랩 (${HAULAB_CORP_NUM})</td></tr>
+            <tr><td><strong>공급자</strong></td><td>하우랩주식회사 (${HAULAB_CORP_NUM})</td></tr>
             <tr><td><strong>공급받는자</strong></td><td>${invoiceData.companyName}</td></tr>
             <tr><td><strong>사업자번호</strong></td><td>${invoiceData.businessNumber}</td></tr>
             <tr><td><strong>공급가액</strong></td><td>${supplyCostTotal.toLocaleString()}원</td></tr>

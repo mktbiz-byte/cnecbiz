@@ -107,6 +107,7 @@ import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
 import ExternalGuideViewer from '../common/ExternalGuideViewer'
+import { VideoSecondaryUseConsentTemplate } from '../../templates/VideoSecondaryUseConsentTemplate'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -1829,82 +1830,104 @@ export default function CampaignDetail() {
     try {
       let allVideoSubmissions = []
 
-      // 1. Korea DB에서 video_submissions 가져오기
-      if (supabaseKorea) {
-        console.log('Fetching video submissions from Korea DB for campaign_id:', id)
-        const { data: koreaData, error: koreaError } = await supabaseKorea
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', id)
-          .order('created_at', { ascending: false })
-
-        if (koreaError) {
-          console.error('Korea video submissions query error:', koreaError)
-        } else if (koreaData && koreaData.length > 0) {
-          allVideoSubmissions = [...koreaData]
-          console.log('Fetched video submissions from Korea DB:', koreaData.length)
+      // Netlify Function으로 모든 리전의 video_submissions 조회 (RLS 우회, service role key 사용)
+      try {
+        console.log('Fetching video submissions via Netlify Function for campaign_id:', id)
+        const apiRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fetch_video_submissions', campaignId: id })
+        })
+        const apiResult = await apiRes.json()
+        if (apiResult.success && apiResult.data && apiResult.data.length > 0) {
+          allVideoSubmissions = apiResult.data
+          console.log('Fetched video submissions via API:', allVideoSubmissions.length)
+        } else {
+          console.log('API returned no video submissions, falling back to direct DB query')
         }
+      } catch (apiError) {
+        console.error('API fetch failed, falling back to direct DB query:', apiError.message)
       }
 
-      // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
-      if (supabaseJapan) {
-        console.log('Fetching video submissions from Japan DB for campaign_id:', id)
-        const { data: japanData, error: japanError } = await supabaseJapan
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', id)
-          .order('created_at', { ascending: false })
+      // API 실패 시 기존 직접 DB 쿼리로 fallback
+      if (allVideoSubmissions.length === 0) {
+        // 1. Korea DB에서 video_submissions 가져오기
+        if (supabaseKorea) {
+          console.log('Fetching video submissions from Korea DB for campaign_id:', id)
+          const { data: koreaData, error: koreaError } = await supabaseKorea
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
 
-        if (japanError) {
-          console.error('Japan video submissions query error:', japanError)
-        } else if (japanData && japanData.length > 0) {
-          const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-          const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
-          if (newFromJapan.length > 0) {
-            allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
-            console.log('Added video submissions from Japan DB:', newFromJapan.length)
+          if (koreaError) {
+            console.error('Korea video submissions query error:', koreaError)
+          } else if (koreaData && koreaData.length > 0) {
+            allVideoSubmissions = [...koreaData]
+            console.log('Fetched video submissions from Korea DB:', koreaData.length)
           }
         }
-      }
 
-      // 3. US DB에서 video_submissions 가져오기 (중복 제외)
-      if (supabaseUS) {
-        console.log('Fetching video submissions from US DB for campaign_id:', id)
-        const { data: usData, error: usError } = await supabaseUS
+        // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
+        if (supabaseJapan) {
+          console.log('Fetching video submissions from Japan DB for campaign_id:', id)
+          const { data: japanData, error: japanError } = await supabaseJapan
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
+
+          if (japanError) {
+            console.error('Japan video submissions query error:', japanError)
+          } else if (japanData && japanData.length > 0) {
+            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+            const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
+            if (newFromJapan.length > 0) {
+              allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
+              console.log('Added video submissions from Japan DB:', newFromJapan.length)
+            }
+          }
+        }
+
+        // 3. US DB에서 video_submissions 가져오기 (중복 제외)
+        if (supabaseUS) {
+          console.log('Fetching video submissions from US DB for campaign_id:', id)
+          const { data: usData, error: usError } = await supabaseUS
+            .from('video_submissions')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
+
+          if (usError) {
+            console.error('US video submissions query error:', usError)
+          } else if (usData && usData.length > 0) {
+            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+            const newFromUS = usData.filter(v => !existingIds.has(v.id))
+            if (newFromUS.length > 0) {
+              allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
+              console.log('Added video submissions from US DB:', newFromUS.length)
+            }
+          }
+        }
+
+        // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
+        console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
+        const { data: bizData, error: bizError } = await supabaseBiz
           .from('video_submissions')
           .select('*')
           .eq('campaign_id', id)
           .order('created_at', { ascending: false })
 
-        if (usError) {
-          console.error('US video submissions query error:', usError)
-        } else if (usData && usData.length > 0) {
+        if (bizError) {
+          console.error('BIZ video submissions query error:', bizError)
+        } else if (bizData && bizData.length > 0) {
+          // 중복 제외하고 병합 (id로 체크)
           const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-          const newFromUS = usData.filter(v => !existingIds.has(v.id))
-          if (newFromUS.length > 0) {
-            allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
-            console.log('Added video submissions from US DB:', newFromUS.length)
+          const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
+          if (newFromBiz.length > 0) {
+            allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
+            console.log('Added video submissions from BIZ DB:', newFromBiz.length)
           }
-        }
-      }
-
-      // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
-      console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
-      const { data: bizData, error: bizError } = await supabaseBiz
-        .from('video_submissions')
-        .select('*')
-        .eq('campaign_id', id)
-        .order('created_at', { ascending: false })
-
-      if (bizError) {
-        console.error('BIZ video submissions query error:', bizError)
-      } else if (bizData && bizData.length > 0) {
-        // 중복 제외하고 병합 (id로 체크)
-        const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-        const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
-        if (newFromBiz.length > 0) {
-          allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
-          console.log('Added video submissions from BIZ DB:', newFromBiz.length)
         }
       }
 
@@ -4923,6 +4946,100 @@ Questions? Contact us.
     }
   }
 
+  // 캠페인 자동 완료 체크: 선정된 모든 크리에이터가 완료되었으면 캠페인 상태를 completed로 변경
+  const checkAndCompleteCampaign = async () => {
+    if (!campaign || campaign.status === 'completed') return
+
+    const supabase = getSupabaseClient(region)
+    if (!supabase) return
+
+    // 선정된(selected 이상) 크리에이터의 applications 조회
+    const { data: apps, error } = await supabase
+      .from('applications')
+      .select('id, status, user_id')
+      .eq('campaign_id', campaign.id)
+      .in('status', ['selected', 'guide_sent', 'product_shipped', 'video_submitted', 'video_approved', 'completed'])
+
+    if (error || !apps || apps.length === 0) return
+
+    // 모든 선정 크리에이터가 completed 상태인지 확인
+    const allCompleted = apps.every(app => app.status === 'completed')
+    if (!allCompleted) return
+
+    console.log(`[자동완료] 캠페인 "${campaign.title}" - 선정 크리에이터 ${apps.length}명 모두 완료. 캠페인 상태를 completed로 변경`)
+
+    // 캠페인 상태를 completed로 변경
+    const { error: updateError } = await supabase
+      .from('campaigns')
+      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', campaign.id)
+
+    if (updateError) {
+      console.error('[자동완료] 캠페인 상태 업데이트 실패:', updateError)
+      return
+    }
+
+    // biz DB에도 동기화
+    if (region !== 'biz') {
+      try {
+        await supabaseBiz
+          .from('campaigns')
+          .update({ status: 'completed', updated_at: new Date().toISOString() })
+          .eq('id', campaign.id)
+      } catch (e) {
+        console.warn('[자동완료] biz DB 동기화 실패:', e.message)
+      }
+    }
+
+    // 네이버 웍스 알림
+    try {
+      await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `✅ 캠페인 자동 완료\n\n캠페인: ${campaign.title}\n크리에이터: ${apps.length}명 전원 완료\n리전: ${region}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+        })
+      })
+    } catch (e) {
+      console.warn('[자동완료] 네이버 웍스 알림 실패:', e.message)
+    }
+
+    // 로컬 상태 업데이트
+    setCampaign(prev => prev ? { ...prev, status: 'completed' } : prev)
+    console.log('[자동완료] 캠페인 상태가 completed로 변경되었습니다')
+  }
+
+  // 2차 활용 동의서 발급 (인쇄/다운로드)
+  const handleSecondaryUseConsent = (participant, submission) => {
+    const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+    const channelName = participant.channel_name || participant.applicant_channel || ''
+
+    // SNS URL 입력 날짜를 2차 활용 시작일로 사용
+    let snsUrl = submission?.sns_upload_url || participant.sns_upload_url || ''
+    // sns_upload_url 업데이트 시점 (updated_at 또는 final_confirmed_at)을 시작일로
+    const snsUploadDate = submission?.updated_at || submission?.final_confirmed_at || participant.final_confirmed_at || new Date().toISOString()
+    const consentDate = new Date(snsUploadDate).toLocaleDateString('ko-KR')
+
+    const html = VideoSecondaryUseConsentTemplate({
+      creatorName,
+      channelName,
+      snsUploadUrl: snsUrl,
+      campaignTitle: campaign?.title || '',
+      companyName: campaign?.brand || '',
+      videoCompletionDate: snsUploadDate,
+      consentDate
+    })
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.print()
+    }
+  }
+
   // 최종 확정 및 포인트 지급 (SNS 업로드 확인 후)
   // skipPointPayment: 멀티비디오 캠페인에서 마지막 영상이 아닌 경우 true
   const handleFinalConfirmation = async (submission, skipPointPayment = false) => {
@@ -5148,6 +5265,13 @@ Questions? Contact us.
 
       // 기업에게는 포인트 금액 안 보여줌
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+
+      // 캠페인 자동 완료 체크: 모든 선정 크리에이터가 완료되었으면 캠페인 상태를 completed로 변경
+      try {
+        await checkAndCompleteCampaign()
+      } catch (e) {
+        console.warn('캠페인 자동 완료 체크 실패:', e.message)
+      }
     } catch (error) {
       console.error('Error in final confirmation:', error)
       alert('최종 확정에 실패했습니다: ' + error.message)
@@ -5348,6 +5472,13 @@ Questions? Contact us.
 
       await fetchParticipants()
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+
+      // 캠페인 자동 완료 체크
+      try {
+        await checkAndCompleteCampaign()
+      } catch (e) {
+        console.warn('캠페인 자동 완료 체크 실패:', e.message)
+      }
     } catch (error) {
       console.error('Error in multi-video final confirmation:', error)
       alert('최종 확정에 실패했습니다: ' + error.message)
@@ -6154,11 +6285,12 @@ Questions? Contact us.
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블 insert (Netlify Function으로 RLS 우회 - 리전 DB + BIZ DB 모두)
+      // 주의: video_submissions 테이블에 존재하는 컬럼만 포함 (video_uploaded_at 등 존재하지 않는 컬럼 제외)
       const submissionData = {
         campaign_id: id, user_id: userId,
         video_number: videoSlot, version,
         video_file_url: videoUrl, video_file_name: file.name,
-        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+        video_file_size: file.size,
         status: 'submitted', submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }
@@ -6167,6 +6299,8 @@ Questions? Contact us.
       const insertTargets = [region]
       if (region !== 'biz') insertTargets.push('biz')
 
+      let insertSucceeded = false
+      const insertErrors = []
       await Promise.all(insertTargets.map(async (targetRegion) => {
         try {
           const insertRes = await fetch('/.netlify/functions/save-video-upload', {
@@ -6176,19 +6310,26 @@ Questions? Contact us.
           })
           const insertResult = await insertRes.json()
           if (!insertResult.success) {
-            console.warn(`video_submissions insert failed (${targetRegion}):`, insertResult.error)
+            console.error(`video_submissions insert failed (${targetRegion}):`, insertResult.error)
+            insertErrors.push(`${targetRegion}: ${insertResult.error}`)
           } else {
             console.log(`video_submissions insert 성공 (${targetRegion})`)
+            insertSucceeded = true
           }
         } catch (e) {
-          console.warn(`video_submissions insert skipped (${targetRegion}):`, e.message)
+          console.error(`video_submissions insert error (${targetRegion}):`, e.message)
+          insertErrors.push(`${targetRegion}: ${e.message}`)
         }
       }))
 
+      if (!insertSucceeded) {
+        throw new Error(`영상 DB 등록 실패: ${insertErrors.join(', ')}`)
+      }
+
       // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (리전 DB + BIZ DB 모두)
+      // 주의: Korea DB applications에는 video_file_url, video_file_name, video_file_size, video_uploaded_at 컬럼이 없음
+      // 영상 정보는 video_submissions 테이블에 저장되므로 applications에는 status만 업데이트
       const appUpdateData = {
-        video_file_url: videoUrl, video_file_name: file.name,
-        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
         status: 'video_submitted', updated_at: new Date().toISOString()
       }
       const campaignType = campaign?.campaign_type || ''
@@ -10115,7 +10256,7 @@ Questions? Contact us.
                       className={videoReviewFilter === 'not_submitted' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
                       onClick={() => setVideoReviewFilter('not_submitted')}
                     >
-                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id)).length})
+                      미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url).length})
                     </Button>
                   </div>
                 </div>
@@ -10204,11 +10345,16 @@ Questions? Contact us.
                         v.user_id === p.user_id &&
                         (v[stepFieldName] === currentStepNumber || v.video_number === currentStepNumber || v.week_number === currentStepNumber)
                       )
-                      return !hasSubmitted
+                      if (hasSubmitted) return false
+                      // 멀티스텝: 해당 차수 URL이 있으면 제출된 것으로 간주
+                      if (stepFieldName === 'week_number' && p[`week${currentStepNumber}_url`]) return false
+                      if (stepFieldName === 'video_number' && p[`step${currentStepNumber}_url`]) return false
+                      if (p.video_file_url) return false
+                      return true
                     })
                   } else {
                     // 일반 캠페인: 영상이 없는 참가자
-                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id))
+                    notSubmittedParticipants = participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url)
                   }
 
                   // 연락처 가져오기 헬퍼 함수
@@ -11192,10 +11338,21 @@ Questions? Contact us.
                                                   </Button>
                                                 )}
                                                 {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
-                                                  <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                    {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
-                                                  </Badge>
+                                                  <>
+                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
+                                                    </Badge>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                      onClick={() => handleSecondaryUseConsent(participant, submission)}
+                                                    >
+                                                      <FileText className="w-4 h-4 mr-1" />
+                                                      2차 활용
+                                                    </Button>
+                                                  </>
                                                 ) : submission.status === 'approved' && (
                                                   snsUrl ? (
                                                     <Badge className="bg-green-100 text-green-700 px-2 py-1 text-xs">
@@ -11484,10 +11641,21 @@ Questions? Contact us.
                                                     </Button>
                                                   )}
                                                   {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
-                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
-                                                    </Badge>
+                                                    <>
+                                                      <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                                        {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
+                                                      </Badge>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                        onClick={() => handleSecondaryUseConsent(participant, submission)}
+                                                      >
+                                                        <FileText className="w-4 h-4 mr-1" />
+                                                        2차 활용 동의서
+                                                      </Button>
+                                                    </>
                                                   ) : submission.status === 'approved' && (
                                                     <Button
                                                       size="sm"

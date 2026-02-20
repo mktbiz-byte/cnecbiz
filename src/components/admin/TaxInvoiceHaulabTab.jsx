@@ -180,7 +180,7 @@ const TaxInvoiceHaulabTab = () => {
     }
 
     const confirmMessage = `[하우랩] 세금계산서를 발행하시겠습니까?\n\n` +
-      `공급자: 주식회사 하우랩 (376-81-00944)\n` +
+      `공급자: 하우랩주식회사 (376-81-00944)\n` +
       `공급받는자: ${manualForm.companyName}\n` +
       `사업자번호: ${manualForm.businessNumber}\n` +
       `금액: ${amount.toLocaleString()}원 (VAT 포함)\n` +
@@ -249,7 +249,7 @@ const TaxInvoiceHaulabTab = () => {
         <div className="flex items-center gap-3">
           <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold flex items-center gap-1.5">
             <Building2 className="w-4 h-4" />
-            공급자: 주식회사 하우랩 (376-81-00944)
+            공급자: 하우랩주식회사 (376-81-00944)
           </div>
         </div>
         <div className="flex gap-2">
@@ -410,7 +410,7 @@ const TaxInvoiceHaulabTab = () => {
                   <Building2 className="w-6 h-6" />
                   하우랩 세금계산서 발행
                 </h2>
-                <p className="text-sm text-green-700 mt-1">공급자: 주식회사 하우랩 (376-81-00944)</p>
+                <p className="text-sm text-green-700 mt-1">공급자: 하우랩주식회사 (376-81-00944)</p>
               </div>
               <button
                 onClick={closeManualModal}
@@ -661,7 +661,7 @@ const TaxInvoiceHaulabTab = () => {
                   <h4 className="font-semibold text-green-900 mb-3">발행 미리보기</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="text-gray-600">공급자:</div>
-                    <div className="font-medium">주식회사 하우랩 (376-81-00944)</div>
+                    <div className="font-medium">하우랩주식회사 (376-81-00944)</div>
                     <div className="text-gray-600">공급받는자:</div>
                     <div className="font-medium">{manualForm.companyName}</div>
                     <div className="text-gray-600">사업자번호:</div>
