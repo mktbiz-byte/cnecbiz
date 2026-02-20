@@ -305,38 +305,20 @@ export default function AdminContractManagement() {
     const campaign = consentCampaigns.find(c => c.id === campaignId && c.region === regionKey)
     setSelectedCampaign(campaign)
 
-    console.log('[동의서] 캠페인 선택:', { value, regionKey, campaignId, campaign: campaign ? { id: campaign.id, region: campaign.region, title: campaign.title } : null })
-
-    if (!campaign) {
-      console.warn('[동의서] 캠페인을 찾을 수 없음:', { regionKey, campaignId, totalCampaigns: consentCampaigns.length })
-      return
-    }
+    if (!campaign) return
 
     // 해당 캠페인의 크리에이터(선정된 참여자) 조회
     setCreatorsLoading(true)
     try {
       const region = campaign.region || 'biz'
       const client = getSupabaseClient(region)
-      if (!client) {
-        console.error('[동의서] Supabase client 없음:', region)
-        return
-      }
+      if (!client) return
 
-      // 먼저 status 필터 없이 전체 조회하여 데이터 확인
-      const { data: allApps, error: debugError } = await client
+      const { data: apps } = await client
         .from('applications')
-        .select('id, user_id, applicant_name, status')
-        .eq('campaign_id', campaignId)
-
-      console.log('[동의서] 전체 applications:', { count: allApps?.length, error: debugError?.message, statuses: allApps?.map(a => a.status) })
-
-      const { data: apps, error: appsError } = await client
-        .from('applications')
-        .select('id, user_id, applicant_name, status, sns_upload_url, final_confirmed_at, video_uploaded_at, updated_at')
+        .select('id, user_id, applicant_name, status, sns_upload_url, final_confirmed_at, updated_at')
         .eq('campaign_id', campaignId)
         .in('status', ['approved', 'selected', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'guide_approved', 'sns_uploaded', 'completed'])
-
-      console.log('[동의서] 필터된 applications:', { count: apps?.length, error: appsError?.message })
 
       if (apps && apps.length > 0) {
         // user_profiles에서 이름/채널 정보 가져오기
@@ -364,8 +346,8 @@ export default function AdminContractManagement() {
         const enriched = apps.map(app => {
           const profile = profiles?.find(p => p.id === app.user_id)
           const channelName = profile?.instagram_url || profile?.youtube_url || profile?.tiktok_url || ''
-          // 검수 완료일 = final_confirmed_at > video_uploaded_at > updated_at
-          const reviewCompletedDate = app.final_confirmed_at || app.video_uploaded_at || app.updated_at || ''
+          // 검수 완료일 = final_confirmed_at > updated_at
+          const reviewCompletedDate = app.final_confirmed_at || app.updated_at || ''
           return {
             id: app.id,
             user_id: app.user_id,
