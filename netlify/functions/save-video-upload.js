@@ -1,10 +1,16 @@
 const { createClient } = require('@supabase/supabase-js')
 
 // Service role key로 RLS 우회하여 영상 업로드 관련 DB 작업 처리
-// 멀티 리전 지원: korea, japan, us
+// 멀티 리전 지원: korea, japan, us, biz
 const supabaseKorea = createClient(
   process.env.VITE_SUPABASE_KOREA_URL,
   process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+// BIZ DB (중앙 비즈니스 DB) - applications가 여기에 있을 수 있음
+const supabaseBiz = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
 // 리전별 Supabase 클라이언트 (lazy init)
@@ -13,6 +19,8 @@ let _supabaseUS = null
 
 function getRegionClient(region) {
   switch (region) {
+    case 'biz':
+      return supabaseBiz
     case 'japan':
       if (!_supabaseJapan && process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY) {
         _supabaseJapan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)

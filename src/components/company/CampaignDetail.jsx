@@ -2099,7 +2099,11 @@ export default function CampaignDetail() {
         ])
 
         // 우선순위: campaign_participants > campaign_applications > applications
-        const seenUserIds = new Set()
+        // 기존 video_submissions에 있는 (user_id, video_number) 조합을 체크
+        const existingUserVideoKeys = new Set(
+          allVideoSubmissions.map(v => `${v.user_id}_${v.video_number || v.week_number || 1}_${v.version || 1}`)
+        )
+        const seenFallbackKeys = new Set()
         const allFallbacks = [
           jpCP, usCP, krCP, bizCP,
           jpCA, usCA,
@@ -2107,11 +2111,11 @@ export default function CampaignDetail() {
         ]
         allFallbacks.forEach(items => {
           items.forEach(item => {
-            // video_submissions에 이미 있는 사용자는 건너뛰기
-            if (existingUserIds.has(item.user_id)) return
-            const key = `${item.user_id}_${item.version || 1}`
-            if (!seenUserIds.has(key)) {
-              seenUserIds.add(key)
+            // (user_id, video_number, version) 조합으로 중복 체크 (user_id만으로 건너뛰지 않음)
+            const key = `${item.user_id}_${item.video_number || item.week_number || 1}_${item.version || 1}`
+            if (existingUserVideoKeys.has(key)) return
+            if (!seenFallbackKeys.has(key)) {
+              seenFallbackKeys.add(key)
               allVideoSubmissions.push(item)
             }
           })
@@ -6149,35 +6153,39 @@ Questions? Contact us.
 
       if (!videoUrl) throw new Error('Failed to get public URL')
 
-      // video_submissions 테이블 insert (Netlify Function으로 RLS 우회 - 모든 리전)
-      try {
-        const insertRes = await fetch('/.netlify/functions/save-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'insert_video_submission',
-            region,
-            submissionData: {
-              campaign_id: id, user_id: userId,
-              video_number: videoSlot, version,
-              video_file_url: videoUrl, video_file_name: file.name,
-              video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
-              status: 'submitted', submitted_at: new Date().toISOString(),
-              created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-            }
-          })
-        })
-        const insertResult = await insertRes.json()
-        if (!insertResult.success) {
-          console.warn('video_submissions insert via function failed:', insertResult.error)
-        } else {
-          console.log('video_submissions insert 성공 (region:', region, ')')
-        }
-      } catch (e) {
-        console.warn('video_submissions insert skipped:', e.message)
+      // video_submissions 테이블 insert (Netlify Function으로 RLS 우회 - 리전 DB + BIZ DB 모두)
+      const submissionData = {
+        campaign_id: id, user_id: userId,
+        video_number: videoSlot, version,
+        video_file_url: videoUrl, video_file_name: file.name,
+        video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+        status: 'submitted', submitted_at: new Date().toISOString(),
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }
 
-      // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (Netlify Function으로 RLS 우회 - 모든 리전)
+      // 리전 DB와 BIZ DB 모두에 insert (application이 어느 DB에 있든 대응)
+      const insertTargets = [region]
+      if (region !== 'biz') insertTargets.push('biz')
+
+      await Promise.all(insertTargets.map(async (targetRegion) => {
+        try {
+          const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'insert_video_submission', region: targetRegion, submissionData })
+          })
+          const insertResult = await insertRes.json()
+          if (!insertResult.success) {
+            console.warn(`video_submissions insert failed (${targetRegion}):`, insertResult.error)
+          } else {
+            console.log(`video_submissions insert 성공 (${targetRegion})`)
+          }
+        } catch (e) {
+          console.warn(`video_submissions insert skipped (${targetRegion}):`, e.message)
+        }
+      }))
+
+      // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (리전 DB + BIZ DB 모두)
       const appUpdateData = {
         video_file_url: videoUrl, video_file_name: file.name,
         video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
@@ -6190,13 +6198,21 @@ Questions? Contact us.
         }
       }
 
-      const appRes = await fetch('/.netlify/functions/save-video-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_application', region, campaignId: id, userId, updateData: appUpdateData })
-      })
-      const appResult = await appRes.json()
-      if (!appResult.success) console.warn(`${region} applications 업데이트 실패:`, appResult.error)
+      // 리전 DB와 BIZ DB 모두 업데이트 (application이 어느 DB에 있든 대응)
+      await Promise.all(insertTargets.map(async (targetRegion) => {
+        try {
+          const appRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_application', region: targetRegion, campaignId: id, userId, updateData: appUpdateData })
+          })
+          const appResult = await appRes.json()
+          if (!appResult.success) console.warn(`${targetRegion} applications 업데이트 실패:`, appResult.error)
+          else console.log(`${targetRegion} applications 업데이트 성공`)
+        } catch (e) {
+          console.warn(`${targetRegion} applications 업데이트 스킵:`, e.message)
+        }
+      }))
 
       // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
       if (region === 'korea') {
