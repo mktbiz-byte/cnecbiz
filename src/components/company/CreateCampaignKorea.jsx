@@ -7,7 +7,7 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { History, X, Loader2, Package } from 'lucide-react'
+import { History, X, Loader2, Package, Download } from 'lucide-react'
 
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
@@ -92,6 +92,11 @@ const CampaignCreationKorea = () => {
   const [lastSaved, setLastSaved] = useState(null)
   const [autoSaving, setAutoSaving] = useState(false)
   const autoSaveTimeoutRef = useRef(null)
+
+  // 캠페인 등록 동의 모달
+  const [showConsentModal, setShowConsentModal] = useState(false)
+  const [consentRefundPolicy, setConsentRefundPolicy] = useState(false)
+  const [consentNoDirectContact, setConsentNoDirectContact] = useState(false)
 
   // 현재 단계 (step) 상태
   const [currentStep, setCurrentStep] = useState(1)
@@ -897,13 +902,94 @@ const CampaignCreationKorea = () => {
     }
   }
 
-  // 캠페인 저장
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  // 캠페인 등록 계약서 다운로드
+  const handleDownloadContract = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>캠페인 이용약관 및 환불 규정</title>
+    <style>body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;max-width:800px;margin:0 auto;padding:40px;line-height:1.8;color:#333}h1{text-align:center;font-size:22px;border-bottom:3px solid #6C5CE7;padding-bottom:15px;margin-bottom:30px}h2{font-size:16px;color:#6C5CE7;margin-top:28px;margin-bottom:12px;border-left:4px solid #6C5CE7;padding-left:10px}h3{font-size:14px;margin-top:16px;margin-bottom:8px}p,li{font-size:13px}ol,ul{padding-left:20px}table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #ddd;padding:10px;text-align:left;font-size:13px}th{background:#f8f7ff;font-weight:bold}.highlight{background:#fff3cd;padding:8px 12px;border-radius:6px;border-left:4px solid #ffc107;margin:12px 0}.warning{background:#f8d7da;padding:8px 12px;border-radius:6px;border-left:4px solid #dc3545;margin:12px 0}.footer{margin-top:40px;text-align:center;font-size:12px;color:#888;border-top:1px solid #eee;padding-top:20px}@media print{body{padding:20px}}</style></head><body>
+    <h1>캠페인 이용약관 및 환불 규정</h1>
+    <p style="text-align:center;color:#666;font-size:13px">본 약관은 주식회사 하우파파(이하 "회사")가 운영하는 크넥(CNEC) 플랫폼을 통해 기업(이하 "광고주")이 크리에이터 마케팅 캠페인을 등록·운영함에 있어 적용되는 조건을 규정합니다.</p>
+
+    <h2>제1조 (캠페인 등록 및 계약 성립)</h2>
+    <ol><li>광고주가 캠페인을 등록하고 결제를 완료한 시점에 회사와 광고주 간 캠페인 서비스 이용 계약이 성립됩니다.</li><li>캠페인 등록 시 입력한 브랜드명, 상품명, 모집 조건, 일정 등은 계약의 일부를 구성하며, 등록 후에는 회사의 승인 없이 임의 변경할 수 없습니다.</li><li>회사는 캠페인 내용이 관련 법령, 플랫폼 정책 또는 공서양속에 반하는 경우 등록을 거부하거나 승인을 취소할 수 있습니다.</li></ol>
+
+    <h2>제2조 (환불 규정)</h2>
+    <p>환불은 아래 기준에 따라 처리됩니다.</p>
+    <table><thead><tr><th>구분</th><th>환불 기준</th><th>환불 비율</th></tr></thead><tbody>
+    <tr><td><strong>캠페인 진행 전</strong></td><td>크리에이터 선정 완료 이전 단계</td><td><strong>전액(100%) 환불</strong></td></tr>
+    <tr><td><strong>캠페인 진행 후</strong></td><td>크리에이터 선정 완료 이후 ~ 콘텐츠 제작 진행 중</td><td><strong>50% 환불</strong></td></tr>
+    <tr><td><strong>콘텐츠 제출 후</strong></td><td>크리에이터가 콘텐츠(영상/사진)를 제출한 이후</td><td><strong>환불 불가</strong></td></tr>
+    </tbody></table>
+    <div class="highlight"><strong>※ "캠페인 진행"의 기준:</strong> 회사가 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점을 의미합니다.</div>
+    <ol><li>환불 요청은 캠페인 관리 페이지 또는 고객센터를 통해 접수할 수 있습니다.</li><li>환불 금액은 결제 수단에 따라 영업일 기준 3~7일 이내에 처리됩니다.</li><li>부분 환불 시, 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</li><li>광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</li></ol>
+
+    <h2>제3조 (광고주의 크리에이터 개별 연락 금지)</h2>
+    <div class="warning"><strong>⚠ 중요:</strong> 본 조항을 위반할 경우 서비스 이용이 제한되며, 위반으로 인한 손해에 대해 배상 책임을 질 수 있습니다.</div>
+    <ol><li>광고주는 플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위를 해서는 안 됩니다.</li><li>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</li><li>본 조항은 캠페인 종료 후 6개월간 유효합니다.</li><li>광고주가 본 조항을 위반하여 크리에이터와 직접 거래를 진행한 경우, 회사는 해당 캠페인 결제 금액의 200%에 해당하는 위약금을 청구할 수 있습니다.</li></ol>
+
+    <h2>제4조 (콘텐츠 저작권 및 2차 활용)</h2>
+    <ol><li>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</li><li>광고주는 캠페인 계약 범위 내에서 콘텐츠를 활용할 수 있으며, 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</li><li>2차 활용 기간은 크리에이터의 SNS 업로드일로부터 1년입니다.</li><li>2차 활용 시 콘텐츠의 변형, 재편집은 원저작자의 인격권을 침해하지 않는 범위 내에서 가능합니다.</li></ol>
+
+    <h2>제5조 (광고주의 의무)</h2>
+    <ol><li>광고주는 캠페인에 필요한 제품·서비스를 약속된 기한 내에 제공해야 합니다.</li><li>광고주는 캠페인에 관한 정확한 정보를 제공해야 하며, 허위·과장 정보 제공으로 인한 문제는 광고주가 책임집니다.</li><li>광고주는 「표시·광고의 공정화에 관한 법률」 등 관련 법령을 준수해야 합니다.</li></ol>
+
+    <h2>제6조 (회사의 의무)</h2>
+    <ol><li>회사는 캠페인의 원활한 진행을 위해 크리에이터 매칭, 일정 관리, 콘텐츠 검수 등의 서비스를 성실히 제공합니다.</li><li>회사는 광고주와 크리에이터 간 분쟁 발생 시 중재 역할을 수행합니다.</li></ol>
+
+    <h2>제7조 (분쟁 해결)</h2>
+    <ol><li>본 약관과 관련된 분쟁은 대한민국 법률에 따라 해결합니다.</li><li>소송이 필요한 경우 서울중앙지방법원을 전속 관할 법원으로 합니다.</li></ol>
+
+    <div class="footer"><p>주식회사 하우파파 (HOWPAPA Inc.) | 크넥(CNEC) 플랫폼</p><p>본 약관은 ${new Date().toLocaleDateString('ko-KR')} 기준 적용됩니다.</p></div>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.print()
+    }
+  }
+
+  // 캠페인 저장 (동의 완료 후 실행)
+  const handleSubmitAfterConsent = async () => {
+    setShowConsentModal(false)
     setProcessing(true)
     setError('')
     setSuccess('')
+    await executeSubmit()
+  }
 
+  // 캠페인 저장
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    // 수정 모드일 때는 동의 모달 없이 바로 실행
+    if (editId) {
+      setProcessing(true)
+      await executeSubmit()
+      return
+    }
+
+    // 신규 등록 시 동의 모달 표시
+    // 기본 필드 검증
+    if (!taxInvoiceComplete) {
+      setError('캠페인 생성을 위해 세금계산서 발행 정보를 먼저 입력해주세요. 프로필 수정 페이지에서 입력할 수 있습니다.')
+      setShowTaxInvoiceWarning(true)
+      return
+    }
+    if (!campaignForm.brand || !campaignForm.brand.trim()) { setError('브랜드명을 입력해주세요.'); return }
+    if (!campaignForm.product_name || !campaignForm.product_name.trim()) { setError('상품명을 입력해주세요.'); return }
+    if (!campaignForm.category || campaignForm.category.length === 0) { setError('모집 채널을 1개 이상 선택해주세요.'); return }
+    if (!campaignForm.application_deadline) { setError('모집 마감일을 입력해주세요.'); return }
+
+    // 동의 모달 표시
+    setConsentRefundPolicy(false)
+    setConsentNoDirectContact(false)
+    setShowConsentModal(true)
+  }
+
+  const executeSubmit = async () => {
     try {
       // 세금계산서 발행 정보 필수 체크
       if (!taxInvoiceComplete) {
@@ -4034,6 +4120,142 @@ const CampaignCreationKorea = () => {
 
       {/* 하단 바 공간 확보 */}
       <div className="h-20"></div>
+
+      {/* 캠페인 등록 동의 모달 */}
+      {showConsentModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* 헤더 */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">캠페인 이용약관 동의</h2>
+              <button onClick={() => setShowConsentModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-5">
+              {/* 환불 규정 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">1</span>
+                  환불 규정
+                </h3>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-green-100 rounded flex items-center justify-center">
+                        <span className="text-green-700 font-bold text-xs">100%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
+                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-amber-100 rounded flex items-center justify-center">
+                        <span className="text-amber-700 font-bold text-xs">50%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
+                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-red-100 rounded flex items-center justify-center">
+                        <span className="text-red-700 font-bold text-xs">0%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">콘텐츠 제출 후</p>
+                        <p className="text-xs text-gray-500">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                  <p className="text-xs text-gray-500">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
+                  <p className="text-xs text-gray-500">※ 광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</p>
+                </div>
+              </div>
+
+              {/* 개별 연락 금지 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">2</span>
+                  크리에이터 개별 연락 금지
+                </h3>
+                <div className="bg-red-50 rounded-xl p-4 text-sm text-gray-700 space-y-2 border border-red-100">
+                  <p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 <strong className="text-red-700">직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위</strong>를 해서는 안 됩니다.</p>
+                  <p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p>
+                  <p>본 조항은 <strong>캠페인 종료 후 6개월간</strong> 유효합니다.</p>
+                  <p className="text-red-600 font-semibold">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</p>
+                </div>
+              </div>
+
+              {/* 콘텐츠 2차 활용 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">3</span>
+                  콘텐츠 저작권 및 2차 활용
+                </h3>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-2">
+                  <p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p>
+                  <p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p>
+                  <p>2차 활용 기간은 크리에이터의 <strong>SNS 업로드일로부터 1년</strong>입니다.</p>
+                </div>
+              </div>
+
+              {/* 체크박스 */}
+              <div className="space-y-3 pt-2">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={consentRefundPolicy}
+                    onChange={(e) => setConsentRefundPolicy(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    <strong className="text-gray-900">환불 규정</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={consentNoDirectContact}
+                    onChange={(e) => setConsentNoDirectContact(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    <strong className="text-gray-900">크리에이터 개별 연락 금지 조항</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="sticky bottom-0 bg-white border-t px-6 py-4 rounded-b-2xl flex items-center justify-between">
+              <button
+                onClick={handleDownloadContract}
+                className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 font-medium"
+              >
+                <Download className="w-4 h-4" />
+                약관 다운로드
+              </button>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={() => setShowConsentModal(false)}>
+                  취소
+                </Button>
+                <Button
+                  disabled={!consentRefundPolicy || !consentNoDirectContact || processing}
+                  onClick={handleSubmitAfterConsent}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6"
+                >
+                  {processing ? '저장 중...' : '동의 후 등록하기'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

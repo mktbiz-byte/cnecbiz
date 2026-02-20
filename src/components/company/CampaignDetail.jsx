@@ -107,6 +107,7 @@ import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
 import ExternalGuideViewer from '../common/ExternalGuideViewer'
+import { VideoSecondaryUseConsentTemplate } from '../../templates/VideoSecondaryUseConsentTemplate'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -4945,6 +4946,100 @@ Questions? Contact us.
     }
   }
 
+  // 캠페인 자동 완료 체크: 선정된 모든 크리에이터가 완료되었으면 캠페인 상태를 completed로 변경
+  const checkAndCompleteCampaign = async () => {
+    if (!campaign || campaign.status === 'completed') return
+
+    const supabase = getSupabaseClient(region)
+    if (!supabase) return
+
+    // 선정된(selected 이상) 크리에이터의 applications 조회
+    const { data: apps, error } = await supabase
+      .from('applications')
+      .select('id, status, user_id')
+      .eq('campaign_id', campaign.id)
+      .in('status', ['selected', 'guide_sent', 'product_shipped', 'video_submitted', 'video_approved', 'completed'])
+
+    if (error || !apps || apps.length === 0) return
+
+    // 모든 선정 크리에이터가 completed 상태인지 확인
+    const allCompleted = apps.every(app => app.status === 'completed')
+    if (!allCompleted) return
+
+    console.log(`[자동완료] 캠페인 "${campaign.title}" - 선정 크리에이터 ${apps.length}명 모두 완료. 캠페인 상태를 completed로 변경`)
+
+    // 캠페인 상태를 completed로 변경
+    const { error: updateError } = await supabase
+      .from('campaigns')
+      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', campaign.id)
+
+    if (updateError) {
+      console.error('[자동완료] 캠페인 상태 업데이트 실패:', updateError)
+      return
+    }
+
+    // biz DB에도 동기화
+    if (region !== 'biz') {
+      try {
+        await supabaseBiz
+          .from('campaigns')
+          .update({ status: 'completed', updated_at: new Date().toISOString() })
+          .eq('id', campaign.id)
+      } catch (e) {
+        console.warn('[자동완료] biz DB 동기화 실패:', e.message)
+      }
+    }
+
+    // 네이버 웍스 알림
+    try {
+      await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `✅ 캠페인 자동 완료\n\n캠페인: ${campaign.title}\n크리에이터: ${apps.length}명 전원 완료\n리전: ${region}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+        })
+      })
+    } catch (e) {
+      console.warn('[자동완료] 네이버 웍스 알림 실패:', e.message)
+    }
+
+    // 로컬 상태 업데이트
+    setCampaign(prev => prev ? { ...prev, status: 'completed' } : prev)
+    console.log('[자동완료] 캠페인 상태가 completed로 변경되었습니다')
+  }
+
+  // 2차 활용 동의서 발급 (인쇄/다운로드)
+  const handleSecondaryUseConsent = (participant, submission) => {
+    const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+    const channelName = participant.channel_name || participant.applicant_channel || ''
+
+    // SNS URL 입력 날짜를 2차 활용 시작일로 사용
+    let snsUrl = submission?.sns_upload_url || participant.sns_upload_url || ''
+    // sns_upload_url 업데이트 시점 (updated_at 또는 final_confirmed_at)을 시작일로
+    const snsUploadDate = submission?.updated_at || submission?.final_confirmed_at || participant.final_confirmed_at || new Date().toISOString()
+    const consentDate = new Date(snsUploadDate).toLocaleDateString('ko-KR')
+
+    const html = VideoSecondaryUseConsentTemplate({
+      creatorName,
+      channelName,
+      snsUploadUrl: snsUrl,
+      campaignTitle: campaign?.title || '',
+      companyName: campaign?.brand || '',
+      videoCompletionDate: snsUploadDate,
+      consentDate
+    })
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.print()
+    }
+  }
+
   // 최종 확정 및 포인트 지급 (SNS 업로드 확인 후)
   // skipPointPayment: 멀티비디오 캠페인에서 마지막 영상이 아닌 경우 true
   const handleFinalConfirmation = async (submission, skipPointPayment = false) => {
@@ -5170,6 +5265,13 @@ Questions? Contact us.
 
       // 기업에게는 포인트 금액 안 보여줌
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+
+      // 캠페인 자동 완료 체크: 모든 선정 크리에이터가 완료되었으면 캠페인 상태를 completed로 변경
+      try {
+        await checkAndCompleteCampaign()
+      } catch (e) {
+        console.warn('캠페인 자동 완료 체크 실패:', e.message)
+      }
     } catch (error) {
       console.error('Error in final confirmation:', error)
       alert('최종 확정에 실패했습니다: ' + error.message)
@@ -5370,6 +5472,13 @@ Questions? Contact us.
 
       await fetchParticipants()
       alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+
+      // 캠페인 자동 완료 체크
+      try {
+        await checkAndCompleteCampaign()
+      } catch (e) {
+        console.warn('캠페인 자동 완료 체크 실패:', e.message)
+      }
     } catch (error) {
       console.error('Error in multi-video final confirmation:', error)
       alert('최종 확정에 실패했습니다: ' + error.message)
@@ -11229,10 +11338,21 @@ Questions? Contact us.
                                                   </Button>
                                                 )}
                                                 {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
-                                                  <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                    {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
-                                                  </Badge>
+                                                  <>
+                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
+                                                    </Badge>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                      onClick={() => handleSecondaryUseConsent(participant, submission)}
+                                                    >
+                                                      <FileText className="w-4 h-4 mr-1" />
+                                                      2차 활용
+                                                    </Button>
+                                                  </>
                                                 ) : submission.status === 'approved' && (
                                                   snsUrl ? (
                                                     <Badge className="bg-green-100 text-green-700 px-2 py-1 text-xs">
@@ -11521,10 +11641,21 @@ Questions? Contact us.
                                                     </Button>
                                                   )}
                                                   {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
-                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                                      {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
-                                                    </Badge>
+                                                    <>
+                                                      <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                                        {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
+                                                      </Badge>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                        onClick={() => handleSecondaryUseConsent(participant, submission)}
+                                                      >
+                                                        <FileText className="w-4 h-4 mr-1" />
+                                                        2차 활용 동의서
+                                                      </Button>
+                                                    </>
                                                   ) : submission.status === 'approved' && (
                                                     <Button
                                                       size="sm"
