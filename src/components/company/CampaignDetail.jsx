@@ -4608,32 +4608,88 @@ Questions? Contact us.
         return
       }
 
-      // 1. video_submissions 상태 업데이트 (approved로 변경)
+      // 1. video_submissions 상태 업데이트 (approved로 변경) - Netlify Function으로 RLS 우회
       const now = new Date().toISOString()
-      let { error: videoError } = await supabase
-        .from('video_submissions')
-        .update({
-          status: 'approved',
-          approved_at: now,
-          reviewed_at: now
-        })
-        .eq('id', submission.id)
 
-      // approved_at/reviewed_at 컬럼이 없는 리전(Japan 등)에서는 status만 업데이트
-      if (videoError) {
-        console.warn('[handleVideoApproval] Full update failed, trying status only:', videoError.message)
-        const { error: fallbackError } = await supabase
-          .from('video_submissions')
-          .update({ status: 'approved', updated_at: now })
-          .eq('id', submission.id)
+      // 합성 ID(app_, cp_, ca_ 접두사)인 경우 video_submissions 테이블에 실제 레코드가 없으므로
+      // 먼저 INSERT 후 UPDATE 시도
+      const isSyntheticId = typeof submission.id === 'string' && /^(app_|cp_|ca_)/.test(submission.id)
 
-        if (fallbackError) {
-          // updated_at도 없을 수 있음
-          const { error: minimalError } = await supabase
-            .from('video_submissions')
-            .update({ status: 'approved' })
-            .eq('id', submission.id)
-          if (minimalError) throw minimalError
+      if (isSyntheticId) {
+        // 합성 ID: video_submissions에 레코드가 없으므로 먼저 INSERT 시도
+        console.log('[handleVideoApproval] Synthetic submission ID detected, inserting new record')
+        try {
+          const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'insert_video_submission',
+              region,
+              submissionData: {
+                campaign_id: submission.campaign_id || id,
+                user_id: submission.user_id,
+                video_number: submission.video_number || 1,
+                version: submission.version || 1,
+                video_file_url: submission.video_file_url,
+                video_file_name: submission.video_file_name,
+                status: 'approved',
+                submitted_at: submission.submitted_at || now,
+                created_at: submission.created_at || now,
+                updated_at: now
+              }
+            })
+          })
+          const insertResult = await insertRes.json()
+          if (!insertResult.success) {
+            console.warn('[handleVideoApproval] Insert for synthetic ID failed:', insertResult.error)
+          } else {
+            console.log('[handleVideoApproval] Successfully created video_submission record from synthetic ID')
+            // 새로 생성된 레코드의 ID로 submission 갱신
+            if (insertResult.data?.id) {
+              submission.id = insertResult.data.id
+            }
+          }
+        } catch (e) {
+          console.warn('[handleVideoApproval] Synthetic ID insert error:', e.message)
+        }
+      } else {
+        // 실제 ID: Netlify Function으로 UPDATE (RLS 우회)
+        try {
+          const updateRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'update_video_submission',
+              region,
+              submissionId: submission.id,
+              updateData: { status: 'approved', updated_at: now }
+            })
+          })
+          const updateResult = await updateRes.json()
+          if (!updateResult.success) {
+            console.warn('[handleVideoApproval] Function update failed, trying direct:', updateResult.error)
+            // 직접 업데이트 폴백
+            let { error: videoError } = await supabase
+              .from('video_submissions')
+              .update({ status: 'approved', approved_at: now, reviewed_at: now })
+              .eq('id', submission.id)
+
+            if (videoError) {
+              const { error: fallbackError } = await supabase
+                .from('video_submissions')
+                .update({ status: 'approved', updated_at: now })
+                .eq('id', submission.id)
+              if (fallbackError) {
+                const { error: minimalError } = await supabase
+                  .from('video_submissions')
+                  .update({ status: 'approved' })
+                  .eq('id', submission.id)
+                if (minimalError) throw minimalError
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[handleVideoApproval] video_submissions update error:', e.message)
         }
       }
 
@@ -4678,14 +4734,39 @@ Questions? Contact us.
       }
 
       // 2. applications 상태를 approved로 (completed가 아닌 approved - 최종 확정 대기)
+      // Netlify Function으로 RLS 우회 (모든 리전)
       if (!isMultiVideoChallenge || allVideosApproved) {
-        await supabase
-          .from('applications')
-          .update({
-            status: 'approved',
-            upload_deadline: inputDeadline
+        try {
+          const approveAppRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'update_application',
+              region,
+              campaignId: submission.campaign_id || id,
+              userId: submission.user_id,
+              updateData: {
+                status: 'approved',
+                upload_deadline: inputDeadline
+              }
+            })
           })
-          .eq('id', submission.application_id)
+          const approveAppResult = await approveAppRes.json()
+          if (!approveAppResult.success) {
+            console.warn('[handleVideoApproval] Application update via function failed, trying direct:', approveAppResult.error)
+            await supabase
+              .from('applications')
+              .update({ status: 'approved', upload_deadline: inputDeadline })
+              .eq('id', submission.application_id)
+          }
+        } catch (e) {
+          console.warn('[handleVideoApproval] Application update error:', e.message)
+          // 직접 업데이트 폴백
+          await supabase
+            .from('applications')
+            .update({ status: 'approved', upload_deadline: inputDeadline })
+            .eq('id', submission.application_id)
+        }
       }
 
       // 3. 크리에이터에게 영상 승인 완료 알림톡 발송
@@ -6068,21 +6149,35 @@ Questions? Contact us.
 
       if (!videoUrl) throw new Error('Failed to get public URL')
 
-      // video_submissions 테이블 insert (없을 수 있으므로 에러 무시)
+      // video_submissions 테이블 insert (Netlify Function으로 RLS 우회 - 모든 리전)
       try {
-        await client.from('video_submissions').insert([{
-          campaign_id: id, user_id: userId,
-          video_number: videoSlot, version,
-          video_file_url: videoUrl, video_file_name: file.name,
-          video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
-          status: 'submitted', submitted_at: new Date().toISOString(),
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        }])
+        const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'insert_video_submission',
+            region,
+            submissionData: {
+              campaign_id: id, user_id: userId,
+              video_number: videoSlot, version,
+              video_file_url: videoUrl, video_file_name: file.name,
+              video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
+              status: 'submitted', submitted_at: new Date().toISOString(),
+              created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+            }
+          })
+        })
+        const insertResult = await insertRes.json()
+        if (!insertResult.success) {
+          console.warn('video_submissions insert via function failed:', insertResult.error)
+        } else {
+          console.log('video_submissions insert 성공 (region:', region, ')')
+        }
       } catch (e) {
         console.warn('video_submissions insert skipped:', e.message)
       }
 
-      // applications 테이블 업데이트 - 상태를 video_submitted로 변경
+      // applications 테이블 업데이트 - 상태를 video_submitted로 변경 (Netlify Function으로 RLS 우회 - 모든 리전)
       const appUpdateData = {
         video_file_url: videoUrl, video_file_name: file.name,
         video_file_size: file.size, video_uploaded_at: new Date().toISOString(),
@@ -6095,23 +6190,13 @@ Questions? Contact us.
         }
       }
 
-      if (region === 'korea') {
-        // 한국: Netlify Function으로 DB 업데이트 (RLS 우회)
-        const appRes = await fetch('/.netlify/functions/save-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'update_application', campaignId: id, userId, updateData: appUpdateData })
-        })
-        const appResult = await appRes.json()
-        if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
-      } else {
-        const { error: appError } = await client
-          .from('applications')
-          .update(appUpdateData)
-          .eq('campaign_id', id)
-          .eq('user_id', userId)
-        if (appError) throw appError
-      }
+      const appRes = await fetch('/.netlify/functions/save-video-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_application', region, campaignId: id, userId, updateData: appUpdateData })
+      })
+      const appResult = await appRes.json()
+      if (!appResult.success) console.warn(`${region} applications 업데이트 실패:`, appResult.error)
 
       // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
       if (region === 'korea') {

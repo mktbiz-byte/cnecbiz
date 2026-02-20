@@ -1,10 +1,33 @@
 const { createClient } = require('@supabase/supabase-js')
 
 // Service role key로 RLS 우회하여 영상 업로드 관련 DB 작업 처리
+// 멀티 리전 지원: korea, japan, us
 const supabaseKorea = createClient(
   process.env.VITE_SUPABASE_KOREA_URL,
   process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 )
+
+// 리전별 Supabase 클라이언트 (lazy init)
+let _supabaseJapan = null
+let _supabaseUS = null
+
+function getRegionClient(region) {
+  switch (region) {
+    case 'japan':
+      if (!_supabaseJapan && process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY) {
+        _supabaseJapan = createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
+      }
+      return _supabaseJapan || supabaseKorea
+    case 'us':
+      if (!_supabaseUS && process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY) {
+        _supabaseUS = createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
+      }
+      return _supabaseUS || supabaseKorea
+    case 'korea':
+    default:
+      return supabaseKorea
+  }
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -22,7 +45,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { action, participantId, videoFiles, videoStatus, fileName, fileBase64, fileMimeType } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+    const { action, region, participantId, videoFiles, videoStatus, fileName, fileBase64, fileMimeType } = body
+
+    // 리전에 맞는 클라이언트 선택 (기본: korea)
+    const client = getRegionClient(region || 'korea')
 
     // 1. 서명된 업로드 URL 생성 (대용량 파일용)
     if (action === 'create_signed_url') {
@@ -34,8 +61,10 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data, error } = await supabaseKorea.storage
-        .from('campaign-videos')
+      const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
+
+      const { data, error } = await client.storage
+        .from(bucketName)
         .createSignedUploadUrl(fileName)
 
       if (error) {
@@ -47,8 +76,8 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data: { publicUrl } } = supabaseKorea.storage
-        .from('campaign-videos')
+      const { data: { publicUrl } } = client.storage
+        .from(bucketName)
         .getPublicUrl(fileName)
 
       return {
@@ -75,9 +104,10 @@ exports.handler = async (event) => {
       }
 
       const buffer = Buffer.from(fileBase64, 'base64')
+      const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
-      const { data, error } = await supabaseKorea.storage
-        .from('campaign-videos')
+      const { data, error } = await client.storage
+        .from(bucketName)
         .upload(fileName, buffer, {
           contentType: fileMimeType || 'video/mp4',
           cacheControl: '3600',
@@ -93,8 +123,8 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data: { publicUrl } } = supabaseKorea.storage
-        .from('campaign-videos')
+      const { data: { publicUrl } } = client.storage
+        .from(bucketName)
         .getPublicUrl(fileName)
 
       return {
@@ -114,7 +144,7 @@ exports.handler = async (event) => {
         }
       }
 
-      const { error: updateError } = await supabaseKorea
+      const { error: updateError } = await client
         .from('campaign_participants')
         .update({
           video_files: videoFiles,
@@ -150,7 +180,7 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data, error } = await supabaseKorea
+      const { data, error } = await client
         .from('campaign_participants')
         .select('video_files')
         .eq('id', participantId)
@@ -174,7 +204,7 @@ exports.handler = async (event) => {
 
     // 5. applications 업데이트 (RLS 우회)
     if (action === 'update_application') {
-      const { campaignId, userId, updateData } = JSON.parse(event.body)
+      const { campaignId, userId, updateData } = body
       if (!campaignId || !userId || !updateData) {
         return {
           statusCode: 400,
@@ -183,7 +213,7 @@ exports.handler = async (event) => {
         }
       }
 
-      const { error: appError } = await supabaseKorea
+      const { error: appError } = await client
         .from('applications')
         .update(updateData)
         .eq('campaign_id', campaignId)
@@ -202,6 +232,75 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ success: true })
+      }
+    }
+
+    // 6. video_submissions INSERT (RLS 우회) - 모든 리전 지원
+    if (action === 'insert_video_submission') {
+      const { submissionData } = body
+      if (!submissionData) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'submissionData 필수' })
+        }
+      }
+
+      const { data, error } = await client
+        .from('video_submissions')
+        .insert([submissionData])
+        .select()
+
+      if (error) {
+        console.error('[save-video-upload] video_submissions insert failed:', error)
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: `video_submissions INSERT 실패: ${error.message}` })
+        }
+      }
+
+      console.log(`[save-video-upload] Inserted video_submission for user ${submissionData.user_id}, campaign ${submissionData.campaign_id}`)
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, data: data?.[0] || null })
+      }
+    }
+
+    // 7. video_submissions UPDATE (RLS 우회) - 검수 완료/상태 변경용
+    if (action === 'update_video_submission') {
+      const { submissionId, updateData } = body
+      if (!submissionId || !updateData) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'submissionId, updateData 필수' })
+        }
+      }
+
+      const { data, error } = await client
+        .from('video_submissions')
+        .update(updateData)
+        .eq('id', submissionId)
+        .select()
+
+      if (error) {
+        console.error('[save-video-upload] video_submissions update failed:', error)
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: `video_submissions UPDATE 실패: ${error.message}` })
+        }
+      }
+
+      console.log(`[save-video-upload] Updated video_submission ${submissionId}`)
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, data: data?.[0] || null })
       }
     }
 
