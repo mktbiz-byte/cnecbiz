@@ -123,6 +123,26 @@ exports.handler = async (event, context) => {
       // 알림 발송 실패해도 검수 신청은 완료
     }
 
+    // 네이버 웍스 알림 발송
+    try {
+      const companyDisplayName = campaign.companies?.company_name || '기업'
+      const campaignTitle = campaign.title || '캠페인'
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `📋 캠페인 검수 신청\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 신청 시간: ${koreanTime}\n\n관리자 페이지에서 검수해주세요.`
+        })
+      })
+      console.log('[submit-campaign-review] 네이버 웍스 알림 발송 완료')
+    } catch (worksError) {
+      console.error('[submit-campaign-review] 네이버 웍스 알림 오류:', worksError)
+    }
+
     return {
       statusCode: 200,
       headers,

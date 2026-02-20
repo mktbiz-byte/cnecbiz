@@ -145,6 +145,24 @@ exports.handler = async (event) => {
       // 알림 실패는 무시
     }
 
+    // 네이버 웍스 알림 발송
+    try {
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `🎁 소속 크리에이터 보너스 포인트 지급\n\n• 크리에이터: ${creator.name || '크리에이터'}\n• 보너스: ${bonusAmount.toLocaleString()}P (${bonusRate}%)\n• 잔액: ${newPoints.toLocaleString()}P\n• 시간: ${koreanTime}`
+        })
+      })
+      console.log('[award-bonus-points] 네이버 웍스 알림 발송 완료')
+    } catch (worksError) {
+      console.error('[award-bonus-points] 네이버 웍스 알림 오류:', worksError)
+    }
+
     return {
       statusCode: 200,
       headers,

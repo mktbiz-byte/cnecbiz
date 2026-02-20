@@ -276,13 +276,16 @@ export default function AdminCampaignDetail() {
     }
   }
 
-  // JP/US 영상 제출 데이터 조회
+  // JP/US/KR 영상 제출 데이터 조회
   const fetchVideoSubmissions = async () => {
-    if (region !== 'japan' && region !== 'us') return
+    if (region !== 'japan' && region !== 'us' && region !== 'korea') return
     try {
       const client = getSupabaseClient(region)
       if (!client) return
 
+      let allSubmissions = []
+
+      // 1. video_submissions 테이블 조회
       const { data, error } = await client
         .from('video_submissions')
         .select('*')
@@ -291,8 +294,49 @@ export default function AdminCampaignDetail() {
         .order('version', { ascending: false })
 
       if (!error && data) {
-        setVideoSubmissions(data)
+        allSubmissions = [...data]
       }
+
+      // 2. 한국 캠페인: campaign_participants.video_files에서도 병합 (크리에이터 직접 업로드분)
+      if (region === 'korea') {
+        try {
+          const { data: participants } = await client
+            .from('campaign_participants')
+            .select('id, user_id, video_files, video_status')
+            .eq('campaign_id', id)
+
+          if (participants) {
+            participants.forEach(p => {
+              if (p.video_files && Array.isArray(p.video_files)) {
+                p.video_files.forEach(file => {
+                  // video_submissions에 같은 user_id + version이 없으면 추가
+                  const exists = allSubmissions.some(s =>
+                    s.user_id === p.user_id && s.version === file.version
+                  )
+                  if (!exists) {
+                    allSubmissions.push({
+                      id: `cp_${p.id}_v${file.version}`,
+                      campaign_id: id,
+                      user_id: p.user_id,
+                      video_number: 1,
+                      version: file.version || 1,
+                      video_file_url: file.url,
+                      video_file_name: file.name,
+                      status: p.video_status === 'approved' ? 'approved' : 'submitted',
+                      submitted_at: file.uploaded_at || new Date().toISOString(),
+                      _from_campaign_participants: true
+                    })
+                  }
+                })
+              }
+            })
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 조회 스킵:', cpErr.message)
+        }
+      }
+
+      setVideoSubmissions(allSubmissions)
     } catch (err) {
       console.error('Error fetching video submissions:', err)
     }
@@ -300,7 +344,7 @@ export default function AdminCampaignDetail() {
 
   // 영상 업로드 시작
   useEffect(() => {
-    if (campaign && (region === 'japan' || region === 'us')) {
+    if (campaign && (region === 'japan' || region === 'us' || region === 'korea')) {
       fetchVideoSubmissions()
     }
   }, [campaign, region])
@@ -349,25 +393,40 @@ export default function AdminCampaignDetail() {
       const timestamp = Date.now()
       const filePath = `${id}/${application.user_id}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
-      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      // 리전별 스토리지 버킷명 (KR: campaign-videos, JP: campaign-videos, US: videos)
       const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
-      // Supabase Storage에 업로드
-      const { data: uploadData, error: uploadError } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      let videoUrl = ''
+
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 signed URL 생성 후 직접 업로드 (RLS 우회, 대용량 지원)
+        const signedRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_signed_url', fileName: filePath })
         })
+        const signedResult = await signedRes.json()
+        if (!signedResult.success) throw new Error(signedResult.error || '서명 URL 생성 실패')
 
-      if (uploadError) throw uploadError
+        // signed URL로 직접 업로드 (파일 크기 제한 없음)
+        const uploadRes = await fetch(signedResult.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'video/mp4' },
+          body: file
+        })
+        if (!uploadRes.ok) throw new Error(`스토리지 업로드 실패: ${uploadRes.status}`)
+        videoUrl = signedResult.publicUrl
+      } else {
+        // 일본/미국: 직접 스토리지 업로드
+        const { error: uploadError } = await client.storage
+          .from(bucketName)
+          .upload(filePath, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
 
-      // 공개 URL 가져오기
-      const { data: urlData } = client.storage
-        .from(bucketName)
-        .getPublicUrl(filePath)
+        const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
+        videoUrl = urlData?.publicUrl
+      }
 
-      const videoUrl = urlData?.publicUrl
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블에 레코드 생성 (JP/US는 테이블 없을 수 있음 - 에러 무시)
@@ -416,12 +475,58 @@ export default function AdminCampaignDetail() {
         }
       }
 
-      const { error: appUpdateError } = await client
-        .from('applications')
-        .update(appUpdateData)
-        .eq('id', application.id)
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 DB 업데이트 (RLS 우회)
+        const appRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_application', campaignId: id, userId: application.user_id, updateData: appUpdateData })
+        })
+        const appResult = await appRes.json()
+        if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
+      } else {
+        const { error: appUpdateError } = await client
+          .from('applications')
+          .update(appUpdateData)
+          .eq('id', application.id)
+        if (appUpdateError) throw appUpdateError
+      }
 
-      if (appUpdateError) throw appUpdateError
+      // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
+      if (region === 'korea') {
+        try {
+          // 기존 video_files 조회
+          const getRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_video_files', participantId: application.user_id })
+          })
+          const getResult = await getRes.json()
+          if (getResult.success) {
+            const existingFiles = getResult.videoFiles || []
+            const newVideoFile = {
+              name: file.name,
+              path: filePath,
+              url: videoUrl,
+              uploaded_at: new Date().toISOString(),
+              version: version
+            }
+            await fetch('/.netlify/functions/save-video-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'update_participant',
+                participantId: application.user_id,
+                videoFiles: [...existingFiles, newVideoFile],
+                videoStatus: 'uploaded'
+              })
+            })
+            console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 업데이트 스킵:', cpErr.message)
+        }
+      }
 
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = application.display_name || application.applicant_name || '크리에이터'
@@ -686,6 +791,12 @@ export default function AdminCampaignDetail() {
       approved: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       virtual_selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      filming: { label: '촬영중', color: 'bg-blue-100 text-blue-700', icon: Clock },
+      guide_confirmation: { label: '가이드 확인중', color: 'bg-purple-100 text-purple-700', icon: Clock },
+      guide_approved: { label: '가이드 승인', color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
+      video_submitted: { label: '영상 제출', color: 'bg-indigo-100 text-indigo-700', icon: CheckCircle },
+      revision_requested: { label: '수정 요청', color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
+      sns_uploaded: { label: 'SNS 업로드', color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
       rejected: { label: '거절됨', color: 'bg-red-100 text-red-700', icon: XCircle },
       completed: { label: '완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle }
     }
@@ -713,8 +824,8 @@ export default function AdminCampaignDetail() {
 
   // 상태별로 applications 분류
   const pendingApplications = applications.filter(app => app.status === 'pending')
-  const selectedApplications = applications.filter(app => 
-    ['approved', 'virtual_selected', 'selected'].includes(app.status)
+  const selectedApplications = applications.filter(app =>
+    ['approved', 'virtual_selected', 'selected', 'video_submitted', 'revision_requested', 'filming', 'guide_confirmation', 'guide_approved', 'sns_uploaded'].includes(app.status)
   )
   const completedApplications = applications.filter(app => app.status === 'completed')
   const rejectedApplications = applications.filter(app => app.status === 'rejected')
@@ -1066,8 +1177,8 @@ export default function AdminCampaignDetail() {
                     setShowGuideModal={setShowGuideModal}
                   />
 
-                  {/* JP/US 영상 관리 섹션 (슈퍼 관리자 전용) */}
-                  {isSuperAdmin && (region === 'japan' || region === 'us') && selectedApplications.length > 0 && (
+                  {/* JP/US/KR 영상 관리 섹션 */}
+                  {(region === 'japan' || region === 'us' || region === 'korea') && (selectedApplications.length > 0 || completedApplications.length > 0) && (
                     <Card className="mt-6 border-blue-200">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-900">
@@ -1080,7 +1191,7 @@ export default function AdminCampaignDetail() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-6">
-                          {selectedApplications.map(app => {
+                          {[...selectedApplications, ...completedApplications].map(app => {
                             const slots = getVideoSlots()
                             // applications 테이블에서 fallback 영상 URL 가져오기
                             const getAppVideoUrl = (slot) => {
@@ -1101,13 +1212,20 @@ export default function AdminCampaignDetail() {
                                   </h4>
                                   <Badge className={
                                     app.status === 'video_submitted' ? 'bg-green-100 text-green-700' :
-                                    app.status === 'selected' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'selected' || app.status === 'approved' || app.status === 'virtual_selected' ? 'bg-blue-100 text-blue-700' :
                                     app.status === 'revision_requested' ? 'bg-orange-100 text-orange-700' :
+                                    app.status === 'filming' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'sns_uploaded' ? 'bg-purple-100 text-purple-700' :
+                                    app.status === 'guide_confirmation' || app.status === 'guide_approved' ? 'bg-purple-100 text-purple-700' :
                                     'bg-gray-100 text-gray-600'
                                   }>
                                     {app.status === 'video_submitted' ? '영상 제출' :
-                                     app.status === 'selected' ? '선정' :
+                                     app.status === 'selected' || app.status === 'approved' || app.status === 'virtual_selected' ? '선정' :
                                      app.status === 'revision_requested' ? '수정 요청' :
+                                     app.status === 'filming' ? '촬영중' :
+                                     app.status === 'sns_uploaded' ? 'SNS 업로드' :
+                                     app.status === 'guide_confirmation' ? '가이드 확인중' :
+                                     app.status === 'guide_approved' ? '가이드 승인' :
                                      app.status === 'completed' ? '완료' :
                                      app.status || '-'}
                                   </Badge>

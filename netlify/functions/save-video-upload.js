@@ -24,7 +24,47 @@ exports.handler = async (event) => {
   try {
     const { action, participantId, videoFiles, videoStatus, fileName, fileBase64, fileMimeType } = JSON.parse(event.body)
 
-    // 1. 스토리지 업로드 (프론트엔드에서 실패 시 base64로 전송)
+    // 1. 서명된 업로드 URL 생성 (대용량 파일용)
+    if (action === 'create_signed_url') {
+      if (!fileName) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: '파일 경로가 누락되었습니다.' })
+        }
+      }
+
+      const { data, error } = await supabaseKorea.storage
+        .from('campaign-videos')
+        .createSignedUploadUrl(fileName)
+
+      if (error) {
+        console.error('[save-video-upload] Signed URL creation failed:', error)
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: `서명 URL 생성 실패: ${error.message}` })
+        }
+      }
+
+      const { data: { publicUrl } } = supabaseKorea.storage
+        .from('campaign-videos')
+        .getPublicUrl(fileName)
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          signedUrl: data.signedUrl,
+          token: data.token,
+          path: data.path,
+          publicUrl
+        })
+      }
+    }
+
+    // 2. 스토리지 업로드 (소용량 파일 - base64)
     if (action === 'storage_upload') {
       if (!fileName || !fileBase64) {
         return {
@@ -64,7 +104,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // 2. campaign_participants DB 업데이트
+    // 3. campaign_participants DB 업데이트 (RLS 우회)
     if (action === 'update_participant') {
       if (!participantId || !videoFiles) {
         return {
@@ -100,7 +140,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // 3. 기존 video_files 조회 (RLS 우회)
+    // 4. 기존 video_files 조회 (RLS 우회)
     if (action === 'get_video_files') {
       if (!participantId) {
         return {
@@ -129,6 +169,39 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ success: true, videoFiles: data?.video_files || [] })
+      }
+    }
+
+    // 5. applications 업데이트 (RLS 우회)
+    if (action === 'update_application') {
+      const { campaignId, userId, updateData } = JSON.parse(event.body)
+      if (!campaignId || !userId || !updateData) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: '필수 파라미터 누락' })
+        }
+      }
+
+      const { error: appError } = await supabaseKorea
+        .from('applications')
+        .update(updateData)
+        .eq('campaign_id', campaignId)
+        .eq('user_id', userId)
+
+      if (appError) {
+        console.error('[save-video-upload] Application update failed:', appError)
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: `applications 업데이트 실패: ${appError.message}` })
+        }
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true })
       }
     }
 

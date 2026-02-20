@@ -257,6 +257,26 @@ exports.handler = async (event) => {
       console.log('[INFO] Regular creator application - no notification sent');
     }
 
+    // 네이버 웍스 알림 발송 (추천/일반 모두)
+    try {
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      const baseUrl = process.env.URL || 'https://cnecbiz.com'
+      const featured = isFeaturedCreator ? ' (추천 크리에이터)' : ''
+
+      await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `👤 크리에이터 캠페인 지원${featured}\n\n• 크리에이터: ${creator.full_name || '크리에이터'}\n• 캠페인: ${campaign.title}\n• 기업: ${company.company_name || '기업'}\n• 주요 채널: ${mainChannel} (${totalFollowers.toLocaleString()}명)\n• 시간: ${koreanTime}`
+        })
+      })
+      console.log('[notify-creator-application] 네이버 웍스 알림 발송 완료')
+    } catch (worksError) {
+      console.error('[notify-creator-application] 네이버 웍스 알림 오류:', worksError)
+    }
+
     return {
       statusCode: 200,
       headers,

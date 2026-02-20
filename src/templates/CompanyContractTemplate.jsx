@@ -123,47 +123,24 @@ export const CompanyContractTemplate = (data) => {
       color: #6b7280;
       font-size: 14px;
     }
-    .company-stamp {
-      display: inline-block;
-      width: 75px;
-      height: 75px;
-      border: 3px solid #c41e3a;
-      color: #c41e3a;
-      font-weight: bold;
+    .signature-table {
+      display: table;
+      width: 100%;
+    }
+    .signature-info {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .signature-seal {
+      display: table-cell;
+      width: 110px;
+      vertical-align: middle;
       text-align: center;
-      position: relative;
-      background:
-        linear-gradient(#c41e3a, #c41e3a) center/calc(100% - 10px) 2px no-repeat,
-        linear-gradient(#c41e3a, #c41e3a) center/2px calc(100% - 10px) no-repeat;
     }
-    .company-stamp::before {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      right: 3px;
-      bottom: 3px;
-      border: 1.5px solid #c41e3a;
-    }
-    .stamp-text {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: repeat(4, 1fr);
-      height: 100%;
-      padding: 6px;
-      box-sizing: border-box;
-    }
-    .stamp-text span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-family: '바탕', 'Batang', serif;
-      font-weight: 900;
-    }
-    .stamp-area {
-      text-align: right;
-      margin-top: 15px;
+    .signature-seal img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
     }
     .signer-signature-area {
       min-height: 80px;
@@ -302,26 +279,23 @@ export const CompanyContractTemplate = (data) => {
   <div class="signature-section">
     <div class="signature-box">
       <div class="signature-title">[지식재산권자 (갑)]</div>
-      <div class="signature-row">
-        <div class="signature-label">회사명:</div>
-        <div class="signature-value">주식회사 하우파파</div>
-      </div>
-      <div class="signature-row">
-        <div class="signature-label">주소:</div>
-        <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
-      </div>
-      <div class="signature-row">
-        <div class="signature-label">대표자:</div>
-        <div class="signature-value">박현용</div>
-      </div>
-      <div class="stamp-area">
-        <div class="company-stamp">
-          <div class="stamp-text">
-            <span>하</span><span>주</span>
-            <span>우</span><span>식</span>
-            <span>파</span><span>회</span>
-            <span>파</span><span>사</span>
+      <div class="signature-table">
+        <div class="signature-info">
+          <div class="signature-row">
+            <div class="signature-label">회사명:</div>
+            <div class="signature-value">주식회사 하우파파</div>
           </div>
+          <div class="signature-row">
+            <div class="signature-label">주소:</div>
+            <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
+          </div>
+          <div class="signature-row">
+            <div class="signature-label">대표자:</div>
+            <div class="signature-value">박현용</div>
+          </div>
+        </div>
+        <div class="signature-seal">
+          <img src="/company-seal.png" alt="법인인감" />
         </div>
       </div>
     </div>

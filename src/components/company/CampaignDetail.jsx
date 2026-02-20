@@ -6017,14 +6017,14 @@ Questions? Contact us.
   }
 
 
-  // 슈퍼관리자 영상 업로드 핸들러 (JP/US 전용)
+  // 관리자 영상 업로드 핸들러 (JP/US/KR)
   const handleAdminVideoUpload = async (file) => {
     if (!adminVideoUploadTarget || !file) return
     setAdminVideoUploading(true)
 
     try {
       const { participant, videoSlot, version } = adminVideoUploadTarget
-      const client = getSupabaseClient(region === 'japan' ? 'japan' : 'us')
+      const client = getSupabaseClient(region)
       if (!client) throw new Error('Supabase client not found')
 
       const ext = file.name.split('.').pop()
@@ -6032,17 +6032,40 @@ Questions? Contact us.
       const userId = participant.user_id || participant.id
       const filePath = `${id}/${userId}/${videoSlot}_v${version}_${timestamp}.${ext}`
 
-      // 리전별 스토리지 버킷명 (JP: campaign-videos, US: videos)
+      // 리전별 스토리지 버킷명 (KR: campaign-videos, JP: campaign-videos, US: videos)
       const bucketName = region === 'us' ? 'videos' : 'campaign-videos'
 
-      // Supabase Storage 업로드
-      const { error: uploadError } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, { cacheControl: '3600', upsert: false })
-      if (uploadError) throw uploadError
+      let videoUrl = ''
 
-      const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
-      const videoUrl = urlData?.publicUrl
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 signed URL 생성 후 직접 업로드 (RLS 우회, 대용량 지원)
+        const signedRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_signed_url', fileName: filePath })
+        })
+        const signedResult = await signedRes.json()
+        if (!signedResult.success) throw new Error(signedResult.error || '서명 URL 생성 실패')
+
+        // signed URL로 직접 업로드 (파일 크기 제한 없음)
+        const uploadRes = await fetch(signedResult.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'video/mp4' },
+          body: file
+        })
+        if (!uploadRes.ok) throw new Error(`스토리지 업로드 실패: ${uploadRes.status}`)
+        videoUrl = signedResult.publicUrl
+      } else {
+        // 일본/미국: 직접 스토리지 업로드
+        const { error: uploadError } = await client.storage
+          .from(bucketName)
+          .upload(filePath, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = client.storage.from(bucketName).getPublicUrl(filePath)
+        videoUrl = urlData?.publicUrl
+      }
+
       if (!videoUrl) throw new Error('Failed to get public URL')
 
       // video_submissions 테이블 insert (없을 수 있으므로 에러 무시)
@@ -6072,12 +6095,56 @@ Questions? Contact us.
         }
       }
 
-      const { error: appError } = await client
-        .from('applications')
-        .update(appUpdateData)
-        .eq('campaign_id', id)
-        .eq('user_id', userId)
-      if (appError) throw appError
+      if (region === 'korea') {
+        // 한국: Netlify Function으로 DB 업데이트 (RLS 우회)
+        const appRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_application', campaignId: id, userId, updateData: appUpdateData })
+        })
+        const appResult = await appRes.json()
+        if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
+      } else {
+        const { error: appError } = await client
+          .from('applications')
+          .update(appUpdateData)
+          .eq('campaign_id', id)
+          .eq('user_id', userId)
+        if (appError) throw appError
+      }
+
+      // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
+      if (region === 'korea') {
+        try {
+          // 기존 video_files 조회
+          const getRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_video_files', participantId: userId })
+          })
+          const getResult = await getRes.json()
+          if (getResult.success) {
+            const existingFiles = getResult.videoFiles || []
+            const newVideoFile = {
+              name: file.name, path: filePath, url: videoUrl,
+              uploaded_at: new Date().toISOString(), version
+            }
+            await fetch('/.netlify/functions/save-video-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'update_participant',
+                participantId: userId,
+                videoFiles: [...existingFiles, newVideoFile],
+                videoStatus: 'uploaded'
+              })
+            })
+            console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
+          }
+        } catch (cpErr) {
+          console.warn('campaign_participants 업데이트 스킵:', cpErr.message)
+        }
+      }
 
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -7194,8 +7261,8 @@ Questions? Contact us.
                           </div>
                         )}
 
-                        {/* 슈퍼관리자 영상 업로드 (JP/US 전용) */}
-                        {isSuperAdmin && (region === 'japan' || region === 'us') && (
+                        {/* 관리자 영상 업로드 (JP/US/KR) */}
+                        {isAdmin && (region === 'japan' || region === 'us' || region === 'korea') && (
                           <div className="flex items-center gap-1.5 mt-1">
                             {getAdminVideoSlots().map(({ slot, label }) => {
                               const type = campaign?.campaign_type || ''
@@ -16238,7 +16305,7 @@ Questions? Contact us.
         </div>
       )}
 
-      {/* 슈퍼관리자 영상 업로드 모달 (JP/US) */}
+      {/* 관리자 영상 업로드 모달 (JP/US/KR) */}
       {showAdminVideoUploadModal && adminVideoUploadTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">

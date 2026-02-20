@@ -394,35 +394,16 @@ exports.handler = async (event, context) => {
 관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
 
     try {
-      const botId = process.env.NAVER_WORKS_BOT_ID || '7348965'
-      const channelId = process.env.NAVER_WORKS_CHANNEL_ID || '75c24874-e370-afd5-9da3-72918ba15a3c'
-      const naverWorksUrl = `https://www.worksapis.com/v1.0/bots/${botId}/channels/${channelId}/messages`
-      const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
-
-      if (!naverWorksToken) {
-        console.error('[confirm-campaign-payment] NAVER_WORKS_BOT_TOKEN is not set')
-      } else {
-        const response = await fetch(naverWorksUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${naverWorksToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            content: {
-              type: 'text',
-              text: message
-            }
-          })
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: message
         })
-        
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('[confirm-campaign-payment] Naver Works API error:', response.status, errorText)
-        } else {
-          console.log('[confirm-campaign-payment] Naver Works notification sent successfully')
-        }
-      }
+      })
+      console.log('[confirm-campaign-payment] Naver Works notification sent successfully')
     } catch (notifError) {
       console.error('[confirm-campaign-payment] Failed to send Naver Works notification:', notifError)
     }
