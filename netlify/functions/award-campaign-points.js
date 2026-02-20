@@ -148,15 +148,15 @@ exports.handler = async (event) => {
 
     // 네이버 웍스 알림 발송
     try {
-      // 크리에이터 이름 조회
+      // 크리에이터 이름 조회 (profileMatchField 사용 - id 또는 user_id)
       let creatorName = '크리에이터'
       const { data: creatorProfile } = await supabase
         .from('user_profiles')
-        .select('name, full_name, nickname')
-        .eq('id', userId)
+        .select('name, full_name, nickname, channel_name')
+        .eq(profileMatchField, userId)
         .maybeSingle()
       if (creatorProfile) {
-        creatorName = creatorProfile.nickname || creatorProfile.name || creatorProfile.full_name || '크리에이터'
+        creatorName = creatorProfile.nickname || creatorProfile.channel_name || creatorProfile.name || creatorProfile.full_name || '크리에이터'
       }
 
       const regionLabel = { korea: '한국', kr: '한국', japan: '일본', jp: '일본', us: '미국', usa: '미국' }[region] || region || '한국'
