@@ -171,6 +171,138 @@ exports.handler = async (event) => {
 
       console.log(`[save-video-upload] Updated campaign_participants ${participantId} with ${videoFiles.length} video files`)
 
+      // 네이버 웍스 알림 발송 (영상 업로드 완료 시)
+      if (videoStatus === 'uploaded' || !videoStatus) {
+        try {
+          // participant 정보에서 campaign_id, user_id 조회
+          const { data: participant } = await client
+            .from('campaign_participants')
+            .select('campaign_id, user_id')
+            .eq('id', participantId)
+            .single()
+
+          if (participant) {
+            // 캠페인 정보 조회 (리전 DB → BIZ DB 순)
+            let campaignTitle = '캠페인'
+            let companyName = '기업'
+            let campaignData = null
+
+            const { data: regCampaign } = await client
+              .from('campaigns')
+              .select('title, brand, brand_name, company_id, company_email')
+              .eq('id', participant.campaign_id)
+              .maybeSingle()
+
+            if (regCampaign) {
+              campaignData = regCampaign
+            } else {
+              const { data: bizCampaign } = await supabaseBiz
+                .from('campaigns')
+                .select('title, brand, brand_name, company_id, company_email')
+                .eq('id', participant.campaign_id)
+                .maybeSingle()
+              if (bizCampaign) campaignData = bizCampaign
+            }
+
+            if (campaignData) {
+              campaignTitle = campaignData.title || campaignData.brand || '캠페인'
+
+              // 기업명 조회
+              if (campaignData.company_email) {
+                const { data: company } = await supabaseBiz
+                  .from('companies')
+                  .select('company_name')
+                  .eq('email', campaignData.company_email)
+                  .maybeSingle()
+                if (company?.company_name) companyName = company.company_name
+              }
+              if (companyName === '기업' && campaignData.company_id) {
+                const { data: companyById } = await supabaseBiz
+                  .from('companies')
+                  .select('company_name')
+                  .eq('user_id', campaignData.company_id)
+                  .maybeSingle()
+                if (companyById?.company_name) companyName = companyById.company_name
+              }
+              if (companyName === '기업') {
+                companyName = campaignData.brand || campaignData.brand_name || '기업'
+              }
+            }
+
+            // 크리에이터 이름 조회
+            let creatorName = '크리에이터'
+            if (participant.user_id) {
+              // 1순위: user_profiles
+              const { data: profile } = await client
+                .from('user_profiles')
+                .select('name, full_name')
+                .eq('id', participant.user_id)
+                .maybeSingle()
+              if (profile?.name || profile?.full_name) {
+                creatorName = profile.name || profile.full_name
+              }
+
+              // 2순위: applications
+              if (creatorName === '크리에이터') {
+                const { data: appData } = await client
+                  .from('applications')
+                  .select('creator_name, applicant_name')
+                  .eq('campaign_id', participant.campaign_id)
+                  .eq('user_id', participant.user_id)
+                  .maybeSingle()
+                if (appData) {
+                  creatorName = appData.creator_name || appData.applicant_name || '크리에이터'
+                }
+              }
+
+              // 3순위: BIZ DB
+              if (creatorName === '크리에이터') {
+                const { data: bizProfile } = await supabaseBiz
+                  .from('user_profiles')
+                  .select('name, full_name')
+                  .eq('id', participant.user_id)
+                  .maybeSingle()
+                if (bizProfile) {
+                  creatorName = bizProfile.full_name || bizProfile.name || '크리에이터'
+                }
+              }
+            }
+
+            // 최신 업로드 파일 정보
+            const latestFile = videoFiles[videoFiles.length - 1]
+            const version = latestFile?.version || videoFiles.length
+
+            const koreanDate = new Date().toLocaleString('ko-KR', {
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            const naverWorksMessage = `📹 영상 업로드 완료\n\n캠페인: ${campaignTitle}\n기업: ${companyName}\n크리에이터: ${creatorName}\n버전: V${version}\n파일 수: ${videoFiles.length}개\n\n${koreanDate}`
+
+            const baseUrl = process.env.URL || 'https://cnecbiz.com'
+            const worksResponse = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID,
+                message: naverWorksMessage
+              })
+            })
+
+            const worksResult = await worksResponse.json()
+            console.log('[save-video-upload] 네이버 웍스 알림 결과:', worksResult.success ? '성공' : worksResult.error)
+          }
+        } catch (notifyError) {
+          // 알림 실패해도 업로드 결과에는 영향 없음
+          console.error('[save-video-upload] 네이버 웍스 알림 발송 실패:', notifyError.message)
+        }
+      }
+
       return {
         statusCode: 200,
         headers,
