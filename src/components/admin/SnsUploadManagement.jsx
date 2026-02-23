@@ -531,7 +531,7 @@ export default function SnsUploadManagement() {
                   created_at: app.updated_at || app.created_at,
                   status: app.status,
                   source: 'japan',
-                  country: campaign?.target_country || 'jp',
+                  country: 'jp',
                   campaignTitle: campaign?.title || app.campaign_name || '-',
                   campaignType: campaign?.campaign_type,
                   creatorName: getJapanCreatorName(app.user_id, app),
@@ -593,7 +593,7 @@ export default function SnsUploadManagement() {
                   created_at: sub.approved_at || sub.updated_at || sub.created_at,
                   status: sub.status,
                   source: 'japan_submission',
-                  country: campaign?.target_country || 'jp',
+                  country: 'jp',
                   campaignTitle: campaign?.title || '-',
                   campaignType: campaign?.campaign_type,
                   creatorName: getJapanCreatorName(sub.user_id, sub),
@@ -664,6 +664,11 @@ export default function SnsUploadManagement() {
           }
           if (!usAppError && usApps) {
             console.log('[SnsUploadManagement] US applications:', usApps.length)
+            // 진단: US 앱 status 분포
+            const usStatusCounts = {}
+            usApps.forEach(a => { usStatusCounts[a.status] = (usStatusCounts[a.status] || 0) + 1 })
+            console.log('[SnsUploadManagement] US app status distribution:', JSON.stringify(usStatusCounts))
+            let usPassedFilter = 0, usAdded = 0, usReplaced = 0
             usApps.forEach(app => {
               const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                                app.week3_url || app.week4_url || app.step1_url ||
@@ -671,6 +676,7 @@ export default function SnsUploadManagement() {
               const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
               if (hasSnsUrl || hasVideoStatus) {
+                usPassedFilter++
                 const campaign = usCampaignMap.get(app.campaign_id)
                 // BIZ에 중복이 있으면 교체 (country 보정)
                 const dupIndex = allVideos.findIndex(v =>
@@ -687,7 +693,7 @@ export default function SnsUploadManagement() {
                   created_at: app.updated_at || app.created_at,
                   status: app.status,
                   source: 'us',
-                  country: campaign?.target_country || 'us',
+                  country: 'us',
                   campaignTitle: campaign?.title || app.campaign_name || '-',
                   campaignType: campaign?.campaign_type,
                   creatorName: getUSCreatorName(app.user_id, app),
@@ -707,11 +713,14 @@ export default function SnsUploadManagement() {
                 }
                 if (dupIndex >= 0) {
                   allVideos[dupIndex] = videoEntry // BIZ 중복 교체
+                  usReplaced++
                 } else {
                   allVideos.push(videoEntry)
+                  usAdded++
                 }
               }
             })
+            console.log(`[SnsUploadManagement] US apps: passed filter=${usPassedFilter}, added=${usAdded}, replaced=${usReplaced}`)
           }
 
           // video_submissions 조회
@@ -752,7 +761,7 @@ export default function SnsUploadManagement() {
                   created_at: sub.approved_at || sub.updated_at || sub.created_at,
                   status: sub.status,
                   source: 'us_submission',
-                  country: campaign?.target_country || 'us',
+                  country: 'us',
                   campaignTitle: campaign?.title || '-',
                   campaignType: campaign?.campaign_type,
                   creatorName: getUSCreatorName(sub.user_id, sub),
@@ -886,12 +895,13 @@ export default function SnsUploadManagement() {
   const filterVideos = () => {
     let filtered = [...completedVideos]
 
-    // 국가 필터
+    // 국가 필터 (대소문자 무시)
     if (selectedCountry !== 'all') {
       filtered = filtered.filter(v => {
-        if (selectedCountry === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
-        if (selectedCountry === 'us') return v.country === 'us' || v.country === 'usa'
-        if (selectedCountry === 'jp') return v.country === 'jp' || v.country === 'japan'
+        const c = (v.country || '').toLowerCase()
+        if (selectedCountry === 'kr') return c === 'kr' || c === 'korea' || !v.country
+        if (selectedCountry === 'us') return c === 'us' || c === 'usa' || c === 'united states'
+        if (selectedCountry === 'jp') return c === 'jp' || c === 'japan'
         return true
       })
     }
@@ -1025,9 +1035,10 @@ export default function SnsUploadManagement() {
   const countByCountry = (country) => {
     if (country === 'all') return completedVideos.length
     return completedVideos.filter(v => {
-      if (country === 'kr') return v.country === 'kr' || v.country === 'korea' || !v.country
-      if (country === 'us') return v.country === 'us' || v.country === 'usa'
-      if (country === 'jp') return v.country === 'jp' || v.country === 'japan'
+      const c = (v.country || '').toLowerCase()
+      if (country === 'kr') return c === 'kr' || c === 'korea' || !v.country
+      if (country === 'us') return c === 'us' || c === 'usa' || c === 'united states'
+      if (country === 'jp') return c === 'jp' || c === 'japan'
       return false
     }).length
   }
