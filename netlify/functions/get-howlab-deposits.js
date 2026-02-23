@@ -21,6 +21,10 @@ popbill.config({
 const easyFinBankService = popbill.EasyFinBankService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
+// 하우랩 국민은행 계좌
+const HOWLAB_BANK_CODE = '0004'; // 국민은행
+const HOWLAB_ACCOUNT_NUMBER = '28800104344172';
+
 /**
  * 수집 작업 상태 확인 (폴링)
  */
@@ -63,27 +67,7 @@ exports.handler = async (event) => {
     const filterType = params.filterType || 'input';
 
     console.log(`[get-howlab-deposits] 조회 기간: ${startDate} ~ ${endDate}, 유형: ${filterType}`);
-
-    // 1. 팝빌 등록 계좌 목록 조회
-    console.log('[get-howlab-deposits] 등록 계좌 목록 조회...');
-    const accounts = await new Promise((resolve, reject) => {
-      easyFinBankService.listBankAccount(
-        POPBILL_CORP_NUM,
-        null,
-        (result) => resolve(result),
-        (error) => reject(error)
-      );
-    });
-
-    if (!accounts || accounts.length === 0) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, data: [], stats: { total: 0, deposits: 0, withdrawals: 0, depositAmount: 0, withdrawalAmount: 0 }, accounts: [] })
-      };
-    }
-
-    console.log(`[get-howlab-deposits] 등록 계좌 ${accounts.length}개:`, accounts.map(a => `${a.bankCode}/${a.accountNumber}/${a.accountName}`));
+    console.log(`[get-howlab-deposits] 국민은행 ${HOWLAB_ACCOUNT_NUMBER} 조회`);
 
     // 필터 타입에 따른 거래유형 설정
     let tradeTypes;
@@ -95,87 +79,73 @@ exports.handler = async (event) => {
       tradeTypes = ['I', 'O'];
     }
 
-    // 2. 각 계좌별로 거래내역 수집
-    const allTransactions = [];
+    // 1. 팝빌 수집 요청 (requestJob)
+    const jobID = await new Promise((resolve, reject) => {
+      easyFinBankService.requestJob(
+        POPBILL_CORP_NUM,
+        HOWLAB_BANK_CODE,
+        HOWLAB_ACCOUNT_NUMBER,
+        startDate,
+        endDate,
+        (result) => resolve(result),
+        (error) => reject(error)
+      );
+    });
 
-    for (const account of accounts) {
-      try {
-        console.log(`[get-howlab-deposits] ${account.accountName} (${account.bankCode}/${account.accountNumber}) 수집 시작...`);
+    console.log(`[get-howlab-deposits] JobID: ${jobID}`);
 
-        // requestJob
-        const jobID = await new Promise((resolve, reject) => {
-          easyFinBankService.requestJob(
-            POPBILL_CORP_NUM,
-            account.bankCode,
-            account.accountNumber,
-            startDate,
-            endDate,
-            (result) => resolve(result),
-            (error) => reject(error)
-          );
-        });
-
-        console.log(`[get-howlab-deposits] JobID: ${jobID}`);
-
-        // 수집 완료 대기
-        const isCompleted = await waitForJobCompletion(jobID);
-        if (!isCompleted) {
-          console.error(`[get-howlab-deposits] ${account.accountName} 수집 타임아웃`);
-          continue;
-        }
-
-        // 거래 내역 조회
-        const result = await new Promise((resolve, reject) => {
-          easyFinBankService.search(
-            POPBILL_CORP_NUM,
-            jobID,
-            tradeTypes,
-            '',
-            1,
-            1000,
-            'D',
-            null,
-            (result) => resolve(result),
-            (error) => reject(error)
-          );
-        });
-
-        const transactions = result.list || [];
-        console.log(`[get-howlab-deposits] ${account.accountName}: ${transactions.length}건`);
-
-        // 팝빌 응답을 HowlabDepositsTab 형식으로 변환
-        for (const tx of transactions) {
-          const trdate = String(tx.trdate || '');
-          const trdt = String(tx.trdt || '');
-          const accIn = parseInt(String(tx.accIn || '0').replace(/,/g, '')) || 0;
-          const accOut = parseInt(String(tx.accOut || '0').replace(/,/g, '')) || 0;
-          const balance = parseInt(String(tx.balance || '0').replace(/,/g, '')) || 0;
-
-          allTransactions.push({
-            bkid: tx.tid || `${trdate}-${trdt}-${accIn || accOut}`,
-            bkdate: trdate.substring(0, 8),
-            bktime: trdt.length >= 14 ? trdt.substring(8, 14) : (trdt.length >= 6 ? trdt.substring(0, 6) : ''),
-            bkjukyo: tx.remark1 || tx.remark2 || '',
-            bkinput: accIn,
-            bkoutput: accOut,
-            bkjango: balance,
-            bkcontent: tx.remark3 || tx.memo || '',
-            bketc: account.accountName || '',
-            accountName: account.accountName,
-            bankCode: account.bankCode
-          });
-        }
-      } catch (accountError) {
-        console.error(`[get-howlab-deposits] ${account.accountName} 조회 오류:`, accountError.message || accountError);
-      }
+    // 2. 수집 완료 대기
+    const isCompleted = await waitForJobCompletion(jobID);
+    if (!isCompleted) {
+      return {
+        statusCode: 408,
+        headers,
+        body: JSON.stringify({ success: false, error: '팝빌 수집 작업 타임아웃' })
+      };
     }
 
-    // 날짜+시간 내림차순 정렬
-    allTransactions.sort((a, b) => {
-      const dateA = a.bkdate + a.bktime;
-      const dateB = b.bkdate + b.bktime;
-      return dateB.localeCompare(dateA);
+    // 3. 거래 내역 조회
+    const result = await new Promise((resolve, reject) => {
+      easyFinBankService.search(
+        POPBILL_CORP_NUM,
+        jobID,
+        tradeTypes,
+        '',
+        1,
+        1000,
+        'D',
+        null,
+        (result) => resolve(result),
+        (error) => reject(error)
+      );
     });
+
+    const transactions = result.list || [];
+    console.log(`[get-howlab-deposits] ${transactions.length}건 조회 완료`);
+
+    // 팝빌 응답을 HowlabDepositsTab 형식으로 변환
+    const allTransactions = [];
+    for (const tx of transactions) {
+      const trdate = String(tx.trdate || '');
+      const trdt = String(tx.trdt || '');
+      const accIn = parseInt(String(tx.accIn || '0').replace(/,/g, '')) || 0;
+      const accOut = parseInt(String(tx.accOut || '0').replace(/,/g, '')) || 0;
+      const balance = parseInt(String(tx.balance || '0').replace(/,/g, '')) || 0;
+
+      allTransactions.push({
+        bkid: tx.tid || `${trdate}-${trdt}-${accIn || accOut}`,
+        bkdate: trdate.substring(0, 8),
+        bktime: trdt.length >= 14 ? trdt.substring(8, 14) : (trdt.length >= 6 ? trdt.substring(0, 6) : ''),
+        bkjukyo: tx.remark1 || tx.remark2 || '',
+        bkinput: accIn,
+        bkoutput: accOut,
+        bkjango: balance,
+        bkcontent: tx.remark3 || tx.memo || '',
+        bketc: '국민은행 크넥전용',
+        accountName: '국민은행 크넥전용',
+        bankCode: HOWLAB_BANK_CODE
+      });
+    }
 
     // 통계 계산
     const depositItems = allTransactions.filter(d => d.bkinput > 0);
@@ -197,7 +167,7 @@ exports.handler = async (event) => {
         success: true,
         data: allTransactions,
         stats,
-        accounts: accounts.map(a => ({ bankCode: a.bankCode, accountNumber: a.accountNumber, accountName: a.accountName }))
+        account: { bankCode: HOWLAB_BANK_CODE, accountNumber: HOWLAB_ACCOUNT_NUMBER, accountName: '국민은행 크넥전용' }
       })
     };
   } catch (error) {
