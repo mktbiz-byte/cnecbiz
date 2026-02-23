@@ -470,7 +470,7 @@ export default function SnsUploadManagement() {
           // 캠페인 정보 조회
           const { data: japanCampaigns, error: jpCampError } = await supabaseJapan
             .from('campaigns')
-            .select('id, title, campaign_type, target_country')
+            .select('*')
 
           if (jpCampError) console.error('[SnsUploadManagement] Japan campaigns error:', jpCampError.message)
           console.log('[SnsUploadManagement] Japan campaigns loaded:', japanCampaigns?.length || 0)
@@ -516,39 +516,43 @@ export default function SnsUploadManagement() {
 
               if (hasSnsUrl || hasVideoStatus) {
                 const campaign = japanCampaignMap.get(app.campaign_id)
-                const isDuplicate = allVideos.some(v =>
+                // BIZ에 중복이 있으면 교체 (country 보정)
+                const dupIndex = allVideos.findIndex(v =>
                   v.campaign_id === app.campaign_id && v.user_id === app.user_id
                 )
-                if (!isDuplicate) {
-                  if (campaign) {
-                    campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
-                  }
-                  allVideos.push({
-                    id: `japan_app_${app.id}`,
-                    application_id: app.id,
-                    campaign_id: app.campaign_id,
-                    user_id: app.user_id,
-                    sns_upload_url: app.sns_upload_url,
-                    partnership_code: app.partnership_code,
-                    video_file_url: app.video_file_url,
-                    created_at: app.updated_at || app.created_at,
-                    status: app.status,
-                    source: 'japan',
-                    country: campaign?.target_country || 'jp',
-                    campaignTitle: campaign?.title || '-',
-                    campaignType: campaign?.campaign_type,
-                    creatorName: getJapanCreatorName(app.user_id, app),
-                    creatorEmail: app.email,
-                    week1_url: app.week1_url, week2_url: app.week2_url,
-                    week3_url: app.week3_url, week4_url: app.week4_url,
-                    step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
-                    week1_partnership_code: app.week1_partnership_code,
-                    week2_partnership_code: app.week2_partnership_code,
-                    week3_partnership_code: app.week3_partnership_code,
-                    week4_partnership_code: app.week4_partnership_code,
-                    step1_2_partnership_code: app.step1_2_partnership_code,
-                    step3_partnership_code: app.step3_partnership_code,
-                  })
+                const videoEntry = {
+                  id: `japan_app_${app.id}`,
+                  application_id: app.id,
+                  campaign_id: app.campaign_id,
+                  user_id: app.user_id,
+                  sns_upload_url: app.sns_upload_url,
+                  partnership_code: app.partnership_code,
+                  video_file_url: app.video_file_url,
+                  created_at: app.updated_at || app.created_at,
+                  status: app.status,
+                  source: 'japan',
+                  country: campaign?.target_country || 'jp',
+                  campaignTitle: campaign?.title || app.campaign_name || '-',
+                  campaignType: campaign?.campaign_type,
+                  creatorName: getJapanCreatorName(app.user_id, app),
+                  creatorEmail: app.email,
+                  week1_url: app.week1_url, week2_url: app.week2_url,
+                  week3_url: app.week3_url, week4_url: app.week4_url,
+                  step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                  week1_partnership_code: app.week1_partnership_code,
+                  week2_partnership_code: app.week2_partnership_code,
+                  week3_partnership_code: app.week3_partnership_code,
+                  week4_partnership_code: app.week4_partnership_code,
+                  step1_2_partnership_code: app.step1_2_partnership_code,
+                  step3_partnership_code: app.step3_partnership_code,
+                }
+                if (campaign) {
+                  campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                }
+                if (dupIndex >= 0) {
+                  allVideos[dupIndex] = videoEntry // BIZ 중복 교체
+                } else {
+                  allVideos.push(videoEntry)
                 }
               }
             })
@@ -568,15 +572,16 @@ export default function SnsUploadManagement() {
 
               const campaign = japanCampaignMap.get(sub.campaign_id)
               const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
-              const isDuplicate = allVideos.some(v =>
+              // BIZ에 중복이 있으면 교체 (country 보정)
+              const dupIndex = allVideos.findIndex(v =>
                 v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
               )
 
-              if (!isDuplicate || isMultiVideoCampaign) {
+              if (dupIndex < 0 || isMultiVideoCampaign) {
                 if (campaign) {
                   campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
                 }
-                allVideos.push({
+                const videoEntry = {
                   id: `japan_sub_${sub.id}`,
                   submission_id: sub.id,
                   application_id: sub.application_id,
@@ -594,7 +599,12 @@ export default function SnsUploadManagement() {
                   creatorName: getJapanCreatorName(sub.user_id, sub),
                   creatorEmail: sub.email,
                   week_number: sub.week_number,
-                })
+                }
+                if (dupIndex >= 0) {
+                  allVideos[dupIndex] = videoEntry
+                } else {
+                  allVideos.push(videoEntry)
+                }
               }
             })
           }
@@ -611,7 +621,7 @@ export default function SnsUploadManagement() {
           // 캠페인 정보 조회
           const { data: usCampaigns, error: usCampError } = await supabaseUS
             .from('campaigns')
-            .select('id, title, campaign_type, target_country')
+            .select('*')
 
           if (usCampError) {
             console.error('[SnsUploadManagement] US campaigns error:', usCampError.message)
@@ -662,39 +672,43 @@ export default function SnsUploadManagement() {
 
               if (hasSnsUrl || hasVideoStatus) {
                 const campaign = usCampaignMap.get(app.campaign_id)
-                const isDuplicate = allVideos.some(v =>
+                // BIZ에 중복이 있으면 교체 (country 보정)
+                const dupIndex = allVideos.findIndex(v =>
                   v.campaign_id === app.campaign_id && v.user_id === app.user_id
                 )
-                if (!isDuplicate) {
-                  if (campaign) {
-                    campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
-                  }
-                  allVideos.push({
-                    id: `us_app_${app.id}`,
-                    application_id: app.id,
-                    campaign_id: app.campaign_id,
-                    user_id: app.user_id,
-                    sns_upload_url: app.sns_upload_url,
-                    partnership_code: app.partnership_code,
-                    video_file_url: app.video_file_url,
-                    created_at: app.updated_at || app.created_at,
-                    status: app.status,
-                    source: 'us',
-                    country: campaign?.target_country || 'us',
-                    campaignTitle: campaign?.title || '-',
-                    campaignType: campaign?.campaign_type,
-                    creatorName: getUSCreatorName(app.user_id, app),
-                    creatorEmail: app.email,
-                    week1_url: app.week1_url, week2_url: app.week2_url,
-                    week3_url: app.week3_url, week4_url: app.week4_url,
-                    step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
-                    week1_partnership_code: app.week1_partnership_code,
-                    week2_partnership_code: app.week2_partnership_code,
-                    week3_partnership_code: app.week3_partnership_code,
-                    week4_partnership_code: app.week4_partnership_code,
-                    step1_2_partnership_code: app.step1_2_partnership_code,
-                    step3_partnership_code: app.step3_partnership_code,
-                  })
+                const videoEntry = {
+                  id: `us_app_${app.id}`,
+                  application_id: app.id,
+                  campaign_id: app.campaign_id,
+                  user_id: app.user_id,
+                  sns_upload_url: app.sns_upload_url,
+                  partnership_code: app.partnership_code,
+                  video_file_url: app.video_file_url,
+                  created_at: app.updated_at || app.created_at,
+                  status: app.status,
+                  source: 'us',
+                  country: campaign?.target_country || 'us',
+                  campaignTitle: campaign?.title || app.campaign_name || '-',
+                  campaignType: campaign?.campaign_type,
+                  creatorName: getUSCreatorName(app.user_id, app),
+                  creatorEmail: app.email,
+                  week1_url: app.week1_url, week2_url: app.week2_url,
+                  week3_url: app.week3_url, week4_url: app.week4_url,
+                  step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                  week1_partnership_code: app.week1_partnership_code,
+                  week2_partnership_code: app.week2_partnership_code,
+                  week3_partnership_code: app.week3_partnership_code,
+                  week4_partnership_code: app.week4_partnership_code,
+                  step1_2_partnership_code: app.step1_2_partnership_code,
+                  step3_partnership_code: app.step3_partnership_code,
+                }
+                if (campaign) {
+                  campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                }
+                if (dupIndex >= 0) {
+                  allVideos[dupIndex] = videoEntry // BIZ 중복 교체
+                } else {
+                  allVideos.push(videoEntry)
                 }
               }
             })
@@ -717,15 +731,16 @@ export default function SnsUploadManagement() {
 
               const campaign = usCampaignMap.get(sub.campaign_id)
               const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
-              const isDuplicate = allVideos.some(v =>
+              // BIZ에 중복이 있으면 교체 (country 보정)
+              const dupIndex = allVideos.findIndex(v =>
                 v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
               )
 
-              if (!isDuplicate || isMultiVideoCampaign) {
+              if (dupIndex < 0 || isMultiVideoCampaign) {
                 if (campaign) {
                   campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
                 }
-                allVideos.push({
+                const videoEntry = {
                   id: `us_sub_${sub.id}`,
                   submission_id: sub.id,
                   application_id: sub.application_id,
@@ -743,7 +758,12 @@ export default function SnsUploadManagement() {
                   creatorName: getUSCreatorName(sub.user_id, sub),
                   creatorEmail: sub.email,
                   week_number: sub.week_number,
-                })
+                }
+                if (dupIndex >= 0) {
+                  allVideos[dupIndex] = videoEntry
+                } else {
+                  allVideos.push(videoEntry)
+                }
               }
             })
           }
