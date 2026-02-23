@@ -261,41 +261,50 @@ const PaymentMethodSelection = () => {
     );
   }
 
-  // 데이터베이스의 estimated_cost를 사용하되, 패키지 가격 기반으로 검증
-  const getPackagePrice = (packageType) => {
-    const prices = {
-      'basic': 200000, 'junior': 200000,
-      'standard': 300000, 'intermediate': 300000,
-      'premium': 400000, 'senior': 400000,
-      'professional': 600000,
-      'enterprise': 1000000,
-      '4week_challenge': 600000,
-      'oliveyoung': 200000,
-    };
-    return prices[packageType] || 0;
+  // 패키지 가격 조회 함수 (나라별/캠페인별 가격 체계 반영)
+  const getPackagePrice = (packageType, campaignType) => {
+    // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'japan') {
+      const japanCampaignTypePrices = { regular: 300000, megawari: 400000, '4week_challenge': 600000 };
+      const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 };
+      const basePrice = japanCampaignTypePrices[campaignType] || 300000;
+      const addon = japanPackageAddon[packageType?.toLowerCase()] || 0;
+      return basePrice + addon;
+    }
+
+    // 미국 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'us' || region === 'usa') {
+      const usCampaignTypePrices = { regular: 300000, '4week_challenge': 600000 };
+      const usPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 };
+      const basePrice = usCampaignTypePrices[campaignType] || 300000;
+      const addon = usPackageAddon[packageType?.toLowerCase()] || 0;
+      return basePrice + addon;
+    }
+
+    // 올리브영 패키지 가격
+    const oliveyoungPrices = { 'standard': 400000, 'premium': 500000, 'professional': 600000 };
+    // 4주 챌린지 패키지 가격
+    const fourWeekPrices = { 'standard': 600000, 'premium': 700000, 'professional': 800000, 'enterprise': 1000000 };
+    // 기획형 패키지 가격
+    const generalPrices = { 'junior': 200000, 'intermediate': 300000, 'senior': 400000, 'basic': 200000, 'standard': 300000, 'premium': 400000, 'professional': 600000, 'enterprise': 1000000 };
+    // 레거시 패키지
+    const legacyPrices = { 'oliveyoung': 200000, '올영 20만원': 200000, '프리미엄 30만원': 300000, '4week_challenge': 600000, '4주챌린지 60만원': 600000 };
+
+    const packageKey = packageType?.toLowerCase();
+    if (legacyPrices[packageKey]) return legacyPrices[packageKey];
+    if (campaignType === 'oliveyoung' && oliveyoungPrices[packageKey]) return oliveyoungPrices[packageKey];
+    if (campaignType === '4week_challenge' && fourWeekPrices[packageKey]) return fourWeekPrices[packageKey];
+    return generalPrices[packageKey] || 200000;
   };
 
-  // estimated_cost가 0이거나 없으면 패키지 가격 기반으로 재계산
-  let totalAmount = campaign.estimated_cost || 0;
-  if (totalAmount === 0 && campaign.package_type) {
-    const pkgPrice = getPackagePrice(campaign.package_type);
-    const slots = campaign.total_slots || 1;
-    const bonus = campaign.bonus_amount || 0;
-    totalAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
-  }
+  // 패키지 가격 기반으로 정확한 금액 계산 (estimated_cost 대신 사용)
+  const pkgPrice = getPackagePrice(campaign.package_type, campaign.campaign_type);
+  const slots = campaign.total_slots || 1;
+  const bonus = campaign.bonus_amount || 0;
+  const totalAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
 
-  // 검증: estimated_cost와 패키지 기반 계산값 비교 (큰 차이 발생 시 패키지 기반 값 사용)
-  if (campaign.package_type && totalAmount > 0) {
-    const pkgPrice = getPackagePrice(campaign.package_type);
-    if (pkgPrice > 0) {
-      const slots = campaign.total_slots || 1;
-      const bonus = campaign.bonus_amount || 0;
-      const expectedAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
-      if (totalAmount !== expectedAmount) {
-        console.warn(`[PaymentMethodSelection] estimated_cost 불일치 감지: DB=${totalAmount}, 계산값=${expectedAmount}, package=${campaign.package_type}, slots=${slots}, bonus=${bonus}`);
-        totalAmount = expectedAmount;
-      }
-    }
+  if (campaign.estimated_cost && campaign.estimated_cost !== totalAmount) {
+    console.warn(`[PaymentMethodSelection] estimated_cost 불일치: DB=${campaign.estimated_cost}, 계산값=${totalAmount}, package=${campaign.package_type}, type=${campaign.campaign_type}, region=${region}, slots=${slots}, bonus=${bonus}`);
   }
 
   return (

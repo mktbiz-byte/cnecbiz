@@ -309,7 +309,7 @@ export default function MyCampaigns() {
 
       const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region) + (campaign.bonus_amount || 0)
       const totalSlots = campaign.max_participants || campaign.total_slots || 0
-      const total = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : Math.round(packagePrice * totalSlots * 1.1)
+      const total = (campaign.package_type && totalSlots) ? Math.round(packagePrice * totalSlots * 1.1) : (campaign.estimated_cost ? Math.round(campaign.estimated_cost) : 0)
 
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
@@ -339,6 +339,15 @@ export default function MyCampaigns() {
       const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
       const basePrice = japanCampaignTypePrices[campaignType] || 300000
       const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
+    // 미국 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'us' || region === 'usa') {
+      const usCampaignTypePrices = { regular: 300000, '4week_challenge': 600000 }
+      const usPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
+      const basePrice = usCampaignTypePrices[campaignType] || 300000
+      const addon = usPackageAddon[packageType?.toLowerCase()] || 0
       return basePrice + addon
     }
 
@@ -668,9 +677,9 @@ export default function MyCampaigns() {
               ) : (
                 <div className="space-y-3 lg:space-y-4">
                   {filteredCampaigns.map((campaign) => {
-                    // estimated_cost가 있으면 사용, 없으면 계산 (bonus_amount 포함)
+                    // 패키지 가격 기반으로 계산 (estimated_cost보다 우선)
                     const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region) + (campaign.bonus_amount || 0)
-                    const totalCost = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : Math.round(packagePrice * (campaign.total_slots || 0) * 1.1)
+                    const totalCost = (campaign.package_type && campaign.total_slots) ? Math.round(packagePrice * campaign.total_slots * 1.1) : (campaign.estimated_cost ? Math.round(campaign.estimated_cost) : 0)
                     const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                     const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
                     const typeInfo = getCampaignTypeInfo(campaign.campaign_type)

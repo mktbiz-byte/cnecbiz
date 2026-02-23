@@ -508,8 +508,8 @@ const InvoicePage = () => {
   const packagePrice = basePackagePrice + (campaign.bonus_amount || 0)  // 지원율 높이기 포함
   const subtotal = packagePrice * recruitmentCount
   const vat = Math.round(subtotal * 0.1)
-  // estimated_cost가 있으면 사용, 없으면 계산
-  const totalCost = campaign.estimated_cost ? Math.round(campaign.estimated_cost) : subtotal + vat
+  // 패키지 가격 기반으로 계산 (estimated_cost보다 우선)
+  const totalCost = (campaign.package_type && campaign.total_slots) ? subtotal + vat : (campaign.estimated_cost ? Math.round(campaign.estimated_cost) : subtotal + vat)
   // 할인 금액 (현재는 0)
   const discountAmount = 0
   
