@@ -10962,13 +10962,14 @@ Questions? Contact us.
                                     variant="outline"
                                     className="w-full"
                                     onClick={() => {
+                                      const p = participants.find(pt => pt.user_id === submission.user_id)
                                       navigate(`/video-review/${submission.id}?region=${region}`, {
                                         state: {
                                           submission,
                                           campaignTitle: campaign?.title,
                                           campaignId: campaign?.id,
-                                          creatorName: participant?.creator_name || participant?.applicant_name,
-                                          creatorPhone: participant?.phone_number
+                                          creatorName: p?.creator_name || p?.applicant_name,
+                                          creatorPhone: p?.phone_number
                                         }
                                       })
                                     }}
