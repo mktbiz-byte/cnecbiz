@@ -1,23 +1,25 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { X, Globe, ChevronRight, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { X, Globe, ChevronRight, ArrowLeft } from 'lucide-react'
 
 export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
   const navigate = useNavigate()
   const [selectedRegion, setSelectedRegion] = useState(null)
-  const [agreed, setAgreed] = useState(false)
+  const [consentRefundPolicy, setConsentRefundPolicy] = useState(false)
+  const [consentNoDirectContact, setConsentNoDirectContact] = useState(false)
 
   const shouldShow = isOpen !== undefined ? isOpen : (open !== undefined ? open : true)
   if (!shouldShow) return null
 
   const handleSelectRegion = (regionId) => {
     setSelectedRegion(regionId)
-    setAgreed(false)
+    setConsentRefundPolicy(false)
+    setConsentNoDirectContact(false)
   }
 
   const handleConfirm = () => {
-    if (!agreed || !selectedRegion) return
+    if (!consentRefundPolicy || !consentNoDirectContact || !selectedRegion) return
     if (onSelectRegion) {
       onSelectRegion(selectedRegion)
     } else {
@@ -25,18 +27,21 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
     }
     if (onClose) onClose()
     setSelectedRegion(null)
-    setAgreed(false)
+    setConsentRefundPolicy(false)
+    setConsentNoDirectContact(false)
   }
 
   const handleClose = () => {
     setSelectedRegion(null)
-    setAgreed(false)
+    setConsentRefundPolicy(false)
+    setConsentNoDirectContact(false)
     if (onClose) onClose()
   }
 
   const handleBack = () => {
     setSelectedRegion(null)
-    setAgreed(false)
+    setConsentRefundPolicy(false)
+    setConsentNoDirectContact(false)
   }
 
   const regions = [
@@ -153,55 +158,112 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Notice */}
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <div className="flex items-start gap-2 mb-3">
-                  <ShieldCheck className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <h3 className="text-sm font-bold text-red-800">[주의] 플랫폼 외부 개별 연락 및 부정 거래 시도 금지</h3>
-                </div>
-                <div className="text-xs text-red-700 leading-relaxed space-y-2 ml-7">
-                  <p>
-                    모든 캠페인 관련 소통 및 거래는 반드시 본 플랫폼을 통해 진행되어야 합니다.
-                    이는 크리에이터와 의뢰인 모두의 안전을 보장하고 공정한 기회를 제공하기 위함입니다.
-                  </p>
-                  <p>
-                    플랫폼을 통하지 않고 의뢰인에게 개별적으로 연락하거나, 직거래를 유도하는 행위는
-                    심각한 약관 위반으로 간주됩니다. 위반 사실이 확인될 경우, 아래와 같은 조치가 취해질 수 있습니다.
-                  </p>
-                  <ol className="list-decimal ml-4 space-y-1">
-                    <li>서비스 이용 자격 영구 박탈</li>
-                    <li>플랫폼 수수료 및 영업 손실에 대한 손해배상 청구</li>
-                    <li>관련 법률에 따른 민·형사상 법적 조치</li>
-                  </ol>
-                  <p>
-                    투명하고 신뢰할 수 있는 플랫폼 환경을 위해 모든 참여자의 적극적인 협조를 부탁드립니다.
-                  </p>
+              {/* 환불 규정 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">1</span>
+                  환불 규정
+                </h3>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-green-100 rounded flex items-center justify-center">
+                        <span className="text-green-700 font-bold text-xs">100%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
+                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-amber-100 rounded flex items-center justify-center">
+                        <span className="text-amber-700 font-bold text-xs">50%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
+                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex-shrink-0 w-12 h-8 bg-red-100 rounded flex items-center justify-center">
+                        <span className="text-red-700 font-bold text-xs">0%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">콘텐츠 제출 후</p>
+                        <p className="text-xs text-gray-500">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                  <p className="text-xs text-gray-500">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
                 </div>
               </div>
 
-              {/* Checkbox */}
-              <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-xl border border-gray-200 hover:border-indigo-300 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
-                />
-                <span className="text-sm text-gray-700 leading-relaxed">
-                  <span className="text-red-600 font-bold">[필수]</span>{' '}
-                  본인은 캠페인 진행과 관련하여 플랫폼을 통하지 않고 의뢰인에게 개별적으로 연락하거나
-                  부정 거래를 시도하지 않을 것을 서약합니다. 이를 위반할 경우, 서비스 이용 제한,
-                  손해배상 청구를 포함한 모든 법적 조치에 이의 없이 동의합니다.
-                </span>
-              </label>
+              {/* 개별 연락 금지 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">2</span>
+                  크리에이터 개별 연락 금지
+                </h3>
+                <div className="bg-red-50 rounded-xl p-4 text-sm text-gray-700 space-y-2 border border-red-100">
+                  <p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 <strong className="text-red-700">직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위</strong>를 해서는 안 됩니다.</p>
+                  <p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p>
+                  <p>본 조항은 <strong>캠페인 종료 후 6개월간</strong> 유효합니다.</p>
+                  <p className="text-red-600 font-semibold">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</p>
+                </div>
+              </div>
+
+              {/* 콘텐츠 2차 활용 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">3</span>
+                  콘텐츠 저작권 및 2차 활용
+                </h3>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-2">
+                  <p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p>
+                  <p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p>
+                  <p>2차 활용 기간은 크리에이터의 <strong>SNS 업로드일로부터 1년</strong>입니다.</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mt-2">
+                  <p className="font-semibold flex items-center gap-1.5 mb-1">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가</p>
+                  <p>2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 <strong>Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</strong> 기간 만료 후 Meta 광고에 활용하려면 별도의 2차 활용 계약이 필요합니다.</p>
+                </div>
+              </div>
+
+              {/* 체크박스 */}
+              <div className="space-y-3 pt-2">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={consentRefundPolicy}
+                    onChange={(e) => setConsentRefundPolicy(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    <strong className="text-gray-900">환불 규정</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={consentNoDirectContact}
+                    onChange={(e) => setConsentNoDirectContact(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    <strong className="text-gray-900">크리에이터 개별 연락 금지 조항</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  </span>
+                </label>
+              </div>
 
               {/* Confirm Button */}
               <Button
                 onClick={handleConfirm}
-                disabled={!agreed}
+                disabled={!consentRefundPolicy || !consentNoDirectContact}
                 className={`w-full h-12 text-base font-semibold rounded-xl transition-all ${
-                  agreed
-                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  consentRefundPolicy && consentNoDirectContact
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >

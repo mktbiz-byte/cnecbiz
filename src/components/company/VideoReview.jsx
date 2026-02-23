@@ -104,10 +104,23 @@ export default function VideoReview() {
     }
   }
 
+  // 합성 ID 여부 판별
+  const isSyntheticSubmissionId = typeof submissionId === 'string' && /^(app_|cp_|ca_)/.test(submissionId)
+
   useEffect(() => {
     loadSubmission()
-    loadComments()
+    // 합성 ID가 아닌 경우에만 바로 댓글 로드 (합성 ID는 submission 로드 후에 처리)
+    if (!isSyntheticSubmissionId) {
+      loadComments()
+    }
   }, [submissionId])
+
+  // 합성 ID인 경우 submission 로드 후 댓글 로드
+  useEffect(() => {
+    if (isSyntheticSubmissionId && submission) {
+      loadComments()
+    }
+  }, [submission])
 
   // Mobile detection
   useEffect(() => {
@@ -334,38 +347,86 @@ export default function VideoReview() {
       // Get submission data from region-specific client
       const client = getRegionClient()
 
+      // 합성 ID(app_, cp_, ca_ 접두사) 처리
+      const isSyntheticId = typeof submissionId === 'string' && /^(app_|cp_|ca_)/.test(submissionId)
+      const realId = isSyntheticId ? submissionId.replace(/^(app_|cp_|ca_)/, '') : submissionId
+
       // Try with join first, fallback to simple query if FK relationship doesn't exist
       let data = null
-      const { data: joinData, error: joinError } = await client
-        .from('video_submissions')
-        .select(`
-          *,
-          applications (
-            applicant_name,
-            phone_number,
-            campaign_id,
-            campaigns (
-              title,
-              company_id
-            )
-          )
-        `)
-        .eq('id', submissionId)
-        .single()
 
-      if (joinError) {
-        console.log('Join query failed, trying simple query:', joinError.message)
-        // Fallback: query without join (for Japan/US where FK may not exist)
-        const { data: simpleData, error: simpleError } = await client
+      if (isSyntheticId) {
+        // 합성 ID인 경우: application_id로 video_submissions 검색
+        const { data: subData, error: subError } = await client
           .from('video_submissions')
           .select('*')
+          .eq('application_id', realId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (subData) {
+          data = subData
+        } else {
+          // video_submissions에 없으면 applications에서 영상 정보 가져오기
+          console.log('No video_submission found for application_id, checking applications table')
+          const { data: appData, error: appError } = await client
+            .from('applications')
+            .select('*, campaigns(title, company_id)')
+            .eq('id', realId)
+            .single()
+
+          if (appError) throw appError
+          if (!appData) throw new Error('신청 정보를 찾을 수 없습니다.')
+
+          // applications 데이터를 submission 형태로 변환
+          data = {
+            id: submissionId,
+            campaign_id: appData.campaign_id,
+            application_id: appData.id,
+            user_id: appData.user_id,
+            video_file_url: appData.video_file_url || appData.video_url,
+            status: appData.video_status || appData.status,
+            created_at: appData.video_uploaded_at || appData.updated_at,
+            applications: {
+              applicant_name: appData.applicant_name,
+              phone_number: appData.phone_number,
+              campaign_id: appData.campaign_id,
+              campaigns: appData.campaigns
+            }
+          }
+        }
+      } else {
+        const { data: joinData, error: joinError } = await client
+          .from('video_submissions')
+          .select(`
+            *,
+            applications (
+              applicant_name,
+              phone_number,
+              campaign_id,
+              campaigns (
+                title,
+                company_id
+              )
+            )
+          `)
           .eq('id', submissionId)
           .single()
 
-        if (simpleError) throw simpleError
-        data = simpleData
-      } else {
-        data = joinData
+        if (joinError) {
+          console.log('Join query failed, trying simple query:', joinError.message)
+          // Fallback: query without join (for Japan/US where FK may not exist)
+          const { data: simpleData, error: simpleError } = await client
+            .from('video_submissions')
+            .select('*')
+            .eq('id', submissionId)
+            .single()
+
+          if (simpleError) throw simpleError
+          data = simpleData
+        } else {
+          data = joinData
+        }
       }
 
       setSubmission(data)
@@ -414,12 +475,23 @@ export default function VideoReview() {
     try {
       const client = getRegionClient()
 
+      // 합성 ID(app_, cp_, ca_ 접두사)인 경우 댓글이 없으므로 빈 배열 반환
+      const isSyntheticId = typeof submissionId === 'string' && /^(app_|cp_|ca_)/.test(submissionId)
+      // 실제 submission이 로드된 경우 그 ID를 사용, 아니면 submissionId 사용
+      const queryId = isSyntheticId ? (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id) ? submission.id : null) : submissionId
+
+      if (!queryId) {
+        // 유효한 UUID가 없으면 댓글 로드 스킵
+        setComments([])
+        return
+      }
+
       // Try region DB first, fallback to BIZ DB if table doesn't exist
       let commentsData = null
       const { data, error } = await client
         .from('video_review_comments')
         .select('*')
-        .eq('submission_id', submissionId)
+        .eq('submission_id', queryId)
         .order('timestamp', { ascending: true })
 
       if (error) {
@@ -429,7 +501,7 @@ export default function VideoReview() {
           const { data: bizData, error: bizError } = await supabaseBiz
             .from('video_review_comments')
             .select('*')
-            .eq('submission_id', submissionId)
+            .eq('submission_id', queryId)
             .order('timestamp', { ascending: true })
 
           if (bizError) {
@@ -567,10 +639,12 @@ export default function VideoReview() {
 
       // Use region-specific DB to avoid FK constraint error
       const client = getRegionClient()
+      // 합성 ID인 경우 실제 submission ID 사용
+      const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
       const { data, error } = await client
         .from('video_review_comments')
         .insert({
-          submission_id: submissionId,
+          submission_id: actualSubmissionId,
           timestamp: activeMarker.timestamp,
           comment: currentComment,
           box_x: activeMarker.x,
@@ -704,10 +778,11 @@ export default function VideoReview() {
     try {
       // 1. video_submissions 상태를 revision_requested로 변경
       const client = getRegionClient()
+      const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
       await client
         .from('video_submissions')
         .update({ status: 'revision_requested', updated_at: new Date().toISOString() })
-        .eq('id', submissionId)
+        .eq('id', actualSubmissionId)
 
       // 2. 피드백 내용 텍스트 생성 (번역용)
       const feedbackText = comments.map((c, i) =>
@@ -742,8 +817,8 @@ export default function VideoReview() {
           ? 'send-japan-notification'
           : 'send-us-notification'
         const reviewUrl = region === 'japan'
-          ? `https://cnec.jp/creator/video-review/${submissionId}`
-          : `https://cnec.us/creator/video-review/${submissionId}`
+          ? `https://cnec.jp/creator/video-review/${actualSubmissionId}`
+          : `https://cnec.us/creator/video-review/${actualSubmissionId}`
 
         const notifRes = await fetch(`/.netlify/functions/${notifFunction}`, {
           method: 'POST',
@@ -758,7 +833,7 @@ export default function VideoReview() {
               campaignName: submission?.applications?.campaigns?.title || 'Campaign',
               feedbackCount: comments.length,
               feedback: translatedFeedback,
-              submissionId,
+              submissionId: actualSubmissionId,
               reviewUrl
             }
           })
@@ -782,7 +857,7 @@ export default function VideoReview() {
             creatorPhone: submission?.applications?.phone_number,
             campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
             feedbackCount: comments.length,
-            submissionId
+            submissionId: actualSubmissionId
           })
         })
 
