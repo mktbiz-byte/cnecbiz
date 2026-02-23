@@ -170,7 +170,7 @@ export default function SnsUploadManagement() {
           const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                            app.week3_url || app.week4_url || app.step1_url ||
                            app.step2_url || app.step3_url
-          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
+          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
           if (hasSnsUrl || hasVideoStatus) {
             const campaign = campaignMap.get(app.campaign_id)
@@ -234,7 +234,7 @@ export default function SnsUploadManagement() {
         console.log('[SnsUploadManagement] BIZ video_submissions:', bizSubmissions.length)
         bizSubmissions.forEach(sub => {
           // 영상 관련 상태인 경우만 추가
-          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted', 'pending'].includes(sub.status)
           if (!hasVideoStatus && !sub.sns_upload_url) return
 
           const campaign = campaignMap.get(sub.campaign_id)
@@ -413,7 +413,7 @@ export default function SnsUploadManagement() {
           console.log('[SnsUploadManagement] Korea video_submissions:', koreaSubmissions.length)
           koreaSubmissions.forEach(sub => {
             // 영상 관련 상태인 경우만 추가
-            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted', 'pending'].includes(sub.status)
             if (!hasVideoStatus && !sub.sns_upload_url) return
 
             const campaign = koreaCampaignMap.get(sub.campaign_id)
@@ -512,7 +512,7 @@ export default function SnsUploadManagement() {
               const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                                app.week3_url || app.week4_url || app.step1_url ||
                                app.step2_url || app.step3_url
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
               if (hasSnsUrl || hasVideoStatus) {
                 const campaign = japanCampaignMap.get(app.campaign_id)
@@ -563,7 +563,7 @@ export default function SnsUploadManagement() {
           if (!japanSubError && japanSubs) {
             console.log('[SnsUploadManagement] Japan video_submissions:', japanSubs.length)
             japanSubs.forEach(sub => {
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted', 'pending'].includes(sub.status)
               if (!hasVideoStatus && !sub.sns_upload_url) return
 
               const campaign = japanCampaignMap.get(sub.campaign_id)
@@ -658,7 +658,7 @@ export default function SnsUploadManagement() {
               const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                                app.week3_url || app.week4_url || app.step1_url ||
                                app.step2_url || app.step3_url
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
               if (hasSnsUrl || hasVideoStatus) {
                 const campaign = usCampaignMap.get(app.campaign_id)
@@ -712,7 +712,7 @@ export default function SnsUploadManagement() {
           if (!usSubError && usSubs) {
             console.log('[SnsUploadManagement] US video_submissions:', usSubs.length)
             usSubs.forEach(sub => {
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted', 'pending'].includes(sub.status)
               if (!hasVideoStatus && !sub.sns_upload_url) return
 
               const campaign = usCampaignMap.get(sub.campaign_id)

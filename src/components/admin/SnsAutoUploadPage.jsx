@@ -647,7 +647,7 @@ export default function SnsAutoUploadPage() {
           const { data: japanApps } = await supabaseJapan
             .from('applications')
             .select('*')
-            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .in('status', ['approved', 'completed', 'video_submitted', 'submitted', 'sns_uploaded'])
             .order('created_at', { ascending: false })
             .limit(300)
 
@@ -685,7 +685,7 @@ export default function SnsAutoUploadPage() {
           const { data: japanSubs } = await supabaseJapan
             .from('video_submissions')
             .select('*')
-            .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
+            .in('status', ['approved', 'completed', 'video_submitted', 'submitted', 'pending'])
             .order('created_at', { ascending: false })
             .limit(300)
 
@@ -760,7 +760,7 @@ export default function SnsAutoUploadPage() {
           const { data: usApps } = await supabaseUS
             .from('applications')
             .select('*')
-            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .in('status', ['approved', 'completed', 'video_submitted', 'submitted', 'sns_uploaded'])
             .order('created_at', { ascending: false })
             .limit(300)
 
@@ -798,7 +798,7 @@ export default function SnsAutoUploadPage() {
           const { data: usSubs } = await supabaseUS
             .from('video_submissions')
             .select('*')
-            .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
+            .in('status', ['approved', 'completed', 'video_submitted', 'submitted', 'pending'])
             .order('created_at', { ascending: false })
             .limit(300)
 
