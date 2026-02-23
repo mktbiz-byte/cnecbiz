@@ -157,7 +157,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         isAdminNotification: true,
-        channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID,
+        channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
         message: naverWorksMessage
       })
     })
