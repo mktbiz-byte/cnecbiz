@@ -43,7 +43,8 @@ import {
   Search,
   Instagram,
   Youtube,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -7630,23 +7631,19 @@ Questions? Contact us.
   const getPackagePrice = (packageType, campaignType) => {
     // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
     if (region === 'japan') {
-      // 캠페인 타입별 기본 가격
-      const japanCampaignTypePrices = {
-        'regular': 300000,
-        'megawari': 400000,
-        '4week_challenge': 600000
-      }
-
-      // 크리에이터 등급별 추가 가격
-      const japanPackageAddon = {
-        'junior': 0,
-        'intermediate': 100000,
-        'senior': 200000,
-        'premium': 300000
-      }
-
+      const japanCampaignTypePrices = { 'regular': 300000, 'megawari': 400000, '4week_challenge': 600000 }
+      const japanPackageAddon = { 'junior': 0, 'intermediate': 100000, 'senior': 200000, 'premium': 300000 }
       const basePrice = japanCampaignTypePrices[campaignType] || 300000
       const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
+      return basePrice + addon
+    }
+
+    // 미국 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
+    if (region === 'us' || region === 'usa') {
+      const usCampaignTypePrices = { 'regular': 300000, '4week_challenge': 600000 }
+      const usPackageAddon = { 'junior': 0, 'intermediate': 100000, 'senior': 200000, 'premium': 300000 }
+      const basePrice = usCampaignTypePrices[campaignType] || 300000
+      const addon = usPackageAddon[packageType?.toLowerCase()] || 0
       return basePrice + addon
     }
 
@@ -7901,6 +7898,17 @@ Questions? Contact us.
                 결제 요청 하기
               </Button>
             )}
+            {/* 카드 결제하기 버튼: 취소되지 않은 캠페인에서 표시 */}
+            {!campaign.is_cancelled && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/company/campaigns/payment?id=${id}&region=${region}`)}
+                className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                카드 결제하기
+              </Button>
+            )}
             {campaign.approval_status === 'pending' && (
               <Button disabled className="bg-blue-100 text-blue-700 cursor-not-allowed">
                 <Clock className="w-4 h-4 mr-2" />
@@ -8000,10 +8008,10 @@ Questions? Contact us.
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
-                    {campaign.estimated_cost ?
-                      `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
-                      : campaign.package_type && campaign.total_slots ?
-                        `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
+                    {campaign.package_type && campaign.total_slots ?
+                      `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
+                      : campaign.estimated_cost ?
+                        `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
                         : '-'
                     }
                   </p>

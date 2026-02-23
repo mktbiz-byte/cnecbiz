@@ -94,18 +94,10 @@ exports.handler = async (event) => {
 
     const record = body.record;
 
-    // UPDATE인 경우: 재제출(수정본 업로드)은 send-resubmit-notification.js에서 처리
-    if (body.type === 'UPDATE') {
-      console.log('영상 재제출(UPDATE) 감지 → 알림은 send-resubmit-notification.js에서 처리, 스킵');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, message: 'Resubmission notification deferred to send-resubmit-notification' })
-      };
-    }
+    const isResubmission = body.type === 'UPDATE';
 
-    // INSERT인 경우: video_file_url이 있어야 함
-    if (body.type === 'INSERT' && !record?.video_file_url) {
+    // video_file_url이 있어야 함 (INSERT/UPDATE 모두)
+    if (!record?.video_file_url) {
       console.log('영상 URL 없음, 스킵');
       return {
         statusCode: 200,
@@ -114,7 +106,7 @@ exports.handler = async (event) => {
       };
     }
 
-    console.log('새 영상 제출 감지:', {
+    console.log(isResubmission ? '영상 재제출(UPDATE) 감지:' : '새 영상 제출 감지:', {
       id: record.id,
       campaign_id: record.campaign_id,
       user_id: record.user_id,
@@ -332,7 +324,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           isAdminNotification: true,
           channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `📹 영상 제출 알림 (${siteLabel})\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n버전: V${record.version || 1}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+          message: `📹 ${isResubmission ? '영상 재제출' : '영상 제출'} 알림 (${siteLabel})\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n버전: V${record.version || 1}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}${isResubmission ? '\n\n※ 수정 후 재업로드' : ''}`
         })
       });
       const worksResult = await worksResponse.json();
