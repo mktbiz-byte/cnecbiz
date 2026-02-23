@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RefreshCw, Search, Building2 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function HowlabDepositsTab() {
   const [deposits, setDeposits] = useState([])
@@ -25,41 +24,20 @@ export default function HowlabDepositsTab() {
   const fetchDeposits = async () => {
     setLoading(true)
     try {
-      // 날짜를 YYYYMMDD 형식으로 변환
       const startDateStr = startDate.replace(/-/g, '')
       const endDateStr = endDate.replace(/-/g, '')
 
-      let query = supabaseBiz
-        .from('tblbank')
-        .select('*')
-        .gte('bkdate', startDateStr)
-        .lte('bkdate', endDateStr)
-        .order('bkdate', { ascending: false })
-        .order('bktime', { ascending: false })
+      const response = await fetch(
+        `/.netlify/functions/get-howlab-deposits?startDate=${startDateStr}&endDate=${endDateStr}&filterType=${filterType}`
+      )
+      const result = await response.json()
 
-      // 필터 적용
-      if (filterType === 'input') {
-        query = query.gt('bkinput', 0)
-      } else if (filterType === 'output') {
-        query = query.gt('bkoutput', 0)
+      if (!result.success) {
+        throw new Error(result.error || '조회 실패')
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
-
-      setDeposits(data || [])
-
-      // 통계 계산
-      const depositItems = (data || []).filter(d => d.bkinput > 0)
-      const withdrawalItems = (data || []).filter(d => d.bkoutput > 0)
-      setStats({
-        total: data?.length || 0,
-        deposits: depositItems.length,
-        withdrawals: withdrawalItems.length,
-        depositAmount: depositItems.reduce((sum, d) => sum + (d.bkinput || 0), 0),
-        withdrawalAmount: withdrawalItems.reduce((sum, d) => sum + (d.bkoutput || 0), 0)
-      })
+      setDeposits(result.data || [])
+      setStats(result.stats || { total: 0, deposits: 0, withdrawals: 0, depositAmount: 0, withdrawalAmount: 0 })
     } catch (error) {
       console.error('입출금 내역 조회 오류:', error)
       alert('입출금 내역을 불러오는데 실패했습니다: ' + error.message)
