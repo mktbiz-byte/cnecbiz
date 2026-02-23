@@ -583,6 +583,13 @@ const CampaignCreationKorea = () => {
       const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type) || oliveyoungPackageOptions[0]
       const slots = campaignForm.oliveyoung_recruit_count || campaignForm.total_slots || 1
       newEstimatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
+    } else {
+      // 일반(planned) 캠페인도 bonus_amount/total_slots 변경 시 재계산
+      const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (pkg) {
+        const slots = campaignForm.total_slots || 1
+        newEstimatedCost = calculateFinalCost(pkg.price + bonus, slots)
+      }
     }
 
     if (newEstimatedCost > 0 && newEstimatedCost !== campaignForm.estimated_cost) {
@@ -1043,6 +1050,19 @@ const CampaignCreationKorea = () => {
         const slots = campaignForm.total_slots || 1
         const bonus = campaignForm.bonus_amount || 0
         calculatedEstimatedCost = Math.round((basePrice + bonus) * slots * 1.1)
+      } else {
+        // 일반(planned): (패키지 가격 + 보너스) × 인원 (할인 적용 + VAT)
+        const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+        if (pkg) {
+          const slots = campaignForm.total_slots || 1
+          const bonus = campaignForm.bonus_amount || 0
+          const subtotal = (pkg.price + bonus) * slots
+          const discountRate = calculateDiscount(subtotal)
+          const discountAmount = Math.floor(subtotal * (discountRate / 100))
+          const finalBeforeVat = subtotal - discountAmount
+          const vat = Math.round(finalBeforeVat * 0.1)
+          calculatedEstimatedCost = finalBeforeVat + vat
+        }
       }
 
       console.log('[CreateCampaignKorea] Saving - bonus_amount:', campaignForm.bonus_amount, 'estimated_cost:', calculatedEstimatedCost)

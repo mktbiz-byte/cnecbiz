@@ -261,8 +261,42 @@ const PaymentMethodSelection = () => {
     );
   }
 
-  // 데이터베이스의 estimated_cost를 직접 사용
-  const totalAmount = campaign.estimated_cost || 0;
+  // 데이터베이스의 estimated_cost를 사용하되, 패키지 가격 기반으로 검증
+  const getPackagePrice = (packageType) => {
+    const prices = {
+      'basic': 200000, 'junior': 200000,
+      'standard': 300000, 'intermediate': 300000,
+      'premium': 400000, 'senior': 400000,
+      'professional': 600000,
+      'enterprise': 1000000,
+      '4week_challenge': 600000,
+      'oliveyoung': 200000,
+    };
+    return prices[packageType] || 0;
+  };
+
+  // estimated_cost가 0이거나 없으면 패키지 가격 기반으로 재계산
+  let totalAmount = campaign.estimated_cost || 0;
+  if (totalAmount === 0 && campaign.package_type) {
+    const pkgPrice = getPackagePrice(campaign.package_type);
+    const slots = campaign.total_slots || 1;
+    const bonus = campaign.bonus_amount || 0;
+    totalAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
+  }
+
+  // 검증: estimated_cost와 패키지 기반 계산값 비교 (큰 차이 발생 시 패키지 기반 값 사용)
+  if (campaign.package_type && totalAmount > 0) {
+    const pkgPrice = getPackagePrice(campaign.package_type);
+    if (pkgPrice > 0) {
+      const slots = campaign.total_slots || 1;
+      const bonus = campaign.bonus_amount || 0;
+      const expectedAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
+      if (totalAmount !== expectedAmount) {
+        console.warn(`[PaymentMethodSelection] estimated_cost 불일치 감지: DB=${totalAmount}, 계산값=${expectedAmount}, package=${campaign.package_type}, slots=${slots}, bonus=${bonus}`);
+        totalAmount = expectedAmount;
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
