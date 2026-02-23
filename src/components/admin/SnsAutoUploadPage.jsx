@@ -41,7 +41,7 @@ import {
   RefreshCw, Check, X, AlertCircle, Play, ExternalLink, Loader2,
   FileVideo, Clock, CheckCircle2, XCircle, Trash2, Edit, Plus, Sparkles, Save, RotateCcw
 } from 'lucide-react'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 // 플랫폼 설정
@@ -608,6 +608,232 @@ export default function SnsAutoUploadPage() {
           console.log('[fetchPendingVideos] Total after Korea video_submissions:', allVideos.length)
         } catch (e) {
           console.log('[fetchPendingVideos] Korea video_submissions query failed:', e.message)
+        }
+      }
+
+      // ========== Japan DB ==========
+      if (supabaseJapan) {
+        let japanCampaignMap = new Map()
+        let japanProfileMap = new Map()
+        try {
+          const { data: japanCampaigns } = await supabaseJapan.from('campaigns').select('*')
+          japanCampaigns?.forEach(c => japanCampaignMap.set(c.id, c))
+        } catch (e) {
+          console.log('[fetchPendingVideos] Japan campaigns query failed')
+        }
+
+        try {
+          const { data: japanProfiles } = await supabaseJapan.from('user_profiles').select('id, user_id, name, full_name, channel_name, email')
+          japanProfiles?.forEach(p => {
+            if (p.id) japanProfileMap.set(p.id, p)
+            if (p.user_id) japanProfileMap.set(p.user_id, p)
+          })
+        } catch (e) {
+          console.log('[fetchPendingVideos] Japan user_profiles query failed')
+        }
+
+        const getJapanCreatorName = (sub) => {
+          if (sub.user_id && japanProfileMap.has(sub.user_id)) {
+            const profile = japanProfileMap.get(sub.user_id)
+            if (profile?.channel_name && !profile.channel_name.includes('@')) return profile.channel_name
+            if (profile?.name && !profile.name.includes('@')) return profile.name
+            if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+          }
+          return resolveCreatorName(sub, japanProfileMap)
+        }
+
+        // Japan applications
+        try {
+          const { data: japanApps } = await supabaseJapan
+            .from('applications')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .order('created_at', { ascending: false })
+            .limit(300)
+
+          japanApps?.forEach(app => {
+            const videoUrl = app.video_file_url
+            if (videoUrl) {
+              const campaign = japanCampaignMap.get(app.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+              allVideos.push({
+                id: app.id,
+                source_type: 'japan_application',
+                video_file_url: videoUrl,
+                campaign_id: app.campaign_id,
+                campaign_name: campaign?.title || app.campaign_name || '-',
+                campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'jp',
+                creator_name: getJapanCreatorName(app),
+                user_id: app.user_id,
+                status: app.status,
+                approved_at: app.approved_at,
+                created_at: app.approved_at || app.updated_at || app.created_at,
+                sns_upload_url: app.sns_upload_url,
+                week_number: null,
+                is_multi_video: isMulti
+              })
+            }
+          })
+          console.log('[fetchPendingVideos] Total after Japan applications:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Japan applications query failed:', e.message)
+        }
+
+        // Japan video_submissions
+        try {
+          const { data: japanSubs } = await supabaseJapan
+            .from('video_submissions')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
+            .order('created_at', { ascending: false })
+            .limit(300)
+
+          japanSubs?.forEach(sub => {
+            const videoUrl = sub.clean_video_url || sub.video_file_url
+            if (videoUrl) {
+              const campaign = japanCampaignMap.get(sub.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+              const isDuplicate = !isMulti && allVideos.some(v =>
+                v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+              )
+              if (!isDuplicate) {
+                allVideos.push({
+                  id: sub.id,
+                  source_type: 'japan_video_submission',
+                  video_file_url: videoUrl,
+                  campaign_id: sub.campaign_id,
+                  campaign_name: campaign?.title || '-',
+                  campaign_type: campaign?.campaign_type,
+                  country: campaign?.target_country || 'jp',
+                  creator_name: getJapanCreatorName(sub),
+                  user_id: sub.user_id,
+                  status: sub.status,
+                  approved_at: sub.approved_at,
+                  created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                  sns_upload_url: sub.sns_upload_url,
+                  week_number: sub.week_number || sub.video_number,
+                  is_multi_video: isMulti
+                })
+              }
+            }
+          })
+          console.log('[fetchPendingVideos] Total after Japan video_submissions:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] Japan video_submissions query failed:', e.message)
+        }
+      }
+
+      // ========== US DB ==========
+      if (supabaseUS) {
+        let usCampaignMap = new Map()
+        let usProfileMap = new Map()
+        try {
+          const { data: usCampaigns } = await supabaseUS.from('campaigns').select('*')
+          usCampaigns?.forEach(c => usCampaignMap.set(c.id, c))
+        } catch (e) {
+          console.log('[fetchPendingVideos] US campaigns query failed')
+        }
+
+        try {
+          const { data: usProfiles } = await supabaseUS.from('user_profiles').select('id, user_id, name, full_name, channel_name, email')
+          usProfiles?.forEach(p => {
+            if (p.id) usProfileMap.set(p.id, p)
+            if (p.user_id) usProfileMap.set(p.user_id, p)
+          })
+        } catch (e) {
+          console.log('[fetchPendingVideos] US user_profiles query failed')
+        }
+
+        const getUSCreatorName = (sub) => {
+          if (sub.user_id && usProfileMap.has(sub.user_id)) {
+            const profile = usProfileMap.get(sub.user_id)
+            if (profile?.channel_name && !profile.channel_name.includes('@')) return profile.channel_name
+            if (profile?.name && !profile.name.includes('@')) return profile.name
+            if (profile?.full_name && !profile.full_name.includes('@')) return profile.full_name
+          }
+          return resolveCreatorName(sub, usProfileMap)
+        }
+
+        // US applications
+        try {
+          const { data: usApps } = await supabaseUS
+            .from('applications')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'sns_uploaded'])
+            .order('created_at', { ascending: false })
+            .limit(300)
+
+          usApps?.forEach(app => {
+            const videoUrl = app.video_file_url
+            if (videoUrl) {
+              const campaign = usCampaignMap.get(app.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+              allVideos.push({
+                id: app.id,
+                source_type: 'us_application',
+                video_file_url: videoUrl,
+                campaign_id: app.campaign_id,
+                campaign_name: campaign?.title || app.campaign_name || '-',
+                campaign_type: campaign?.campaign_type,
+                country: campaign?.target_country || 'us',
+                creator_name: getUSCreatorName(app),
+                user_id: app.user_id,
+                status: app.status,
+                approved_at: app.approved_at,
+                created_at: app.approved_at || app.updated_at || app.created_at,
+                sns_upload_url: app.sns_upload_url,
+                week_number: null,
+                is_multi_video: isMulti
+              })
+            }
+          })
+          console.log('[fetchPendingVideos] Total after US applications:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] US applications query failed:', e.message)
+        }
+
+        // US video_submissions
+        try {
+          const { data: usSubs } = await supabaseUS
+            .from('video_submissions')
+            .select('*')
+            .in('status', ['approved', 'completed', 'video_submitted', 'pending'])
+            .order('created_at', { ascending: false })
+            .limit(300)
+
+          usSubs?.forEach(sub => {
+            const videoUrl = sub.clean_video_url || sub.video_file_url
+            if (videoUrl) {
+              const campaign = usCampaignMap.get(sub.campaign_id)
+              const isMulti = isMultiVideoCampaign(campaign?.campaign_type)
+              const isDuplicate = !isMulti && allVideos.some(v =>
+                v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+              )
+              if (!isDuplicate) {
+                allVideos.push({
+                  id: sub.id,
+                  source_type: 'us_video_submission',
+                  video_file_url: videoUrl,
+                  campaign_id: sub.campaign_id,
+                  campaign_name: campaign?.title || '-',
+                  campaign_type: campaign?.campaign_type,
+                  country: campaign?.target_country || 'us',
+                  creator_name: getUSCreatorName(sub),
+                  user_id: sub.user_id,
+                  status: sub.status,
+                  approved_at: sub.approved_at,
+                  created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                  sns_upload_url: sub.sns_upload_url,
+                  week_number: sub.week_number || sub.video_number,
+                  is_multi_video: isMulti
+                })
+              }
+            }
+          })
+          console.log('[fetchPendingVideos] Total after US video_submissions:', allVideos.length)
+        } catch (e) {
+          console.log('[fetchPendingVideos] US video_submissions query failed:', e.message)
         }
       }
 

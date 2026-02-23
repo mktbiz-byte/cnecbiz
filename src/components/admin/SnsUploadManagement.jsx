@@ -464,12 +464,16 @@ export default function SnsUploadManagement() {
       }
 
       // 5. Japan DB에서 조회
+      console.log('[SnsUploadManagement] supabaseJapan client:', !!supabaseJapan)
       if (supabaseJapan) {
         try {
           // 캠페인 정보 조회
-          const { data: japanCampaigns } = await supabaseJapan
+          const { data: japanCampaigns, error: jpCampError } = await supabaseJapan
             .from('campaigns')
             .select('id, title, campaign_type, target_country')
+
+          if (jpCampError) console.error('[SnsUploadManagement] Japan campaigns error:', jpCampError.message)
+          console.log('[SnsUploadManagement] Japan campaigns loaded:', japanCampaigns?.length || 0)
 
           const japanCampaignMap = new Map()
           japanCampaigns?.forEach(c => japanCampaignMap.set(c.id, c))
@@ -482,6 +486,7 @@ export default function SnsUploadManagement() {
               .select('*')
             japanProfiles?.forEach(p => {
               if (p.id) japanProfileMap.set(p.id, p)
+              if (p.user_id) japanProfileMap.set(p.user_id, p)
             })
             console.log('[SnsUploadManagement] Japan user_profiles loaded:', japanProfiles?.length || 0)
           } catch (e) {
@@ -599,12 +604,19 @@ export default function SnsUploadManagement() {
       }
 
       // 6. US DB에서 조회
+      console.log('[SnsUploadManagement] supabaseUS client:', !!supabaseUS)
       if (supabaseUS) {
+        console.log('[SnsUploadManagement] US DB client exists, querying...')
         try {
           // 캠페인 정보 조회
-          const { data: usCampaigns } = await supabaseUS
+          const { data: usCampaigns, error: usCampError } = await supabaseUS
             .from('campaigns')
             .select('id, title, campaign_type, target_country')
+
+          if (usCampError) {
+            console.error('[SnsUploadManagement] US campaigns error:', usCampError.message)
+          }
+          console.log('[SnsUploadManagement] US campaigns loaded:', usCampaigns?.length || 0)
 
           const usCampaignMap = new Map()
           usCampaigns?.forEach(c => usCampaignMap.set(c.id, c))
@@ -617,6 +629,7 @@ export default function SnsUploadManagement() {
               .select('*')
             usProfiles?.forEach(p => {
               if (p.id) usProfileMap.set(p.id, p)
+              if (p.user_id) usProfileMap.set(p.user_id, p)
             })
             console.log('[SnsUploadManagement] US user_profiles loaded:', usProfiles?.length || 0)
           } catch (e) {
@@ -636,6 +649,9 @@ export default function SnsUploadManagement() {
             .select('*')
             .order('created_at', { ascending: false })
 
+          if (usAppError) {
+            console.error('[SnsUploadManagement] US applications error:', usAppError.message, usAppError.code)
+          }
           if (!usAppError && usApps) {
             console.log('[SnsUploadManagement] US applications:', usApps.length)
             usApps.forEach(app => {
@@ -690,6 +706,9 @@ export default function SnsUploadManagement() {
             .select('*')
             .order('created_at', { ascending: false })
 
+          if (usSubError) {
+            console.error('[SnsUploadManagement] US video_submissions error:', usSubError.message, usSubError.code)
+          }
           if (!usSubError && usSubs) {
             console.log('[SnsUploadManagement] US video_submissions:', usSubs.length)
             usSubs.forEach(sub => {
