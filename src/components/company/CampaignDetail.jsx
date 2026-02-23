@@ -43,7 +43,8 @@ import {
   Search,
   Instagram,
   Youtube,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -7899,6 +7900,17 @@ Questions? Contact us.
               }} className="bg-blue-600">
                 <Send className="w-4 h-4 mr-2" />
                 결제 요청 하기
+              </Button>
+            )}
+            {/* 카드 결제하기 버튼: 취소되지 않은 캠페인에서 표시 */}
+            {!campaign.is_cancelled && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/company/campaigns/payment?id=${id}&region=${region}`)}
+                className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                카드 결제하기
               </Button>
             )}
             {campaign.approval_status === 'pending' && (

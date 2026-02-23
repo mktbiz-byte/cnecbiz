@@ -17,7 +17,8 @@ import {
   X,
   Image as ImageIcon,
   Calendar,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import RegionSelectModal from './RegionSelectModal'
@@ -842,6 +843,27 @@ export default function MyCampaigns() {
                               }}
                             >
                               입금 확인 요청
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* 카드 결제 버튼: draft 또는 pending_payment 상태에서 표시 */}
+                        {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
+                          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
+                            <p className="text-xs lg:text-sm text-indigo-700 flex items-center gap-1.5 lg:gap-2 min-w-0">
+                              <CreditCard className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
+                              <span className="truncate">카드 결제로 빠르게 진행하세요</span>
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-indigo-400 text-indigo-700 hover:bg-indigo-100 text-xs flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/company/campaigns/payment?id=${campaign.id}&region=${campaign.region || 'korea'}`)
+                              }}
+                            >
+                              카드 결제하기
                             </Button>
                           </div>
                         )}
