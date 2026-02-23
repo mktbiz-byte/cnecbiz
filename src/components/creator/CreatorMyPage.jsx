@@ -271,70 +271,7 @@ const CreatorMyPage = () => {
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
       }
 
-      // 기업에게 알림톡 및 네이버 웍스 알림 발송
-      try {
-        const koreanDate = new Date().toLocaleString('ko-KR', {
-          timeZone: 'Asia/Seoul',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-        const campaign = selectedCampaign?.campaigns || selectedCampaign
-        const campaignTitle = campaign?.title || '캠페인'
-        const creatorName = user?.email || '크리에이터'
-
-        // 디버그 로그
-        console.log('=== 영상 업로드 알림 발송 시작 ===')
-        console.log('selectedCampaign:', selectedCampaign)
-        console.log('campaign:', campaign)
-        console.log('company_id:', campaign?.company_id)
-
-        // 기업 정보 조회 (네이버 웍스 알림용 회사명)
-        let companyName = campaign?.brand || '기업'
-
-        if (campaign?.company_id) {
-          const { data: company } = await supabaseKorea
-            .from('companies')
-            .select('company_name')
-            .eq('user_id', campaign.company_id)
-            .single()
-
-          if (company?.company_name) {
-            companyName = company.company_name
-          }
-        }
-
-        // 카카오 알림톡은 DB webhook (webhook-video-upload/webhook-video-submission)에서 자동 발송
-        // 프론트엔드에서 중복 발송하지 않음
-
-        // 네이버 웍스 알림 발송 (관리자용)
-        try {
-          const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
-
-          const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              isAdminNotification: true,
-              message: naverWorksMessage,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
-            })
-          })
-
-          const naverWorksResult = await naverWorksResponse.json()
-          if (naverWorksResponse.ok && naverWorksResult.success) {
-            console.log('영상 업로드 네이버 웍스 알림 발송 성공')
-          } else {
-            console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksResult.error || naverWorksResult.details)
-          }
-        } catch (naverWorksError) {
-          console.error('영상 업로드 네이버 웍스 알림 발송 오류:', naverWorksError)
-        }
-      } catch (notificationError) {
-        console.error('영상 업로드 알림 발송 실패:', notificationError)
-      }
+      // 네이버 웍스 알림은 save-video-upload.js (update_participant) 서버사이드에서 자동 발송됨
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)
