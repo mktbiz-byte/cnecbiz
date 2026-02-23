@@ -5,10 +5,10 @@
 
 const popbill = require('popbill');
 
-// 팝빌 전역 설정
+// 팝빌 전역 설정 (하우랩 계정)
 popbill.config({
-  LinkID: process.env.POPBILL_LINK_ID,
-  SecretKey: process.env.POPBILL_SECRET_KEY,
+  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
+  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
   IsTest: process.env.POPBILL_TEST_MODE === 'true',
   IPRestrictOnOff: true,
   UseStaticIP: false,
@@ -19,7 +19,9 @@ popbill.config({
 });
 
 const easyFinBankService = popbill.EasyFinBankService();
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
+
+// 하우랩 사업자번호 (세금계산서와 동일)
+const HAULAB_CORP_NUM = process.env.POPBILL_HAULAB_CORP_NUM || '3768100944';
 
 // 하우랩 국민은행 계좌
 const HOWLAB_BANK_CODE = '0004'; // 국민은행
@@ -32,7 +34,7 @@ async function waitForJobCompletion(jobID, maxAttempts = 15) {
   for (let i = 0; i < maxAttempts; i++) {
     const jobState = await new Promise((resolve, reject) => {
       easyFinBankService.getJobState(
-        POPBILL_CORP_NUM,
+        HAULAB_CORP_NUM,
         jobID,
         null,
         (result) => resolve(result),
@@ -82,7 +84,7 @@ exports.handler = async (event) => {
     // 1. 팝빌 수집 요청 (requestJob)
     const jobID = await new Promise((resolve, reject) => {
       easyFinBankService.requestJob(
-        POPBILL_CORP_NUM,
+        HAULAB_CORP_NUM,
         HOWLAB_BANK_CODE,
         HOWLAB_ACCOUNT_NUMBER,
         startDate,
@@ -107,7 +109,7 @@ exports.handler = async (event) => {
     // 3. 거래 내역 조회
     const result = await new Promise((resolve, reject) => {
       easyFinBankService.search(
-        POPBILL_CORP_NUM,
+        HAULAB_CORP_NUM,
         jobID,
         tradeTypes,
         '',
