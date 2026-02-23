@@ -5,6 +5,29 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// 리전별 Supabase 클라이언트 (user_profiles 조회용)
+function getRegionClient(region) {
+  switch (region) {
+    case 'korea':
+    case 'kr':
+      return process.env.VITE_SUPABASE_KOREA_URL && process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+        ? createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
+        : null
+    case 'japan':
+    case 'jp':
+      return process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+        ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
+        : null
+    case 'us':
+    case 'usa':
+      return process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY
+        ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
+        : null
+    default:
+      return null
+  }
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -112,17 +135,59 @@ async function analyzeCreator(creatorId) {
     category: analysis.categories || creator.category
   }
 
-  // 가입 여부 체크
-  if (creator.email) {
-    const { data: authUser } = await supabase
-      .from('companies')
-      .select('user_id')
-      .eq('email', creator.email)
-      .maybeSingle()
+  // 가입 여부 체크: SNS URL/유저네임으로 user_profiles에서 매칭
+  if (creator.username && creator.platform) {
+    let isRegistered = false
+    let registeredUserId = null
 
-    if (authUser) {
+    // 리전 DB의 user_profiles에서 SNS URL로 매칭
+    const regionClient = getRegionClient(creator.region || 'korea')
+    const searchClients = regionClient ? [regionClient, supabase] : [supabase]
+
+    for (const client of searchClients) {
+      if (isRegistered) break
+
+      try {
+        // 플랫폼별 URL 컬럼으로 검색
+        let urlColumn = null
+        if (creator.platform === 'instagram') urlColumn = 'instagram_url'
+        else if (creator.platform === 'youtube') urlColumn = 'youtube_url'
+        else if (creator.platform === 'tiktok') urlColumn = 'tiktok_url'
+
+        if (urlColumn) {
+          const { data: profiles } = await client
+            .from('user_profiles')
+            .select(`user_id, ${urlColumn}`)
+            .ilike(urlColumn, `%${creator.username}%`)
+            .limit(5)
+
+          if (profiles && profiles.length > 0) {
+            // 정확한 유저네임 매칭 확인 (URL에서 username 추출하여 비교)
+            const matched = profiles.find(p => {
+              const url = p[urlColumn] || ''
+              const normalizedUrl = url.toLowerCase().replace(/\/$/, '')
+              const normalizedUsername = creator.username.toLowerCase()
+              // URL 끝부분이 username과 매칭되는지 (예: /username 또는 /@username)
+              return normalizedUrl.endsWith('/' + normalizedUsername) ||
+                     normalizedUrl.endsWith('/@' + normalizedUsername) ||
+                     normalizedUrl.includes('/' + normalizedUsername + '?') ||
+                     normalizedUrl.includes('/@' + normalizedUsername + '?')
+            })
+
+            if (matched) {
+              isRegistered = true
+              registeredUserId = matched.user_id
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[openclo-ai-analyze] user_profiles 조회 실패:', e.message)
+      }
+    }
+
+    if (isRegistered) {
       updateData.is_registered = true
-      updateData.registered_user_id = authUser.user_id
+      updateData.registered_user_id = registeredUserId
       updateData.status = 'approved'
       updateData.contact_status = 'registered'
     }

@@ -46,7 +46,8 @@ exports.handler = async (event) => {
       userId,
       pointAmount,
       campaignId,
-      campaignTitle
+      campaignTitle,
+      creatorName: passedCreatorName
     } = JSON.parse(event.body)
 
     if (!userId || !pointAmount || !campaignId) {
@@ -148,16 +149,36 @@ exports.handler = async (event) => {
 
     // 네이버 웍스 알림 발송
     try {
-      // 크리에이터 이름 조회 (profileMatchField 사용 - id 또는 user_id)
-      let creatorName = '크리에이터'
-      const { data: creatorProfile } = await supabase
-        .from('user_profiles')
-        .select('name, full_name, nickname, channel_name')
-        .eq(profileMatchField, userId)
-        .maybeSingle()
-      if (creatorProfile) {
-        creatorName = creatorProfile.nickname || creatorProfile.channel_name || creatorProfile.name || creatorProfile.full_name || '크리에이터'
+      // 크리에이터 이름 조회
+      let creatorName = passedCreatorName || ''
+
+      // 1) 프론트에서 전달받은 이름이 없으면 user_profiles에서 조회
+      if (!creatorName) {
+        const { data: creatorProfile } = await supabase
+          .from('user_profiles')
+          .select('name, full_name, nickname, channel_name')
+          .eq(profileMatchField, userId)
+          .maybeSingle()
+        if (creatorProfile) {
+          creatorName = creatorProfile.nickname || creatorProfile.channel_name || creatorProfile.name || creatorProfile.full_name || ''
+        }
       }
+
+      // 2) 여전히 이름이 없으면 applications 테이블에서 조회
+      if (!creatorName) {
+        const { data: appData } = await supabase
+          .from('applications')
+          .select('creator_name, applicant_name')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (appData) {
+          creatorName = appData.creator_name || appData.applicant_name || ''
+        }
+      }
+
+      if (!creatorName) creatorName = '크리에이터'
 
       const regionLabel = { korea: '한국', kr: '한국', japan: '일본', jp: '일본', us: '미국', usa: '미국' }[region] || region || '한국'
       const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })

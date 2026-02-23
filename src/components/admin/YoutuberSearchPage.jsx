@@ -512,6 +512,7 @@ export default function YoutuberSearchPage() {
       if (result.success) {
         alert(`주소록 추가 완료!\n${result.message}`)
         setShowAddToListModal(false)
+        setSelectedAddressBook('')
         setSelectedSheetCreators([])
       } else {
         throw new Error(result.error)
@@ -2168,7 +2169,12 @@ export default function YoutuberSearchPage() {
           </TabsContent>
 
           {/* 주소록에 추가 모달 */}
-          <Dialog open={showAddToListModal} onOpenChange={setShowAddToListModal}>
+          <Dialog open={showAddToListModal} onOpenChange={(open) => {
+            setShowAddToListModal(open)
+            if (!open) {
+              setSelectedAddressBook('')
+            }
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">

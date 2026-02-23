@@ -1165,6 +1165,14 @@ export default function CampaignsManagement() {
             >
               💰 포인트 미지급
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => navigate('/admin/campaigns/dummy')}
+            >
+              🧪 더미 캠페인
+            </Button>
           </div>
 
           {/* 통계 카드 */}
@@ -1495,6 +1503,10 @@ export default function CampaignsManagement() {
                                   <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign, 'paused')} disabled={confirming || campaign.status === 'paused'} className="h-8 px-3 text-xs font-medium border-gray-200 text-amber-600 hover:bg-amber-50 hover:border-amber-200">
                                     <Pause className="w-3.5 h-3.5 mr-1" />
                                     중지
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign, 'completed')} disabled={confirming || campaign.status === 'completed'} className="h-8 px-3 text-xs font-medium border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200">
+                                    <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                                    완료
                                   </Button>
                                   <Button size="sm" variant="outline" onClick={() => handleDelete(campaign)} disabled={confirming} className="h-8 px-3 text-xs font-medium border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200">
                                     <Trash2 className="w-3.5 h-3.5 mr-1" />

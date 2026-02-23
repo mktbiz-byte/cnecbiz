@@ -685,8 +685,15 @@ export default function CompaniesManagement() {
                             <td className="px-4 py-4 text-sm text-gray-500">{index + 1}</td>
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                                  {(company.company_name || '?').charAt(0)}
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                    {(company.company_name || '?').charAt(0)}
+                                  </div>
+                                  {company.created_at && (
+                                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                      {new Date(company.created_at).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' })}
+                                    </span>
+                                  )}
                                 </div>
                                 <div>
                                   <div className="font-semibold text-gray-900">{company.company_name}</div>

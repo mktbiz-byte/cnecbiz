@@ -124,12 +124,14 @@ import TestNaverWorks from './pages/TestNaverWorks'
 import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import DeadlineCreatorManagement from './components/admin/DeadlineCreatorManagement'
 import UnpaidCampaignsManagement from './components/admin/UnpaidCampaignsManagement'
+import DummyCampaignManagement from './components/admin/DummyCampaignManagement'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
 import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
+import OpenCloReport from './components/admin/openclo/OpenCloReport'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -238,6 +240,7 @@ function App() {
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaigns/deadlines" element={<DeadlineCreatorManagement />} />
         <Route path="/admin/campaigns/unpaid" element={<UnpaidCampaignsManagement />} />
+        <Route path="/admin/campaigns/dummy" element={<DummyCampaignManagement />} />
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />
@@ -280,6 +283,7 @@ function App() {
         {/* OpenClo Routes */}
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
         <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
+        <Route path="/admin/openclo/report" element={<OpenCloReport />} />
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
