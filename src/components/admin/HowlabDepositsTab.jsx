@@ -116,7 +116,7 @@ export default function HowlabDepositsTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
-            하우랩 입출금 내역 (뱅크다)
+            하우랩 입출금 내역 (팝빌)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -176,15 +176,16 @@ export default function HowlabDepositsTab() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center justify-center py-12">
               <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-500">로딩 중...</span>
+              <span className="mt-2 text-gray-500">팝빌에서 거래내역 조회 중...</span>
+              <span className="text-xs text-gray-400 mt-1">계좌 수집 및 조회에 10~20초 소요될 수 있습니다</span>
             </div>
           ) : filteredDeposits.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               입출금 내역이 없습니다.
               <br />
-              <span className="text-sm">뱅크다에서 데이터 전송이 시작되면 여기에 표시됩니다.</span>
+              <span className="text-sm">조회 기간을 확인하거나 새로고침 버튼을 눌러주세요.</span>
             </div>
           ) : (
             <div className="overflow-x-auto">
