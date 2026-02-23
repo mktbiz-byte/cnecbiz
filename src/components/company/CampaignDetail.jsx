@@ -10962,7 +10962,15 @@ Questions? Contact us.
                                     variant="outline"
                                     className="w-full"
                                     onClick={() => {
-                                      navigate(`/video-review/${submission.id}?region=${region}`)
+                                      navigate(`/video-review/${submission.id}?region=${region}`, {
+                                        state: {
+                                          submission,
+                                          campaignTitle: campaign?.title,
+                                          campaignId: campaign?.id,
+                                          creatorName: participant?.creator_name || participant?.applicant_name,
+                                          creatorPhone: participant?.phone_number
+                                        }
+                                      })
                                     }}
                                   >
                                     영상 수정 요청하기

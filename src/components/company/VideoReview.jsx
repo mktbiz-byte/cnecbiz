@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText, Menu, ChevronUp, ChevronDown, Languages, Loader2, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
@@ -10,6 +10,8 @@ export default function VideoReview() {
   const [searchParams] = useSearchParams()
   const region = searchParams.get('region') || 'korea'
   const navigate = useNavigate()
+  const location = useLocation()
+  const routeState = location.state // CampaignDetail에서 전달한 submission 데이터
   const videoRef = useRef(null)
   const videoContainerRef = useRef(null)
   const timelineRef = useRef(null)
@@ -341,6 +343,54 @@ export default function VideoReview() {
       if (!user) {
         alert('로그인이 필요합니다.')
         navigate('/company/login')
+        return
+      }
+
+      // CampaignDetail에서 route state로 전달받은 데이터가 있으면 바로 사용
+      if (routeState?.submission) {
+        const rs = routeState.submission
+        const data = {
+          ...rs,
+          applications: rs.applications || {
+            applicant_name: routeState.creatorName,
+            phone_number: routeState.creatorPhone,
+            campaign_id: routeState.campaignId,
+            campaigns: {
+              title: routeState.campaignTitle,
+              company_id: null
+            }
+          }
+        }
+        setSubmission(data)
+
+        // Generate signed URL for the video
+        if (data.video_file_url) {
+          const client = getRegionClient()
+          try {
+            const url = new URL(data.video_file_url)
+            let pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+            let bucketName = 'campaign-videos'
+            if (!pathMatch) {
+              pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/videos\/(.+)$/)
+              bucketName = 'videos'
+            }
+            if (pathMatch) {
+              const filePath = pathMatch[1]
+              const { data: signedData, error: signedError } = await client.storage
+                .from(bucketName)
+                .createSignedUrl(filePath, 18000)
+              if (!signedError && signedData?.signedUrl) {
+                setSignedVideoUrl(signedData.signedUrl)
+              } else {
+                setSignedVideoUrl(data.video_file_url)
+              }
+            } else {
+              setSignedVideoUrl(data.video_file_url)
+            }
+          } catch {
+            setSignedVideoUrl(data.video_file_url)
+          }
+        }
         return
       }
 
