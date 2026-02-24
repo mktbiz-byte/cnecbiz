@@ -204,7 +204,7 @@ export default function SnsUploadManagement() {
               status: app.status,
               source: 'biz',
               country: campaign?.target_country || 'kr',
-              campaignTitle: campaign?.title || '-',
+              campaignTitle: campaign?.title || campaign?.name || app.campaign_name || '-',
               campaignType: campaign?.campaign_type,
               creatorName: resolveCreatorName(app),
               creatorEmail: app.email,
@@ -276,7 +276,7 @@ export default function SnsUploadManagement() {
               status: sub.status,
               source: 'biz_submission',
               country: campaign?.target_country || 'kr',
-              campaignTitle: campaign?.title || '-',
+              campaignTitle: campaign?.title || campaign?.name || sub.campaign_name || '-',
               campaignType: campaign?.campaign_type,
               creatorName: resolveCreatorName(sub),
               creatorEmail: sub.email,
@@ -289,12 +289,17 @@ export default function SnsUploadManagement() {
       // 3. Korea DB에서 campaign_participants 조회 (JOIN 없이 단순 조회)
       if (supabaseKorea) {
         // 캠페인 정보 별도 조회
-        const { data: koreaCampaigns } = await supabaseKorea
+        const { data: koreaCampaigns, error: koreaCampError } = await supabaseKorea
           .from('campaigns')
-          .select('id, title, campaign_type, target_country')
+          .select('*')
+
+        if (koreaCampError) {
+          console.error('[SnsUploadManagement] Korea campaigns error:', koreaCampError.message)
+        }
 
         koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+        console.log('[SnsUploadManagement] Korea campaigns loaded:', koreaCampaignMap.size)
 
         // user_profiles 테이블에서 크리에이터 정보 조회 (오류 발생 시 무시)
         koreaProfileMap = new Map()
@@ -382,7 +387,7 @@ export default function SnsUploadManagement() {
                 status: p.status,
                 source: 'korea',
                 country: campaign?.target_country || 'kr',
-                campaignTitle: campaign?.title || '-',
+                campaignTitle: campaign?.title || campaign?.name || p.campaign_name || p.campaign_title || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: getKoreaCreatorName(p.user_id, p),
                 creatorEmail: p.email,
@@ -462,7 +467,7 @@ export default function SnsUploadManagement() {
                 status: sub.status,
                 source: 'korea_submission',
                 country: campaign?.target_country || 'kr',
-                campaignTitle: campaign?.title || '-',
+                campaignTitle: campaign?.title || campaign?.name || sub.campaign_name || '-',
                 campaignType: campaign?.campaign_type,
                 creatorName: creatorName,
                 creatorEmail: sub.email,
@@ -920,11 +925,11 @@ export default function SnsUploadManagement() {
                            japanCampaignMap.get(video.campaign_id) ||
                            usCampaignMap.get(video.campaign_id)
           if (campaign) {
-            video.campaignTitle = campaign.title
+            video.campaignTitle = campaign.title || campaign.name
             video.campaignType = video.campaignType || campaign.campaign_type
             // 캠페인 필터 목록에도 추가
             if (!campaignSet.has(campaign.id)) {
-              campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+              campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title || campaign.name, type: campaign.campaign_type })
             }
           }
         }
