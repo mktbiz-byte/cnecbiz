@@ -1596,6 +1596,14 @@ export default function CampaignsManagement() {
                                   : '-'}
                               </span>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">생성일</span>
+                              <span className="text-sm font-medium text-gray-700">
+                                {campaign.created_at
+                                  ? new Date(campaign.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })
+                                  : '-'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>

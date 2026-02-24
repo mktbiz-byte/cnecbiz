@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText, Menu, ChevronUp, ChevronDown, Languages, Loader2, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
@@ -10,6 +10,8 @@ export default function VideoReview() {
   const [searchParams] = useSearchParams()
   const region = searchParams.get('region') || 'korea'
   const navigate = useNavigate()
+  const location = useLocation()
+  const routeState = location.state // CampaignDetail에서 전달한 submission 데이터
   const videoRef = useRef(null)
   const videoContainerRef = useRef(null)
   const timelineRef = useRef(null)
@@ -344,6 +346,54 @@ export default function VideoReview() {
         return
       }
 
+      // CampaignDetail에서 route state로 전달받은 데이터가 있으면 바로 사용
+      if (routeState?.submission) {
+        const rs = routeState.submission
+        const data = {
+          ...rs,
+          applications: rs.applications || {
+            applicant_name: routeState.creatorName,
+            phone_number: routeState.creatorPhone,
+            campaign_id: routeState.campaignId,
+            campaigns: {
+              title: routeState.campaignTitle,
+              company_id: null
+            }
+          }
+        }
+        setSubmission(data)
+
+        // Generate signed URL for the video
+        if (data.video_file_url) {
+          const client = getRegionClient()
+          try {
+            const url = new URL(data.video_file_url)
+            let pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+            let bucketName = 'campaign-videos'
+            if (!pathMatch) {
+              pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/videos\/(.+)$/)
+              bucketName = 'videos'
+            }
+            if (pathMatch) {
+              const filePath = pathMatch[1]
+              const { data: signedData, error: signedError } = await client.storage
+                .from(bucketName)
+                .createSignedUrl(filePath, 18000)
+              if (!signedError && signedData?.signedUrl) {
+                setSignedVideoUrl(signedData.signedUrl)
+              } else {
+                setSignedVideoUrl(data.video_file_url)
+              }
+            } else {
+              setSignedVideoUrl(data.video_file_url)
+            }
+          } catch {
+            setSignedVideoUrl(data.video_file_url)
+          }
+        }
+        return
+      }
+
       // Get submission data from region-specific client
       const client = getRegionClient()
 
@@ -356,27 +406,76 @@ export default function VideoReview() {
 
       if (isSyntheticId) {
         // 합성 ID인 경우: application_id로 video_submissions 검색
-        const { data: subData, error: subError } = await client
-          .from('video_submissions')
-          .select('*')
-          .eq('application_id', realId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        let subData = null
+        try {
+          const { data: vsData, error: vsError } = await client
+            .from('video_submissions')
+            .select('*')
+            .eq('application_id', realId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (!vsError && vsData) {
+            subData = vsData
+          }
+        } catch (e) {
+          console.log('video_submissions by application_id query failed:', e.message)
+        }
 
         if (subData) {
           data = subData
         } else {
           // video_submissions에 없으면 applications에서 영상 정보 가져오기
           console.log('No video_submission found for application_id, checking applications table')
-          const { data: appData, error: appError } = await client
+          // FK 관계가 없을 수 있으므로 조인 없이 쿼리
+          let appData = null
+          const { data: regionAppData, error: regionAppError } = await client
             .from('applications')
-            .select('*, campaigns(title, company_id)')
+            .select('*')
             .eq('id', realId)
             .single()
 
-          if (appError) throw appError
-          if (!appData) throw new Error('신청 정보를 찾을 수 없습니다.')
+          if (!regionAppError && regionAppData) {
+            appData = regionAppData
+          } else {
+            // 리전 DB에서 못 찾으면 BIZ DB에서 조회
+            console.log('Application not found in region DB, trying BIZ DB')
+            const { data: bizAppData, error: bizAppError } = await supabaseBiz
+              .from('applications')
+              .select('*')
+              .eq('id', realId)
+              .single()
+
+            if (bizAppError || !bizAppData) {
+              throw new Error('신청 정보를 찾을 수 없습니다.')
+            }
+            appData = bizAppData
+          }
+
+          // campaign 정보 별도 조회 (리전 DB → BIZ DB fallback)
+          let campaignInfo = null
+          if (appData.campaign_id) {
+            try {
+              const { data: cData, error: cError } = await client
+                .from('campaigns')
+                .select('title, company_id')
+                .eq('id', appData.campaign_id)
+                .single()
+              if (!cError && cData) {
+                campaignInfo = cData
+              } else {
+                const { data: bizCData } = await supabaseBiz
+                  .from('campaigns')
+                  .select('title, company_id')
+                  .eq('id', appData.campaign_id)
+                  .single()
+                campaignInfo = bizCData
+              }
+            } catch (e) {
+              console.log('Campaign info fetch failed:', e.message)
+            }
+          }
 
           // applications 데이터를 submission 형태로 변환
           data = {
@@ -391,7 +490,7 @@ export default function VideoReview() {
               applicant_name: appData.applicant_name,
               phone_number: appData.phone_number,
               campaign_id: appData.campaign_id,
-              campaigns: appData.campaigns
+              campaigns: campaignInfo
             }
           }
         }
