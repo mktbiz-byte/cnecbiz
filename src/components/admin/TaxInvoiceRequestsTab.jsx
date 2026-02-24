@@ -299,10 +299,11 @@ const TaxInvoiceRequestsTab = () => {
 
   // 금액 포맷팅 (콤마 추가, 마이너스 허용)
   const formatAmount = (value) => {
-    const isNegative = value.startsWith('-');
+    const isNegative = value.includes('-');
     const numbers = value.replace(/[^0-9]/g, '');
+    if (isNegative && !numbers) return '-';
     const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return isNegative && numbers ? `-${formatted}` : formatted;
+    return isNegative ? `-${formatted}` : formatted;
   };
 
   // 수동 발행 처리
@@ -1174,11 +1175,21 @@ const TaxInvoiceRequestsTab = () => {
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">원</span>
                     </div>
-                    {manualForm.amount && (
+                    {manualForm.amount && manualForm.amount !== '-' && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <span>공급가액: {Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1).toLocaleString()}원</span>
-                        <span className="mx-2">|</span>
-                        <span>세액: {(parseInt(manualForm.amount.replace(/,/g, '') || 0) - Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1)).toLocaleString()}원</span>
+                        {(() => {
+                          const parsed = parseInt(manualForm.amount.replace(/,/g, '') || 0);
+                          const supply = Math.round(parsed / 1.1);
+                          const tax = parsed - supply;
+                          return (
+                            <>
+                              <span>공급가액: {supply.toLocaleString()}원</span>
+                              <span className="mx-2">|</span>
+                              <span>세액: {tax.toLocaleString()}원</span>
+                              {parsed < 0 && <span className="ml-2 text-red-500 font-medium">[마이너스]</span>}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
