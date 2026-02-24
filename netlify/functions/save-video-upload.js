@@ -38,142 +38,117 @@ function getRegionClient(region) {
 }
 
 // 영상 업로드 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
-async function sendVideoUploadNotifications({ client, campaignId, userId, region, version, isResubmission, videoFileCount }) {
+// 성능 최적화: 모든 독립적 쿼리를 병렬로 실행
+async function sendVideoUploadNotifications({ client, campaignId, userId, region, version, isResubmission, videoFileCount, creatorEmail: paramCreatorEmail, participantCreatorName }) {
+  const startTime = Date.now()
   const baseUrl = process.env.URL || 'https://cnecbiz.com'
   let campaignTitle = '(캠페인명 없음)'
   let companyName = '(기업명 없음)'
   let companyPhone = null
   let companyEmail = null
-  let creatorName = '(크리에이터명 없음)'
+  let creatorName = participantCreatorName || '(크리에이터명 없음)'
   let targetCountry = null
 
-  // 1. 캠페인 정보 조회 (리전 DB → BIZ DB fallback)
-  let campaignData = null
-  try {
-    const { data: regCampaign } = await client
-      .from('campaigns')
-      .select('title, brand, brand_name, company_name, company_id, company_email, target_country')
-      .eq('id', campaignId)
-      .maybeSingle()
+  console.log('[알림] 시작:', { campaignId, userId, region, creatorEmail: paramCreatorEmail })
 
-    if (regCampaign) {
-      campaignData = regCampaign
-    }
-  } catch (e) {
-    console.log('[알림] 리전 캠페인 조회 실패:', e.message)
-  }
+  // ===== Phase 1: 캠페인 + 크리에이터 정보 병렬 조회 =====
+  const campaignFields = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
+  const safeQuery = (promise) => promise.then(r => r.data).catch(() => null)
 
-  if (!campaignData) {
-    try {
-      const { data: bizCampaign } = await supabaseBiz
-        .from('campaigns')
-        .select('title, brand, brand_name, company_name, company_id, company_email, target_country')
-        .eq('id', campaignId)
-        .maybeSingle()
-      if (bizCampaign) campaignData = bizCampaign
-    } catch (e) {
-      console.log('[알림] BIZ 캠페인 조회 실패:', e.message)
-    }
-  }
+  // 캠페인 조회 (리전 DB + BIZ DB 동시)
+  const [regCampaign, bizCampaign] = await Promise.all([
+    safeQuery(client.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()),
+    safeQuery(supabaseBiz.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle())
+  ])
+  const campaignData = regCampaign || bizCampaign
+  console.log('[알림] 캠페인 조회:', { found: !!campaignData, fromRegion: !!regCampaign, fromBiz: !!bizCampaign, elapsed: Date.now() - startTime + 'ms' })
 
   if (campaignData) {
     campaignTitle = campaignData.title || campaignData.brand || '(캠페인명 없음)'
     companyName = campaignData.company_name || campaignData.brand_name || campaignData.brand || '(기업명 없음)'
     targetCountry = campaignData.target_country
+    if (campaignData.company_email) companyEmail = campaignData.company_email
+  }
 
-    // 기업 정보 조회 (companies 테이블에서 더 정확한 이름, 전화번호, 이메일)
+  // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
+  const companyPromise = (async () => {
+    if (!campaignData) return
+    // company_id와 company_email 동시 조회
+    const promises = []
     if (campaignData.company_id) {
-      try {
-        const { data: companyById } = await supabaseBiz
-          .from('companies')
-          .select('company_name, phone, email')
-          .eq('user_id', campaignData.company_id)
-          .maybeSingle()
-        if (companyById) {
-          if (companyById.company_name) companyName = companyById.company_name
-          if (companyById.phone) companyPhone = companyById.phone
-          if (companyById.email) companyEmail = companyById.email
-        }
-      } catch (e) { /* skip */ }
+      promises.push(safeQuery(supabaseBiz.from('companies').select('company_name, phone, email').eq('user_id', campaignData.company_id).maybeSingle()))
     }
-    if (!companyPhone && campaignData.company_email) {
-      companyEmail = companyEmail || campaignData.company_email
-      try {
-        const { data: company } = await supabaseBiz
-          .from('companies')
-          .select('company_name, phone')
-          .eq('email', campaignData.company_email)
-          .maybeSingle()
-        if (company) {
-          if (company.company_name && companyName.startsWith('(')) companyName = company.company_name
-          if (company.phone) companyPhone = company.phone
-        }
-      } catch (e) { /* skip */ }
+    if (campaignData.company_email) {
+      promises.push(safeQuery(supabaseBiz.from('companies').select('company_name, phone, email').eq('email', campaignData.company_email).maybeSingle()))
     }
-  }
-
-  // 2. 크리에이터 이름 조회 (리전 DB → BIZ DB → 모든 리전 fallback)
-  if (userId) {
-    // 리전 DB에서 조회
-    try {
-      const { data: appData } = await client
-        .from('applications')
-        .select('creator_name, applicant_name')
-        .eq('campaign_id', campaignId)
-        .eq('user_id', userId)
-        .maybeSingle()
-      if (appData) {
-        creatorName = appData.creator_name || appData.applicant_name || creatorName
-      }
-    } catch (e) { /* skip */ }
-
-    // BIZ DB fallback
-    if (creatorName.startsWith('(')) {
-      try {
-        const { data: bizApp } = await supabaseBiz
-          .from('applications')
-          .select('creator_name, applicant_name')
-          .eq('campaign_id', campaignId)
-          .eq('user_id', userId)
-          .maybeSingle()
-        if (bizApp) creatorName = bizApp.creator_name || bizApp.applicant_name || creatorName
-      } catch (e) { /* skip */ }
-    }
-
-    // 다른 리전 DB fallback (US, Japan 등)
-    if (creatorName.startsWith('(')) {
-      const fallbackClients = [
-        getRegionClient('us'),
-        getRegionClient('japan')
-      ].filter(c => c && c !== client)
-      for (const fc of fallbackClients) {
-        try {
-          const { data: fcApp } = await fc
-            .from('applications')
-            .select('creator_name, applicant_name')
-            .eq('campaign_id', campaignId)
-            .eq('user_id', userId)
-            .maybeSingle()
-          if (fcApp && (fcApp.creator_name || fcApp.applicant_name)) {
-            creatorName = fcApp.creator_name || fcApp.applicant_name
-            break
-          }
-        } catch (e) { /* skip */ }
+    const results = await Promise.all(promises)
+    for (const comp of results) {
+      if (comp) {
+        if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
+        if (comp.phone && !companyPhone) companyPhone = comp.phone
+        if (comp.email && !companyEmail) companyEmail = comp.email
       }
     }
+  })()
 
-    // user_profiles fallback
-    if (creatorName.startsWith('(')) {
-      try {
-        const { data: profile } = await supabaseBiz
-          .from('user_profiles')
-          .select('name, full_name')
-          .eq('id', userId)
-          .maybeSingle()
-        if (profile) creatorName = profile.name || profile.full_name || creatorName
-      } catch (e) { /* skip */ }
+  const creatorPromise = (async () => {
+    // 이미 크리에이터 이름이 있으면 DB 조회 스킵
+    if (!creatorName.startsWith('(')) return
+
+    // 모든 DB에서 동시에 크리에이터 이름 조회
+    const appPromises = []
+    const allClients = [
+      { name: 'region', c: client },
+      { name: 'biz', c: supabaseBiz }
+    ]
+    // US/Japan fallback 클라이언트 추가
+    const usClient = getRegionClient('us')
+    const jpClient = getRegionClient('japan')
+    if (usClient && usClient !== client) allClients.push({ name: 'us', c: usClient })
+    if (jpClient && jpClient !== client) allClients.push({ name: 'japan', c: jpClient })
+
+    // userId가 있으면 applications에서 조회
+    if (userId) {
+      for (const { name, c } of allClients) {
+        appPromises.push(
+          safeQuery(c.from('applications').select('creator_name, applicant_name').eq('campaign_id', campaignId).eq('user_id', userId).maybeSingle())
+            .then(d => d ? (d.creator_name || d.applicant_name || null) : null)
+        )
+      }
+      // user_profiles에서도 동시에 조회
+      appPromises.push(
+        safeQuery(supabaseBiz.from('user_profiles').select('name, full_name').eq('id', userId).maybeSingle())
+          .then(d => d ? (d.name || d.full_name || null) : null)
+      )
     }
-  }
+
+    // creatorEmail이 있으면 applications에서 이메일로도 조회 (Korean campaigns fallback)
+    if (paramCreatorEmail) {
+      for (const { name, c } of allClients) {
+        appPromises.push(
+          safeQuery(c.from('applications').select('creator_name, applicant_name').eq('campaign_id', campaignId).eq('applicant_email', paramCreatorEmail).maybeSingle())
+            .then(d => d ? (d.creator_name || d.applicant_name || null) : null)
+        )
+      }
+      // user_profiles에서 이메일로도 조회
+      appPromises.push(
+        safeQuery(client.from('user_profiles').select('name, full_name').eq('email', paramCreatorEmail).maybeSingle())
+          .then(d => d ? (d.name || d.full_name || null) : null)
+      )
+    }
+
+    const results = await Promise.all(appPromises)
+    // 첫 번째 non-null 결과 사용
+    for (const name of results) {
+      if (name) {
+        creatorName = name
+        break
+      }
+    }
+  })()
+
+  await Promise.all([companyPromise, creatorPromise])
+  console.log('[알림] 정보 조회 완료:', { campaignTitle, companyName, creatorName, companyPhone: !!companyPhone, companyEmail: !!companyEmail, elapsed: Date.now() - startTime + 'ms' })
 
   // 리전/국가 표시 결정
   const countryMap = { kr: '한국 🇰🇷', jp: '일본 🇯🇵', us: '미국 🇺🇸', tw: '대만 🇹🇼' }
@@ -188,13 +163,16 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     hour: '2-digit', minute: '2-digit'
   })
 
-  console.log('[알림] 발송 준비:', { campaignTitle, companyName, creatorName, countryLabel, companyPhone: !!companyPhone, companyEmail: !!companyEmail, region, version, isResubmission })
-
+  // ===== Phase 3: 모든 알림 병렬 발송 =====
+  const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출'
   const results = { naverWorks: null, kakao: null, email: null }
+  const notificationPromises = []
 
-  // 3. 네이버 웍스 알림
-  try {
-    const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출'
+  // 네이버 웍스
+  const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID
+  if (!channelId) {
+    console.error('[알림] 네이버 웍스 채널 ID 미설정 (NAVER_WORKS_VIDEO_ROOM_ID 또는 NAVER_WORKS_CHANNEL_ID)')
+  } else {
     let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
     naverWorksMessage += `🏢 기업: ${companyName}\n`
@@ -205,106 +183,80 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     if (videoFileCount) naverWorksMessage += `\n📎 파일 수: ${videoFileCount}개`
     if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
 
-    const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID
-    if (!channelId) {
-      console.error('[알림] 네이버 웍스 채널 ID 미설정 (NAVER_WORKS_VIDEO_ROOM_ID 또는 NAVER_WORKS_CHANNEL_ID)')
-    } else {
-      const worksResponse = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+    notificationPromises.push(
+      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isAdminNotification: true,
-          channelId,
-          message: naverWorksMessage
-        })
-      })
-      results.naverWorks = await worksResponse.json()
-      console.log('[알림] 네이버 웍스:', results.naverWorks.success ? '성공' : JSON.stringify(results.naverWorks))
-    }
-  } catch (e) {
-    console.error('[알림] 네이버 웍스 실패:', e.message)
+        body: JSON.stringify({ isAdminNotification: true, channelId, message: naverWorksMessage })
+      }).then(r => r.json()).then(r => {
+        results.naverWorks = r
+        console.log('[알림] 네이버 웍스:', r.success ? '성공' : JSON.stringify(r), `(${Date.now() - startTime}ms)`)
+      }).catch(e => console.error('[알림] 네이버 웍스 실패:', e.message))
+    )
   }
 
-  // 4. 카카오 알림톡 (기업 전화번호가 있는 경우)
+  // 카카오 알림톡
   if (companyPhone) {
-    try {
-      const kakaoResponse = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+    notificationPromises.push(
+      fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverNum: companyPhone,
           receiverName: companyName,
           templateCode: '025100001008',
-          variables: {
-            '회사명': companyName,
-            '캠페인명': campaignTitle,
-            '크리에이터명': creatorName
-          }
+          variables: { '회사명': companyName, '캠페인명': campaignTitle, '크리에이터명': creatorName }
         })
-      })
-      results.kakao = await kakaoResponse.json()
-      console.log('[알림] 카카오 알림톡:', results.kakao.success ? '성공' : JSON.stringify(results.kakao))
-    } catch (e) {
-      console.error('[알림] 카카오 알림톡 실패:', e.message)
-    }
-  } else {
-    console.log('[알림] 카카오 알림톡 스킵 - 기업 전화번호 없음')
+      }).then(r => r.json()).then(r => {
+        results.kakao = r
+        console.log('[알림] 카카오:', r.success ? '성공' : JSON.stringify(r), `(${Date.now() - startTime}ms)`)
+      }).catch(e => console.error('[알림] 카카오 실패:', e.message))
+    )
   }
 
-  // 5. 이메일 (기업 이메일이 있는 경우)
+  // 이메일
   if (companyEmail) {
-    try {
-      const actionLabel = isResubmission ? '재제출' : '제출'
-      const emailHtml = `
-        <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); padding: 30px; border-radius: 16px 16px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">📹 영상 ${actionLabel} 알림</h1>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 16px 16px;">
-            <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-              ${companyName}님, 캠페인의 크리에이터가 ${isResubmission ? '수정된 ' : ''}영상을 ${actionLabel}했습니다.
-            </p>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-              <tr>
-                <td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568; width: 120px;">캠페인</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${campaignTitle}</td>
-              </tr>
-              <tr>
-                <td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">크리에이터</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${creatorName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">버전</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">V${version || 1}</td>
-              </tr>
-              <tr>
-                <td style="padding: 12px; background: #f7fafc; font-weight: bold; color: #4a5568;">제출 시간</td>
-                <td style="padding: 12px; color: #2d3748;">${koreanDate}</td>
-              </tr>
-            </table>
-            <p style="color: #718096; font-size: 14px;">관리자 페이지에서 영상을 검토하시고, 수정 사항이 있으면 피드백을 남겨주세요.</p>
-            <a href="https://cnecbiz.com/company/campaigns" style="display: inline-block; background: #6C5CE7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">캠페인 관리 페이지로 이동</a>
-          </div>
-          <p style="text-align: center; color: #a0aec0; font-size: 12px; margin-top: 20px;">CNEC (크넥) | 문의: 1833-6025</p>
-        </div>`
+    const emailActionLabel = isResubmission ? '재제출' : '제출'
+    const emailHtml = `
+      <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); padding: 30px; border-radius: 16px 16px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 22px;">📹 영상 ${emailActionLabel} 알림</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 16px 16px;">
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            ${companyName}님, 캠페인의 크리에이터가 ${isResubmission ? '수정된 ' : ''}영상을 ${emailActionLabel}했습니다.
+          </p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568; width: 120px;">캠페인</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${campaignTitle}</td></tr>
+            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">크리에이터</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${creatorName}</td></tr>
+            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">버전</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">V${version || 1}</td></tr>
+            <tr><td style="padding: 12px; background: #f7fafc; font-weight: bold; color: #4a5568;">제출 시간</td><td style="padding: 12px; color: #2d3748;">${koreanDate}</td></tr>
+          </table>
+          <p style="color: #718096; font-size: 14px;">관리자 페이지에서 영상을 검토하시고, 수정 사항이 있으면 피드백을 남겨주세요.</p>
+          <a href="https://cnecbiz.com/company/campaigns" style="display: inline-block; background: #6C5CE7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">캠페인 관리 페이지로 이동</a>
+        </div>
+        <p style="text-align: center; color: #a0aec0; font-size: 12px; margin-top: 20px;">CNEC (크넥) | 문의: 1833-6025</p>
+      </div>`
 
-      const emailResponse = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
+    notificationPromises.push(
+      fetch(`${baseUrl}/.netlify/functions/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: companyEmail,
-          subject: `[CNEC] ${campaignTitle} - 크리에이터 영상 ${actionLabel} 알림`,
+          subject: `[CNEC] ${campaignTitle} - 크리에이터 영상 ${emailActionLabel} 알림`,
           html: emailHtml
         })
-      })
-      results.email = await emailResponse.json()
-      console.log('[알림] 이메일:', results.email.success ? '성공' : JSON.stringify(results.email))
-    } catch (e) {
-      console.error('[알림] 이메일 실패:', e.message)
-    }
-  } else {
-    console.log('[알림] 이메일 스킵 - 기업 이메일 없음')
+      }).then(r => r.json()).then(r => {
+        results.email = r
+        console.log('[알림] 이메일:', r.success ? '성공' : JSON.stringify(r), `(${Date.now() - startTime}ms)`)
+      }).catch(e => console.error('[알림] 이메일 실패:', e.message))
+    )
   }
+
+  // 모든 알림 병렬 발송
+  await Promise.allSettled(notificationPromises)
+  console.log('[알림] 전체 완료:', { naverWorks: !!results.naverWorks?.success, kakao: !!results.kakao?.success, email: !!results.email?.success, totalElapsed: Date.now() - startTime + 'ms' })
 
   return results
 }
@@ -446,13 +398,24 @@ exports.handler = async (event) => {
       // 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
       if (videoStatus === 'uploaded' || !videoStatus) {
         try {
-          const { data: participant } = await client
+          console.log('[save-video-upload] update_participant 알림 시작:', { participantId, videoStatus, region })
+          const { data: participant, error: participantError } = await client
             .from('campaign_participants')
-            .select('campaign_id, user_id')
+            .select('campaign_id, user_id, creator_email, creator_name')
             .eq('id', participantId)
             .single()
 
+          if (participantError) {
+            console.error('[save-video-upload] participant 조회 실패:', participantError.message)
+          }
+
           if (participant) {
+            console.log('[save-video-upload] participant 데이터:', {
+              campaign_id: participant.campaign_id,
+              user_id: participant.user_id,
+              creator_email: participant.creator_email,
+              creator_name: participant.creator_name
+            })
             const latestFile = videoFiles[videoFiles.length - 1]
             const version = latestFile?.version || videoFiles.length
             await sendVideoUploadNotifications({
@@ -462,11 +425,15 @@ exports.handler = async (event) => {
               region: region || 'korea',
               version,
               isResubmission: false,
-              videoFileCount: videoFiles.length
+              videoFileCount: videoFiles.length,
+              creatorEmail: participant.creator_email,
+              participantCreatorName: participant.creator_name
             })
+          } else {
+            console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })
           }
         } catch (notifyError) {
-          console.error('[save-video-upload] update_participant 알림 발송 실패:', notifyError.message)
+          console.error('[save-video-upload] update_participant 알림 발송 실패:', notifyError.message, notifyError.stack)
         }
       }
 
