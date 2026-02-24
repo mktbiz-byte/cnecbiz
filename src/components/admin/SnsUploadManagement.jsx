@@ -95,6 +95,14 @@ export default function SnsUploadManagement() {
       const allVideos = []
       const campaignSet = new Map()
 
+      // 프로필 맵 & 캠페인 맵 (외부 스코프 - cross-region lookup용)
+      let koreaProfileMap = new Map()
+      let japanProfileMap = new Map()
+      let usProfileMap = new Map()
+      let koreaCampaignMap = new Map()
+      let japanCampaignMap = new Map()
+      let usCampaignMap = new Map()
+
       // 이메일에서 이름 추출 함수
       const extractNameFromEmail = (email) => {
         if (!email || !email.includes('@')) return null
@@ -285,11 +293,11 @@ export default function SnsUploadManagement() {
           .from('campaigns')
           .select('id, title, campaign_type, target_country')
 
-        const koreaCampaignMap = new Map()
+        koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
 
         // user_profiles 테이블에서 크리에이터 정보 조회 (오류 발생 시 무시)
-        const koreaProfileMap = new Map()
+        koreaProfileMap = new Map()
         try {
           const { data: koreaProfiles, error: profileError } = await supabaseKorea
             .from('user_profiles')
@@ -297,9 +305,8 @@ export default function SnsUploadManagement() {
 
           if (!profileError && koreaProfiles) {
             koreaProfiles.forEach(p => {
-              if (p.id) {
-                koreaProfileMap.set(p.id, p)
-              }
+              if (p.id) koreaProfileMap.set(p.id, p)
+              if (p.user_id) koreaProfileMap.set(p.user_id, p)
             })
             console.log('[SnsUploadManagement] Korea user_profiles loaded:', koreaProfiles.length)
           } else if (profileError) {
@@ -379,6 +386,9 @@ export default function SnsUploadManagement() {
                 campaignType: campaign?.campaign_type,
                 creatorName: getKoreaCreatorName(p.user_id, p),
                 creatorEmail: p.email,
+                creatorInstagram: koreaProfileMap.get(p.user_id)?.instagram_url,
+                creatorYoutube: koreaProfileMap.get(p.user_id)?.youtube_url,
+                creatorTiktok: koreaProfileMap.get(p.user_id)?.tiktok_url,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
                 week2_url: p.week2_url,
@@ -456,6 +466,9 @@ export default function SnsUploadManagement() {
                 campaignType: campaign?.campaign_type,
                 creatorName: creatorName,
                 creatorEmail: sub.email,
+                creatorInstagram: koreaProfileMap.get(sub.user_id)?.instagram_url,
+                creatorYoutube: koreaProfileMap.get(sub.user_id)?.youtube_url,
+                creatorTiktok: koreaProfileMap.get(sub.user_id)?.tiktok_url,
                 week_number: sub.week_number,
               })
             }
@@ -475,11 +488,11 @@ export default function SnsUploadManagement() {
           if (jpCampError) console.error('[SnsUploadManagement] Japan campaigns error:', jpCampError.message)
           console.log('[SnsUploadManagement] Japan campaigns loaded:', japanCampaigns?.length || 0)
 
-          const japanCampaignMap = new Map()
+          japanCampaignMap = new Map()
           japanCampaigns?.forEach(c => japanCampaignMap.set(c.id, c))
 
           // user_profiles 조회
-          const japanProfileMap = new Map()
+          japanProfileMap = new Map()
           try {
             const { data: japanProfiles } = await supabaseJapan
               .from('user_profiles')
@@ -538,6 +551,9 @@ export default function SnsUploadManagement() {
                   campaignType: campaign?.campaign_type,
                   creatorName: getJapanCreatorName(app.user_id, app),
                   creatorEmail: app.email,
+                  creatorInstagram: japanProfileMap.get(app.user_id)?.instagram_url,
+                  creatorYoutube: japanProfileMap.get(app.user_id)?.youtube_url,
+                  creatorTiktok: japanProfileMap.get(app.user_id)?.tiktok_url,
                   week1_url: app.week1_url, week2_url: app.week2_url,
                   week3_url: app.week3_url, week4_url: app.week4_url,
                   step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
@@ -600,6 +616,9 @@ export default function SnsUploadManagement() {
                   campaignType: campaign?.campaign_type,
                   creatorName: getJapanCreatorName(sub.user_id, sub),
                   creatorEmail: sub.email,
+                  creatorInstagram: japanProfileMap.get(sub.user_id)?.instagram_url,
+                  creatorYoutube: japanProfileMap.get(sub.user_id)?.youtube_url,
+                  creatorTiktok: japanProfileMap.get(sub.user_id)?.tiktok_url,
                   week_number: sub.week_number,
                 }
                 if (dupIndex >= 0) {
@@ -630,11 +649,11 @@ export default function SnsUploadManagement() {
           }
           console.log('[SnsUploadManagement] US campaigns loaded:', usCampaigns?.length || 0)
 
-          const usCampaignMap = new Map()
+          usCampaignMap = new Map()
           usCampaigns?.forEach(c => usCampaignMap.set(c.id, c))
 
           // user_profiles 조회
-          const usProfileMap = new Map()
+          usProfileMap = new Map()
           try {
             const { data: usProfiles } = await supabaseUS
               .from('user_profiles')
@@ -702,6 +721,9 @@ export default function SnsUploadManagement() {
                   campaignType: campaign?.campaign_type,
                   creatorName: getUSCreatorName(app.user_id, app),
                   creatorEmail: app.email,
+                  creatorInstagram: usProfileMap.get(app.user_id)?.instagram_url,
+                  creatorYoutube: usProfileMap.get(app.user_id)?.youtube_url,
+                  creatorTiktok: usProfileMap.get(app.user_id)?.tiktok_url,
                   week1_url: app.week1_url, week2_url: app.week2_url,
                   week3_url: app.week3_url, week4_url: app.week4_url,
                   step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
@@ -770,6 +792,9 @@ export default function SnsUploadManagement() {
                   campaignType: campaign?.campaign_type,
                   creatorName: getUSCreatorName(sub.user_id, sub),
                   creatorEmail: sub.email,
+                  creatorInstagram: usProfileMap.get(sub.user_id)?.instagram_url,
+                  creatorYoutube: usProfileMap.get(sub.user_id)?.youtube_url,
+                  creatorTiktok: usProfileMap.get(sub.user_id)?.tiktok_url,
                   week_number: sub.week_number,
                 }
                 if (dupIndex >= 0) {
@@ -864,6 +889,11 @@ export default function SnsUploadManagement() {
             existing.video_file_url = video.video_file_url
           }
 
+          // 크리에이터 SNS URL 병합
+          if (video?.creatorInstagram && !existing?.creatorInstagram) existing.creatorInstagram = video.creatorInstagram
+          if (video?.creatorYoutube && !existing?.creatorYoutube) existing.creatorYoutube = video.creatorYoutube
+          if (video?.creatorTiktok && !existing?.creatorTiktok) existing.creatorTiktok = video.creatorTiktok
+
           // 최신 날짜로 업데이트
           if (video?.created_at && existing?.created_at &&
               new Date(video.created_at) > new Date(existing.created_at)) {
@@ -881,6 +911,35 @@ export default function SnsUploadManagement() {
       })
 
       const mergedVideos = Array.from(videoMap.values())
+
+      // 누락된 캠페인명 보정 (cross-region lookup)
+      mergedVideos.forEach(video => {
+        if (!video.campaignTitle || video.campaignTitle === '-') {
+          const campaign = campaignMap.get(video.campaign_id) ||
+                           koreaCampaignMap.get(video.campaign_id) ||
+                           japanCampaignMap.get(video.campaign_id) ||
+                           usCampaignMap.get(video.campaign_id)
+          if (campaign) {
+            video.campaignTitle = campaign.title
+            video.campaignType = video.campaignType || campaign.campaign_type
+            // 캠페인 필터 목록에도 추가
+            if (!campaignSet.has(campaign.id)) {
+              campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+            }
+          }
+        }
+        // 누락된 크리에이터 SNS URL 보정 (BIZ 등 프로필 없는 소스용)
+        if (!video.creatorInstagram && !video.creatorYoutube && !video.creatorTiktok && video.user_id) {
+          const profile = koreaProfileMap.get(video.user_id) ||
+                          japanProfileMap.get(video.user_id) ||
+                          usProfileMap.get(video.user_id)
+          if (profile) {
+            video.creatorInstagram = profile.instagram_url
+            video.creatorYoutube = profile.youtube_url
+            video.creatorTiktok = profile.tiktok_url
+          }
+        }
+      })
 
       // 날짜 기준 정렬
       mergedVideos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -1301,7 +1360,7 @@ export default function SnsUploadManagement() {
                       <TableHead className="w-[40px]"></TableHead>
                       <TableHead className="w-[60px]">국가</TableHead>
                       <TableHead>캠페인</TableHead>
-                      <TableHead>크리에이터</TableHead>
+                      <TableHead>크리에이터 / SNS</TableHead>
                       <TableHead>유형</TableHead>
                       <TableHead>상태</TableHead>
                       <TableHead>SNS URL</TableHead>
@@ -1347,6 +1406,43 @@ export default function SnsUploadManagement() {
                                 <User className="w-3 h-3 text-gray-400" />
                                 <span className="text-sm">{video.creatorName || '-'}</span>
                               </div>
+                              {(video.creatorInstagram || video.creatorYoutube || video.creatorTiktok) && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  {video.creatorInstagram && (
+                                    <a
+                                      href={video.creatorInstagram.startsWith('http') ? video.creatorInstagram : `https://${video.creatorInstagram}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded bg-pink-50 text-pink-600 hover:bg-pink-100 font-medium"
+                                      title={video.creatorInstagram}
+                                    >
+                                      IG
+                                    </a>
+                                  )}
+                                  {video.creatorYoutube && (
+                                    <a
+                                      href={video.creatorYoutube.startsWith('http') ? video.creatorYoutube : `https://${video.creatorYoutube}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium"
+                                      title={video.creatorYoutube}
+                                    >
+                                      YT
+                                    </a>
+                                  )}
+                                  {video.creatorTiktok && (
+                                    <a
+                                      href={video.creatorTiktok.startsWith('http') ? video.creatorTiktok : `https://${video.creatorTiktok}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium"
+                                      title={video.creatorTiktok}
+                                    >
+                                      TT
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-xs">
