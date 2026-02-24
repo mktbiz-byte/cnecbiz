@@ -512,9 +512,11 @@ export default function SnsUploadManagement() {
               const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                                app.week3_url || app.week4_url || app.step1_url ||
                                app.step2_url || app.step3_url
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
+              const hasVideoFile = app.video_file_url
+              // 'approved'는 참여 승인이지 영상 완료가 아님 - 제외
+              const hasVideoStatus = ['completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
-              if (hasSnsUrl || hasVideoStatus) {
+              if (hasSnsUrl || hasVideoFile || hasVideoStatus) {
                 const campaign = japanCampaignMap.get(app.campaign_id)
                 // BIZ에 중복이 있으면 교체 (country 보정)
                 const dupIndex = allVideos.findIndex(v =>
@@ -673,9 +675,11 @@ export default function SnsUploadManagement() {
               const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                                app.week3_url || app.week4_url || app.step1_url ||
                                app.step2_url || app.step3_url
-              const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
+              const hasVideoFile = app.video_file_url
+              // 'approved'는 참여 승인이지 영상 완료가 아님 - 제외
+              const hasVideoStatus = ['completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
 
-              if (hasSnsUrl || hasVideoStatus) {
+              if (hasSnsUrl || hasVideoFile || hasVideoStatus) {
                 usPassedFilter++
                 const campaign = usCampaignMap.get(app.campaign_id)
                 // BIZ에 중복이 있으면 교체 (country 보정)
