@@ -6322,7 +6322,7 @@ Questions? Contact us.
           const insertRes = await fetch('/.netlify/functions/save-video-upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'insert_video_submission', region: targetRegion, submissionData })
+            body: JSON.stringify({ action: 'insert_video_submission', region: targetRegion, submissionData, skipNotification: targetRegion === 'biz' && region !== 'biz' })
           })
           const insertResult = await insertRes.json()
           if (!insertResult.success) {
