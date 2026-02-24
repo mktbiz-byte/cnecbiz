@@ -723,6 +723,46 @@ exports.handler = async (event) => {
 
       console.log(`[save-video-upload] fetch_video_submissions: ${all.length} total (incl. ${seenFallbackUsers.size} app fallbacks) for campaign ${campaignId}`)
 
+      // sns_uploads 테이블에서 platform_video_url 병합 (SNS 자동 업로드된 URL)
+      try {
+        const { data: snsUploads } = await supabaseBiz
+          .from('sns_uploads')
+          .select('source_id, source_type, platform_video_url')
+          .eq('campaign_id', campaignId)
+          .eq('status', 'completed')
+          .not('platform_video_url', 'is', null)
+
+        if (snsUploads && snsUploads.length > 0) {
+          const snsUrlMap = new Map()
+          snsUploads.forEach(u => {
+            if (!snsUrlMap.has(u.source_id)) {
+              snsUrlMap.set(u.source_id, u.platform_video_url)
+            }
+          })
+
+          let mergedCount = 0
+          all.forEach(r => {
+            if (!r.sns_upload_url) {
+              // video_submission ID 매칭
+              if (snsUrlMap.has(r.id)) {
+                r.sns_upload_url = snsUrlMap.get(r.id)
+                mergedCount++
+              }
+              // application_id 매칭 (applications fallback 레코드)
+              else if (r.application_id && snsUrlMap.has(r.application_id)) {
+                r.sns_upload_url = snsUrlMap.get(r.application_id)
+                mergedCount++
+              }
+            }
+          })
+          if (mergedCount > 0) {
+            console.log(`[save-video-upload] Merged ${mergedCount} sns_upload_url(s) from sns_uploads table`)
+          }
+        }
+      } catch (snsErr) {
+        console.log('[save-video-upload] sns_uploads merge error:', snsErr.message)
+      }
+
       return {
         statusCode: 200,
         headers,
