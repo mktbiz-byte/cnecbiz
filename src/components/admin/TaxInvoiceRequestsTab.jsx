@@ -297,10 +297,12 @@ const TaxInvoiceRequestsTab = () => {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
   };
 
-  // 금액 포맷팅 (콤마 추가)
+  // 금액 포맷팅 (콤마 추가, 마이너스 허용)
   const formatAmount = (value) => {
+    const isNegative = value.startsWith('-');
     const numbers = value.replace(/[^0-9]/g, '');
-    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return isNegative && numbers ? `-${formatted}` : formatted;
   };
 
   // 수동 발행 처리
@@ -319,15 +321,16 @@ const TaxInvoiceRequestsTab = () => {
       return;
     }
     const amount = parseInt(manualForm.amount.replace(/,/g, ''));
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(amount)) {
       alert('금액을 입력해주세요.');
       return;
     }
 
-    const confirmMessage = `세금계산서를 발행하시겠습니까?\n\n` +
+    const isNegative = amount < 0;
+    const confirmMessage = `${isNegative ? '⚠️ 마이너스 ' : ''}세금계산서를 발행하시겠습니까?\n\n` +
       `회사명: ${manualForm.companyName}\n` +
       `사업자번호: ${manualForm.businessNumber}\n` +
-      `금액: ${amount.toLocaleString()}원 (VAT 포함)\n` +
+      `금액: ${amount.toLocaleString()}원 (VAT 포함)${isNegative ? ' [마이너스 발행]' : ''}\n` +
       `품목: ${manualForm.itemName || '포인트 충전'}`;
 
     if (!confirm(confirmMessage)) {
