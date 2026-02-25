@@ -877,6 +877,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[save-video-upload] Error:', error)
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'save-video-upload',
+          errorMessage: error.message,
+          context: { action: JSON.parse(event.body || '{}').action || '알 수 없음' }
+        })
+      })
+    } catch (e) { console.error('[save-video-upload] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,
