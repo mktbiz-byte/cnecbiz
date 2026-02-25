@@ -77,20 +77,65 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
   const companyPromise = (async () => {
     if (!campaignData) return
-    // company_id와 company_email 동시 조회
+    // 리전 DB + BIZ DB 모두 조회하여 정확한 기업 찾기 (이관된 캠페인 지원)
     const promises = []
+
+    // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
     if (campaignData.company_id) {
-      promises.push(safeQuery(supabaseBiz.from('companies').select('company_name, phone, email').eq('user_id', campaignData.company_id).maybeSingle()))
+      promises.push(
+        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('id', campaignData.company_id).maybeSingle())
+          .then(d => d ? { ...d, _source: 'regional_id' } : null)
+      )
     }
+    // 2순위: 리전 DB에서 company_id (user_id)로 조회 (원래 캠페인)
+    if (campaignData.company_id) {
+      promises.push(
+        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('user_id', campaignData.company_id).maybeSingle())
+          .then(d => d ? { ...d, _source: 'regional_user_id' } : null)
+      )
+    }
+    // 3순위: 리전 DB에서 company_email로 조회
     if (campaignData.company_email) {
-      promises.push(safeQuery(supabaseBiz.from('companies').select('company_name, phone, email').eq('email', campaignData.company_email).maybeSingle()))
+      promises.push(
+        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('email', campaignData.company_email).maybeSingle())
+          .then(d => d ? { ...d, _source: 'regional_email' } : null)
+      )
     }
+    // 4순위: BIZ DB에서 company_id (id)로 조회
+    if (campaignData.company_id) {
+      promises.push(
+        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('id', campaignData.company_id).maybeSingle())
+          .then(d => d ? { ...d, _source: 'biz_id' } : null)
+      )
+    }
+    // 5순위: BIZ DB에서 company_id (user_id)로 조회
+    if (campaignData.company_id) {
+      promises.push(
+        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('user_id', campaignData.company_id).maybeSingle())
+          .then(d => d ? { ...d, _source: 'biz_user_id' } : null)
+      )
+    }
+    // 6순위: BIZ DB에서 company_email로 조회
+    if (campaignData.company_email) {
+      promises.push(
+        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('email', campaignData.company_email).maybeSingle())
+          .then(d => d ? { ...d, _source: 'biz_email' } : null)
+      )
+    }
+
     const results = await Promise.all(promises)
+    // 우선순위대로 첫 번째 유효 결과 사용
     for (const comp of results) {
       if (comp) {
+        const resolvedPhone = comp.notification_phone || comp.phone
+        const resolvedEmail = comp.notification_email || comp.email
         if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
-        if (comp.phone && !companyPhone) companyPhone = comp.phone
-        if (comp.email && !companyEmail) companyEmail = comp.email
+        if (resolvedPhone && !companyPhone) companyPhone = resolvedPhone
+        if (resolvedEmail && !companyEmail) companyEmail = resolvedEmail
+        if (companyPhone) {
+          console.log(`[알림] 기업 정보 (${comp._source}):`, { companyName: comp.company_name, phone: resolvedPhone })
+          break
+        }
       }
     }
   })()

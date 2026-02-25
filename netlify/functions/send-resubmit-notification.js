@@ -119,83 +119,64 @@ exports.handler = async (event) => {
 
     console.log('[INFO] Campaign company info:', { companyId, companyEmailFromCampaign })
 
-    // 2. 기업 담당자 정보 조회
-    // ★ 캠페인 이관 후에도 올바른 기업에게 알림이 가도록 company_email 우선 사용
+    // 2. 기업 담당자 정보 조회 (리전 DB 우선 → BIZ DB 폴백)
+    // ★ 캠페인 이관 후에도 올바른 기업에게 알림이 가도록 리전 DB 우선 조회
     let companyPhone = null
     let companyEmail = null
     let companyContactName = companyNameFromCampaign
     let companyName = companyNameFromCampaign
 
-    // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선 사용)
-    if (companyEmailFromCampaign && supabaseBiz) {
-      const { data: bizCompany, error: bizError } = await supabaseBiz
-        .from('companies')
-        .select('company_name, notification_phone, notification_email, notification_contact_person, phone, email')
-        .eq('email', companyEmailFromCampaign)
-        .maybeSingle()
+    const selectFields = 'company_name, notification_phone, notification_email, notification_contact_person, phone, email, contact_phone, contact_email, contact_person'
 
-      console.log('[INFO] BIZ DB (email) lookup:', { bizCompany, error: bizError?.message })
-
-      if (bizCompany) {
-        companyPhone = bizCompany.notification_phone || bizCompany.phone
-        companyEmail = bizCompany.notification_email || bizCompany.email
-        companyName = bizCompany.company_name || companyName
-        companyContactName = bizCompany.notification_contact_person || bizCompany.company_name || companyContactName
+    const applyCompanyResult = (comp, source) => {
+      if (!comp) return false
+      const phone = comp.notification_phone || comp.phone || comp.contact_phone
+      const email = comp.notification_email || comp.email || comp.contact_email
+      if (phone || email) {
+        if (phone && !companyPhone) companyPhone = phone
+        if (email && !companyEmail) companyEmail = email
+        companyName = comp.company_name || companyName
+        companyContactName = comp.notification_contact_person || comp.contact_person || comp.company_name || companyContactName
+        console.log(`[INFO] Company found via ${source}:`, { phone, email, name: comp.company_name })
+        return !!phone
       }
+      return false
     }
 
-    // 2순위: BIZ DB에서 company_id(user_id)로 조회
-    if (!companyPhone && companyId && supabaseBiz) {
-      const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
-        .from('companies')
-        .select('company_name, notification_phone, notification_email, notification_contact_person, phone, email')
-        .eq('user_id', companyId)
-        .maybeSingle()
-
-      console.log('[INFO] BIZ DB (user_id) lookup:', { bizCompanyById, error: bizError2?.message })
-
-      if (bizCompanyById) {
-        companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone
-        companyEmail = bizCompanyById.notification_email || bizCompanyById.email
-        companyName = bizCompanyById.company_name || companyName
-        companyContactName = bizCompanyById.notification_contact_person || bizCompanyById.company_name || companyContactName
-      }
-    }
-
-    // 3순위: Korea DB companies 테이블에서 조회 (레거시)
-    if (!companyPhone && companyEmailFromCampaign) {
-      const { data: koreaCompany, error: koreaError } = await supabaseAdmin
-        .from('companies')
-        .select('company_name, contact_person, contact_phone, contact_email, phone, email')
-        .eq('email', companyEmailFromCampaign)
-        .maybeSingle()
-
-      console.log('[INFO] Korea DB (email) lookup:', { koreaCompany, error: koreaError?.message })
-
-      if (koreaCompany) {
-        companyPhone = koreaCompany.contact_phone || koreaCompany.phone
-        companyEmail = koreaCompany.contact_email || koreaCompany.email
-        companyName = koreaCompany.company_name || companyName
-        companyContactName = koreaCompany.contact_person || koreaCompany.company_name || companyContactName
-      }
-    }
-
-    // 4순위: Korea DB에서 company_id로 조회 (기존 로직 유지)
+    // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
     if (!companyPhone && companyId) {
-      const { data: company, error: companyError } = await supabaseAdmin
-        .from('companies')
-        .select('company_name, contact_person, contact_phone, contact_email, phone, email')
-        .eq('id', companyId)
-        .maybeSingle()
+      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
+      applyCompanyResult(data, 'regional_id')
+    }
 
-      console.log('[INFO] Korea DB (id) lookup:', { company, error: companyError?.message })
+    // 2순위: 리전 DB에서 company_id (user_id)로 조회 (원래 캠페인)
+    if (!companyPhone && companyId) {
+      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
+      applyCompanyResult(data, 'regional_user_id')
+    }
 
-      if (company) {
-        companyPhone = company.contact_phone || company.phone
-        companyEmail = company.contact_email || company.email
-        companyName = company.company_name || companyName
-        companyContactName = company.contact_person || company.company_name || companyContactName
-      }
+    // 3순위: 리전 DB에서 company_email로 조회
+    if (!companyPhone && companyEmailFromCampaign) {
+      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
+      applyCompanyResult(data, 'regional_email')
+    }
+
+    // 4순위: BIZ DB에서 company_id (id)로 조회
+    if (!companyPhone && companyId && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
+      applyCompanyResult(data, 'biz_id')
+    }
+
+    // 5순위: BIZ DB에서 company_id (user_id)로 조회
+    if (!companyPhone && companyId && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
+      applyCompanyResult(data, 'biz_user_id')
+    }
+
+    // 6순위: BIZ DB에서 company_email로 조회
+    if (!companyPhone && companyEmailFromCampaign && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
+      applyCompanyResult(data, 'biz_email')
     }
 
     if (!companyPhone && !companyEmail) {

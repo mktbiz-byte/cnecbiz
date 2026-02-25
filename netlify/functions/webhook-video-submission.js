@@ -227,7 +227,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // 3. 기업 전화번호 조회 (기업 데이터는 BIZ DB에 있음)
+    // 3. 기업 전화번호 조회 (리전 DB 우선 → BIZ DB 폴백)
     let companyPhone = null;
     let companyName = campaign.company_name || campaign.brand_name || campaign.brand || '(기업명 없음)';
 
@@ -236,63 +236,89 @@ exports.handler = async (event) => {
       company_email: campaign.company_email
     });
 
-    // 1순위: BIZ DB companies 테이블에서 company_email로 조회 (notification 필드 우선)
-    if (campaign.company_email && supabaseBiz) {
-      const { data: bizCompany } = await supabaseBiz
-        .from('companies')
-        .select('company_name, notification_phone, phone')
-        .eq('email', campaign.company_email)
-        .maybeSingle();
+    const companySelectFields = 'company_name, notification_phone, phone, notification_email, email';
 
-      if (bizCompany) {
-        companyPhone = bizCompany.notification_phone || bizCompany.phone;
-        companyName = bizCompany.company_name || companyName;
-        console.log('BIZ DB (email)에서 정보 찾음:', { companyPhone, companyName });
-      }
-    }
-
-    // 2순위: BIZ DB에서 company_id로 조회 (id → user_id 순서)
-    if (!companyPhone && campaign.company_id && supabaseBiz) {
-      // 2-1. companies.id로 조회 (이관된 캠페인)
-      const { data: bizCompanyById } = await supabaseBiz
+    // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
+    if (!companyPhone && campaign.company_id) {
+      const { data } = await supabaseRegional
         .from('companies')
-        .select('company_name, notification_phone, phone')
+        .select(companySelectFields)
         .eq('id', campaign.company_id)
         .maybeSingle();
-
-      if (bizCompanyById) {
-        companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone;
-        companyName = bizCompanyById.company_name || companyName;
-        console.log('BIZ DB (id)에서 정보 찾음:', { companyPhone, companyName });
-      } else {
-        // 2-2. companies.user_id로 조회 (원래 생성된 캠페인)
-        const { data: bizCompanyByUserId } = await supabaseBiz
-          .from('companies')
-          .select('company_name, notification_phone, phone')
-          .eq('user_id', campaign.company_id)
-          .maybeSingle();
-
-        if (bizCompanyByUserId) {
-          companyPhone = bizCompanyByUserId.notification_phone || bizCompanyByUserId.phone;
-          companyName = bizCompanyByUserId.company_name || companyName;
-          console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
-        }
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('리전 DB (id)에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
-    // 3순위: Korea DB companies 테이블 fallback
-    if (!companyPhone && campaign.company_email) {
-      const fallbackClient = supabaseKorea || supabaseRegional;
-      const { data: koreaCompany } = await fallbackClient
+    // 2순위: 리전 DB에서 company_id (user_id)로 조회 (원래 캠페인)
+    if (!companyPhone && campaign.company_id) {
+      const { data } = await supabaseRegional
         .from('companies')
-        .select('company_name, phone, contact_phone')
+        .select(companySelectFields)
+        .eq('user_id', campaign.company_id)
+        .maybeSingle();
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('리전 DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // 3순위: 리전 DB에서 company_email로 조회
+    if (!companyPhone && campaign.company_email) {
+      const { data } = await supabaseRegional
+        .from('companies')
+        .select(companySelectFields)
         .eq('email', campaign.company_email)
         .maybeSingle();
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('리전 DB (email)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
 
-      if (koreaCompany) {
-        companyPhone = koreaCompany.phone || koreaCompany.contact_phone;
-        companyName = koreaCompany.company_name || companyName;
-        console.log('Korea/Regional DB에서 정보 찾음:', { companyPhone, companyName });
+    // 4순위: BIZ DB에서 company_id (id)로 조회
+    if (!companyPhone && campaign.company_id && supabaseBiz) {
+      const { data } = await supabaseBiz
+        .from('companies')
+        .select(companySelectFields)
+        .eq('id', campaign.company_id)
+        .maybeSingle();
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('BIZ DB (id)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // 5순위: BIZ DB에서 company_id (user_id)로 조회
+    if (!companyPhone && campaign.company_id && supabaseBiz) {
+      const { data } = await supabaseBiz
+        .from('companies')
+        .select(companySelectFields)
+        .eq('user_id', campaign.company_id)
+        .maybeSingle();
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // 6순위: BIZ DB에서 company_email로 조회
+    if (!companyPhone && campaign.company_email && supabaseBiz) {
+      const { data } = await supabaseBiz
+        .from('companies')
+        .select(companySelectFields)
+        .eq('email', campaign.company_email)
+        .maybeSingle();
+      if (data) {
+        companyPhone = data.notification_phone || data.phone;
+        companyName = data.company_name || companyName;
+        console.log('BIZ DB (email)에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
