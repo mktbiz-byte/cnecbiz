@@ -3,29 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
-  Database, AlertTriangle, CheckCircle, XCircle,
-  Download, RefreshCw, Loader2, ChevronDown, ChevronUp,
-  Filter, Search
+  Database, AlertTriangle, CheckCircle, XCircle, Shield,
+  Download, RefreshCw, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import * as XLSX from 'xlsx'
 
-const TABLE_OPTIONS = [
-  { key: 'campaigns', label: '캠페인', icon: '📋' },
-  { key: 'applications', label: '신청', icon: '📝' },
-  { key: 'video_submissions', label: '영상 제출', icon: '🎬' },
-  { key: 'companies', label: '기업', icon: '🏢' },
-  { key: 'contracts', label: '계약서', icon: '📄' },
-  { key: 'payments', label: '결제', icon: '💳' }
-]
-
 const REGION_LABELS = { korea: '🇰🇷 한국', japan: '🇯🇵 일본', us: '🇺🇸 미국', biz: '💼 BIZ' }
 const REGION_COLORS = { korea: '#6C5CE7', japan: '#FF6B6B', us: '#00B894', biz: '#74B9FF' }
 
-const STATUS_CONFIG = {
-  synced: { label: '정상', color: '#00B894', bg: 'rgba(0,184,148,0.1)' },
-  mismatch: { label: '불일치', color: '#FF6B6B', bg: 'rgba(255,107,107,0.1)' },
-  missing: { label: '누락', color: '#FDCB6E', bg: 'rgba(253,203,110,0.15)' }
+const TABLE_LABELS = {
+  campaigns: '캠페인', applications: '신청', video_submissions: '영상 제출',
+  companies: '기업', contracts: '계약서', payments: '결제'
+}
+
+const SEVERITY_CONFIG = {
+  high: { label: '높음', color: '#FF6B6B', bg: 'rgba(255,107,107,0.1)', icon: XCircle },
+  medium: { label: '중간', color: '#FDCB6E', bg: 'rgba(253,203,110,0.15)', icon: AlertTriangle },
+  low: { label: '낮음', color: '#74B9FF', bg: 'rgba(116,185,255,0.1)', icon: Shield }
 }
 
 export default function DataSyncMonitor() {
@@ -33,14 +28,8 @@ export default function DataSyncMonitor() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [selectedTables, setSelectedTables] = useState(['campaigns', 'applications', 'video_submissions'])
-  const [compareMode, setCompareMode] = useState('all_fields')
-  const [expandedTable, setExpandedTable] = useState(null)
-  const [expandedRecord, setExpandedRecord] = useState(null)
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [searchId, setSearchId] = useState('')
+  const [expandedCheck, setExpandedCheck] = useState(null)
 
-  // 관리자 인증 체크
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -58,13 +47,12 @@ export default function DataSyncMonitor() {
       const res = await fetch('/.netlify/functions/check-data-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tables: selectedTables, compareMode })
+        body: JSON.stringify({})
       })
       const result = await res.json()
       if (!result.success) throw new Error(result.error)
       setData(result)
-      setExpandedTable(null)
-      setExpandedRecord(null)
+      setExpandedCheck(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -72,83 +60,46 @@ export default function DataSyncMonitor() {
     }
   }
 
-  // 엑셀 다운로드 — 나라별 시트
   const exportToExcel = () => {
-    if (!data?.results) return
+    if (!data) return
     const wb = XLSX.utils.book_new()
 
-    // 1. 요약 시트
-    const summaryRows = []
-    for (const [tableName, tableData] of Object.entries(data.results)) {
-      summaryRows.push({
-        '테이블': tableData.label,
-        '전체 레코드': tableData.totalIds,
-        '오류 건수': tableData.issueCount,
-        ...Object.fromEntries(tableData.regions.map(r => [`${REGION_LABELS[r]} 건수`, tableData.regionMeta[r]?.count || 0])),
-        ...Object.fromEntries(tableData.regions.map(r => [`${REGION_LABELS[r]} 상태`, tableData.regionMeta[r]?.exists ? '정상' : (tableData.regionMeta[r]?.error || '테이블 없음')]))
-      })
-    }
-    const summarySheet = XLSX.utils.json_to_sheet(summaryRows)
-    summarySheet['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 10 }, ...Array(8).fill({ wch: 18 })]
-    XLSX.utils.book_append_sheet(wb, summarySheet, '요약')
-
-    // 2. 테이블별 오류 시트
-    for (const [tableName, tableData] of Object.entries(data.results)) {
-      if (tableData.issues.length === 0) continue
-
+    // 1. DB 현황 시트
+    if (data.overview) {
       const rows = []
-      for (const issue of tableData.issues) {
-        // 기본 정보
-        const baseRow = {
-          'ID': issue.id,
-          '상태': STATUS_CONFIG[issue.status]?.label || issue.status,
-          '제목': issue.title || '',
-          '오류 내용': issue.summary || ''
+      for (const [table, regions] of Object.entries(data.overview)) {
+        const row = { '테이블': TABLE_LABELS[table] || table }
+        for (const [region, info] of Object.entries(regions)) {
+          row[REGION_LABELS[region] || region] = info.error ? `오류: ${info.error}` : info.count
         }
-
-        // 리전별 존재 여부
-        for (const region of tableData.regions) {
-          baseRow[`${REGION_LABELS[region]} 존재`] = issue.regions[region] ? 'O' : 'X'
-        }
-
-        // 불일치 필드 상세
-        if (issue.fieldDiffs?.length > 0) {
-          for (const d of issue.fieldDiffs) {
-            const row = { ...baseRow, '불일치 필드': d.field }
-            // 각 리전의 값 추가
-            for (const region of tableData.regions) {
-              if (d[region] !== undefined) {
-                row[`${REGION_LABELS[region]} 값`] = String(d[region] ?? '')
-              }
-            }
-            rows.push(row)
-          }
-        } else {
-          rows.push(baseRow)
-        }
+        rows.push(row)
       }
+      const ws = XLSX.utils.json_to_sheet(rows)
+      ws['!cols'] = [{ wch: 15 }, ...Array(4).fill({ wch: 18 })]
+      XLSX.utils.book_append_sheet(wb, ws, 'DB 현황')
+    }
 
-      if (rows.length > 0) {
+    // 2. 검사별 이슈 시트
+    if (data.checks) {
+      for (const check of data.checks) {
+        if (check.issues.length === 0) continue
+        const rows = check.issues.map(issue => ({
+          'ID': issue.id,
+          '참조 타입': issue.refType,
+          '참조 ID': issue.refId,
+          '상세': issue.detail,
+          '리전': issue.region || '-',
+          '생성일': issue.created || '-'
+        }))
         const ws = XLSX.utils.json_to_sheet(rows)
-        ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 20 }, { wch: 30 }, ...Array(10).fill({ wch: 22 })]
-        XLSX.utils.book_append_sheet(wb, ws, tableData.label)
+        ws['!cols'] = [{ wch: 38 }, { wch: 15 }, { wch: 38 }, { wch: 40 }, { wch: 10 }, { wch: 20 }]
+        const sheetName = check.label.length > 31 ? check.label.slice(0, 31) : check.label
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
       }
     }
 
     const now = new Date().toISOString().slice(0, 10)
-    XLSX.writeFile(wb, `크넥_데이터싱크_${now}.xlsx`)
-  }
-
-  // 필터링된 이슈
-  const getFilteredIssues = (issues) => {
-    let filtered = issues
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(i => i.status === filterStatus)
-    }
-    if (searchId.trim()) {
-      filtered = filtered.filter(i => i.id.toLowerCase().includes(searchId.toLowerCase()))
-    }
-    return filtered
+    XLSX.writeFile(wb, `크넥_무결성검사_${now}.xlsx`)
   }
 
   return (
@@ -160,94 +111,38 @@ export default function DataSyncMonitor() {
             <h1 className="text-2xl font-bold text-[#1A1A2E]" style={{ fontFamily: 'Pretendard' }}>
               통합 관제센터
             </h1>
-            <p className="text-sm text-[#636E72] mt-1">4개 Supabase DB 데이터 정합성 비교</p>
+            <p className="text-sm text-[#636E72] mt-1">4개 Supabase DB 데이터 무결성 검사</p>
           </div>
           <div className="flex gap-2">
             {data && (
-              <Button
-                onClick={exportToExcel}
-                className="bg-[#00B894] hover:bg-[#00A383] text-white rounded-xl"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                엑셀 다운로드
+              <Button onClick={exportToExcel} className="bg-[#00B894] hover:bg-[#00A383] text-white rounded-xl">
+                <Download className="w-4 h-4 mr-1" /> 엑셀 다운로드
               </Button>
             )}
-            <Button
-              onClick={runCheck}
-              disabled={loading || selectedTables.length === 0}
-              className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white rounded-xl"
-            >
+            <Button onClick={runCheck} disabled={loading} className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white rounded-xl">
               {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-              {loading ? '검사 중...' : '데이터 검사'}
+              {loading ? '검사 중...' : '무결성 검사'}
             </Button>
           </div>
         </div>
 
-        {/* 설정 카드 */}
-        <Card className="border border-[#DFE6E9] rounded-2xl shadow-sm">
-          <CardContent className="p-5">
-            <div className="space-y-4">
-              {/* 테이블 선택 */}
-              <div>
-                <p className="text-sm font-semibold text-[#1A1A2E] mb-2">검사 대상 테이블</p>
-                <div className="flex flex-wrap gap-2">
-                  {TABLE_OPTIONS.map(t => (
-                    <button
-                      key={t.key}
-                      onClick={() => setSelectedTables(prev =>
-                        prev.includes(t.key) ? prev.filter(x => x !== t.key) : [...prev, t.key]
-                      )}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                        selectedTables.includes(t.key)
-                          ? 'bg-[#6C5CE7] text-white'
-                          : 'bg-[#F0EDFF] text-[#6C5CE7]'
-                      }`}
-                    >
-                      {t.icon} {t.label}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setSelectedTables(
-                      selectedTables.length === TABLE_OPTIONS.length ? [] : TABLE_OPTIONS.map(t => t.key)
-                    )}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-[#636E72] hover:bg-gray-200"
-                  >
-                    {selectedTables.length === TABLE_OPTIONS.length ? '전체 해제' : '전체 선택'}
-                  </button>
-                </div>
-              </div>
-              {/* 비교 모드 */}
-              <div>
-                <p className="text-sm font-semibold text-[#1A1A2E] mb-2">비교 방식</p>
-                <div className="flex gap-2">
-                  {[
-                    { key: 'existence', label: '존재 여부만', desc: '빠름' },
-                    { key: 'key_fields', label: '주요 필드', desc: '보통' },
-                    { key: 'all_fields', label: '전체 필드', desc: '상세' }
-                  ].map(m => (
-                    <button
-                      key={m.key}
-                      onClick={() => setCompareMode(m.key)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                        compareMode === m.key
-                          ? 'bg-[#6C5CE7] text-white'
-                          : 'bg-[#F0EDFF] text-[#6C5CE7]'
-                      }`}
-                    >
-                      {m.label} <span className="opacity-60 text-xs">({m.desc})</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 에러 표시 */}
+        {/* 에러 */}
         {error && (
           <div className="p-4 rounded-xl bg-[rgba(255,107,107,0.1)] border border-[#FF6B6B]/30 text-[#FF6B6B] text-sm">
-            <AlertTriangle className="w-4 h-4 inline mr-2" />
-            {error}
+            <AlertTriangle className="w-4 h-4 inline mr-2" />{error}
+          </div>
+        )}
+
+        {/* 리전 연결 상태 */}
+        {data?.regionStatus && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.entries(data.regionStatus).map(([region, status]) => (
+              <div key={region} className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#DFE6E9] bg-white">
+                <div className={`w-2.5 h-2.5 rounded-full ${status.available ? 'bg-[#00B894]' : 'bg-[#FF6B6B]'}`} />
+                <span className="text-sm font-medium text-[#1A1A2E]">{REGION_LABELS[region]}</span>
+                <span className="text-xs text-[#B2BEC3] ml-auto">{status.available ? '연결됨' : '불가'}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -255,10 +150,10 @@ export default function DataSyncMonitor() {
         {data?.summary && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: '전체 레코드', value: data.summary.total_records, icon: Database, color: '#6C5CE7' },
-              { label: '정상', value: data.summary.synced, icon: CheckCircle, color: '#00B894' },
-              { label: '필드 불일치', value: data.summary.mismatches, icon: XCircle, color: '#FF6B6B' },
-              { label: 'DB 누락', value: data.summary.missing, icon: AlertTriangle, color: '#FDCB6E' }
+              { label: '검사 항목', value: data.summary.totalChecks, icon: Database, color: '#6C5CE7' },
+              { label: '정상', value: data.summary.passed, icon: CheckCircle, color: '#00B894' },
+              { label: '이슈 발견', value: data.summary.failed, icon: AlertTriangle, color: data.summary.failed > 0 ? '#FF6B6B' : '#00B894' },
+              { label: '총 이슈 수', value: data.summary.totalIssues, icon: XCircle, color: data.summary.totalIssues > 0 ? '#FF6B6B' : '#00B894' }
             ].map((s, i) => (
               <Card key={i} className="border border-[#DFE6E9] rounded-2xl shadow-sm">
                 <CardContent className="p-4 flex items-center gap-3">
@@ -277,78 +172,89 @@ export default function DataSyncMonitor() {
           </div>
         )}
 
-        {/* 필터 */}
-        {data?.results && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Filter className="w-4 h-4 text-[#636E72]" />
-              <span className="text-sm text-[#636E72]">필터:</span>
-            </div>
-            {['all', 'mismatch', 'missing'].map(s => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  filterStatus === s ? 'bg-[#6C5CE7] text-white' : 'bg-gray-100 text-[#636E72]'
-                }`}
-              >
-                {s === 'all' ? '전체' : STATUS_CONFIG[s]?.label}
-              </button>
-            ))}
-            <div className="relative ml-auto">
-              <Search className="w-4 h-4 absolute left-2.5 top-2 text-[#B2BEC3]" />
-              <input
-                type="text"
-                value={searchId}
-                onChange={e => setSearchId(e.target.value)}
-                placeholder="ID 검색..."
-                className="pl-8 pr-3 py-1.5 rounded-lg border border-[#DFE6E9] text-sm w-64 focus:outline-none focus:border-[#6C5CE7]"
-              />
-            </div>
-          </div>
+        {/* DB 현황 */}
+        {data?.overview && (
+          <Card className="border border-[#DFE6E9] rounded-2xl shadow-sm">
+            <CardHeader className="p-4 pb-0">
+              <CardTitle className="text-base font-semibold text-[#1A1A2E]">
+                <Database className="w-4 h-4 inline mr-2" />DB 현황 — 테이블별 레코드 수
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#DFE6E9]">
+                      <th className="text-left p-2 font-semibold text-[#636E72]">테이블</th>
+                      {['korea', 'japan', 'us', 'biz'].map(r => (
+                        <th key={r} className="text-right p-2 font-semibold" style={{ color: REGION_COLORS[r] }}>{REGION_LABELS[r]}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(data.overview).map(([table, regions]) => (
+                      <tr key={table} className="border-b border-[#DFE6E9] last:border-0">
+                        <td className="p-2 font-medium text-[#1A1A2E]">{TABLE_LABELS[table] || table}</td>
+                        {['korea', 'japan', 'us', 'biz'].map(r => {
+                          const info = regions[r]
+                          return (
+                            <td key={r} className="p-2 text-right font-mono" style={{ fontFamily: 'Outfit' }}>
+                              {info?.error ? (
+                                <span className="text-xs text-[#FF6B6B]">-</span>
+                              ) : (
+                                <span className={info?.count > 0 ? 'text-[#1A1A2E]' : 'text-[#B2BEC3]'}>
+                                  {(info?.count || 0).toLocaleString()}
+                                </span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* 테이블별 결과 */}
-        {data?.results && Object.entries(data.results).map(([tableName, tableData]) => {
-          const isExpanded = expandedTable === tableName
-          const filtered = getFilteredIssues(tableData.issues)
+        {/* 무결성 검사 결과 */}
+        {data?.checks && data.checks.map((check) => {
+          const sev = SEVERITY_CONFIG[check.severity] || SEVERITY_CONFIG.low
+          const SevIcon = sev.icon
+          const isExpanded = expandedCheck === check.id
+          const hasPassed = check.issueCount === 0
 
           return (
-            <Card key={tableName} className="border border-[#DFE6E9] rounded-2xl shadow-sm overflow-hidden">
+            <Card key={check.id} className="border border-[#DFE6E9] rounded-2xl shadow-sm overflow-hidden">
               <CardHeader
                 className="cursor-pointer hover:bg-gray-50 transition-colors p-4"
-                onClick={() => setExpandedTable(isExpanded ? null : tableName)}
+                onClick={() => setExpandedCheck(isExpanded ? null : check.id)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CardTitle className="text-base font-semibold text-[#1A1A2E]">
-                      {TABLE_OPTIONS.find(t => t.key === tableName)?.icon} {tableData.label}
-                      <span className="text-sm font-normal text-[#636E72] ml-2">({tableName})</span>
-                    </CardTitle>
-                    {/* 리전별 레코드 수 */}
-                    <div className="flex gap-2">
-                      {tableData.regions.map(r => (
-                        <span
-                          key={r}
-                          className="text-xs px-2 py-0.5 rounded-md"
-                          style={{
-                            background: tableData.regionMeta[r]?.exists ? `${REGION_COLORS[r]}15` : 'rgba(255,107,107,0.1)',
-                            color: tableData.regionMeta[r]?.exists ? REGION_COLORS[r] : '#FF6B6B'
-                          }}
-                        >
-                          {REGION_LABELS[r]} {tableData.regionMeta[r]?.exists ? tableData.regionMeta[r].count : '없음'}
-                        </span>
-                      ))}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: hasPassed ? 'rgba(0,184,148,0.1)' : sev.bg }}>
+                      {hasPassed ? (
+                        <CheckCircle className="w-4 h-4 text-[#00B894]" />
+                      ) : (
+                        <SevIcon className="w-4 h-4" style={{ color: sev.color }} />
+                      )}
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm font-semibold text-[#1A1A2E]">{check.label}</CardTitle>
+                      <p className="text-xs text-[#636E72] mt-0.5">{check.description}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {tableData.issueCount > 0 ? (
-                      <span className="text-sm font-bold" style={{ color: '#FF6B6B', fontFamily: 'Outfit' }}>
-                        {tableData.issueCount}건 오류
-                      </span>
+                    <span className="text-xs text-[#B2BEC3]">{check.totalChecked.toLocaleString()}건 검사</span>
+                    {hasPassed ? (
+                      <span className="text-sm font-medium text-[#00B894]">정상</span>
                     ) : (
-                      <span className="text-sm font-medium text-[#00B894]">✓ 정상</span>
+                      <span className="px-2 py-0.5 rounded text-xs font-bold" style={{ background: sev.bg, color: sev.color }}>
+                        {check.issueCount}건 이슈
+                      </span>
                     )}
+                    <span className="text-xs text-[#B2BEC3]">{check.elapsed}ms</span>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-[#636E72]" /> : <ChevronDown className="w-4 h-4 text-[#636E72]" />}
                   </div>
                 </div>
@@ -356,112 +262,36 @@ export default function DataSyncMonitor() {
 
               {isExpanded && (
                 <CardContent className="p-0">
-                  {filtered.length === 0 ? (
-                    <div className="p-6 text-center text-[#636E72] text-sm">
-                      {tableData.issueCount === 0 ? '모든 레코드가 정상입니다' : '필터 조건에 맞는 오류가 없습니다'}
-                    </div>
+                  {check.issues.length === 0 ? (
+                    <div className="p-6 text-center text-[#636E72] text-sm">모든 레코드가 정상입니다</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-[#F8F9FA] border-y border-[#DFE6E9]">
                             <th className="text-left p-3 font-semibold text-[#636E72] w-10">#</th>
-                            <th className="text-left p-3 font-semibold text-[#636E72]">ID</th>
-                            <th className="text-left p-3 font-semibold text-[#636E72]">상태</th>
-                            {tableData.regions.map(r => (
-                              <th key={r} className="text-center p-3 font-semibold text-[#636E72]">{REGION_LABELS[r]}</th>
-                            ))}
-                            <th className="text-left p-3 font-semibold text-[#636E72]">오류 내용</th>
+                            <th className="text-left p-3 font-semibold text-[#636E72]">레코드 ID</th>
+                            <th className="text-left p-3 font-semibold text-[#636E72]">누락 참조</th>
+                            <th className="text-left p-3 font-semibold text-[#636E72]">상세</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {filtered.slice(0, 200).map((issue, idx) => {
-                            const isRecordExpanded = expandedRecord === `${tableName}_${issue.id}`
-                            return (
-                              <>
-                                <tr
-                                  key={issue.id}
-                                  className="border-b border-[#DFE6E9] hover:bg-gray-50 cursor-pointer transition-colors"
-                                  onClick={() => setExpandedRecord(isRecordExpanded ? null : `${tableName}_${issue.id}`)}
-                                >
-                                  <td className="p-3 text-[#B2BEC3]">{idx + 1}</td>
-                                  <td className="p-3 font-mono text-xs text-[#1A1A2E]">{issue.id.slice(0, 8)}...</td>
-                                  <td className="p-3">
-                                    <span
-                                      className="px-2 py-0.5 rounded text-xs font-medium"
-                                      style={{
-                                        background: STATUS_CONFIG[issue.status]?.bg,
-                                        color: STATUS_CONFIG[issue.status]?.color
-                                      }}
-                                    >
-                                      {STATUS_CONFIG[issue.status]?.label}
-                                    </span>
-                                  </td>
-                                  {tableData.regions.map(r => (
-                                    <td key={r} className="p-3 text-center">
-                                      {issue.regions[r] === true && <span className="text-[#00B894]">●</span>}
-                                      {issue.regions[r] === false && <span className="text-[#FF6B6B]">✕</span>}
-                                      {issue.regions[r] === undefined && <span className="text-[#B2BEC3]">-</span>}
-                                    </td>
-                                  ))}
-                                  <td className="p-3 text-xs text-[#636E72] max-w-xs truncate">
-                                    {issue.summary} {issue.title && `— ${issue.title}`}
-                                  </td>
-                                </tr>
-                                {/* 상세 펼침 */}
-                                {isRecordExpanded && (
-                                  <tr key={`${issue.id}_detail`}>
-                                    <td colSpan={4 + tableData.regions.length} className="p-0">
-                                      <div className="bg-[#F8F9FA] p-4 border-b border-[#DFE6E9]">
-                                        <p className="text-xs font-semibold text-[#1A1A2E] mb-2">ID: <span className="font-mono">{issue.id}</span></p>
-                                        <p className="text-xs text-[#636E72] mb-3">{issue.summary} {issue.title && `— ${issue.title}`}</p>
-
-                                        {issue.status === 'missing' && (
-                                          <p className="text-xs text-[#FDCB6E]">
-                                            ⚠ 누락 리전: {Object.entries(issue.regions).filter(([,v]) => !v).map(([r]) => REGION_LABELS[r] || r).join(', ')}
-                                          </p>
-                                        )}
-
-                                        {issue.fieldDiffs?.length > 0 && (
-                                          <div className="overflow-x-auto mt-2">
-                                            <table className="text-xs border border-[#DFE6E9] rounded-lg overflow-hidden w-full">
-                                              <thead>
-                                                <tr className="bg-white">
-                                                  <th className="p-2 text-left text-[#636E72] border-b border-[#DFE6E9]">필드</th>
-                                                  {tableData.regions.filter(r => issue.regions[r]).map(r => (
-                                                    <th key={r} className="p-2 text-left border-b border-[#DFE6E9]" style={{ color: REGION_COLORS[r] }}>
-                                                      {REGION_LABELS[r]}
-                                                    </th>
-                                                  ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {issue.fieldDiffs.map((d, dIdx) => (
-                                                  <tr key={dIdx} className="border-b border-[#DFE6E9] last:border-0">
-                                                    <td className="p-2 font-mono font-medium text-[#1A1A2E]">{d.field}</td>
-                                                    {tableData.regions.filter(r => issue.regions[r]).map(r => (
-                                                      <td key={r} className="p-2 font-mono text-[#636E72] max-w-[200px] truncate">
-                                                        {d[r] ?? '-'}
-                                                      </td>
-                                                    ))}
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </>
-                            )
-                          })}
+                          {check.issues.slice(0, 100).map((issue, idx) => (
+                            <tr key={issue.id} className="border-b border-[#DFE6E9] hover:bg-gray-50">
+                              <td className="p-3 text-[#B2BEC3]">{idx + 1}</td>
+                              <td className="p-3 font-mono text-xs text-[#1A1A2E]">{issue.id?.slice(0, 12)}...</td>
+                              <td className="p-3">
+                                <span className="text-xs text-[#636E72]">{issue.refType}: </span>
+                                <span className="font-mono text-xs text-[#FF6B6B]">{issue.refId?.slice(0, 12)}...</span>
+                              </td>
+                              <td className="p-3 text-xs text-[#636E72]">{issue.detail}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
-                      {filtered.length > 200 && (
+                      {check.issues.length > 100 && (
                         <div className="p-3 text-center text-xs text-[#636E72] bg-[#F8F9FA] border-t border-[#DFE6E9]">
-                          상위 200건만 표시됩니다. 전체 데이터는 엑셀 다운로드를 이용해주세요.
+                          상위 100건만 표시됩니다. 전체 데이터는 엑셀 다운로드를 이용해주세요.
                         </div>
                       )}
                     </div>
@@ -476,6 +306,7 @@ export default function DataSyncMonitor() {
         {data?.checkedAt && (
           <p className="text-xs text-[#B2BEC3] text-center">
             마지막 검사: {new Date(data.checkedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+            {data.elapsed && ` (${(data.elapsed / 1000).toFixed(1)}초)`}
           </p>
         )}
 
@@ -483,15 +314,15 @@ export default function DataSyncMonitor() {
         {!data && !loading && !error && (
           <Card className="border border-[#DFE6E9] rounded-2xl shadow-sm">
             <CardContent className="p-12 text-center">
-              <Database className="w-12 h-12 mx-auto mb-4 text-[#B2BEC3]" />
-              <h3 className="text-lg font-semibold text-[#1A1A2E] mb-2">데이터 정합성 검사</h3>
-              <p className="text-sm text-[#636E72] mb-6">
-                Korea, Japan, US, BIZ 4개 Supabase DB의 데이터를 비교합니다.<br />
-                위에서 테이블과 비교 방식을 선택한 후 "데이터 검사" 버튼을 클릭하세요.
+              <Shield className="w-12 h-12 mx-auto mb-4 text-[#B2BEC3]" />
+              <h3 className="text-lg font-semibold text-[#1A1A2E] mb-2">데이터 무결성 검사</h3>
+              <p className="text-sm text-[#636E72] mb-4">
+                Korea, Japan, US, BIZ 4개 DB의 데이터 연결 관계를 검사합니다.
               </p>
-              <p className="text-xs text-[#B2BEC3]">
-                검사 결과는 엑셀로 다운로드하여 나라별로 확인할 수 있습니다.
-              </p>
+              <div className="text-xs text-[#B2BEC3] space-y-1">
+                <p>결제/계약 → 캠페인 연결 | 캠페인 → 기업 연결</p>
+                <p>신청 → 캠페인 연결 | 영상제출 → 캠페인 연결</p>
+              </div>
             </CardContent>
           </Card>
         )}
