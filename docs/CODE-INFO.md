@@ -26,7 +26,7 @@
 |------|------|------|
 | React | 19.x | UI 프레임워크 |
 | Vite | 6.x | 빌드 도구 (pnpm 패키지매니저) |
-| react-router-dom | 7.x | 라우팅 (~132개 라우트) |
+
 | Tailwind CSS | 4.x | 스타일링 (oklch 컬러 시스템) |
 | shadcn/ui (Radix UI) | - | UI 컴포넌트 (46개) |
 | lucide-react | 0.510.x | 아이콘 |
@@ -39,7 +39,7 @@
 ### Backend (Serverless)
 | 기술 | 용도 |
 |------|------|
-| Netlify Functions | 서버리스 함수 (~187개) |
+
 | Supabase (PostgreSQL) | 데이터베이스 (5개 리전) |
 | Supabase Storage | 파일 스토리지 |
 | Supabase Auth | 인증 (PKCE flow) |
@@ -77,22 +77,20 @@ cheerio, axios, marked, puppeteer-core, @sparticuz/chromium,
 ```
 cnecbiz/
 ├── src/
-│   ├── App.jsx                    # 메인 앱 + 모든 라우팅 정의 (~132 routes)
+
 │   ├── main.jsx                   # 앱 진입점
 │   ├── index.css                  # 글로벌 CSS (Tailwind v4 base/components/utilities)
 │   ├── App.css                    # 테마 설정 (oklch 컬러, 다크 모드)
 │   ├── components/
 │   │   ├── ui/                    # shadcn/ui 컴포넌트 (46개)
-│   │   ├── admin/                 # /admin/* 관리자 페이지 (91개)
-│   │   │   └── openclo/           # OpenClo 서브모듈 (8개)
-│   │   ├── company/               # /company/* 기업 대시보드 (71개)
+
 │   │   ├── creator/               # /creator/* 크리에이터 (6개)
 │   │   ├── payment/               # 결제 컴포넌트 (3개)
 │   │   ├── tax/                   # 세금 컴포넌트 (1개)
 │   │   ├── contracts/             # 계약서 컴포넌트 (2개)
 │   │   ├── common/                # 공통 컴포넌트 (3개)
 │   │   └── [루트]                 # 공개 페이지 컴포넌트 (25개)
-│   ├── pages/                     # 독립 페이지 (11개)
+
 │   ├── lib/                       # 유틸리티 & 서비스 (15개)
 │   ├── services/                  # 비즈니스 로직 서비스
 │   │   ├── aiRecommendation.js    # AI 크리에이터 추천
@@ -113,7 +111,7 @@ cnecbiz/
 │   │   └── database.types.ts      # Supabase 테이블 타입 (전체 스키마)
 │   └── utils/                     # 유틸리티 (pdfGenerator)
 ├── netlify/
-│   └── functions/                 # Netlify 서버리스 함수 (~187개)
+
 │       └── lib/                   # 함수 공유 유틸리티
 │           └── scheduler-dedup.js # 스케줄러 중복 실행 방지
 ├── netlify/edge-functions/
@@ -133,11 +131,7 @@ cnecbiz/
 ### 코드 통계
 | 항목 | 수량 |
 |------|------|
-| React 컴포넌트 | ~250개 |
-| Netlify Functions | ~187개 |
-| 라우트 | ~132개 |
-| DB 마이그레이션 | 40+개 |
-| shadcn/ui 컴포넌트 | 46개 |
+
 
 ---
 
@@ -251,14 +245,12 @@ cnecbiz/
 
 ---
 
-## 5. 라우팅 전체 맵 (App.jsx)
 
-### 공개 페이지 (19개)
 | 경로 | 컴포넌트 | 설명 |
 |------|----------|------|
 | `/` | LandingPage | 메인 랜딩 페이지 |
 | `/login` | LoginPageNew | 로그인 |
-| `/signup` | SignupWithVerification | SMS 인증 회원가입 |
+
 | `/find-email` | FindEmailPage | 이메일 찾기 |
 | `/find-password` | FindPasswordPage | 비밀번호 찾기 |
 | `/reset-password` | ResetPasswordPage | 비밀번호 재설정 |
@@ -276,7 +268,6 @@ cnecbiz/
 | `/campaigns/intro/4week` | FourWeekChallengeCampaignIntro | 4주 챌린지 소개 |
 | `/us-shipping-info` | USShippingInfoForm | US 배송정보 폼 |
 
-### 기업 대시보드 (/company/*) - 43개
 | 경로 | 컴포넌트 | 설명 |
 |------|----------|------|
 | `/company/dashboard` | CompanyDashboard | 기업 대시보드 |
@@ -302,6 +293,7 @@ cnecbiz/
 | `/company/campaigns/:id/guide/oliveyoung/review` | OliveYoungGuideViewer | 올영 가이드 리뷰 |
 | `/company/campaigns/:id/guide/4week/review` | FourWeekChallengeGuideViewer | 4주 가이드 리뷰 |
 | `/company/campaigns/:id/review` | CampaignGuideReview | 가이드 리뷰 |
+
 | `/company/campaigns/:id/order-confirmation` | OrderConfirmation | 주문 확인 |
 | `/company/campaigns/:id/invoice` | InvoicePage | 인보이스 |
 | `/company/campaigns/:id/invoice/oliveyoung` | OliveYoungInvoice | 올영 인보이스 |
@@ -319,15 +311,13 @@ cnecbiz/
 | `/company/creators/:id/profile` | CreatorProfilePage | 크리에이터 프로필 |
 | `/company/video-feedback` | CampaignVideoFeedback | 영상 피드백 |
 | `/video-review/:submissionId` | VideoReview | 영상 리뷰 |
-| `/payment/success` | PaymentSuccess | 결제 성공 |
-| `/payment/fail` | PaymentFail | 결제 실패 |
 
-### 관리자 (/admin/*) - 60+개
 | 경로 | 컴포넌트 | 설명 |
 |------|----------|------|
 | `/admin/login` | AdminLogin | 관리자 로그인 (Google OAuth) |
 | `/admin/dashboard` | AdminDashboard | 관리자 대시보드 |
 | `/admin/manage-admins` | AdminManagement | 관리자 계정 관리 |
+
 | `/admin/campaigns` | CampaignsManagement | 캠페인 관리 |
 | `/admin/campaigns/:id` | AdminCampaignDetail | 캠페인 상세 |
 | `/admin/campaigns/:id/edit` | AdminCampaignEdit | 캠페인 수정 |
@@ -341,44 +331,7 @@ cnecbiz/
 | `/admin/campaigns/:id/review` | CampaignReview | 캠페인 리뷰 |
 | `/admin/companies` | CompaniesManagement | 기업 관리 |
 | `/admin/consultations` | ConsultationManagement | 상담 관리 |
-| `/admin/revenue-charts` | RevenueManagementNew | 수익 관리 (**현재 사용**) |
-| `/admin/points-charge` | PointsChargeManagement | 포인트 충전 관리 |
-| `/admin/withdrawals` | WithdrawalManagement | 출금 관리 |
-| `/admin/withdrawal-audit` | WithdrawalAudit | 출금 감사 |
-| `/admin/point-history` | CreatorPointHistory | 포인트 내역 |
-| `/admin/tax-feedback` | TaxFeedbackManagement | 세무 피드백 |
-| `/tax-office/:batchId` | TaxOfficePage | 세무사 페이지 |
-| `/admin/creators` | CreatorManagementPage | 크리에이터 관리 |
-| `/admin/all-creators` | AllCreatorsPage | 전체 크리에이터 |
-| `/admin/featured-creators` | FeaturedCreatorManagementPageNew | 추천 크리에이터 관리 |
-| `/admin/creator-approvals` | FeaturedCreatorApprovals | 크리에이터 승인 |
-| `/admin/creator-mapping` | CreatorMappingManagement | 크리에이터 매핑 |
-| `/admin/campaigns/:campaignId/recommendations` | CampaignCreatorRecommendations | AI 크리에이터 추천 |
-| `/admin/contracts` | AdminContractManagement | 계약서 관리 |
-| `/admin/videos` | VideoManagement | 영상 관리 |
-| `/admin/video-feedback` | VideoFeedback | 영상 피드백 |
-| `/admin/newsletters` | NewsletterShowcaseManagement | 뉴스레터 관리 |
-| `/admin/newsletter-analytics` | NewsletterTrafficAnalytics | 뉴스레터 분석 |
-| `/admin/youtuber-search` | YoutuberSearchPage | 유튜버 검색 |
-| `/admin/daily-reports` | DailyReportPage | 일일 리포트 |
-| `/admin/channel-report/:creatorId` | CreatorReport | 크리에이터 리포트 |
-| `/admin/our-channel-report/:channelId` | OurChannelReport | 자사 채널 리포트 |
-| `/admin/site-editor` | SiteEditor | 사이트 에디터 |
-| `/admin/site-management` | SiteManagement | 사이트 관리 |
-| `/admin/site-management-creator` | SiteManagementCreator | 크리에이터 사이트 관리 |
-| `/admin/receivable-detail/:id` | ReceivableDetailReport | 미수금 상세 |
-| `/admin/line-chat` | LineChatManagement | LINE 채팅 |
-| `/admin/whatsapp-chat` | WhatsAppChatManagement | WhatsApp 채팅 |
-| `/admin/line-messages` | LineMessagesManagement | LINE 메시지 |
-| `/admin/guidebook` | GuidebookManagement | 가이드북 관리 |
-| `/admin/update-history` | GitUpdateHistory | 업데이트 이력 |
-| `/admin/guide-pdfs` | GuidePDFManager | 가이드 PDF |
-| `/admin/test-kakao` | TestKakaoNotification | 카카오 테스트 |
-| `/admin/guide-templates` | CampaignGuideTemplatePrototype | 가이드 템플릿 |
-| `/admin/sns-uploads` | SnsAutoUploadPage | SNS 자동 업로드 |
-| `/admin/sns-uploads/callback/:platform` | SnsOAuthCallback | SNS OAuth 콜백 |
-| `/admin/sns-completed` | SnsUploadManagement | SNS 업로드 완료 |
-| `/admin/meta-ads` | MetaAdsManagement | Meta 광고 관리 |
+
 | `/admin/openclo` | OpenCloDashboard | 오픈클로 대시보드 |
 | `/admin/openclo/creators` | OpenCloCreatorList | 오픈클로 크리에이터 |
 | `/admin/openclo/report` | OpenCloReport | 오픈클로 리포트 |
@@ -394,29 +347,12 @@ cnecbiz/
 | `/creator/video-feedback` | CampaignVideoFeedback | 영상 피드백 |
 | `/creator/:creatorId` | CreatorDetailProfile | 크리에이터 상세 |
 
+
 ### 인증 방식
 - 중앙화된 라우트 가드 없음 → **컴포넌트 레벨 인증 체크**
 - 각 보호된 컴포넌트에서 `supabaseBiz.auth.getUser()` 호출 후 리다이렉트
 - 관리자는 `admin_users` 테이블 추가 확인
-- 전역 컴포넌트: `<ConsultationBanner />`, `<HolidayNotice />`
 
----
-
-## 6. Netlify Functions 분류 (~187개)
-
-### 인증/회원 (8개)
-| 함수 | 메서드 | 설명 |
-|------|--------|------|
-| `complete-signup.js` | POST | 회원가입 완료 (SMS 인증 → Auth 계정 → companies insert) |
-| `find-email.js` | POST | 사업자번호+전화번호로 이메일 찾기 |
-| `find-email-by-phone.js` | POST | 핸드폰 번호로 이메일 찾기 |
-| `request-password-reset.js` | POST | 비밀번호 재설정 링크 발송 |
-| `reset-password.js` | POST | 비밀번호 변경 |
-| `admin-reset-password.js` | POST | 관리자 비밀번호 재설정 |
-| `creator-admin-reset-password.js` | POST | 크리에이터 비밀번호 재설정 |
-| `verify-sms-code.js` | POST | SMS 인증 코드 확인 |
-
-### SMS/알림 (6개)
 | 함수 | 설명 |
 |------|------|
 | `send-sms-verification.js` | 6자리 인증번호 SMS 발송 (Popbill) |
@@ -424,30 +360,24 @@ cnecbiz/
 | `send-kakao-notification.js` | 카카오 알림톡 발송 (Popbill Kakao API) |
 | `send-notifications.js` | 통합 알림 (카카오+이메일+SMS 병렬) |
 | `send-notification-helper.js` | 알림 헬퍼 함수 |
-| `send-error-alert.js` | 에러 알림 (54220a7e 채널로 자동 발송) |
-| `send-signup-kakao.js` | 가입 완료 카카오 알림 |
 
-### 이메일 (10개)
 | 함수 | 설명 |
 |------|------|
 | `send-email.js` | 기본 이메일 (Nodemailer/Gmail) |
 | `send-template-email.js` | 템플릿 이메일 (email_templates 테이블) |
-| `send-campaign-invitation.js` | 캠페인 초대 |
-| `send-creator-invitation.js` | 크리에이터 초대 |
-| `send-outreach-email.js` | 아웃리치 이메일 |
-| `send-external-guide-email.js` | 외부 가이드 이메일 |
-| `send-scene-guide-email.js` | 장면 가이드 이메일 |
+
 | `send-japan-notification.js` | 일본 알림 |
 | `send-us-notification.js` | 미국 알림 |
 | `send-line-invitation-email.js` | LINE 초대 이메일 |
 
-### 결제/포인트 (18개)
+
 | 함수 | 설명 |
 |------|------|
 | `confirm-payment.js` | 수동 입금 확인 → 포인트 지급 |
 | `confirm-toss-payment.js` | 토스 카드결제 승인 |
 | `confirm-charge-complete.js` | 충전 완료 처리 |
 | `create-charge-request.js` | 충전 요청 생성 (RLS 우회) |
+
 | `precharge-points.js` | 포인트 선충전 |
 | `award-bonus-points.js` | 보너스 포인트 지급 |
 | `award-campaign-points.js` | 캠페인 포인트 지급 |
@@ -459,23 +389,24 @@ cnecbiz/
 | `toss-webhook.js` | 토스 웹훅 |
 | `get-bank-transactions.js` | 은행 거래 조회 |
 | `get-howlab-deposits.js` | Howlab 입금 조회 |
+
 | `popbill-check-deposit.js` | 팝빌 입금 확인 |
 | `manual-match-deposit.js` | 수동 입금 매칭 |
 | `rematch-unmatched-deposits.js` | 미매칭 재매칭 |
 
-### 계약서 (3개)
+
 | 함수 | 설명 |
 |------|------|
 | `create-contract.js` | 계약서 생성 (만료일 30일) |
 | `sign-contract.js` | 서명 완료 (pending → signed, 로그 기록) |
 | `get-final-confirmations.js` | 최종 확인 계약서 조회 |
 
-### 캠페인 관리 (12개)
 | 함수 | 설명 |
 |------|------|
 | `approve-campaign.js` | 캠페인 승인 + Naver Works 알림 |
 | `update-campaign-status.js` | 상태 변경 (모든 리전) |
 | `submit-campaign-review.js` | 검수 신청 |
+
 | `generate-campaign-guide.js` | AI 가이드 생성 (Gemini, 60초) |
 | `generate-4week-challenge-guide.js` | 4주 챌린지 가이드 |
 | `generate-japan-guide.js` | 일본 가이드 |
@@ -484,20 +415,14 @@ cnecbiz/
 | `generate-personalized-guide.js` | 개인화 가이드 (AI) |
 | `regenerate-personalized-guide.js` | 가이드 재생성 |
 | `save-personalized-guide.js` | 가이드 저장 |
-| `deliver-4week-guide.js` / `deliver-japan-guide.js` / `deliver-oliveyoung-guide.js` / `deliver-us-guide.js` | 가이드 전달 |
 
-### 세금계산서 (7개)
 | 함수 | 설명 |
 |------|------|
 | `issue-tax-invoice.js` | 세금계산서 발행 (Popbill) |
 | `issue-tax-invoice-cancel.js` | 수정세금계산서 (6가지 수정사유코드) |
 | `issue-tax-invoice-haulab.js` | Haulab 세금계산서 |
 | `issue-tax-invoice-manual.js` | 수동 세금계산서 |
-| `get-tax-invoice-requests.js` | 세금계산서 신청 조회 |
-| `popbill-issue-cashbill.js` | 현금영수증 발행 |
-| `popbill-webhook.js` | Popbill 웹훅 |
 
-### 콘텐츠 업로드 (8개)
 | 함수 | 설명 |
 |------|------|
 | `upload-to-youtube.js` | YouTube 업로드 (OAuth, 5분 타임아웃) |
@@ -523,11 +448,7 @@ cnecbiz/
 | `get-ai-creator-recommendations.js` | AI 추천 (Gemini) |
 | `get-featured-creators.js` | 추천 크리에이터 조회 |
 | `get-application-stats.js` | 신청 통계 |
-| `add-featured-creator.js` / `remove-featured-creator.js` | 추천 크리에이터 추가/제거 |
-| `manage-affiliated-creators.js` | 소속 크리에이터 관리 |
-| `manage-our-channels.js` | 자사 채널 관리 |
 
-### AI/생성 (10개)
 | 함수 | 설명 |
 |------|------|
 | `generate-newsletter-image.js` | AI 뉴스레터 이미지 |
@@ -541,7 +462,6 @@ cnecbiz/
 | `crawl-product-url.js` | 제품 URL 크롤링 |
 | `analyze-newsletter-seo.js` | 뉴스레터 SEO 분석 |
 
-### 뉴스레터/Stibee (8개)
 | 함수 | 설명 |
 |------|------|
 | `fetch-stibee-newsletters.js` | Stibee 뉴스레터 가져오기 |
@@ -551,9 +471,7 @@ cnecbiz/
 | `track-newsletter-view.js` | 조회수 추적 (UTM) |
 | `send-stibee-auto-email.js` | Stibee 자동 이메일 |
 | `send-stibee-campaign.js` | Stibee 캠페인 |
-| `newsletter-traffic-analytics.js` | 트래픽 분석 |
 
-### 메시징/웹훅 (12개)
 | 함수 | 설명 |
 |------|------|
 | `send-line-message.js` | LINE 메시지 (자동 번역 지원) |
@@ -565,7 +483,7 @@ cnecbiz/
 | `whatsapp-messages.js` | WhatsApp 메시지 |
 | `github-webhook-notify.js` | GitHub 웹훅 알림 |
 
-### 스케줄 작업 (20+개)
+
 | 함수 | 스케줄 | 설명 |
 |------|--------|------|
 | `scheduled-collect-transactions` | 매 1분 | 거래 수집 |
@@ -581,16 +499,12 @@ cnecbiz/
 | `scheduled-youtube-update-check` | 매일 09시 KST | YouTube 업데이트 확인 |
 | `scheduled-openclo-email` | 매일 10시 KST | 오픈클로 이메일 |
 | `scheduled-openclo-report` | 매일 18시 KST | 오픈클로 리포트 |
-| `scheduled-stibee-sync` | 매일 17시 KST | Stibee 동기화 |
-| `scheduled-stibee-sync-us` | 매일 10시 EST | Stibee 미국 동기화 |
-| `scheduled-weekly-report` | 매주 월요일 10시 KST | 통합 주간 리포트 |
+
 
 ### OpenClo (5개)
 | 함수 | 설명 |
 |------|------|
 | `openclo-ai-analyze.js` | AI 분석 |
-| `openclo-bot-youtube.js` / `openclo-bot-instagram.js` / `openclo-bot-tiktok.js` | 플랫폼 봇 |
-| `scheduled-openclo-crawl.js` | 크롤링 스케줄러 |
 
 ---
 
@@ -600,49 +514,12 @@ cnecbiz/
 
 #### supabaseClients.js (핵심)
 - 멀티-리전 Supabase 클라이언트 (싱글턴 패턴)
-- `getSupabaseClient(region)` - 리전 기반 클라이언트 선택
-- `createCampaignInRegions(campaignData, selectedRegions)` - 멀티-리전 캠페인 생성
-- `getCampaignsFromAllRegions()` - 전체 리전 캠페인 통합 조회
-- `getApplicationStatsForCampaigns()` - 신청 통계 (selected, virtual_selected, approved, completed)
-- `getCampaignsWithStats()` / `getCampaignsFast()` - 최적화된 캠페인 조회
-
-#### creatorMatchingService.js
-- Gemini API 기반 AI 매칭 (gemini-2.5-flash-lite)
-- `generateAIMatchingReasons(campaign, creator)` - 매칭 분석
-- `generateCampaignRecommendations(campaignId)` - 배치 매칭 (상위 10명 추천)
-- 스코어: category_match 30%, audience 20%, engagement 25%, followers 15%, content_style 10%
-- 테이블: `campaign_creator_matches`
-
-#### geminiService.js
-- OpenAI SDK + Gemini API endpoint 어댑터
-- `analyzeCreator()` - 크리에이터 평가 (total_score, recommendation_level 등)
-- `generateGuide()` - 촬영 가이드 생성 (스크립트, 장면 분해, 기술 사양)
-- `translateGuide(guide, targetLanguage)` - 가이드 번역 (ja/en/zh-TW)
-- `getRecommendationBadge(score)` - 90+: 최우수, 80+: 강력, 70+: 추천, 60+: 일반, <60: 검토필요
-
-#### stripeService.js
-- Stripe 결제 + 가격 관리
-- PACKAGE_PRICES: basic (200K), standard (300K), premium (400K), monthly (600K)
-- 리전 멀티플라이어 적용
-- `createPaymentIntent()`, `savePaymentRecord()`, `activateCampaign()`
-
-#### encryptionHelper.js
-- 주민등록번호 암호화/복호화 (Supabase RPC: encrypt_text, decrypt_text)
-- `maskResidentNumber()` - "123456-1******" 포맷
-- `validateResidentNumber()` - 체크섬 검증
 
 #### pdfGenerator.js
 - jsPDF + jspdf-autotable로 견적서/계약서 PDF 생성
 - `generateQuotationPDF()`, `generateContractPDF()`
 
 #### revenueHelper.js
-- `getRevenueFromAllRegions()` - 리전별 매출 집계
-- `getMonthlyRevenueStats()` - 월별 매출 통계
-- `getPointCharges()`, `getAccountsReceivable()` - Korea DB
-
-#### popbillTemplates.js
-- 카카오 알림톡 템플릿 (COMPANY 19개, CREATOR 14개, INVITATION)
-- 각 템플릿: code, name, description, params[]
 
 #### creatorMediaService.js
 - YouTube/Instagram 프로필 이미지 추출
@@ -654,8 +531,7 @@ cnecbiz/
 - JSON 내보내기, 인쇄용 HTML 리포트
 
 #### teamService.js
-- 팀 역할: owner, admin, member, viewer
-- 역할별 권한 매트릭스 (canCreateCampaign, canManagePayment 등)
+
 
 #### youtubeScraperService.js
 - API 키 없이 YouTube 채널 스크래핑
@@ -672,14 +548,7 @@ cnecbiz/
 - 캐싱: `campaign_recommendations` 테이블
 
 #### creatorGradeService.js
-- 5단계 등급: FRESH → GLOW → BLOOM → ICONIC → MUSE
-- 10종 뱃지: Color Expert, Skincare Guru, Reel Master 등
-- `calculateGradeLevel(totalScore, completedCampaigns, recollaborationRate, isManualMuse)`
 
-#### notifications/
-- **companyNotifications.js** (9개): 가입, 결제요청, 충전완료, 캠페인승인, 모집마감, 가이드제출, 영상제출, 완료, 검수요청
-- **creatorNotifications.js** (13개): 가입, 선정, 가이드전달, 마감알림(3일/2일/당일), 수정요청, 승인, 포인트지급, 출금요청, 출금완료, 지연경고, 취소
-- **lineNotifications.js**: LINE 메시지 알림
 
 ### src/data/
 
@@ -801,10 +670,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 ### 메시징
 | 변수 | 용도 |
 |------|------|
-| `GMAIL_EMAIL` / `GMAIL_APP_PASSWORD` | Gmail 이메일 발송 (⚠️ GMAIL_USER 아님!) |
-| `NAVER_WORKS_CLIENT_ID` / `CLIENT_SECRET` / `BOT_ID` | 네이버 웍스 인증 |
-| `NAVER_WORKS_CHANNEL_ID` | 기본 채널 (75c24874 - 결제/캠페인) |
-| `NAVER_WORKS_CONSULTATION_CHANNEL_ID` | 상담 채널 (b9387420 - 가입/상담) |
+
 | `NAVER_WORKS_WITHDRAWAL_CHANNEL_ID` | 출금 알림 채널 |
 
 ### 기타
@@ -858,14 +724,6 @@ export default function ComponentName() {
 }
 ```
 
-### Supabase 멀티-리전 규칙
-| 테이블 | 위치 | 설명 |
-|--------|------|------|
-| `companies`, `admin_users`, `contracts`, `payments`, `featured_creators` | **BIZ DB만** | 중앙 비즈니스 데이터 |
-| `campaigns`, `applications`, `user_profiles` | **리전 DB** (Korea/Japan/US) | 리전별 분리, BIZ에 없음 |
-| `campaign_invitations`, `points_charge_requests` | **BIZ DB** | 중앙 관리 |
-
-⚠️ **주의**: `campaigns`와 `applications`를 BIZ DB에서 조회하면 데이터가 없음. 반드시 리전 DB에서 조회해야 함.
 
 ### Supabase 호출 패턴
 ```javascript
@@ -934,44 +792,13 @@ const headers = {
 ### 알림 채널
 | 채널 | 서비스 | 용도 |
 |------|--------|------|
-| 카카오 알림톡 | Popbill API | 한국 사용자 주요 알림 (기업/크리에이터) |
-| SMS | Popbill API | 인증, 폴백 |
-| 이메일 | Nodemailer (Gmail) | 글로벌 알림, 계약서, 가이드 |
-| LINE | LINE Bot SDK | 일본 크리에이터 알림 (자동 번역 지원) |
-| WhatsApp | Twilio | 글로벌 메시징 |
-| 네이버 웍스 | JWT API (RS256) | 내부 운영팀 알림 (3개 채널 라우팅) |
 
-### 네이버 웍스 채널 라우팅
-| 채널 ID | 용도 | 사용처 |
-|---------|------|--------|
-| `75c24874-e370-afd5-9da3-72918ba15a3c` | **결제/캠페인/포인트/LINE** | 입금확인, 결제, 캠페인 상태변경, 크리에이터 지원, 포인트 충전, 영상 업로드 |
-| `b9387420-7c8d-e703-0f96-dbfc72565bb5` | **상담신청/회원가입** | 기업 가입, 크리에이터 가입, 상담 문의, 크리에이터 매칭 요청 |
-| `54220a7e-0b14-1138-54ec-a55f62dc8b75` | **에러 알림/OpenClo** | 시스템 오류 자동 알림, OpenClo 봇 관리 |
-
-### 에러 알림 시스템
-- **`send-error-alert.js`**: 에러 발생 시 `54220a7e` 채널로 자동 발송
-- **무한루프 방지**: `send-naver-works-message.js`는 에러 채널 실패 시 추가 알림 안 보냄
-- **적용 함수**: send-kakao-notification, send-email, confirm-payment, confirm-toss-payment, confirm-campaign-payment, create-charge-request, approve-campaign, update-campaign-status
-
-### 기업 알림 수신 정보
-- companies 테이블에서 `notification_phone` > `phone`, `notification_email` > `email` 우선 사용
-- 프로필 수정 시 즉시 반영 (캐시 없음)
 
 ### 알림 패턴
 - **병렬 발송**: 카카오 + 이메일 + SMS 동시 (send-notification-helper.js)
 - **폴백**: 카카오 실패 시 SMS, LINE 실패 시 이메일
 - **자동 번역**: LINE 메시지 자동 번역 지원 (Gemini API)
-- **서버사이드 URL**: `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/...`
 
-### 카카오 알림톡 plusFriendID
-| 대상 | plusFriendID | 템플릿 코드 범위 |
-|------|-------------|-----------------|
-| 기업용 | `@크넥` | 025100000912 ~ 025100001010 |
-| 크리에이터용 | `@크넥_크리에이터` | 025100001011 ~ 025100001022, 025110000796~ |
-
-### 이메일 환경변수
-- 올바른 이름: `GMAIL_EMAIL` + `GMAIL_APP_PASSWORD`
-- ⚠️ `GMAIL_USER` 사용 금지 (일부 레거시 파일에서 사용 → `GMAIL_EMAIL`로 통일)
 
 ---
 
