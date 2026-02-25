@@ -6476,6 +6476,24 @@ Questions? Contact us.
         } else {
           console.warn('기업 전화번호를 찾을 수 없어 알림톡 스킵')
         }
+
+        // 네이버 웍스 알림 (프론트엔드에서 직접 호출 — 서버사이드 간접 호출 불안정 대체)
+        const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        const naverWorksMsg = `📹 영상 제출 알림\n\n📋 캠페인: ${campaign?.title || ''}\n🏢 기업: ${companyDisplayName}\n👤 크리에이터: ${creatorName}\n📌 버전: V${version}\n⏰ 제출 시간: ${koreanDate}`
+        try {
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: naverWorksMsg
+            })
+          })
+          console.log('영상 제출 네이버웍스 알림 발송 완료:', creatorName)
+        } catch (nwErr) {
+          console.error('네이버웍스 알림 발송 실패:', nwErr)
+        }
       } catch (notifErr) {
         console.error('알림톡 발송 실패:', notifErr)
       }
