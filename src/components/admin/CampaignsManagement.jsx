@@ -267,9 +267,13 @@ export default function CampaignsManagement() {
   const [companyInfo, setCompanyInfo] = useState(null)
   const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(false)
 
+  // 기업명 매핑 (company_id/email -> company_name)
+  const [companyNameMap, setCompanyNameMap] = useState({})
+
   useEffect(() => {
     checkAuth()
     fetchCampaigns()
+    fetchCompanyNameMap()
   }, [])
 
   // 필터 변경 시 페이지 초기화
@@ -303,6 +307,45 @@ export default function CampaignsManagement() {
     }
   }
 
+  // BIZ DB에서 모든 기업명을 가져와 매핑 생성
+  const fetchCompanyNameMap = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('companies')
+        .select('id, user_id, email, company_name, notification_phone, notification_email')
+
+      if (error || !data) return
+
+      const map = {}
+      data.forEach(company => {
+        if (company.id) map[`id:${company.id}`] = company
+        if (company.user_id) map[`uid:${company.user_id}`] = company
+        if (company.email) map[`email:${company.email}`] = company
+      })
+      setCompanyNameMap(map)
+    } catch (e) {
+      console.error('기업명 매핑 로드 실패:', e)
+    }
+  }
+
+  // 캠페인에서 기업명 조회 헬퍼
+  const getCompanyName = useCallback((campaign) => {
+    if (!campaign) return null
+    // company_id로 조회 (id 또는 user_id 모두 시도)
+    if (campaign.company_id) {
+      const byId = companyNameMap[`id:${campaign.company_id}`]
+      if (byId) return byId.company_name
+      const byUid = companyNameMap[`uid:${campaign.company_id}`]
+      if (byUid) return byUid.company_name
+    }
+    // company_email로 조회
+    if (campaign.company_email) {
+      const byEmail = companyNameMap[`email:${campaign.company_email}`]
+      if (byEmail) return byEmail.company_name
+    }
+    return null
+  }, [companyNameMap])
+
   const fetchCampaigns = async (withStats = false) => {
     setLoading(true)
     try {
@@ -331,11 +374,14 @@ export default function CampaignsManagement() {
         (filterCompanyId && campaign.company_id === filterCompanyId) ||
         (filterCompanyEmail && campaign.company_email === filterCompanyEmail)
 
+      const companyName = getCompanyName(campaign)
       const matchesSearch = searchTerm === '' ||
         campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         campaign.campaign_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         campaign.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        campaign.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        campaign.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        campaign.company_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        companyName?.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
 
@@ -1265,7 +1311,7 @@ export default function CampaignsManagement() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   type="text"
-                  placeholder="캠페인 제목, 브랜드명으로 검색..."
+                  placeholder="캠페인 제목, 기업명, 이메일로 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white"
@@ -1474,6 +1520,15 @@ export default function CampaignsManagement() {
                                 <CampaignTypeBadge type={campaign.campaign_type} />
                                 <RegionBadge region={campaign.region} />
                                 <StatusBadge status={campaign.status} />
+                                {/* 기업명 */}
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); handleCampaignClick(campaign) }}
+                                  title="클릭하여 기업 정보 보기"
+                                >
+                                  <Building2 className="w-3 h-3" />
+                                  {getCompanyName(campaign) || campaign.company_email || '미등록'}
+                                </span>
                                 {/* D-day 표시 */}
                                 <DdayBadge daysLeft={daysLeft} />
                                 {/* 경고 인디케이터 */}
@@ -1930,6 +1985,27 @@ export default function CampaignsManagement() {
                             </p>
                           </div>
                         </div>
+
+                        {/* 알림 수신 연락처 (notification 필드가 있는 경우만 표시) */}
+                        {(companyInfo.notification_phone || companyInfo.notification_email) && (
+                          <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg md:col-span-2 border border-amber-200">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                              <Mail className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-amber-700 font-medium mb-1">알림 수신 연락처 (알림톡/이메일이 여기로 발송됩니다)</p>
+                              {companyInfo.notification_phone && (
+                                <p className="text-sm text-gray-900">전화: {companyInfo.notification_phone}</p>
+                              )}
+                              {companyInfo.notification_email && (
+                                <p className="text-sm text-gray-900">이메일: {companyInfo.notification_email}</p>
+                              )}
+                              {companyInfo.notification_contact_person && (
+                                <p className="text-sm text-gray-600">담당자: {companyInfo.notification_contact_person}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* 웹사이트 */}
                         {companyInfo.website && (

@@ -97,15 +97,47 @@ exports.handler = async (event, context) => {
 
     console.log('[send-campaign-activation-notification] Campaign:', campaign.title)
 
-    // 회사 정보 조회 (company_id 사용)
-    const { data: company, error: companyError } = await supabaseBiz
-      .from('companies')
-      .select('*')
-      .eq('id', campaign.company_id)
-      .single()
+    // 회사 정보 조회 (company_id → user_id → company_email 순서로 폴백)
+    let company = null
 
-    if (companyError || !company) {
-      console.error('[send-campaign-activation-notification] Company not found:', companyError)
+    if (campaign.company_id) {
+      // 1. companies.id로 조회 (이관된 캠페인)
+      const { data: byId } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (byId) {
+        company = byId
+      } else {
+        // 2. companies.user_id로 조회 (원래 생성된 캠페인)
+        const { data: byUserId } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (byUserId) company = byUserId
+      }
+    }
+
+    // 3. company_email로 조회
+    if (!company && campaign.company_email) {
+      const { data: byEmail } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (byEmail) company = byEmail
+    }
+
+    if (!company) {
+      console.error('[send-campaign-activation-notification] Company not found for:', {
+        company_id: campaign.company_id,
+        company_email: campaign.company_email
+      })
       return {
         statusCode: 404,
         headers,
