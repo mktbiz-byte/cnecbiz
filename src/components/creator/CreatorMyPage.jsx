@@ -246,6 +246,10 @@ const CreatorMyPage = () => {
       const allFiles = [...existingFiles, ...uploadedFiles]
 
       // Netlify Function으로 DB 업데이트 (service role key로 RLS 우회)
+      // 캠페인/기업/크리에이터 정보를 hint로 전달하여 서버 알림에서 정확한 이름 사용
+      const hintCampaignTitle = selectedCampaign?.campaigns?.title || selectedCampaign?.title || null
+      const hintCompanyName = selectedCampaign?.campaigns?.company_name || selectedCampaign?.campaigns?.brand_name || selectedCampaign?.campaigns?.brand || null
+      const hintCreatorName = user?.user_metadata?.name || user?.email || null
       const saveRes = await fetch('/.netlify/functions/save-video-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -253,7 +257,10 @@ const CreatorMyPage = () => {
           action: 'update_participant',
           participantId,
           videoFiles: allFiles,
-          videoStatus: 'uploaded'
+          videoStatus: 'uploaded',
+          campaignTitle: hintCampaignTitle,
+          companyName: hintCompanyName,
+          creatorName: hintCreatorName
         })
       })
       const saveResult = await saveRes.json()
@@ -269,26 +276,6 @@ const CreatorMyPage = () => {
           })
           .eq('id', participantId)
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
-      }
-
-      // 네이버 웍스 알림 — 프론트엔드에서 직접 호출 (서버사이드 간접 호출 불안정 대체)
-      try {
-        const campaignTitle = selectedCampaign?.campaigns?.title || selectedCampaign?.title || '캠페인'
-        const uploaderName = user?.user_metadata?.name || user?.email || '크리에이터'
-        const korDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-        const nwMsg = `📹 영상 제출 알림\n\n📋 캠페인: ${campaignTitle}\n👤 크리에이터: ${uploaderName}\n📎 파일 수: ${files.length}개\n⏰ 제출 시간: ${korDate}`
-        await fetch('/.netlify/functions/send-naver-works-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-            message: nwMsg
-          })
-        })
-        console.log('영상 제출 네이버웍스 알림 발송 완료')
-      } catch (nwErr) {
-        console.error('네이버웍스 알림 발송 실패:', nwErr)
       }
 
       alert('영상이 성공적으로 업로드되었습니다!')
