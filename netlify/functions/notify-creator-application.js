@@ -1,8 +1,30 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// BIZ DB (중앙 - companies, campaign_invitations, featured_creators)
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Korea DB (applications, campaigns, user_profiles)
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
+const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
+  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
+  : null;
+
+// Japan DB
+const supabaseJapanUrl = process.env.VITE_SUPABASE_JAPAN_URL;
+const supabaseJapanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
+const supabaseJapan = supabaseJapanUrl && supabaseJapanServiceKey
+  ? createClient(supabaseJapanUrl, supabaseJapanServiceKey)
+  : null;
+
+// US DB
+const supabaseUSUrl = process.env.VITE_SUPABASE_US_URL;
+const supabaseUSServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY;
+const supabaseUS = supabaseUSUrl && supabaseUSServiceKey
+  ? createClient(supabaseUSUrl, supabaseUSServiceKey)
+  : null;
 
 /**
  * 크리에이터가 캠페인에 지원했을 때 기업에게 알림 발송
@@ -57,21 +79,36 @@ exports.handler = async (event) => {
       };
     }
 
-    // 1. 지원 정보 조회
-    const { data: application, error: appError } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        campaign_id,
-        user_id,
-        status,
-        created_at
-      `)
-      .eq('id', applicationId)
-      .single();
+    // 1. 지원 정보 조회 (리전별 DB에서 검색)
+    const regionalClients = [
+      { name: 'korea', client: supabaseKorea },
+      { name: 'japan', client: supabaseJapan },
+      { name: 'us', client: supabaseUS },
+      { name: 'biz', client: supabase }
+    ].filter(r => r.client);
 
-    if (appError || !application) {
-      console.error('[ERROR] Application not found:', appError);
+    let application = null;
+    let regionalClient = null;
+    let regionName = null;
+
+    for (const region of regionalClients) {
+      const { data, error } = await region.client
+        .from('applications')
+        .select('id, campaign_id, user_id, status, created_at')
+        .eq('id', applicationId)
+        .single();
+
+      if (data && !error) {
+        application = data;
+        regionalClient = region.client;
+        regionName = region.name;
+        console.log(`[INFO] Application found in ${region.name} DB`);
+        break;
+      }
+    }
+
+    if (!application) {
+      console.error('[ERROR] Application not found in any region');
       return {
         statusCode: 404,
         headers,
@@ -82,10 +119,10 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. 캠페인 정보 조회
-    const { data: campaign, error: campaignError } = await supabase
+    // 2. 캠페인 정보 조회 (같은 리전 DB에서)
+    const { data: campaign, error: campaignError } = await regionalClient
       .from('campaigns')
-      .select('id, title, company_id')
+      .select('id, title, company_id, company_email')
       .eq('id', application.campaign_id)
       .single();
 
@@ -101,15 +138,29 @@ exports.handler = async (event) => {
       };
     }
 
-    // 3. 크리에이터 정보 조회
-    const { data: creator, error: creatorError } = await supabase
+    // 3. 크리에이터 정보 조회 (같은 리전 DB 우선, BIZ DB 폴백)
+    let creator = null;
+
+    const { data: regionalCreator } = await regionalClient
       .from('user_profiles')
       .select('id, full_name, email, phone, instagram_followers, youtube_subscribers, tiktok_followers')
       .eq('id', application.user_id)
       .single();
 
-    if (creatorError || !creator) {
-      console.error('[ERROR] Creator not found:', creatorError);
+    if (regionalCreator) {
+      creator = regionalCreator;
+    } else if (regionName !== 'biz') {
+      // 리전 DB에 없으면 BIZ DB에서 조회
+      const { data: bizCreator } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, phone, instagram_followers, youtube_subscribers, tiktok_followers')
+        .eq('id', application.user_id)
+        .single();
+      creator = bizCreator;
+    }
+
+    if (!creator) {
+      console.error('[ERROR] Creator not found in any DB');
       return {
         statusCode: 404,
         headers,
@@ -120,30 +171,74 @@ exports.handler = async (event) => {
       };
     }
 
-    // 4. 기업 정보 조회 (user_profiles + companies 테이블)
-    const { data: companyProfile } = await supabase
-      .from('user_profiles')
-      .select('id, full_name, company_name, email, phone')
-      .eq('id', campaign.company_id)
-      .single();
+    // 4. 기업 정보 조회 (companies 테이블 우선 → user_profiles 폴백)
+    // 이관된 캠페인의 경우 company_id가 companies.id 또는 companies.user_id일 수 있음
+    let companyRecord = null;
+    let companyProfile = null;
 
-    // companies 테이블에서 phone 조회 (user_id로 매핑)
-    const { data: companyRecord } = await supabase
-      .from('companies')
-      .select('id, company_name, email, phone, notification_phone, user_id')
-      .eq('user_id', campaign.company_id)
-      .single();
+    if (campaign.company_id) {
+      // 4-1. companies.id로 조회 (이관 후 company_id가 companies.id인 경우)
+      const { data: byId } = await supabase
+        .from('companies')
+        .select('id, company_name, email, phone, notification_phone, notification_email, notification_contact_person, user_id')
+        .eq('id', campaign.company_id)
+        .maybeSingle();
+
+      if (byId) {
+        companyRecord = byId;
+        console.log('[INFO] Company found by companies.id in BIZ DB');
+      }
+
+      // 4-2. companies.user_id로 조회 (원래 생성된 캠페인의 경우)
+      if (!companyRecord) {
+        const { data: byUserId } = await supabase
+          .from('companies')
+          .select('id, company_name, email, phone, notification_phone, notification_email, notification_contact_person, user_id')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle();
+
+        if (byUserId) {
+          companyRecord = byUserId;
+          console.log('[INFO] Company found by companies.user_id in BIZ DB');
+        }
+      }
+
+      // 4-3. user_profiles에서 조회 (폴백)
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, company_name, email, phone')
+        .eq('id', campaign.company_id)
+        .maybeSingle();
+
+      if (profileData) {
+        companyProfile = profileData;
+      }
+    }
+
+    // 4-4. company_email로 조회 (company_id로 찾지 못한 경우)
+    if (!companyRecord && campaign.company_email) {
+      const { data: byEmail } = await supabase
+        .from('companies')
+        .select('id, company_name, email, phone, notification_phone, notification_email, notification_contact_person, user_id')
+        .eq('email', campaign.company_email)
+        .maybeSingle();
+
+      if (byEmail) {
+        companyRecord = byEmail;
+        console.log('[INFO] Company found by company_email in BIZ DB');
+      }
+    }
 
     const company = {
-      id: companyProfile?.id || companyRecord?.user_id,
+      id: companyRecord?.user_id || companyProfile?.id,
       full_name: companyProfile?.full_name,
       company_name: companyRecord?.company_name || companyProfile?.company_name,
-      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
-      email: companyRecord?.email || companyProfile?.email
+      phone: companyRecord?.notification_phone || companyRecord?.phone || companyProfile?.phone,
+      email: companyRecord?.notification_email || companyRecord?.email || companyProfile?.email
     };
 
     if (!companyProfile && !companyRecord) {
-      console.error('[ERROR] Company not found for company_id:', campaign.company_id);
+      console.error('[ERROR] Company not found for company_id:', campaign.company_id, 'company_email:', campaign.company_email);
       return {
         statusCode: 404,
         headers,
@@ -289,6 +384,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[ERROR] Notify creator application error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'notify-creator-application',
+          errorMessage: error.message,
+          context: { applicationId: JSON.parse(event.body || '{}').applicationId || '알 수 없음' }
+        })
+      })
+    } catch (e) { console.error('[notify-creator-application] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers: {

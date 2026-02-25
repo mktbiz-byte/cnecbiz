@@ -33,7 +33,7 @@ async function sendNotification({
   // 1. 카카오톡 알림톡 발송
   if (receiverNum && templateCode) {
     try {
-      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      const baseUrl = process.env.URL || 'https://cnecbiz.com'
       console.log('[INFO] Sending Kakao notification to:', receiverNum)
       const kakaoResponse = await axios.post(
         `${baseUrl}/.netlify/functions/send-kakao-notification`,
@@ -59,7 +59,7 @@ async function sendNotification({
   // 2. 이메일 발송
   if (receiverEmail && emailSubject && emailHtml) {
     try {
-      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      const baseUrl = process.env.URL || 'https://cnecbiz.com'
       console.log('[INFO] Sending email to:', receiverEmail)
       const emailResponse = await axios.post(
         `${baseUrl}/.netlify/functions/send-email`,
@@ -118,7 +118,7 @@ function generateEmailHtml(templateCode, variables) {
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="https://cnectotal.netlify.app/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">로그인하기</a>
+              <a href="https://cnecbiz.com/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">로그인하기</a>
             </div>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
@@ -178,7 +178,7 @@ function generateEmailHtml(templateCode, variables) {
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="https://cnectotal.netlify.app/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">대시보드 바로가기</a>
+              <a href="https://cnecbiz.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">대시보드 바로가기</a>
             </div>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">

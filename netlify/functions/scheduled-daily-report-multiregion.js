@@ -390,7 +390,7 @@ exports.handler = async (event, context) => {
       });
     }
 
-    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnectotal.netlify.app/admin/creators`;
+    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnecbiz.com/admin/creators`;
 
     // 네이버 웍스 메시지 전송
     try {

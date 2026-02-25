@@ -15,24 +15,24 @@ function getSupabaseClient(region) {
     case 'korea':
     case 'kr':
       supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
-      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       break
     case 'japan':
     case 'jp':
       supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
       // 다양한 환경변수 이름 지원
-      supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
       break
     case 'us':
     case 'usa':
       supabaseUrl = process.env.VITE_SUPABASE_US_URL
       // 다양한 환경변수 이름 지원
-      supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
       break
     case 'taiwan':
     case 'tw':
       supabaseUrl = process.env.VITE_SUPABASE_TAIWAN_URL
-      supabaseKey = process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY || process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
+      supabaseKey = process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
       break
     default:
       supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
@@ -315,9 +315,10 @@ exports.handler = async (event, context) => {
             }
           }
 
-          console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: company.phone } : null)
+          const companyNotifyPhone = company ? (company.notification_phone || company.phone) : null
+          console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: companyNotifyPhone } : null)
 
-          if (company && company.phone) {
+          if (company && companyNotifyPhone) {
             const templateCode = '025100001005'
 
             const formatDate = (dateString) => {
@@ -341,8 +342,8 @@ exports.handler = async (event, context) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                receiverNum: company.phone,
-                receiverName: company.company_name,
+                receiverNum: companyNotifyPhone,
+                receiverName: company.notification_contact_person || company.company_name,
                 templateCode,
                 variables
               })
@@ -390,6 +391,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[update-campaign-status] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId, status, region } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'update-campaign-status (캠페인 상태 변경)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId, 상태: status, 리전: region }
+        })
+      })
+    } catch (e) { console.error('[update-campaign-status] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

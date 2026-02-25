@@ -225,7 +225,7 @@ exports.handler = async (event) => {
                 <li><strong>마감일:</strong> ${campaign.deadline || '상시'}</li>
               </ul>
               <p>
-                <a href="https://cnectotal.netlify.app/creator/campaigns/${campaign.id}" 
+                <a href="https://cnecbiz.com/creator/campaigns/${campaign.id}" 
                    style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                   지금 바로 지원하기
                 </a>

@@ -197,7 +197,7 @@ exports.handler = async (event, context) => {
             console.log('[INFO] Sending Kakao notification to:', companyPhone)
             try {
               await axios.post(
-                `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+                `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`,
                 {
                   receiverNum: companyPhone,
                   receiverName: companyName,
@@ -233,13 +233,14 @@ exports.handler = async (event, context) => {
               `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
               `입금자명: ${depositorName}\n` +
               `신청 시간: ${koreanDate}\n\n` +
-              `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
+              `관리자 페이지: https://cnecbiz.com/admin/deposits`;
 
             await axios.post(
-              `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+              `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
               {
                 message: naverMessage,
-                isAdminNotification: true
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
               }
             )
             console.log('[SUCCESS] Naver Works notification sent')
@@ -351,6 +352,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[ERROR] Unexpected error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { amount, companyId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'create-charge-request (포인트 충전 신청)',
+          errorMessage: error.message,
+          context: { 금액: amount, 기업ID: companyId }
+        })
+      })
+    } catch (e) { console.error('[create-charge-request] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

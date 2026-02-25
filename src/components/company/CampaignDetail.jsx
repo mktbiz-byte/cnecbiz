@@ -5561,20 +5561,23 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회
-          const { data: companyData } = await supabase
+          // 기업 정보 조회 (BIZ DB에서 notification 필드 우선 사용)
+          const { data: companyData } = await supabaseBiz
             .from('companies')
-            .select('contact_email, contact_phone, company_name')
-            .eq('id', campaign.company_id)
-            .single()
+            .select('notification_email, notification_phone, email, phone, company_name')
+            .eq('user_id', campaign.company_id)
+            .maybeSingle()
 
-          if (companyData?.contact_phone) {
+          const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
+          const companyNotifyEmail = companyData?.notification_email || companyData?.email
+
+          if (companyNotifyPhone) {
             // 카카오톡 알림
             await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverNum: companyNotifyPhone.replace(/-/g, ''),
                 receiverName: companyData.company_name || '담당자',
                 templateCode: '025100001009',
                 variables: {
@@ -5586,13 +5589,13 @@ Questions? Contact us.
             console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
           }
 
-          if (companyData?.contact_email) {
+          if (companyNotifyEmail) {
             // 이메일 알림
             await fetch('/.netlify/functions/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                to: companyData.contact_email,
+                to: companyNotifyEmail,
                 subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
                 html: `
                   <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -5691,20 +5694,23 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회
-          const { data: companyData } = await supabase
+          // 기업 정보 조회 (BIZ DB에서 notification 필드 우선 사용)
+          const { data: companyData } = await supabaseBiz
             .from('companies')
-            .select('contact_email, contact_phone, company_name')
-            .eq('id', campaign.company_id)
-            .single()
+            .select('notification_email, notification_phone, email, phone, company_name')
+            .eq('user_id', campaign.company_id)
+            .maybeSingle()
 
-          if (companyData?.contact_phone) {
+          const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
+          const companyNotifyEmail = companyData?.notification_email || companyData?.email
+
+          if (companyNotifyPhone) {
             // 카카오톡 알림
             await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverNum: companyNotifyPhone.replace(/-/g, ''),
                 receiverName: companyData.company_name || '담당자',
                 templateCode: '025100001009',
                 variables: {
@@ -5716,13 +5722,13 @@ Questions? Contact us.
             console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
           }
 
-          if (companyData?.contact_email) {
+          if (companyNotifyEmail) {
             // 이메일 알림
             await fetch('/.netlify/functions/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                to: companyData.contact_email,
+                to: companyNotifyEmail,
                 subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
                 html: `
                   <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -6411,15 +6417,15 @@ Questions? Contact us.
         let companyPhone = null
         let companyDisplayName = campaign?.brand_name || campaign?.brand || '기업'
 
-        // 1순위: BIZ DB에서 company_email로 조회
+        // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
         if (campaign?.company_email) {
           const { data: byEmail } = await supabaseBiz
             .from('companies')
-            .select('phone, contact_phone, company_name')
+            .select('notification_phone, phone, company_name')
             .eq('email', campaign.company_email)
             .maybeSingle()
           if (byEmail) {
-            companyPhone = byEmail.phone || byEmail.contact_phone
+            companyPhone = byEmail.notification_phone || byEmail.phone
             companyDisplayName = byEmail.company_name || companyDisplayName
           }
         }
@@ -6428,11 +6434,11 @@ Questions? Contact us.
         if (!companyPhone && campaign?.company_id) {
           const { data: byUserId } = await supabaseBiz
             .from('companies')
-            .select('phone, contact_phone, company_name')
+            .select('notification_phone, phone, company_name')
             .eq('user_id', campaign.company_id)
             .maybeSingle()
           if (byUserId) {
-            companyPhone = byUserId.phone || byUserId.contact_phone
+            companyPhone = byUserId.notification_phone || byUserId.phone
             companyDisplayName = byUserId.company_name || companyDisplayName
           }
         }
@@ -6441,11 +6447,11 @@ Questions? Contact us.
         if (!companyPhone && campaign?.company_id) {
           const { data: byId } = await supabaseBiz
             .from('companies')
-            .select('phone, contact_phone, company_name')
+            .select('notification_phone, phone, company_name')
             .eq('id', campaign.company_id)
             .maybeSingle()
           if (byId) {
-            companyPhone = byId.phone || byId.contact_phone
+            companyPhone = byId.notification_phone || byId.phone
             companyDisplayName = byId.company_name || companyDisplayName
           }
         }

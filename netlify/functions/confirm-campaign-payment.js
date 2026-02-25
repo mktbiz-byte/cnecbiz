@@ -215,11 +215,39 @@ exports.handler = async (event, context) => {
 
     console.log('[confirm-campaign-payment] Campaign auto-approved and activated')
 
-    // 회사 정보 조회 (알림 발송용) - company_id 또는 company_email로 조회
+    // 회사 정보 조회 (알림 발송용) - BIZ DB 우선, 리전 DB fallback
     let company = null
 
-    // 1. company_id로 Korea DB에서 조회
+    // 1. company_id로 Biz DB에서 조회 (BIZ DB가 기업 정보의 주 소스)
     if (campaign.company_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('user_id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
+      }
+    }
+
+    // 2. company_email로 Biz DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_email in Biz DB')
+      }
+    }
+
+    // 3. company_id로 Korea DB에서 조회 (fallback)
+    if (!company && campaign.company_id) {
       const { data: companyData } = await supabaseKorea
         .from('companies')
         .select('company_name, email, phone, contact_person, notification_phone, notification_email')
@@ -232,21 +260,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 2. company_id로 Biz DB에서 조회
-    if (!company && campaign.company_id) {
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-        .eq('id', campaign.company_id)
-        .maybeSingle()
-
-      if (companyData) {
-        company = companyData
-        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
-      }
-    }
-
-    // 3. company_email로 Korea DB에서 조회
+    // 4. company_email로 Korea DB에서 조회 (fallback)
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseKorea
         .from('companies')
@@ -257,20 +271,6 @@ exports.handler = async (event, context) => {
       if (companyData) {
         company = companyData
         console.log('[confirm-campaign-payment] Company found by company_email in Korea DB')
-      }
-    }
-
-    // 4. company_email로 Biz DB에서 조회
-    if (!company && campaign.company_email) {
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-        .eq('email', campaign.company_email)
-        .maybeSingle()
-
-      if (companyData) {
-        company = companyData
-        console.log('[confirm-campaign-payment] Company found by company_email in Biz DB')
       }
     }
 
@@ -298,7 +298,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
             : '추후 안내'
           
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -333,7 +333,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR')
             : '추후 안내'
           
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -391,7 +391,7 @@ exports.handler = async (event, context) => {
 
 🎉 캠페인이 자동 승인되어 모집이 시작되었습니다!
 
-관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
+관리 페이지: https://cnecbiz.com/admin/campaigns/${campaignId}`
 
     try {
       await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
@@ -424,6 +424,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[confirm-campaign-payment] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'confirm-campaign-payment (캠페인 입금 확인)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId }
+        })
+      })
+    } catch (e) { console.error('[confirm-campaign-payment] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

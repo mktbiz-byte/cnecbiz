@@ -538,7 +538,7 @@ exports.handler = async (event, context) => {
     }
 
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `관리자 페이지:\nhttps://cnectotal.netlify.app/admin/creators`;
+    message += `관리자 페이지:\nhttps://cnecbiz.com/admin/creators`;
 
     // 네이버 웍스 메시지 전송
     try {

@@ -128,38 +128,66 @@ exports.handler = async (event, context) => {
 
     console.log('[approve-campaign] Campaign found:', campaign.title)
 
-    // 회사 정보 조회 (company_id 또는 company_email로)
+    // 회사 정보 조회 (company_id → user_id → company_email 순서로 폴백)
     let company = null
 
-    // 1. company_id로 지역 DB에서 조회
     if (campaign.company_id) {
-      const { data: companyData } = await supabaseRegion
+      // 1. company_id로 companies.id 조회 (이관된 캠페인)
+      const { data: byIdRegional } = await supabaseRegion
         .from('companies')
         .select('*')
         .eq('id', campaign.company_id)
         .maybeSingle()
 
-      if (companyData) {
-        company = companyData
-        console.log('[approve-campaign] Company found by company_id in regional DB')
+      if (byIdRegional) {
+        company = byIdRegional
+        console.log('[approve-campaign] Company found by id in regional DB')
+      }
+
+      // 2. company_id로 companies.user_id 조회 (원래 생성된 캠페인)
+      if (!company) {
+        const { data: byUserIdRegional } = await supabaseRegion
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (byUserIdRegional) {
+          company = byUserIdRegional
+          console.log('[approve-campaign] Company found by user_id in regional DB')
+        }
+      }
+
+      // 3. BIZ DB에서 companies.id로 조회
+      if (!company) {
+        const { data: byIdBiz } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('id', campaign.company_id)
+          .maybeSingle()
+
+        if (byIdBiz) {
+          company = byIdBiz
+          console.log('[approve-campaign] Company found by id in Biz DB')
+        }
+      }
+
+      // 4. BIZ DB에서 companies.user_id로 조회
+      if (!company) {
+        const { data: byUserIdBiz } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (byUserIdBiz) {
+          company = byUserIdBiz
+          console.log('[approve-campaign] Company found by user_id in Biz DB')
+        }
       }
     }
 
-    // 2. company_id로 Biz DB에서 조회
-    if (!company && campaign.company_id) {
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('*')
-        .eq('id', campaign.company_id)
-        .maybeSingle()
-
-      if (companyData) {
-        company = companyData
-        console.log('[approve-campaign] Company found by company_id in Biz DB')
-      }
-    }
-
-    // 3. company_email로 지역 DB에서 조회
+    // 5. company_email로 지역 DB에서 조회
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseRegion
         .from('companies')
@@ -173,7 +201,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 4. company_email로 Biz DB에서 조회
+    // 6. company_email로 Biz DB에서 조회
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseBiz
         .from('companies')
@@ -255,12 +283,14 @@ exports.handler = async (event, context) => {
       // 이메일 HTML 생성
       const emailHtml = generateEmailHtml(templateCode, variables)
 
-      // 알림 전송 (Popbill 카카오톡 + 이메일)
-      if (company.phone || company.email) {
+      // 알림 전송 (Popbill 카카오톡 + 이메일) - notification 필드 우선 사용
+      const notifyPhone = company.notification_phone || company.phone
+      const notifyEmail = company.notification_email || company.email
+      if (notifyPhone || notifyEmail) {
         await sendNotification({
-          receiverNum: company.phone,
-          receiverEmail: company.email,
-          receiverName: company.company_name,
+          receiverNum: notifyPhone,
+          receiverEmail: notifyEmail,
+          receiverName: company.notification_contact_person || company.company_name,
           templateCode,
           variables,
           emailSubject: emailHtml.subject,
@@ -309,6 +339,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[approve-campaign] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId, region } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'approve-campaign (캠페인 승인)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId, 리전: region }
+        })
+      })
+    } catch (e) { console.error('[approve-campaign] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

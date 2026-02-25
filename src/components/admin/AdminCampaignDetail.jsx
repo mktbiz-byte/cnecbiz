@@ -571,15 +571,15 @@ export default function AdminCampaignDetail() {
         let companyPhone = null
         let companyNameForKakao = companyDisplayName
 
-        // 1순위: BIZ DB에서 company_email로 조회
+        // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
         if (campaign?.company_email) {
           const { data: byEmail } = await supabaseBiz
             .from('companies')
-            .select('phone, contact_phone, company_name')
+            .select('notification_phone, phone, company_name')
             .eq('email', campaign.company_email)
             .maybeSingle()
           if (byEmail) {
-            companyPhone = byEmail.phone || byEmail.contact_phone
+            companyPhone = byEmail.notification_phone || byEmail.phone
             if (byEmail.company_name) companyNameForKakao = byEmail.company_name
           }
         }
@@ -588,11 +588,11 @@ export default function AdminCampaignDetail() {
         if (!companyPhone && campaign?.company_id) {
           const { data: byUserId } = await supabaseBiz
             .from('companies')
-            .select('phone, contact_phone, company_name')
+            .select('notification_phone, phone, company_name')
             .eq('user_id', campaign.company_id)
             .maybeSingle()
           if (byUserId) {
-            companyPhone = byUserId.phone || byUserId.contact_phone
+            companyPhone = byUserId.notification_phone || byUserId.phone
             if (byUserId.company_name) companyNameForKakao = byUserId.company_name
           }
         }

@@ -326,10 +326,11 @@ exports.handler = async (event, context) => {
 
             // 네이버 웍스 (관리자)
             await axios.post(
-              `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+              `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
               {
                 message: `✅ 입금 확인 완료\n\n회사명: ${companyName}\n충전 금액: ${parseInt(bestMatch.amount).toLocaleString()}원\n확인 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`,
-                isAdminNotification: true
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
               },
               { timeout: 5000 }
             );

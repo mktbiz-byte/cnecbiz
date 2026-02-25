@@ -245,11 +245,12 @@ exports.handler = async (event, context) => {
       const https = require('https')
       const notifyData = JSON.stringify({
         isAdminNotification: true,
-        message: adminMessage
+        message: adminMessage,
+        channelId: 'b9387420-7c8d-e703-0f96-dbfc72565bb5'
       })
 
       // 같은 도메인의 netlify function 호출 (환경에 따라 다름)
-      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      const baseUrl = process.env.URL || 'https://cnecbiz.com'
       const notifyUrl = new URL('/.netlify/functions/send-naver-works-message', baseUrl)
 
       await new Promise((resolve, reject) => {

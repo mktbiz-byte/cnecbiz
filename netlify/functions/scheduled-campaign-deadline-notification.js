@@ -446,16 +446,17 @@ exports.handler = async (event, context) => {
 
         const supabaseBiz = getSupabaseBiz();
 
-        // 1. BIZ DB에서 company_email로 조회 (가장 확실한 방법)
+        // 1. BIZ DB에서 company_email로 조회 (notification 필드 우선)
         if (supabaseBiz && companyEmail) {
           const { data: bizCompany, error: bizError } = await supabaseBiz
             .from('companies')
-            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+            .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
             .eq('email', companyEmail.toLowerCase())
             .maybeSingle();
 
           if (!bizError && bizCompany) {
-            companyPhone = bizCompany.contact_phone || bizCompany.manager_phone || bizCompany.phone || bizCompany.notification_phone || bizCompany.representative_phone;
+            companyPhone = bizCompany.notification_phone || bizCompany.phone || bizCompany.contact_phone || bizCompany.manager_phone || bizCompany.representative_phone;
+            companyEmail = bizCompany.notification_email || bizCompany.email || companyEmail;
             companyName = bizCompany.company_name || companyName;
             console.log(`[BIZ DB] 이메일로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
           }
@@ -466,14 +467,14 @@ exports.handler = async (event, context) => {
           // 2-1. user_id로 조회
           const { data: bizCompanyByUserId, error: bizError1 } = await supabaseBiz
             .from('companies')
-            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+            .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
             .eq('user_id', campaign.company_id)
             .maybeSingle();
 
           if (!bizError1 && bizCompanyByUserId) {
-            companyPhone = bizCompanyByUserId.contact_phone || bizCompanyByUserId.manager_phone || bizCompanyByUserId.phone || bizCompanyByUserId.notification_phone || bizCompanyByUserId.representative_phone;
+            companyPhone = bizCompanyByUserId.notification_phone || bizCompanyByUserId.phone || bizCompanyByUserId.contact_phone || bizCompanyByUserId.manager_phone || bizCompanyByUserId.representative_phone;
             companyName = bizCompanyByUserId.company_name || companyName;
-            companyEmail = companyEmail || bizCompanyByUserId.email;
+            companyEmail = companyEmail || bizCompanyByUserId.notification_email || bizCompanyByUserId.email;
             console.log(`[BIZ DB] user_id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
           }
 
@@ -481,14 +482,14 @@ exports.handler = async (event, context) => {
           if (!companyPhone) {
             const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
               .from('companies')
-              .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+              .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
               .eq('id', campaign.company_id)
               .maybeSingle();
 
             if (!bizError2 && bizCompanyById) {
-              companyPhone = bizCompanyById.contact_phone || bizCompanyById.manager_phone || bizCompanyById.phone || bizCompanyById.notification_phone || bizCompanyById.representative_phone;
+              companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone || bizCompanyById.contact_phone || bizCompanyById.manager_phone || bizCompanyById.representative_phone;
               companyName = bizCompanyById.company_name || companyName;
-              companyEmail = companyEmail || bizCompanyById.email;
+              companyEmail = companyEmail || bizCompanyById.notification_email || bizCompanyById.email;
               console.log(`[BIZ DB] id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
             }
           }
@@ -499,14 +500,14 @@ exports.handler = async (event, context) => {
           // 3-1. user_id로 조회 (company_id는 auth user.id를 저장)
           const { data: companyByUserId, error: companyError1 } = await supabase
             .from('companies')
-            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+            .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
             .eq('user_id', campaign.company_id)
             .maybeSingle();
 
           if (!companyError1 && companyByUserId) {
-            companyPhone = companyByUserId.contact_phone || companyByUserId.manager_phone || companyByUserId.phone || companyByUserId.notification_phone || companyByUserId.representative_phone;
+            companyPhone = companyByUserId.notification_phone || companyByUserId.phone || companyByUserId.contact_phone || companyByUserId.manager_phone || companyByUserId.representative_phone;
             companyName = companyByUserId.company_name || campaign.brand || '기업';
-            companyEmail = companyEmail || companyByUserId.email;
+            companyEmail = companyEmail || companyByUserId.notification_email || companyByUserId.email;
             console.log(`[지역 DB] user_id로 기업 정보 찾음: ${companyName}, 전화번호: ${companyPhone}`);
           }
 
@@ -514,14 +515,14 @@ exports.handler = async (event, context) => {
           if (!companyPhone && !companyEmail) {
             const { data: companyById, error: companyError2 } = await supabase
               .from('companies')
-              .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+              .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
               .eq('id', campaign.company_id)
               .maybeSingle();
 
             if (!companyError2 && companyById) {
-              companyPhone = companyById.contact_phone || companyById.manager_phone || companyById.phone || companyById.notification_phone || companyById.representative_phone;
+              companyPhone = companyById.notification_phone || companyById.phone || companyById.contact_phone || companyById.manager_phone || companyById.representative_phone;
               companyName = companyById.company_name || campaign.brand || '기업';
-              companyEmail = companyEmail || companyById.email;
+              companyEmail = companyEmail || companyById.notification_email || companyById.email;
             }
           }
 
@@ -544,12 +545,12 @@ exports.handler = async (event, context) => {
         if ((!companyPhone || !companyName || companyName === '기업') && companyEmail) {
           const { data: company, error: companyError } = await supabase
             .from('companies')
-            .select('company_name, phone, contact_phone, manager_phone, representative_phone, email, notification_phone')
+            .select('company_name, notification_phone, notification_email, phone, contact_phone, manager_phone, representative_phone, email')
             .eq('email', companyEmail)
             .maybeSingle();
 
           if (!companyError && company) {
-            companyPhone = companyPhone || company.contact_phone || company.manager_phone || company.phone || company.notification_phone || company.representative_phone;
+            companyPhone = companyPhone || company.notification_phone || company.phone || company.contact_phone || company.manager_phone || company.representative_phone;
             companyName = company.company_name || companyName;
           }
         }

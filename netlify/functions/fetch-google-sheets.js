@@ -802,7 +802,7 @@ exports.handler = async (event) => {
       console.log('[trigger_scheduled_sync] Manually triggering scheduled-stibee-sync...')
 
       try {
-        const response = await fetch('/.netlify/functions/scheduled-stibee-sync', {
+        const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/scheduled-stibee-sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ targetRegions: body.targetRegions || ['korea', 'japan', 'japan2'] })
