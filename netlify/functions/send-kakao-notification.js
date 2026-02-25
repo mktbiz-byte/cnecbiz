@@ -457,6 +457,29 @@ exports.handler = async (event) => {
 
     console.error('[ERROR] Error details:', JSON.stringify(errorDetails, null, 2));
 
+    // 에러 알림 발송 (네이버웍스 에러 채널)
+    try {
+      const { receiverNum, templateCode, variables } = JSON.parse(event.body || '{}');
+      const baseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${baseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-kakao-notification',
+          errorMessage: error.code
+            ? `[${error.code}] ${errorCodeMessages[error.code] || error.message}`
+            : error.message,
+          context: {
+            수신번호: receiverNum,
+            템플릿코드: templateCode,
+            수신자: variables?.['회사명'] || variables?.['크리에이터명'] || variables?.['회원명'] || ''
+          }
+        })
+      });
+    } catch (alertErr) {
+      console.error('[ERROR] Failed to send error alert:', alertErr.message);
+    }
+
     return {
       statusCode: 500,
       body: JSON.stringify(errorDetails)

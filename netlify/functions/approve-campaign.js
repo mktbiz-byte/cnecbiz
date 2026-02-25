@@ -311,6 +311,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[approve-campaign] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId, region } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'approve-campaign (캠페인 승인)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId, 리전: region }
+        })
+      })
+    } catch (e) { console.error('[approve-campaign] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

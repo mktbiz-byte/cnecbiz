@@ -444,6 +444,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('서버 오류:', error)
+
+    // 에러 알림 발송
+    try {
+      const { chargeRequestId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'confirm-payment (입금 확인)',
+          errorMessage: error.message,
+          context: { 충전요청ID: chargeRequestId }
+        })
+      })
+    } catch (e) { console.error('[confirm-payment] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

@@ -424,6 +424,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[confirm-campaign-payment] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'confirm-campaign-payment (캠페인 입금 확인)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId }
+        })
+      })
+    } catch (e) { console.error('[confirm-campaign-payment] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

@@ -391,6 +391,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[update-campaign-status] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId, status, region } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'update-campaign-status (캠페인 상태 변경)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId, 상태: status, 리전: region }
+        })
+      })
+    } catch (e) { console.error('[update-campaign-status] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

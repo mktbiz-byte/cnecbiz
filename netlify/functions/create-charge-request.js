@@ -352,6 +352,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[ERROR] Unexpected error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { amount, companyId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'create-charge-request (포인트 충전 신청)',
+          errorMessage: error.message,
+          context: { 금액: amount, 기업ID: companyId }
+        })
+      })
+    } catch (e) { console.error('[create-charge-request] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,
