@@ -6,6 +6,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# 통합 관제센터 - 4개 DB 동시 조회로 타임아웃 연장
+[functions."check-data-sync"]
+  timeout = 60
+
 # 영상 업로드 - 알림 발송(네이버웍스+카카오+이메일) 포함으로 타임아웃 연장
 [functions."save-video-upload"]
   timeout = 30

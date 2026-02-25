@@ -84,6 +84,7 @@ import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
+import DataSyncMonitor from './components/admin/DataSyncMonitor'
 import VideoFeedback from './components/admin/VideoFeedback'
 import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
@@ -252,6 +253,7 @@ function App() {
 
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
+        <Route path="/admin/data-sync" element={<DataSyncMonitor />} />
         <Route path="/admin/video-feedback" element={<VideoFeedback />} />
         <Route path="/company/video-feedback" element={<CampaignVideoFeedback />} />
         <Route path="/creator/video-feedback" element={<CampaignVideoFeedback />} />
