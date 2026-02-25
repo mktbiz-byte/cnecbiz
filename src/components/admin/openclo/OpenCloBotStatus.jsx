@@ -49,7 +49,7 @@ export default function OpenCloBotStatus() {
       const res = await fetch('/.netlify/functions/send-naver-works-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAdminNotification: true, message: msg })
+        body: JSON.stringify({ isAdminNotification: true, message: msg, channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75' })
       })
       const result = await res.json()
       if (result.success) {

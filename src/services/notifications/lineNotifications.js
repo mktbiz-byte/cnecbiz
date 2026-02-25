@@ -13,7 +13,7 @@
  */
 export async function sendLineMessage(options) {
   try {
-    const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnectotal.netlify.app';
+    const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com';
 
     const response = await fetch(`${baseUrl}/.netlify/functions/send-line-message`, {
       method: 'POST',

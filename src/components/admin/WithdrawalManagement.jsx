@@ -664,7 +664,7 @@ export default function WithdrawalManagement() {
           const jpCreatorName = withdrawal.creator_name || withdrawal.account_holder || 'クリエイター'
           const jpAmount = withdrawal.requested_amount || withdrawal.amount || 0
           const jpToday = new Date().toLocaleDateString('ja-JP')
-          const jpBaseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+          const jpBaseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
 
           console.log('일본 크리에이터 입금 완료 알림 발송:', jpCreatorName)
           await axios.post(
@@ -719,7 +719,7 @@ export default function WithdrawalManagement() {
           }
         }
 
-        const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+        const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
 
         // 1. 알림톡 발송 - 템플릿 025100001020 (출금 완료 알림)
         if (creatorPhone) {
@@ -835,7 +835,7 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
-      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+      const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
 
       for (const withdrawal of selectedList) {
         try {
@@ -994,7 +994,7 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
-      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+      const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
       const today = new Date().toLocaleDateString('ko-KR')
 
       for (const withdrawal of selectedList) {
@@ -1302,7 +1302,7 @@ export default function WithdrawalManagement() {
 
           if (creatorEmail) {
             console.log('출금 승인 이메일 발송:', creatorName, creatorEmail)
-            const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+            const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
             await axios.post(
               `${baseUrl}/.netlify/functions/send-email`,
               {

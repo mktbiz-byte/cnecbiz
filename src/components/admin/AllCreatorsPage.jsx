@@ -1142,7 +1142,7 @@ export default function AllCreatorsPage() {
                       <p style="color: #ef4444; line-height: 1.8;"><strong>프로필이 없을 경우 지원시 선정률이 낮을 수 있습니다.</strong></p>
 
                       <div style="text-align: center; margin-top: 30px;">
-                        <a href="https://cnectotal.netlify.app/creator/profile" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">프로필 등록하기</a>
+                        <a href="https://cnecbiz.com/creator/profile" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">프로필 등록하기</a>
                       </div>
                     </div>
                     <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; text-align: center;">

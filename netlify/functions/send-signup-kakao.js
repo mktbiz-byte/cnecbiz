@@ -174,7 +174,7 @@ async function sendEmail(email, userName) {
     const emailTemplate = generateEmailHtml(templateCode, variables);
     
     // send-email Function 호출
-    const response = await fetch('/.netlify/functions/send-email', {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

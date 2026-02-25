@@ -402,7 +402,7 @@ function generateEmailHTML(data) {
       </p>
       <p style="margin-top: 15px;">
         © 2025 CNEC. All rights reserved.<br>
-        <a href="https://cnectotal.netlify.app">cnectotal.netlify.app</a>
+        <a href="https://cnecbiz.com">cnecbiz.com</a>
       </p>
     </div>
   </div>

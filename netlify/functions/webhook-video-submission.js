@@ -236,16 +236,16 @@ exports.handler = async (event) => {
       company_email: campaign.company_email
     });
 
-    // 1순위: BIZ DB companies 테이블에서 company_email로 조회
+    // 1순위: BIZ DB companies 테이블에서 company_email로 조회 (notification 필드 우선)
     if (campaign.company_email && supabaseBiz) {
       const { data: bizCompany } = await supabaseBiz
         .from('companies')
-        .select('company_name, phone')
+        .select('company_name, notification_phone, phone')
         .eq('email', campaign.company_email)
         .maybeSingle();
 
       if (bizCompany) {
-        companyPhone = bizCompany.phone;
+        companyPhone = bizCompany.notification_phone || bizCompany.phone;
         companyName = bizCompany.company_name || companyName;
         console.log('BIZ DB (email)에서 정보 찾음:', { companyPhone, companyName });
       }
@@ -255,12 +255,12 @@ exports.handler = async (event) => {
     if (!companyPhone && campaign.company_id && supabaseBiz) {
       const { data: bizCompanyById } = await supabaseBiz
         .from('companies')
-        .select('company_name, phone')
+        .select('company_name, notification_phone, phone')
         .eq('user_id', campaign.company_id)
         .maybeSingle();
 
       if (bizCompanyById) {
-        companyPhone = bizCompanyById.phone;
+        companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone;
         companyName = bizCompanyById.company_name || companyName;
         console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
       }

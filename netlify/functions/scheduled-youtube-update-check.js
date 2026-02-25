@@ -138,7 +138,7 @@ async function sendAlertEmail(overdueCreators) {
             지원 프로그램 크리에이터의 콘텐츠 활동을 확인하고 필요시 연락해주세요.
           </p>
 
-          <a href="https://cnectotal.netlify.app/admin/creator-management" class="btn">
+          <a href="https://cnecbiz.com/admin/creator-management" class="btn">
             크리에이터 관리 페이지 →
           </a>
 

@@ -55,10 +55,9 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const campaignFields = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
   const safeQuery = (promise) => promise.then(r => r.data).catch((e) => { console.log('[알림] safeQuery 에러:', e.message); return null })
 
-  // 캠페인 조회 (리전 DB + BIZ DB + Korea DB 동시)
+  // 캠페인 조회 (리전 DB + Korea DB fallback)
   const campaignQueries = [
-    safeQuery(client.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()),
-    safeQuery(supabaseBiz.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle())
+    safeQuery(client.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle())
   ]
   // Korea DB fallback (리전이 korea가 아닌 경우)
   if (region !== 'korea' && client !== supabaseKorea) {

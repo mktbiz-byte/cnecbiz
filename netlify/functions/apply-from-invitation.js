@@ -200,20 +200,20 @@ exports.handler = async (event) => {
       .eq('id', invitation.invited_by)
       .single();
 
-    // companies 테이블에서 phone, notification_phone 조회 (user_id로 매핑)
+    // companies 테이블에서 phone, notification_phone 조회 (user_id로 매핑, notification 필드 우선)
     const { data: companyRecord } = await supabase
       .from('companies')
-      .select('id, company_name, email, phone, notification_phone, user_id')
+      .select('id, company_name, email, phone, notification_phone, notification_email, user_id')
       .eq('user_id', invitation.invited_by)
       .single();
 
-    // 기업 정보 병합: companies 테이블 우선, user_profiles 보조
+    // 기업 정보 병합: notification 필드 우선, companies 테이블 우선, user_profiles 보조
     const company = {
       id: companyProfile?.id || companyRecord?.user_id,
       full_name: companyProfile?.full_name,
       company_name: companyRecord?.company_name || companyProfile?.company_name,
-      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
-      email: companyRecord?.email || companyProfile?.email
+      phone: companyRecord?.notification_phone || companyRecord?.phone || companyProfile?.phone,
+      email: companyRecord?.notification_email || companyRecord?.email || companyProfile?.email
     };
 
     const companyName = company.company_name || company.full_name || '기업';

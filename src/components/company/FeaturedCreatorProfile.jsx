@@ -74,7 +74,8 @@ const FeaturedCreatorProfile = () => {
         body: JSON.stringify({
           creators: [creator],
           companyName: inquiryForm.companyName,
-          brandName: inquiryForm.brandName
+          brandName: inquiryForm.brandName,
+          channelId: 'b9387420-7c8d-e703-0f96-dbfc72565bb5'
         })
       });
 

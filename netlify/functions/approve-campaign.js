@@ -255,12 +255,14 @@ exports.handler = async (event, context) => {
       // 이메일 HTML 생성
       const emailHtml = generateEmailHtml(templateCode, variables)
 
-      // 알림 전송 (Popbill 카카오톡 + 이메일)
-      if (company.phone || company.email) {
+      // 알림 전송 (Popbill 카카오톡 + 이메일) - notification 필드 우선 사용
+      const notifyPhone = company.notification_phone || company.phone
+      const notifyEmail = company.notification_email || company.email
+      if (notifyPhone || notifyEmail) {
         await sendNotification({
-          receiverNum: company.phone,
-          receiverEmail: company.email,
-          receiverName: company.company_name,
+          receiverNum: notifyPhone,
+          receiverEmail: notifyEmail,
+          receiverName: company.notification_contact_person || company.company_name,
           templateCode,
           variables,
           emailSubject: emailHtml.subject,
@@ -309,6 +311,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('[approve-campaign] Server error:', error)
+
+    // 에러 알림 발송
+    try {
+      const { campaignId, region } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'approve-campaign (캠페인 승인)',
+          errorMessage: error.message,
+          context: { 캠페인ID: campaignId, 리전: region }
+        })
+      })
+    } catch (e) { console.error('[approve-campaign] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

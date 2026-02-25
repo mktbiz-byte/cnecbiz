@@ -1,8 +1,30 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// BIZ DB (중앙 - companies, campaign_invitations, featured_creators)
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Korea DB (applications, campaigns, user_profiles)
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
+const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
+  ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
+  : null;
+
+// Japan DB
+const supabaseJapanUrl = process.env.VITE_SUPABASE_JAPAN_URL;
+const supabaseJapanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
+const supabaseJapan = supabaseJapanUrl && supabaseJapanServiceKey
+  ? createClient(supabaseJapanUrl, supabaseJapanServiceKey)
+  : null;
+
+// US DB
+const supabaseUSUrl = process.env.VITE_SUPABASE_US_URL;
+const supabaseUSServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY;
+const supabaseUS = supabaseUSUrl && supabaseUSServiceKey
+  ? createClient(supabaseUSUrl, supabaseUSServiceKey)
+  : null;
 
 /**
  * 크리에이터가 캠페인에 지원했을 때 기업에게 알림 발송
@@ -57,21 +79,36 @@ exports.handler = async (event) => {
       };
     }
 
-    // 1. 지원 정보 조회
-    const { data: application, error: appError } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        campaign_id,
-        user_id,
-        status,
-        created_at
-      `)
-      .eq('id', applicationId)
-      .single();
+    // 1. 지원 정보 조회 (리전별 DB에서 검색)
+    const regionalClients = [
+      { name: 'korea', client: supabaseKorea },
+      { name: 'japan', client: supabaseJapan },
+      { name: 'us', client: supabaseUS },
+      { name: 'biz', client: supabase }
+    ].filter(r => r.client);
 
-    if (appError || !application) {
-      console.error('[ERROR] Application not found:', appError);
+    let application = null;
+    let regionalClient = null;
+    let regionName = null;
+
+    for (const region of regionalClients) {
+      const { data, error } = await region.client
+        .from('applications')
+        .select('id, campaign_id, user_id, status, created_at')
+        .eq('id', applicationId)
+        .single();
+
+      if (data && !error) {
+        application = data;
+        regionalClient = region.client;
+        regionName = region.name;
+        console.log(`[INFO] Application found in ${region.name} DB`);
+        break;
+      }
+    }
+
+    if (!application) {
+      console.error('[ERROR] Application not found in any region');
       return {
         statusCode: 404,
         headers,
@@ -82,8 +119,8 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. 캠페인 정보 조회
-    const { data: campaign, error: campaignError } = await supabase
+    // 2. 캠페인 정보 조회 (같은 리전 DB에서)
+    const { data: campaign, error: campaignError } = await regionalClient
       .from('campaigns')
       .select('id, title, company_id')
       .eq('id', application.campaign_id)
@@ -101,15 +138,29 @@ exports.handler = async (event) => {
       };
     }
 
-    // 3. 크리에이터 정보 조회
-    const { data: creator, error: creatorError } = await supabase
+    // 3. 크리에이터 정보 조회 (같은 리전 DB 우선, BIZ DB 폴백)
+    let creator = null;
+
+    const { data: regionalCreator } = await regionalClient
       .from('user_profiles')
       .select('id, full_name, email, phone, instagram_followers, youtube_subscribers, tiktok_followers')
       .eq('id', application.user_id)
       .single();
 
-    if (creatorError || !creator) {
-      console.error('[ERROR] Creator not found:', creatorError);
+    if (regionalCreator) {
+      creator = regionalCreator;
+    } else if (regionName !== 'biz') {
+      // 리전 DB에 없으면 BIZ DB에서 조회
+      const { data: bizCreator } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, phone, instagram_followers, youtube_subscribers, tiktok_followers')
+        .eq('id', application.user_id)
+        .single();
+      creator = bizCreator;
+    }
+
+    if (!creator) {
+      console.error('[ERROR] Creator not found in any DB');
       return {
         statusCode: 404,
         headers,
@@ -127,10 +178,10 @@ exports.handler = async (event) => {
       .eq('id', campaign.company_id)
       .single();
 
-    // companies 테이블에서 phone 조회 (user_id로 매핑)
+    // companies 테이블에서 phone 조회 (user_id로 매핑, notification 필드 우선)
     const { data: companyRecord } = await supabase
       .from('companies')
-      .select('id, company_name, email, phone, notification_phone, user_id')
+      .select('id, company_name, email, phone, notification_phone, notification_email, user_id')
       .eq('user_id', campaign.company_id)
       .single();
 
@@ -138,8 +189,8 @@ exports.handler = async (event) => {
       id: companyProfile?.id || companyRecord?.user_id,
       full_name: companyProfile?.full_name,
       company_name: companyRecord?.company_name || companyProfile?.company_name,
-      phone: companyRecord?.phone || companyRecord?.notification_phone || companyProfile?.phone,
-      email: companyRecord?.email || companyProfile?.email
+      phone: companyRecord?.notification_phone || companyRecord?.phone || companyProfile?.phone,
+      email: companyRecord?.notification_email || companyRecord?.email || companyProfile?.email
     };
 
     if (!companyProfile && !companyRecord) {

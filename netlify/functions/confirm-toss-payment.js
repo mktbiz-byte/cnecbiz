@@ -321,7 +321,7 @@ exports.handler = async (event, context) => {
 
 ${koreanDate}`
 
-          await fetch('/.netlify/functions/send-naver-works-message', {
+          await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -350,6 +350,22 @@ ${koreanDate}`
 
   } catch (error) {
     console.error('[confirm-toss-payment] 서버 오류:', error)
+
+    // 에러 알림 발송
+    try {
+      const { orderId, amount, campaignId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'confirm-toss-payment (토스 카드결제)',
+          errorMessage: error.message,
+          context: { 주문번호: orderId, 금액: amount, 캠페인ID: campaignId }
+        })
+      })
+    } catch (e) { console.error('[confirm-toss-payment] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

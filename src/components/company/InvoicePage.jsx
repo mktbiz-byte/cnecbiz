@@ -335,14 +335,15 @@ const InvoicePage = () => {
               `입금자명: ${depositorName}\n` +
               `신청 시간: ${koreanDate}\n\n` +
               `⚠️ **입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!**\n\n` +
-              `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`
+              `➡️ 입금 확인: https://cnecbiz.com/admin/deposits`
 
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 message: naverMessage,
-                isAdminNotification: true
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
               })
             })
             console.log('[SUCCESS] Naver Works notification sent')

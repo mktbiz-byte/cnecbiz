@@ -268,7 +268,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
             : '추후 안내'
           
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -303,7 +303,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR')
             : '추후 안내'
 
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -401,35 +401,24 @@ exports.handler = async (event, context) => {
         `⚠️ 캐페인이 승인 대기 상태로 변경되었습니다. 빠른 승인을 부탁드립니다.
 
 ` +
-        `승인 페이지: https://cnectotal.netlify.app/admin/approvals`
+        `승인 페이지: https://cnecbiz.com/admin/approvals`
 
       try {
-        const naverWorksUrl = 'https://www.worksapis.com/v1.0/bots/7348965/channels/281474978639476/messages'
-        const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
-
-        if (!naverWorksToken) {
-          console.error('[confirm-payment] NAVER_WORKS_BOT_TOKEN is not set')
-        } else {
-          const response = await fetch(naverWorksUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${naverWorksToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              content: {
-                type: 'text',
-                text: message
-              }
-            })
+        const baseUrl = process.env.URL || 'https://cnecbiz.com'
+        const response = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            message,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
           })
-          
-          if (!response.ok) {
-            const errorText = await response.text()
-            console.error('[confirm-payment] Naver Works API error:', response.status, errorText)
-          } else {
-            console.log('[confirm-payment] Naver Works notification sent successfully')
-          }
+        })
+
+        if (!response.ok) {
+          console.error('[confirm-payment] Naver Works notification failed:', response.status)
+        } else {
+          console.log('[confirm-payment] Naver Works notification sent successfully')
         }
       } catch (notifError) {
         console.error('[confirm-payment] Failed to send Naver Works notification:', notifError)
@@ -455,6 +444,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('서버 오류:', error)
+
+    // 에러 알림 발송
+    try {
+      const { chargeRequestId } = JSON.parse(event.body || '{}')
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'confirm-payment (입금 확인)',
+          errorMessage: error.message,
+          context: { 충전요청ID: chargeRequestId }
+        })
+      })
+    } catch (e) { console.error('[confirm-payment] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,

@@ -258,12 +258,36 @@ exports.handler = async (event, context) => {
   } catch (error) {
     console.error('Error:', error);
 
+    // 에러 채널로 알림 (무한루프 방지: 에러 채널 자체 실패 시에는 알림 안 보냄)
+    const ERROR_CHANNEL_ID = '54220a7e-0b14-1138-54ec-a55f62dc8b75';
+    try {
+      const { channelId: requestChannelId, message: origMessage } = JSON.parse(event.body || '{}');
+      if (requestChannelId !== ERROR_CHANNEL_ID) {
+        const clientId = process.env.NAVER_WORKS_CLIENT_ID;
+        const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
+        const botId = process.env.NAVER_WORKS_BOT_ID;
+        const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
+
+        if (clientId && clientSecret && botId) {
+          const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+          const preview = origMessage ? origMessage.substring(0, 100) : '(메시지 없음)';
+          const errorAlert = `🚨 네이버웍스 메시지 전송 실패\n\n[시간] ${koreanTime}\n[대상 채널] ${requestChannelId || '기본'}\n[오류] ${error.message}\n[메시지 미리보기] ${preview}`;
+
+          const token = await getAccessToken(clientId, clientSecret, serviceAccount);
+          await sendMessage(token, botId, ERROR_CHANNEL_ID, errorAlert);
+          console.log('[send-naver-works-message] Error alert sent to error channel');
+        }
+      }
+    } catch (alertErr) {
+      console.error('[send-naver-works-message] Failed to send error alert:', alertErr.message);
+    }
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: '메시지 전송에 실패했습니다.',
-        details: error.message 
+        details: error.message
       })
     };
   }

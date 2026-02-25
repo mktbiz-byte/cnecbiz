@@ -91,6 +91,22 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('이메일 발송 오류:', error);
+
+    // 에러 알림 발송
+    try {
+      const { to, subject } = JSON.parse(event.body || '{}');
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-email (이메일 발송)',
+          errorMessage: error.message,
+          context: { 수신자: to, 제목: subject }
+        })
+      });
+    } catch (e) { console.error('[send-email] Error alert failed:', e.message); }
+
     return {
       statusCode: 500,
       body: JSON.stringify({
