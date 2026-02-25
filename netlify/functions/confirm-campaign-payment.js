@@ -215,11 +215,39 @@ exports.handler = async (event, context) => {
 
     console.log('[confirm-campaign-payment] Campaign auto-approved and activated')
 
-    // 회사 정보 조회 (알림 발송용) - company_id 또는 company_email로 조회
+    // 회사 정보 조회 (알림 발송용) - BIZ DB 우선, 리전 DB fallback
     let company = null
 
-    // 1. company_id로 Korea DB에서 조회
+    // 1. company_id로 Biz DB에서 조회 (BIZ DB가 기업 정보의 주 소스)
     if (campaign.company_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('user_id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
+      }
+    }
+
+    // 2. company_email로 Biz DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_email in Biz DB')
+      }
+    }
+
+    // 3. company_id로 Korea DB에서 조회 (fallback)
+    if (!company && campaign.company_id) {
       const { data: companyData } = await supabaseKorea
         .from('companies')
         .select('company_name, email, phone, contact_person, notification_phone, notification_email')
@@ -232,21 +260,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 2. company_id로 Biz DB에서 조회
-    if (!company && campaign.company_id) {
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-        .eq('id', campaign.company_id)
-        .maybeSingle()
-
-      if (companyData) {
-        company = companyData
-        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
-      }
-    }
-
-    // 3. company_email로 Korea DB에서 조회
+    // 4. company_email로 Korea DB에서 조회 (fallback)
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseKorea
         .from('companies')
@@ -257,20 +271,6 @@ exports.handler = async (event, context) => {
       if (companyData) {
         company = companyData
         console.log('[confirm-campaign-payment] Company found by company_email in Korea DB')
-      }
-    }
-
-    // 4. company_email로 Biz DB에서 조회
-    if (!company && campaign.company_email) {
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-        .eq('email', campaign.company_email)
-        .maybeSingle()
-
-      if (companyData) {
-        company = companyData
-        console.log('[confirm-campaign-payment] Company found by company_email in Biz DB')
       }
     }
 

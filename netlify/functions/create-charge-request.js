@@ -197,7 +197,7 @@ exports.handler = async (event, context) => {
             console.log('[INFO] Sending Kakao notification to:', companyPhone)
             try {
               await axios.post(
-                `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+                `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`,
                 {
                   receiverNum: companyPhone,
                   receiverName: companyName,
@@ -233,7 +233,7 @@ exports.handler = async (event, context) => {
               `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
               `입금자명: ${depositorName}\n` +
               `신청 시간: ${koreanDate}\n\n` +
-              `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
+              `관리자 페이지: https://cnecbiz.com/admin/deposits`;
 
             await axios.post(
               `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,

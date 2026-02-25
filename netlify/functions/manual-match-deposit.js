@@ -165,7 +165,7 @@ async function processDeposit(request, transaction) {
     // 4. 네이버 웍스 알림 전송
     if (campaignInfo) {
       try {
-        const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+        const baseUrl = process.env.URL || 'https://cnecbiz.com'
         const campaignTypeKo = {
           'oliveyoung': '올리브영',
           'planned': '기획형',
@@ -211,7 +211,7 @@ async function processDeposit(request, transaction) {
  */
 async function sendNotification(request) {
   try {
-    const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+    const baseUrl = process.env.URL || 'https://cnecbiz.com'
 
     // 알림톡 발송
     if (request.company_phone) {
@@ -220,7 +220,7 @@ async function sendNotification(request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateCode: '025100000943',
-          receiver: request.company_phone,
+          receiverNum: request.company_phone,
           variables: {
             회사명: request.company_name,
             금액: request.amount.toLocaleString()

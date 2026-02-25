@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
  * 크리에이터 가입 완료 알림 (LINE + 네이버 웍스)
  *
  * Supabase Database Webhook에서 호출:
- * URL: https://cnectotal.netlify.app/.netlify/functions/notify-creator-signup
+ * URL: https://cnecbiz.com/.netlify/functions/notify-creator-signup
  * Method: POST
  * Body: { type: 'INSERT', table: 'creators', record: {...}, schema: 'public' }
  *

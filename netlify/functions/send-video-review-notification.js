@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     const resubmitDateStr = `${resubmitDeadline.getMonth() + 1}월 ${resubmitDeadline.getDate()}일`
 
     // send-kakao-notification을 HTTP로 호출
-    const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+    const baseUrl = process.env.URL || 'https://cnecbiz.com'
 
     try {
       console.log('[INFO] Calling send-kakao-notification via HTTP')

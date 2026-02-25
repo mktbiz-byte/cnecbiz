@@ -250,7 +250,7 @@ exports.handler = async (event) => {
           </p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://cnectotal.netlify.app/video-review/${submissionId}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">영상 검토하기</a>
+            <a href="https://cnecbiz.com/video-review/${submissionId}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">영상 검토하기</a>
           </div>
           
           <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">

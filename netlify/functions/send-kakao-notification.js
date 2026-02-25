@@ -49,7 +49,7 @@ IBK기업은행 047-122753-04-011
 캠페인: #{캠페인명}
 충전 포인트: #{포인트}P
 캠페인 승인 후 크리에이터 모집이 시작됩니다.
-캠페인 확인: https://cnectotal.netlify.app/company/campaigns
+캠페인 확인: https://cnecbiz.com/company/campaigns
 문의: 1833-6025`,
 
     '025100000942': `[CNEC] 포인트 신청 완료
@@ -252,7 +252,7 @@ SNS 업로드 기한: #{업로드기한} (오늘)
 마감일: #{마감일}
 
 지금 바로 지원하고 캠페인에 참여하세요!
-지원하기: https://cnectotal.netlify.app/creator/campaigns/#{캠페인ID}
+지원하기: https://cnecbiz.com/creator/campaigns/#{캠페인ID}
 문의: 1833-6025`,
 
     // '025110000797' 은 아래(line ~302)에 최신 버전이 있음 (중복 제거)

@@ -103,9 +103,9 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 async function sendEmail(to, subject, html) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
+    auth: { user: process.env.GMAIL_EMAIL, pass: process.env.GMAIL_APP_PASSWORD }
   });
-  await transporter.sendMail({ from: `"CNEC 리포트" <${process.env.GMAIL_USER}>`, to, subject, html });
+  await transporter.sendMail({ from: `"CNEC 리포트" <${process.env.GMAIL_EMAIL}>`, to, subject, html });
 }
 
 // 지난 주 범위 계산
