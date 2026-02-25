@@ -160,7 +160,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
  */
 async function sendEmail(to, subject, body) {
   try {
-    const response = await fetch('/.netlify/functions/send-email', {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to, subject, body })
