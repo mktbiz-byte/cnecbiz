@@ -251,18 +251,32 @@ exports.handler = async (event) => {
       }
     }
 
-    // 2순위: BIZ DB에서 company_id(user_id)로 조회
+    // 2순위: BIZ DB에서 company_id로 조회 (id → user_id 순서)
     if (!companyPhone && campaign.company_id && supabaseBiz) {
+      // 2-1. companies.id로 조회 (이관된 캠페인)
       const { data: bizCompanyById } = await supabaseBiz
         .from('companies')
         .select('company_name, notification_phone, phone')
-        .eq('user_id', campaign.company_id)
+        .eq('id', campaign.company_id)
         .maybeSingle();
 
       if (bizCompanyById) {
         companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone;
         companyName = bizCompanyById.company_name || companyName;
-        console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
+        console.log('BIZ DB (id)에서 정보 찾음:', { companyPhone, companyName });
+      } else {
+        // 2-2. companies.user_id로 조회 (원래 생성된 캠페인)
+        const { data: bizCompanyByUserId } = await supabaseBiz
+          .from('companies')
+          .select('company_name, notification_phone, phone')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle();
+
+        if (bizCompanyByUserId) {
+          companyPhone = bizCompanyByUserId.notification_phone || bizCompanyByUserId.phone;
+          companyName = bizCompanyByUserId.company_name || companyName;
+          console.log('BIZ DB (user_id)에서 정보 찾음:', { companyPhone, companyName });
+        }
       }
     }
 
