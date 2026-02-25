@@ -340,6 +340,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[ERROR] Notify creator application error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'notify-creator-application',
+          errorMessage: error.message,
+          context: { applicationId: JSON.parse(event.body || '{}').applicationId || '알 수 없음' }
+        })
+      })
+    } catch (e) { console.error('[notify-creator-application] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers: {
