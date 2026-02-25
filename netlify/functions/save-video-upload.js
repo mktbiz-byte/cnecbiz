@@ -53,15 +53,20 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // ===== Phase 1: 캠페인 + 크리에이터 정보 병렬 조회 =====
   const campaignFields = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
-  const safeQuery = (promise) => promise.then(r => r.data).catch(() => null)
+  const safeQuery = (promise) => promise.then(r => r.data).catch((e) => { console.log('[알림] safeQuery 에러:', e.message); return null })
 
-  // 캠페인 조회 (리전 DB + BIZ DB 동시)
-  const [regCampaign, bizCampaign] = await Promise.all([
+  // 캠페인 조회 (리전 DB + BIZ DB + Korea DB 동시)
+  const campaignQueries = [
     safeQuery(client.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()),
     safeQuery(supabaseBiz.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle())
-  ])
-  const campaignData = regCampaign || bizCampaign
-  console.log('[알림] 캠페인 조회:', { found: !!campaignData, fromRegion: !!regCampaign, fromBiz: !!bizCampaign, elapsed: Date.now() - startTime + 'ms' })
+  ]
+  // Korea DB fallback (리전이 korea가 아닌 경우)
+  if (region !== 'korea' && client !== supabaseKorea) {
+    campaignQueries.push(safeQuery(supabaseKorea.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()))
+  }
+  const campaignResults = await Promise.all(campaignQueries)
+  const campaignData = campaignResults.find(r => r) || null
+  console.log('[알림] 캠페인 조회:', { found: !!campaignData, sources: campaignResults.map((r, i) => !!r), elapsed: Date.now() - startTime + 'ms' })
 
   if (campaignData) {
     campaignTitle = campaignData.title || campaignData.brand || '(캠페인명 없음)'
@@ -101,6 +106,10 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       { name: 'region', c: client },
       { name: 'biz', c: supabaseBiz }
     ]
+    // Korea DB fallback (리전이 korea가 아닌 경우)
+    if (region !== 'korea' && client !== supabaseKorea) {
+      allClients.push({ name: 'korea', c: supabaseKorea })
+    }
     // US/Japan fallback 클라이언트 추가
     const usClient = getRegionClient('us')
     const jpClient = getRegionClient('japan')
@@ -168,10 +177,11 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const results = { naverWorks: null, kakao: null, email: null }
   const notificationPromises = []
 
-  // 네이버 웍스
-  const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID
+  // 네이버 웍스 (영상 제출 알림 전용 채널)
+  const VIDEO_ROOM_DEFAULT = '75c24874-e370-afd5-9da3-72918ba15a3c'
+  const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || VIDEO_ROOM_DEFAULT
   if (!channelId) {
-    console.error('[알림] 네이버 웍스 채널 ID 미설정 (NAVER_WORKS_VIDEO_ROOM_ID 또는 NAVER_WORKS_CHANNEL_ID)')
+    console.error('[알림] 네이버 웍스 채널 ID 미설정')
   } else {
     let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
@@ -396,25 +406,43 @@ exports.handler = async (event) => {
       console.log(`[save-video-upload] Updated campaign_participants ${participantId} with ${videoFiles.length} video files`)
 
       // 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
-      if (videoStatus === 'uploaded' || !videoStatus) {
+      if ((videoStatus === 'uploaded' || !videoStatus) && !skipNotification) {
         try {
           console.log('[save-video-upload] update_participant 알림 시작:', { participantId, videoStatus, region })
-          const { data: participant, error: participantError } = await client
-            .from('campaign_participants')
-            .select('campaign_id, user_id, creator_email, creator_name')
-            .eq('id', participantId)
-            .single()
 
-          if (participantError) {
-            console.error('[save-video-upload] participant 조회 실패:', participantError.message)
+          // participant 조회: id 매칭 → user_id 매칭 fallback (admin 코드에서 user_id를 participantId로 전달하는 경우 대비)
+          let participant = null
+          // 1차: 기본 컬럼만 조회 (creator_email, creator_name은 테이블에 없을 수 있으므로 제외)
+          const { data: p1, error: e1 } = await client
+            .from('campaign_participants')
+            .select('campaign_id, user_id')
+            .eq('id', participantId)
+            .maybeSingle()
+
+          if (p1) {
+            participant = p1
+          } else {
+            console.log('[save-video-upload] id로 participant 못 찾음, user_id로 재시도:', { participantId, error: e1?.message })
+            // 2차: user_id로 fallback 조회
+            const { data: p2, error: e2 } = await client
+              .from('campaign_participants')
+              .select('campaign_id, user_id')
+              .eq('user_id', participantId)
+              .limit(1)
+              .maybeSingle()
+
+            if (p2) {
+              participant = p2
+              console.log('[save-video-upload] user_id fallback으로 participant 찾음:', { campaign_id: p2.campaign_id, user_id: p2.user_id })
+            } else {
+              console.error('[save-video-upload] user_id로도 participant 못 찾음:', { participantId, error: e2?.message })
+            }
           }
 
           if (participant) {
             console.log('[save-video-upload] participant 데이터:', {
               campaign_id: participant.campaign_id,
-              user_id: participant.user_id,
-              creator_email: participant.creator_email,
-              creator_name: participant.creator_name
+              user_id: participant.user_id
             })
             const latestFile = videoFiles[videoFiles.length - 1]
             const version = latestFile?.version || videoFiles.length
@@ -425,9 +453,7 @@ exports.handler = async (event) => {
               region: region || 'korea',
               version,
               isResubmission: false,
-              videoFileCount: videoFiles.length,
-              creatorEmail: participant.creator_email,
-              participantCreatorName: participant.creator_name
+              videoFileCount: videoFiles.length
             })
           } else {
             console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })

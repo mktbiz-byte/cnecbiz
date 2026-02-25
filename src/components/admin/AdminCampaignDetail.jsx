@@ -448,7 +448,7 @@ export default function AdminCampaignDetail() {
         const insertRes = await fetch('/.netlify/functions/save-video-upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'insert_video_submission', region, submissionData })
+          body: JSON.stringify({ action: 'insert_video_submission', region, submissionData, skipNotification: true })
         })
         const insertResult = await insertRes.json()
         if (!insertResult.success) {
@@ -482,7 +482,7 @@ export default function AdminCampaignDetail() {
         const appRes = await fetch('/.netlify/functions/save-video-upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'update_application', campaignId: id, userId: application.user_id, updateData: appUpdateData })
+          body: JSON.stringify({ action: 'update_application', campaignId: id, userId: application.user_id, updateData: appUpdateData, skipNotification: true })
         })
         const appResult = await appRes.json()
         if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
@@ -520,7 +520,8 @@ export default function AdminCampaignDetail() {
                 action: 'update_participant',
                 participantId: application.user_id,
                 videoFiles: [...existingFiles, newVideoFile],
-                videoStatus: 'uploaded'
+                videoStatus: 'uploaded',
+                skipNotification: true
               })
             })
             console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
@@ -530,11 +531,45 @@ export default function AdminCampaignDetail() {
         }
       }
 
+      // 네이버 웍스 알림 발송 (관리자가 이미 알고 있는 데이터로 직접 구성)
+      const creatorName = application.display_name || application.applicant_name || application.creator_name || '크리에이터'
+      const companyDisplayName = campaign?.company_name || campaign?.brand_name || campaign?.brand || '기업'
+      const countryMap = { kr: '한국 🇰🇷', jp: '일본 🇯🇵', us: '미국 🇺🇸', tw: '대만 🇹🇼' }
+      const regionToCountry = { korea: 'kr', japan: 'jp', us: 'us' }
+      const countryCode = campaign?.target_country || regionToCountry[region] || null
+      const countryLabel = countryMap[countryCode] || region?.toUpperCase() || ''
+      const siteLabel = { kr: 'cnec.co.kr', jp: 'cnec.jp', us: 'cnec.us' }[countryCode] || 'cnecbiz.com'
+      const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+      try {
+        // 네이버 웍스 메시지 (영상 제출 알림 전용 채널)
+        const VIDEO_ROOM_CHANNEL_ID = '75c24874-e370-afd5-9da3-72918ba15a3c'
+        let worksMessage = `📹 영상 제출 알림 (${siteLabel})\n\n`
+        worksMessage += `📋 캠페인: ${campaign?.title || '(캠페인명 없음)'}\n`
+        worksMessage += `🏢 기업: ${companyDisplayName}\n`
+        worksMessage += `👤 크리에이터: ${creatorName}\n`
+        worksMessage += `📌 버전: V${version}\n`
+        worksMessage += `🌍 국가: ${countryLabel}\n`
+        worksMessage += `⏰ 제출 시간: ${koreanDate}`
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: VIDEO_ROOM_CHANNEL_ID,
+            message: worksMessage
+          })
+        })
+        console.log('네이버 웍스 영상 제출 알림 발송 완료:', creatorName)
+      } catch (worksErr) {
+        console.error('네이버 웍스 알림 발송 실패:', worksErr)
+      }
+
       // 기업에게 알림톡 발송 (영상 제출 알림)
-      const creatorName = application.display_name || application.applicant_name || '크리에이터'
       try {
         let companyPhone = null
-        let companyDisplayName = campaign?.brand_name || campaign?.brand || '기업'
+        let companyNameForKakao = companyDisplayName
 
         // 1순위: BIZ DB에서 company_email로 조회
         if (campaign?.company_email) {
@@ -545,7 +580,7 @@ export default function AdminCampaignDetail() {
             .maybeSingle()
           if (byEmail) {
             companyPhone = byEmail.phone || byEmail.contact_phone
-            companyDisplayName = byEmail.company_name || companyDisplayName
+            if (byEmail.company_name) companyNameForKakao = byEmail.company_name
           }
         }
 
@@ -558,24 +593,9 @@ export default function AdminCampaignDetail() {
             .maybeSingle()
           if (byUserId) {
             companyPhone = byUserId.phone || byUserId.contact_phone
-            companyDisplayName = byUserId.company_name || companyDisplayName
+            if (byUserId.company_name) companyNameForKakao = byUserId.company_name
           }
         }
-
-        // 3순위: BIZ DB에서 company_id (id)로 조회
-        if (!companyPhone && campaign?.company_id) {
-          const { data: byId } = await supabaseBiz
-            .from('companies')
-            .select('phone, contact_phone, company_name')
-            .eq('id', campaign.company_id)
-            .maybeSingle()
-          if (byId) {
-            companyPhone = byId.phone || byId.contact_phone
-            companyDisplayName = byId.company_name || companyDisplayName
-          }
-        }
-
-        console.log('기업 전화번호 조회 결과:', { companyPhone, companyDisplayName })
 
         if (companyPhone) {
           await fetch('/.netlify/functions/send-kakao-notification', {
@@ -583,18 +603,16 @@ export default function AdminCampaignDetail() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               receiverNum: companyPhone.replace(/-/g, ''),
-              receiverName: companyDisplayName,
+              receiverName: companyNameForKakao,
               templateCode: '025100001008',
               variables: {
-                '회사명': companyDisplayName,
+                '회사명': companyNameForKakao,
                 '캠페인명': campaign?.title || '',
                 '크리에이터명': creatorName
               }
             })
           })
           console.log('영상 제출 알림톡 발송 완료:', creatorName)
-        } else {
-          console.warn('기업 전화번호를 찾을 수 없어 알림톡 스킵')
         }
       } catch (notifErr) {
         console.error('알림톡 발송 실패:', notifErr)
