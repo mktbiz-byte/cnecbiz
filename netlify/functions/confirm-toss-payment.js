@@ -321,7 +321,7 @@ exports.handler = async (event, context) => {
 
 ${koreanDate}`
 
-          await fetch('/.netlify/functions/send-naver-works-message', {
+          await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
