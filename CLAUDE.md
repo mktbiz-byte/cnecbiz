@@ -265,6 +265,14 @@ precharge-points.js       # 포인트 선충전
 award-bonus-points.js     # 보너스 포인트 지급
 ```
 
+### 알림/에러
+```
+send-naver-works-message.js  # 네이버웍스 메시지 전송
+send-kakao-notification.js   # 카카오 알림톡 발송
+send-error-alert.js          # 에러 발생 시 네이버웍스 에러 채널 자동 알림 ★
+notify-creator-application.js # 크리에이터 캠페인 지원 알림
+```
+
 ### 이메일 발송
 ```
 send-email.js             # 기본 이메일 발송
@@ -571,7 +579,7 @@ const supabaseKorea = createClient(
 
 | 변수명 | 용도 |
 |--------|------|
-| `GMAIL_USER` | Gmail 사용자 |
+| `GMAIL_EMAIL` | Gmail 사용자 (⚠️ GMAIL_USER 아님!) |
 | `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 |
 
 ### 기타 환경변수
@@ -582,6 +590,126 @@ const supabaseKorea = createClient(
 | `POPBILL_SECRET_KEY` | 팝빌 시크릿 키 |
 | `STIBEE_API_KEY` | 스티비 API 키 |
 | `VITE_ENCRYPTION_KEY` | 암호화 키 |
+
+---
+
+## ⚠️ 필수 개발 규칙 (2025년 2월 업데이트)
+
+> **모든 세션에서 반드시 지켜야 하는 규칙입니다. 위반 시 프로덕션 오류가 발생합니다.**
+
+### 1. 네이버웍스 채널 라우팅 (3개 채널)
+
+| 채널 ID | 용도 | 사용처 |
+|---------|------|--------|
+| `75c24874-e370-afd5-9da3-72918ba15a3c` | 결제/캠페인/크리에이터 알림 | confirm-toss-payment, confirm-payment, approve-campaign, notify-creator-application 등 |
+| `b9387420-be2a-11ef-8fa1-4b920cfbb00a` | 상담신청/가입 알림 | complete-signup, 상담 관련 함수 |
+| `54220a7e-0b14-1138-54ec-a55f62dc8b75` | 에러 알림 전용 | send-error-alert, send-naver-works-message (자체 에러) |
+
+**규칙:**
+- 네이버웍스 메시지 보낼 때 반드시 위 채널 ID 중 올바른 것을 사용
+- `NAVER_WORKS_CHANNEL_ID` 환경변수는 기본 채널용. 특정 채널이 필요하면 channelId를 직접 지정
+
+### 2. 에러 알림 시스템 (send-error-alert)
+
+모든 Netlify Function의 catch 블록에서 에러 알림을 발송해야 합니다:
+
+```javascript
+} catch (error) {
+  console.error('[function-name] Error:', error)
+
+  // 에러 알림 발송 (반드시 추가!)
+  try {
+    const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+    await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        functionName: 'function-name',      // 함수명
+        errorMessage: error.message,         // 에러 메시지
+        context: { key: 'value' }            // 추가 정보 (선택)
+      })
+    })
+  } catch (e) { console.error('Error alert failed:', e.message) }
+
+  return {
+    statusCode: 500,
+    body: JSON.stringify({ success: false, error: error.message })
+  }
+}
+```
+
+**⚠️ 예외**: `send-naver-works-message.js`는 순환 호출 방지를 위해 내부 함수로 직접 에러 알림 처리
+
+### 3. Netlify Function 서버사이드 URL
+
+서버사이드(Netlify Functions)에서 다른 함수를 호출할 때:
+
+```javascript
+// ✅ 올바른 패턴 (서버사이드)
+const baseUrl = process.env.URL || 'https://cnecbiz.com'
+await fetch(`${baseUrl}/.netlify/functions/send-email`, { ... })
+
+// ❌ 절대 사용 금지 (서버사이드에서 상대 경로 안 됨!)
+await fetch('/.netlify/functions/send-email', { ... })
+
+// ❌ 절대 사용 금지 (이전 도메인)
+await fetch('https://cnectotal.netlify.app/...', { ... })
+```
+
+프론트엔드에서는 상대 경로 `/.netlify/functions/...` 사용 OK.
+
+### 4. 카카오톡 알림 (Popbill) 파라미터
+
+```javascript
+// ✅ 올바른 파라미터명
+receiverNum: '01012345678'    // ⚠️ 'receiver' 아님!
+
+// plusFriendID 구분
+plusFriendID: '@크넥'           // 기업 대상
+plusFriendID: '@크넥_크리에이터'  // 크리에이터 대상
+```
+
+### 5. 기업 알림 연락처 우선순위
+
+기업에게 알림 발송 시, companies 테이블의 notification 필드를 우선 사용:
+
+```javascript
+const phone = companyRecord?.notification_phone || companyRecord?.phone || companyProfile?.phone
+const email = companyRecord?.notification_email || companyRecord?.email || companyProfile?.email
+```
+
+### 6. 멀티-리전 Supabase 데이터 조회
+
+| 데이터 | 조회 DB |
+|--------|---------|
+| companies, contracts, payments, admin_users | **BIZ DB만** |
+| campaigns, applications, user_profiles | **리전 DB (Korea/Japan/US) 순회 → BIZ DB 폴백** |
+| campaign_invitations, featured_creators | **BIZ DB만** |
+
+리전 DB 순회 패턴:
+```javascript
+const regionalClients = [
+  { name: 'korea', client: supabaseKorea },
+  { name: 'japan', client: supabaseJapan },
+  { name: 'us', client: supabaseUS },
+  { name: 'biz', client: supabase }
+].filter(r => r.client)
+
+for (const region of regionalClients) {
+  const { data, error } = await region.client
+    .from('applications').select('*').eq('id', id).single()
+  if (data && !error) { /* found */ break }
+}
+```
+
+### 7. 환경변수 주의사항 (추가)
+
+```
+GMAIL_USER         ❌ → GMAIL_EMAIL ✅
+VITE_URL           ❌ → VITE_SITE_URL ✅ (프론트엔드)
+                        process.env.URL ✅ (Netlify Functions 서버사이드)
+cnectotal.netlify.app ❌ → cnecbiz.com ✅
+```
 
 ---
 
