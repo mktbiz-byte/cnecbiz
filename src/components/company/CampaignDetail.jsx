@@ -6413,47 +6413,46 @@ Questions? Contact us.
       // 기업에게 알림톡 발송 (영상 제출 알림)
       const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
       try {
-        // 기업 전화번호 조회 (여러 방법으로 시도)
+        // 기업 전화번호 조회 (리전 DB 우선 → BIZ DB 폴백)
         let companyPhone = null
         let companyDisplayName = campaign?.brand_name || campaign?.brand || '기업'
+        const selectFields = 'notification_phone, phone, company_name'
+        const regionalClient = getSupabaseClient(region)
 
-        // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
-        if (campaign?.company_email) {
-          const { data: byEmail } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('email', campaign.company_email)
-            .maybeSingle()
-          if (byEmail) {
-            companyPhone = byEmail.notification_phone || byEmail.phone
-            companyDisplayName = byEmail.company_name || companyDisplayName
-          }
+        // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
+        if (!companyPhone && campaign?.company_id && regionalClient) {
+          const { data } = await regionalClient.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 
-        // 2순위: BIZ DB에서 company_id (user_id)로 조회
-        if (!companyPhone && campaign?.company_id) {
-          const { data: byUserId } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('user_id', campaign.company_id)
-            .maybeSingle()
-          if (byUserId) {
-            companyPhone = byUserId.notification_phone || byUserId.phone
-            companyDisplayName = byUserId.company_name || companyDisplayName
-          }
+        // 2순위: 리전 DB에서 company_id (user_id)로 조회
+        if (!companyPhone && campaign?.company_id && regionalClient) {
+          const { data } = await regionalClient.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 
-        // 3순위: BIZ DB에서 company_id (id)로 조회
+        // 3순위: 리전 DB에서 company_email로 조회
+        if (!companyPhone && campaign?.company_email && regionalClient) {
+          const { data } = await regionalClient.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
+        }
+
+        // 4순위: BIZ DB에서 company_id (id)로 조회
         if (!companyPhone && campaign?.company_id) {
-          const { data: byId } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('id', campaign.company_id)
-            .maybeSingle()
-          if (byId) {
-            companyPhone = byId.notification_phone || byId.phone
-            companyDisplayName = byId.company_name || companyDisplayName
-          }
+          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
+        }
+
+        // 5순위: BIZ DB에서 company_id (user_id)로 조회
+        if (!companyPhone && campaign?.company_id) {
+          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
+        }
+
+        // 6순위: BIZ DB에서 company_email로 조회
+        if (!companyPhone && campaign?.company_email) {
+          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 
         console.log('기업 전화번호 조회 결과:', { companyPhone, companyDisplayName, company_email: campaign?.company_email, company_id: campaign?.company_id })
