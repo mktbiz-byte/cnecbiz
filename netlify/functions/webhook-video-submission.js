@@ -117,9 +117,11 @@ exports.handler = async (event) => {
     // 1. 캠페인 정보 조회 (리전 DB에서)
     let campaign = null;
 
+    const campaignFields = 'id, title, brand, brand_name, company_name, company_id, company_email, target_country';
+
     const { data: regionalCampaign, error: campaignError } = await supabaseRegional
       .from('campaigns')
-      .select('id, title, brand, brand_name, company_id, company_email')
+      .select(campaignFields)
       .eq('id', record.campaign_id)
       .maybeSingle();
 
@@ -131,7 +133,7 @@ exports.handler = async (event) => {
     if (!campaign && supabaseBiz) {
       const { data: bizCampaign } = await supabaseBiz
         .from('campaigns')
-        .select('id, title, brand, brand_name, company_id, company_email')
+        .select(campaignFields)
         .eq('id', record.campaign_id)
         .maybeSingle();
       if (bizCampaign) campaign = bizCampaign;
@@ -141,7 +143,7 @@ exports.handler = async (event) => {
     if (!campaign && supabaseKorea) {
       const { data: koreaCampaign } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, brand, brand_name, company_id, company_email')
+        .select(campaignFields)
         .eq('id', record.campaign_id)
         .maybeSingle();
       if (koreaCampaign) campaign = koreaCampaign;
@@ -227,7 +229,7 @@ exports.handler = async (event) => {
 
     // 3. 기업 전화번호 조회 (기업 데이터는 BIZ DB에 있음)
     let companyPhone = null;
-    let companyName = campaign.brand || campaign.brand_name || '기업';
+    let companyName = campaign.company_name || campaign.brand_name || campaign.brand || '(기업명 없음)';
 
     console.log('기업 정보 조회 시작:', {
       company_id: campaign.company_id,
@@ -280,12 +282,12 @@ exports.handler = async (event) => {
       }
     }
 
-    // 리전별 사이트 라벨
-    const siteLabel = {
-      'korea': 'cnec.co.kr',
-      'japan': 'cnec.jp',
-      'us': 'cnec.us'
-    }[region] || region;
+    // 국가/사이트 라벨
+    const countryMap = { kr: '한국 🇰🇷', jp: '일본 🇯🇵', us: '미국 🇺🇸', tw: '대만 🇹🇼' };
+    const regionToCountry = { korea: 'kr', japan: 'jp', us: 'us' };
+    const countryCode = campaign.target_country || regionToCountry[region] || null;
+    const countryLabel = countryMap[countryCode] || region.toUpperCase();
+    const siteLabel = { kr: 'cnec.co.kr', jp: 'cnec.jp', us: 'cnec.us' }[countryCode] || region;
 
     // 기업 전화번호가 없어도 네이버웍스는 발송
     if (!companyPhone) {
@@ -317,20 +319,36 @@ exports.handler = async (event) => {
     }
 
     // 5. 네이버 웍스 알림 (모든 리전 공통)
-    try {
-      const worksResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isAdminNotification: true,
-          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `📹 ${isResubmission ? '영상 재제출' : '영상 제출'} 알림 (${siteLabel})\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n버전: V${record.version || 1}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}${isResubmission ? '\n\n※ 수정 후 재업로드' : ''}`
-        })
-      });
-      const worksResult = await worksResponse.json();
-      console.log('네이버 웍스 결과:', worksResult);
-    } catch (e) {
-      console.error('네이버 웍스 오류:', e);
+    const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID;
+    if (!channelId) {
+      console.error('네이버 웍스 채널 ID 미설정 (NAVER_WORKS_VIDEO_ROOM_ID 또는 NAVER_WORKS_CHANNEL_ID)');
+    } else {
+      try {
+        const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출';
+        const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+        let worksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`;
+        worksMessage += `📋 캠페인: ${campaign.title || '(캠페인명 없음)'}\n`;
+        worksMessage += `🏢 기업: ${companyName}\n`;
+        worksMessage += `👤 크리에이터: ${creatorName}\n`;
+        worksMessage += `📌 버전: V${record.version || 1}\n`;
+        worksMessage += `🌍 국가: ${countryLabel}\n`;
+        worksMessage += `⏰ 제출 시간: ${koreanDate}`;
+        if (isResubmission) worksMessage += '\n\n※ 수정 후 재업로드';
+
+        const worksResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId,
+            message: worksMessage
+          })
+        });
+        const worksResult = await worksResponse.json();
+        console.log('네이버 웍스 결과:', worksResult);
+      } catch (e) {
+        console.error('네이버 웍스 오류:', e);
+      }
     }
 
     return {

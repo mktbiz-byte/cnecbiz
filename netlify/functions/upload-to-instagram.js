@@ -39,6 +39,36 @@ async function refreshAccessToken(accountId, accessToken) {
   }
 }
 
+// 원본 테이블에 sns_upload_url 동기화
+async function syncSnsUrlToSource(sourceType, sourceId, platformVideoUrl) {
+  if (!sourceType || !sourceId || !platformVideoUrl) return
+
+  const regionMap = {
+    'application': { url: process.env.VITE_SUPABASE_BIZ_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY, table: 'applications' },
+    'campaign_participant': { url: process.env.VITE_SUPABASE_BIZ_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY, table: 'applications' },
+    'us_application': { url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY, table: 'applications' },
+    'us_video_submission': { url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY, table: 'video_submissions' },
+    'korea_video_submission': { url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY, table: 'video_submissions' },
+    'japan_application': { url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY, table: 'applications' },
+    'japan_video_submission': { url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY, table: 'video_submissions' },
+    'video_submission': { url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY, table: 'video_submissions' }
+  }
+
+  const config = regionMap[sourceType]
+  if (!config || !config.url || !config.key) {
+    console.log(`[syncSnsUrlToSource] No config for source_type: ${sourceType}`)
+    return
+  }
+
+  const client = createClient(config.url, config.key)
+  await client
+    .from(config.table)
+    .update({ sns_upload_url: platformVideoUrl })
+    .eq('id', sourceId)
+
+  console.log(`[syncSnsUrlToSource] Synced sns_upload_url to ${sourceType} (${config.table}.${sourceId})`)
+}
+
 // 템플릿 변수 치환
 function replaceTemplateVariables(template, variables) {
   if (!template) return ''
@@ -254,6 +284,15 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', uploadId)
+
+      // 원본 테이블에 sns_upload_url 동기화
+      try {
+        if (uploadRecord) {
+          await syncSnsUrlToSource(uploadRecord.source_type, uploadRecord.source_id, postUrl)
+        }
+      } catch (syncErr) {
+        console.log('[upload-to-instagram] sns_upload_url sync-back error:', syncErr.message)
+      }
     }
 
     return {

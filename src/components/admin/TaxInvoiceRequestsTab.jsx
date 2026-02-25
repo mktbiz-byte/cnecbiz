@@ -297,10 +297,13 @@ const TaxInvoiceRequestsTab = () => {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
   };
 
-  // 금액 포맷팅 (콤마 추가)
+  // 금액 포맷팅 (콤마 추가, 마이너스 허용)
   const formatAmount = (value) => {
+    const isNegative = value.includes('-');
     const numbers = value.replace(/[^0-9]/g, '');
-    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (isNegative && !numbers) return '-';
+    const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return isNegative ? `-${formatted}` : formatted;
   };
 
   // 수동 발행 처리
@@ -319,15 +322,16 @@ const TaxInvoiceRequestsTab = () => {
       return;
     }
     const amount = parseInt(manualForm.amount.replace(/,/g, ''));
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(amount)) {
       alert('금액을 입력해주세요.');
       return;
     }
 
-    const confirmMessage = `세금계산서를 발행하시겠습니까?\n\n` +
+    const isNegative = amount < 0;
+    const confirmMessage = `${isNegative ? '⚠️ 마이너스 ' : ''}세금계산서를 발행하시겠습니까?\n\n` +
       `회사명: ${manualForm.companyName}\n` +
       `사업자번호: ${manualForm.businessNumber}\n` +
-      `금액: ${amount.toLocaleString()}원 (VAT 포함)\n` +
+      `금액: ${amount.toLocaleString()}원 (VAT 포함)${isNegative ? ' [마이너스 발행]' : ''}\n` +
       `품목: ${manualForm.itemName || '포인트 충전'}`;
 
     if (!confirm(confirmMessage)) {
@@ -1171,11 +1175,21 @@ const TaxInvoiceRequestsTab = () => {
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">원</span>
                     </div>
-                    {manualForm.amount && (
+                    {manualForm.amount && manualForm.amount !== '-' && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <span>공급가액: {Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1).toLocaleString()}원</span>
-                        <span className="mx-2">|</span>
-                        <span>세액: {(parseInt(manualForm.amount.replace(/,/g, '') || 0) - Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1)).toLocaleString()}원</span>
+                        {(() => {
+                          const parsed = parseInt(manualForm.amount.replace(/,/g, '') || 0);
+                          const supply = Math.round(parsed / 1.1);
+                          const tax = parsed - supply;
+                          return (
+                            <>
+                              <span>공급가액: {supply.toLocaleString()}원</span>
+                              <span className="mx-2">|</span>
+                              <span>세액: {tax.toLocaleString()}원</span>
+                              {parsed < 0 && <span className="ml-2 text-red-500 font-medium">[마이너스]</span>}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

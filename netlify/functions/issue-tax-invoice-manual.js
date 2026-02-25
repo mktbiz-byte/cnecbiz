@@ -77,7 +77,7 @@ exports.handler = async (event) => {
       };
     }
 
-    if (!amount || amount <= 0) {
+    if (!amount || amount === 0 || isNaN(amount)) {
       return {
         statusCode: 400,
         body: JSON.stringify({

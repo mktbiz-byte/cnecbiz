@@ -6,6 +6,13 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# 영상 업로드 - 알림 발송(네이버웍스+카카오+이메일) 포함으로 타임아웃 연장
+[functions."save-video-upload"]
+  timeout = 30
+
+[functions."webhook-video-submission"]
+  timeout = 30
+
 # AI 생성 함수 - 타임아웃 연장 (모든 Gemini API 함수)
 [functions."generate-scene-guide"]
   timeout = 60
