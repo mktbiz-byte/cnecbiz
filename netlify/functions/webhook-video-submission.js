@@ -318,10 +318,11 @@ exports.handler = async (event) => {
       console.log('알림톡 결과:', kakaoResult);
     }
 
-    // 5. 네이버 웍스 알림 (모든 리전 공통)
-    const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || process.env.NAVER_WORKS_CHANNEL_ID;
+    // 5. 네이버 웍스 알림 (모든 리전 공통, 영상 제출 알림 전용 채널)
+    const VIDEO_ROOM_DEFAULT = '75c24874-e370-afd5-9da3-72918ba15a3c';
+    const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || VIDEO_ROOM_DEFAULT;
     if (!channelId) {
-      console.error('네이버 웍스 채널 ID 미설정 (NAVER_WORKS_VIDEO_ROOM_ID 또는 NAVER_WORKS_CHANNEL_ID)');
+      console.error('네이버 웍스 채널 ID 미설정');
     } else {
       try {
         const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출';
