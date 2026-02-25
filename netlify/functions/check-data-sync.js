@@ -1,84 +1,78 @@
 const { createClient } = require('@supabase/supabase-js')
 
-// 4개 리전 Supabase 클라이언트 생성
+// 리전별 Supabase 클라이언트 (lazy init)
 const clients = {}
-
 function getClient(region) {
   if (clients[region]) return clients[region]
-
   const configs = {
     korea: { url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY },
     japan: { url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY },
     us: { url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY },
     biz: { url: process.env.VITE_SUPABASE_BIZ_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY }
   }
-
   const cfg = configs[region]
   if (!cfg?.url || !cfg?.key) return null
-
   clients[region] = createClient(cfg.url, cfg.key)
   return clients[region]
 }
 
-// 비교 대상 테이블 — selectFields를 최소한으로 제한
-const SYNC_TABLES = {
-  campaigns: {
-    regions: ['korea', 'japan', 'us', 'biz'],
-    idField: 'id',
-    keyFields: ['title', 'status', 'campaign_type', 'target_country', 'company_id', 'company_email'],
-    label: '캠페인'
-  },
-  applications: {
-    regions: ['korea', 'japan', 'us', 'biz'],
-    idField: 'id',
-    keyFields: ['status', 'campaign_id', 'user_id', 'creator_name', 'applicant_email'],
-    label: '신청'
-  },
-  video_submissions: {
-    regions: ['korea', 'japan', 'us', 'biz'],
-    idField: 'id',
-    keyFields: ['status', 'campaign_id', 'user_id', 'video_number', 'version'],
-    label: '영상 제출'
-  },
-  companies: {
-    regions: ['korea', 'biz'],
-    idField: 'id',
-    keyFields: ['company_name', 'email', 'phone'],
-    label: '기업'
-  },
-  contracts: {
-    regions: ['biz'],
-    idField: 'id',
-    keyFields: ['status', 'company_id', 'campaign_id'],
-    label: '계약서'
-  },
-  payments: {
-    regions: ['biz'],
-    idField: 'id',
-    keyFields: ['status', 'amount', 'company_id', 'campaign_id'],
-    label: '결제'
+// 안전한 쿼리 실행
+async function safeQuery(client, table, select, filters, limit) {
+  try {
+    let q = client.from(table).select(select)
+    if (filters) {
+      for (const [col, val] of Object.entries(filters)) {
+        q = q.eq(col, val)
+      }
+    }
+    if (limit) q = q.limit(limit)
+    const { data, error } = await q
+    if (error) return { data: null, error: error.message }
+    return { data: data || [] }
+  } catch (e) {
+    return { data: null, error: e.message }
   }
 }
 
-// 안전한 테이블 조회 — 필요한 컬럼만 select
-async function safeSelect(client, table, fields, limit) {
+// 테이블 레코드 수 안전 조회
+async function safeCount(client, table) {
   try {
-    // id + keyFields만 조회
-    const selectStr = fields.join(', ')
-    const { data, error } = await client.from(table).select(selectStr).limit(limit)
-    if (error) {
-      if (error.message?.includes('does not exist') || error.code === '42P01' || error.message?.includes('column')) {
-        // 컬럼이 없으면 id만 조회
-        const { data: d2, error: e2 } = await client.from(table).select('id').limit(limit)
-        if (e2) return { data: null, exists: false, error: e2.message }
-        return { data: d2 || [], exists: true, partial: true }
-      }
-      return { data: null, exists: true, error: error.message }
-    }
-    return { data: data || [], exists: true }
+    const { count, error } = await client.from(table).select('id', { count: 'exact', head: true })
+    if (error) return { count: 0, error: error.message }
+    return { count: count || 0 }
   } catch (e) {
-    return { data: null, exists: false, error: e.message }
+    return { count: 0, error: e.message }
   }
+}
+
+// ID 집합 조회 (최대 3000건)
+async function fetchIds(client, table, column = 'id', limit = 3000) {
+  try {
+    const { data, error } = await client.from(table).select(column).limit(limit)
+    if (error) return new Set()
+    return new Set((data || []).map(r => r[column]).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+// 캠페인 ID를 모든 리전에서 수집
+async function getAllCampaignIds() {
+  const regions = ['korea', 'japan', 'us']
+  const allIds = new Set()
+  const regionMap = {} // campaignId -> region
+
+  await Promise.all(regions.map(async (region) => {
+    const client = getClient(region)
+    if (!client) return
+    const ids = await fetchIds(client, 'campaigns', 'id')
+    for (const id of ids) {
+      allIds.add(id)
+      regionMap[id] = region
+    }
+  }))
+
+  return { allIds, regionMap }
 }
 
 exports.handler = async (event) => {
@@ -87,214 +81,264 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   }
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' }
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' }
 
   try {
     const body = JSON.parse(event.body || '{}')
-    const { tables, compareMode } = body
+    const { checks: requestedChecks } = body
+    const startTime = Date.now()
 
-    const targetTables = tables?.length > 0 ? tables : Object.keys(SYNC_TABLES)
-    const mode = compareMode || 'key_fields'
-    const LIMIT = 2000 // 테이블당 최대 조회 수
-
-    // 사용 가능한 리전 확인
-    const availableRegions = {}
-    for (const r of ['korea', 'japan', 'us', 'biz']) {
+    // 1. 리전 연결 확인
+    const regionStatus = {}
+    const REGIONS = ['korea', 'japan', 'us', 'biz']
+    for (const r of REGIONS) {
+      const t = Date.now()
       const c = getClient(r)
-      availableRegions[r] = !!c
+      regionStatus[r] = { available: !!c, latency: Date.now() - t }
     }
-    console.log('[check-data-sync] Available regions:', availableRegions)
 
-    const results = {}
-    const summary = { total_records: 0, synced: 0, mismatches: 0, missing: 0 }
+    // 2. DB 현황 (각 테이블별 레코드 수)
+    const overviewTables = ['campaigns', 'applications', 'video_submissions', 'companies', 'contracts', 'payments']
+    const overview = {}
 
-    // 테이블 순차 처리 (메모리 절약)
-    for (const tableName of targetTables) {
-      const tableConfig = SYNC_TABLES[tableName]
-      if (!tableConfig) continue
+    await Promise.all(overviewTables.map(async (table) => {
+      const counts = {}
+      await Promise.all(REGIONS.map(async (region) => {
+        const client = getClient(region)
+        if (!client) { counts[region] = { count: 0, error: 'not connected' }; return }
+        counts[region] = await safeCount(client, table)
+      }))
+      overview[table] = counts
+    }))
 
-      const startTime = Date.now()
-      console.log(`[check-data-sync] Checking: ${tableName}`)
+    // 3. 무결성 검사
+    const checks = []
+    const bizClient = getClient('biz')
 
-      // 조회할 필드 목록
-      const selectFields = ['id', ...tableConfig.keyFields]
+    // 전체 캠페인 ID 맵 (리전 DB 기준)
+    const { allIds: allCampaignIds, regionMap: campaignRegionMap } = await getAllCampaignIds()
+    console.log(`[check-data-sync] 캠페인 총 ${allCampaignIds.size}개 (${Object.keys(campaignRegionMap).length} mapped)`)
 
-      // 모든 리전에서 데이터 병렬 조회
-      const regionData = {}
-      const regionMeta = {}
-
-      const queryResults = await Promise.allSettled(
-        tableConfig.regions.map(async (region) => {
-          const client = getClient(region)
-          if (!client) {
-            return { region, data: null, exists: false, error: 'No client (env var missing)' }
-          }
-          const result = await safeSelect(client, tableName, selectFields, LIMIT)
-          return { region, ...result }
-        })
-      )
-
-      for (const qr of queryResults) {
-        const { region, data, exists, error, partial } = qr.status === 'fulfilled' ? qr.value : { region: 'unknown', data: null, exists: false, error: qr.reason?.message }
-        regionMeta[region] = { exists, count: data?.length || 0, error: error || null, partial: partial || false }
-
-        // ID로 인덱싱
-        const indexed = {}
-        if (data) {
-          for (const record of data) {
-            if (record.id) indexed[record.id] = record
-          }
-        }
-        regionData[region] = indexed
-      }
-
-      // 실제로 데이터가 있는 리전만 비교 대상
-      const activeRegions = tableConfig.regions.filter(r => regionMeta[r]?.exists && regionMeta[r]?.count > 0)
-
-      // 2개 미만이면 비교 불가
-      if (activeRegions.length < 2) {
-        results[tableName] = {
-          label: tableConfig.label,
-          regions: tableConfig.regions,
-          regionMeta,
-          totalIds: Object.keys(regionData[activeRegions[0]] || {}).length,
-          issues: [],
-          issueCount: 0,
-          elapsed: Date.now() - startTime
-        }
-        continue
-      }
-
-      // 모든 활성 리전에서 고유 ID 수집
-      const allIds = new Set()
-      for (const region of activeRegions) {
-        for (const id of Object.keys(regionData[region])) {
-          allIds.add(id)
-        }
-      }
-
-      // ID별 비교 — 오류만 수집 (최대 500건)
+    // ===== CHECK 1: 결제 → 캠페인 연결 =====
+    if (!requestedChecks || requestedChecks.includes('orphaned_payments')) {
+      const t = Date.now()
       const issues = []
-      const MAX_ISSUES = 500
-
-      for (const id of allIds) {
-        if (issues.length >= MAX_ISSUES) break
-        summary.total_records++
-
-        // 존재 여부 체크
-        const presentIn = []
-        const missingIn = []
-        for (const region of activeRegions) {
-          if (regionData[region][id]) presentIn.push(region)
-          else missingIn.push(region)
+      if (bizClient) {
+        const { data: payments } = await safeQuery(bizClient, 'payments', 'id, campaign_id, status, amount, company_id, created_at', null, 2000)
+        if (payments) {
+          for (const p of payments) {
+            if (p.campaign_id && !allCampaignIds.has(p.campaign_id)) {
+              issues.push({
+                id: p.id,
+                refId: p.campaign_id,
+                refType: 'campaign_id',
+                detail: `결제 ${p.status || ''} / ${(p.amount || 0).toLocaleString()}원`,
+                created: p.created_at
+              })
+            }
+          }
         }
+      }
+      checks.push({
+        id: 'orphaned_payments',
+        label: '결제 → 캠페인 연결',
+        description: 'BIZ 결제의 campaign_id가 리전 DB에 존재하는지',
+        severity: 'high',
+        totalChecked: overview.payments?.biz?.count || 0,
+        issueCount: issues.length,
+        issues: issues.slice(0, 100),
+        elapsed: Date.now() - t
+      })
+    }
 
-        // 누락 체크
-        if (missingIn.length > 0 && presentIn.length > 0) {
-          summary.missing++
-          const firstRecord = regionData[presentIn[0]][id]
-          issues.push({
-            id,
-            status: 'missing',
-            regions: Object.fromEntries(activeRegions.map(r => [r, !!regionData[r][id]])),
-            summary: `${missingIn.join(',')}에 없음`,
-            title: firstRecord?.title || firstRecord?.creator_name || firstRecord?.company_name || '',
-            fieldDiffs: []
-          })
-          continue
+    // ===== CHECK 2: 계약 → 캠페인 연결 =====
+    if (!requestedChecks || requestedChecks.includes('orphaned_contracts')) {
+      const t = Date.now()
+      const issues = []
+      if (bizClient) {
+        const { data: contracts } = await safeQuery(bizClient, 'contracts', 'id, campaign_id, status, company_id, created_at', null, 2000)
+        if (contracts) {
+          for (const c of contracts) {
+            if (c.campaign_id && !allCampaignIds.has(c.campaign_id)) {
+              issues.push({
+                id: c.id,
+                refId: c.campaign_id,
+                refType: 'campaign_id',
+                detail: `계약 ${c.status || ''}`,
+                created: c.created_at
+              })
+            }
+          }
         }
+      }
+      checks.push({
+        id: 'orphaned_contracts',
+        label: '계약 → 캠페인 연결',
+        description: 'BIZ 계약의 campaign_id가 리전 DB에 존재하는지',
+        severity: 'high',
+        totalChecked: overview.contracts?.biz?.count || 0,
+        issueCount: issues.length,
+        issues: issues.slice(0, 100),
+        elapsed: Date.now() - t
+      })
+    }
 
-        // 필드 비교 (mode가 existence가 아닌 경우)
-        if (mode !== 'existence' && presentIn.length >= 2) {
-          const base = regionData[presentIn[0]][id]
-          const fieldDiffs = []
+    // ===== CHECK 3: 캠페인 → 기업 연결 =====
+    if (!requestedChecks || requestedChecks.includes('campaign_company_link')) {
+      const t = Date.now()
+      const issues = []
+      if (bizClient) {
+        // BIZ companies의 모든 ID 수집
+        const companyIds = await fetchIds(bizClient, 'companies', 'id')
+        const companyUserIds = await fetchIds(bizClient, 'companies', 'user_id')
+        const allCompanyIds = new Set([...companyIds, ...companyUserIds])
 
-          for (let i = 1; i < presentIn.length; i++) {
-            const other = regionData[presentIn[i]][id]
-            const compareFields = mode === 'all_fields' ? [...new Set([...Object.keys(base), ...Object.keys(other)])] : tableConfig.keyFields
-
-            for (const field of compareFields) {
-              if (field === 'id' || field === 'created_at' || field === 'updated_at') continue
-              const valA = base[field]
-              const valB = other[field]
-              const strA = typeof valA === 'object' ? JSON.stringify(valA) : String(valA ?? '')
-              const strB = typeof valB === 'object' ? JSON.stringify(valB) : String(valB ?? '')
-              if (strA !== strB) {
-                fieldDiffs.push({
-                  field,
-                  [presentIn[0]]: strA.length > 80 ? strA.slice(0, 80) + '…' : strA,
-                  [presentIn[i]]: strB.length > 80 ? strB.slice(0, 80) + '…' : strB
+        // 각 리전 DB의 캠페인에서 company_id 체크
+        const regions = ['korea', 'japan', 'us']
+        await Promise.all(regions.map(async (region) => {
+          const client = getClient(region)
+          if (!client) return
+          const { data: campaigns } = await safeQuery(client, 'campaigns', 'id, title, company_id, company_email, status', null, 1000)
+          if (campaigns) {
+            for (const c of campaigns) {
+              if (c.company_id && !allCompanyIds.has(c.company_id)) {
+                issues.push({
+                  id: c.id,
+                  refId: c.company_id,
+                  refType: 'company_id',
+                  detail: `[${region.toUpperCase()}] ${c.title || ''} (${c.status || ''})`,
+                  region,
+                  created: null
                 })
               }
             }
           }
-
-          if (fieldDiffs.length > 0) {
-            summary.mismatches++
-            issues.push({
-              id,
-              status: 'mismatch',
-              regions: Object.fromEntries(activeRegions.map(r => [r, true])),
-              summary: `${fieldDiffs.length}개 필드 불일치`,
-              title: base?.title || base?.creator_name || base?.company_name || '',
-              fieldDiffs: fieldDiffs.slice(0, 20) // 필드 차이 최대 20개
-            })
-          } else {
-            summary.synced++
-          }
-        } else {
-          summary.synced++
-        }
+        }))
       }
-
-      results[tableName] = {
-        label: tableConfig.label,
-        regions: tableConfig.regions,
-        regionMeta,
-        totalIds: allIds.size,
-        issues,
+      checks.push({
+        id: 'campaign_company_link',
+        label: '캠페인 → 기업 연결',
+        description: '리전 캠페인의 company_id가 BIZ companies에 존재하는지',
+        severity: 'medium',
+        totalChecked: (overview.campaigns?.korea?.count || 0) + (overview.campaigns?.japan?.count || 0) + (overview.campaigns?.us?.count || 0),
         issueCount: issues.length,
-        elapsed: Date.now() - startTime
-      }
-
-      console.log(`[check-data-sync] ${tableName}: ${allIds.size} records, ${issues.length} issues (${Date.now() - startTime}ms)`)
+        issues: issues.slice(0, 100),
+        elapsed: Date.now() - t
+      })
     }
+
+    // ===== CHECK 4: 신청 → 캠페인 연결 (같은 리전) =====
+    if (!requestedChecks || requestedChecks.includes('orphaned_applications')) {
+      const t = Date.now()
+      const issues = []
+      const regions = ['korea', 'japan', 'us']
+      await Promise.all(regions.map(async (region) => {
+        const client = getClient(region)
+        if (!client) return
+        // 해당 리전의 캠페인 ID
+        const regionCampaignIds = await fetchIds(client, 'campaigns', 'id')
+        // 해당 리전의 applications
+        const { data: apps } = await safeQuery(client, 'applications', 'id, campaign_id, creator_name, applicant_name, status', null, 2000)
+        if (apps) {
+          for (const a of apps) {
+            if (a.campaign_id && !regionCampaignIds.has(a.campaign_id)) {
+              issues.push({
+                id: a.id,
+                refId: a.campaign_id,
+                refType: 'campaign_id',
+                detail: `[${region.toUpperCase()}] ${a.creator_name || a.applicant_name || ''} (${a.status || ''})`,
+                region,
+                created: null
+              })
+            }
+          }
+        }
+      }))
+      checks.push({
+        id: 'orphaned_applications',
+        label: '신청 → 캠페인 연결',
+        description: '리전 신청의 campaign_id가 같은 리전 campaigns에 존재하는지',
+        severity: 'medium',
+        totalChecked: (overview.applications?.korea?.count || 0) + (overview.applications?.japan?.count || 0) + (overview.applications?.us?.count || 0),
+        issueCount: issues.length,
+        issues: issues.slice(0, 100),
+        elapsed: Date.now() - t
+      })
+    }
+
+    // ===== CHECK 5: 영상제출 → 캠페인 연결 (같은 리전) =====
+    if (!requestedChecks || requestedChecks.includes('orphaned_videos')) {
+      const t = Date.now()
+      const issues = []
+      const regions = ['korea', 'japan', 'us']
+      await Promise.all(regions.map(async (region) => {
+        const client = getClient(region)
+        if (!client) return
+        const regionCampaignIds = await fetchIds(client, 'campaigns', 'id')
+        const { data: vids } = await safeQuery(client, 'video_submissions', 'id, campaign_id, user_id, status, video_number', null, 2000)
+        if (vids) {
+          for (const v of vids) {
+            if (v.campaign_id && !regionCampaignIds.has(v.campaign_id)) {
+              issues.push({
+                id: v.id,
+                refId: v.campaign_id,
+                refType: 'campaign_id',
+                detail: `[${region.toUpperCase()}] 영상${v.video_number || ''} (${v.status || ''})`,
+                region,
+                created: null
+              })
+            }
+          }
+        }
+      }))
+      checks.push({
+        id: 'orphaned_videos',
+        label: '영상제출 → 캠페인 연결',
+        description: '리전 영상제출의 campaign_id가 같은 리전 campaigns에 존재하는지',
+        severity: 'medium',
+        totalChecked: (overview.video_submissions?.korea?.count || 0) + (overview.video_submissions?.japan?.count || 0) + (overview.video_submissions?.us?.count || 0),
+        issueCount: issues.length,
+        issues: issues.slice(0, 100),
+        elapsed: Date.now() - t
+      })
+    }
+
+    // 요약
+    const summary = {
+      totalChecks: checks.length,
+      passed: checks.filter(c => c.issueCount === 0).length,
+      failed: checks.filter(c => c.issueCount > 0).length,
+      totalIssues: checks.reduce((sum, c) => sum + c.issueCount, 0),
+      highSeverityIssues: checks.filter(c => c.severity === 'high' && c.issueCount > 0).length
+    }
+
+    console.log(`[check-data-sync] 완료: ${checks.length}개 검사, ${summary.totalIssues}개 이슈 (${Date.now() - startTime}ms)`)
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        availableRegions,
+        regionStatus,
+        overview,
+        checks,
         summary,
-        results,
+        elapsed: Date.now() - startTime,
         checkedAt: new Date().toISOString()
       })
     }
 
   } catch (error) {
     console.error('[check-data-sync] Error:', error.message, error.stack)
-
     try {
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'check-data-sync',
-          errorMessage: error.message,
-          context: { stack: error.stack?.slice(0, 500) }
-        })
+        body: JSON.stringify({ functionName: 'check-data-sync', errorMessage: error.message, context: { stack: error.stack?.slice(0, 500) } })
       })
     } catch (e) { console.error('Error alert failed:', e.message) }
 
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ success: false, error: error.message })
-    }
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) }
   }
 }
