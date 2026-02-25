@@ -109,7 +109,7 @@ export default function PointsChargeManagement() {
         const companyIds = [...new Set(requests.map(r => r.company_id).filter(Boolean))]
         const { data: companiesData } = await supabaseBiz
           .from('companies')
-          .select('user_id, company_name, email, phone, contact_person')
+          .select('user_id, company_name, email, phone, contact_person, notification_email, notification_phone')
           .in('user_id', companyIds)
 
         const companiesMap = {}

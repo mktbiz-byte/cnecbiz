@@ -126,21 +126,21 @@ exports.handler = async (event) => {
     let companyContactName = companyNameFromCampaign
     let companyName = companyNameFromCampaign
 
-    // 1순위: BIZ DB에서 company_email로 조회 (이관된 캠페인의 경우 이 값이 최신)
+    // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선 사용)
     if (companyEmailFromCampaign && supabaseBiz) {
       const { data: bizCompany, error: bizError } = await supabaseBiz
         .from('companies')
-        .select('company_name, phone, email')
+        .select('company_name, notification_phone, notification_email, notification_contact_person, phone, email')
         .eq('email', companyEmailFromCampaign)
         .maybeSingle()
 
       console.log('[INFO] BIZ DB (email) lookup:', { bizCompany, error: bizError?.message })
 
       if (bizCompany) {
-        companyPhone = bizCompany.phone
-        companyEmail = bizCompany.email
+        companyPhone = bizCompany.notification_phone || bizCompany.phone
+        companyEmail = bizCompany.notification_email || bizCompany.email
         companyName = bizCompany.company_name || companyName
-        companyContactName = bizCompany.company_name || companyContactName
+        companyContactName = bizCompany.notification_contact_person || bizCompany.company_name || companyContactName
       }
     }
 
@@ -148,17 +148,17 @@ exports.handler = async (event) => {
     if (!companyPhone && companyId && supabaseBiz) {
       const { data: bizCompanyById, error: bizError2 } = await supabaseBiz
         .from('companies')
-        .select('company_name, phone, email')
+        .select('company_name, notification_phone, notification_email, notification_contact_person, phone, email')
         .eq('user_id', companyId)
         .maybeSingle()
 
       console.log('[INFO] BIZ DB (user_id) lookup:', { bizCompanyById, error: bizError2?.message })
 
       if (bizCompanyById) {
-        companyPhone = bizCompanyById.phone
-        companyEmail = bizCompanyById.email
+        companyPhone = bizCompanyById.notification_phone || bizCompanyById.phone
+        companyEmail = bizCompanyById.notification_email || bizCompanyById.email
         companyName = bizCompanyById.company_name || companyName
-        companyContactName = bizCompanyById.company_name || companyContactName
+        companyContactName = bizCompanyById.notification_contact_person || bizCompanyById.company_name || companyContactName
       }
     }
 

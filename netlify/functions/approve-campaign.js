@@ -255,12 +255,14 @@ exports.handler = async (event, context) => {
       // 이메일 HTML 생성
       const emailHtml = generateEmailHtml(templateCode, variables)
 
-      // 알림 전송 (Popbill 카카오톡 + 이메일)
-      if (company.phone || company.email) {
+      // 알림 전송 (Popbill 카카오톡 + 이메일) - notification 필드 우선 사용
+      const notifyPhone = company.notification_phone || company.phone
+      const notifyEmail = company.notification_email || company.email
+      if (notifyPhone || notifyEmail) {
         await sendNotification({
-          receiverNum: company.phone,
-          receiverEmail: company.email,
-          receiverName: company.company_name,
+          receiverNum: notifyPhone,
+          receiverEmail: notifyEmail,
+          receiverName: company.notification_contact_person || company.company_name,
           templateCode,
           variables,
           emailSubject: emailHtml.subject,

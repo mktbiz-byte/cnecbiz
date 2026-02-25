@@ -961,19 +961,19 @@ exports.handler = async (event, context) => {
         }
         const supabase = createClient(regionConfig.url, regionConfig.key);
 
-        // companies 테이블에서 기업 정보 조회 (company_id는 auth user의 id이므로 user_id로 조회)
+        // companies 테이블에서 기업 정보 조회 (notification_email 우선)
         let companyEmail = null;
         let companyName = '기업';
 
-        // 1. user_id로 companies 테이블 조회 (company_id는 auth user.id를 저장)
+        // 1. user_id로 companies 테이블 조회 (notification_email 우선)
         const { data: companyByUserId, error: companyError1 } = await supabase
           .from('companies')
-          .select('company_name, email')
+          .select('company_name, notification_email, email')
           .eq('user_id', campaignData.companyId)
           .maybeSingle();
 
         if (!companyError1 && companyByUserId) {
-          companyEmail = companyByUserId.email;
+          companyEmail = companyByUserId.notification_email || companyByUserId.email;
           companyName = companyByUserId.company_name || '기업';
         }
 
@@ -981,12 +981,12 @@ exports.handler = async (event, context) => {
         if (!companyEmail) {
           const { data: companyById, error: companyError2 } = await supabase
             .from('companies')
-            .select('company_name, email')
+            .select('company_name, notification_email, email')
             .eq('id', campaignData.companyId)
             .maybeSingle();
 
           if (!companyError2 && companyById) {
-            companyEmail = companyById.email;
+            companyEmail = companyById.notification_email || companyById.email;
             companyName = companyById.company_name || '기업';
           }
         }

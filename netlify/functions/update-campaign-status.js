@@ -315,9 +315,10 @@ exports.handler = async (event, context) => {
             }
           }
 
-          console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: company.phone } : null)
+          const companyNotifyPhone = company ? (company.notification_phone || company.phone) : null
+          console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: companyNotifyPhone } : null)
 
-          if (company && company.phone) {
+          if (company && companyNotifyPhone) {
             const templateCode = '025100001005'
 
             const formatDate = (dateString) => {
@@ -341,8 +342,8 @@ exports.handler = async (event, context) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                receiverNum: company.phone,
-                receiverName: company.company_name,
+                receiverNum: companyNotifyPhone,
+                receiverName: company.notification_contact_person || company.company_name,
                 templateCode,
                 variables
               })
