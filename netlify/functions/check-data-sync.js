@@ -20,61 +20,58 @@ function getClient(region) {
   return clients[region]
 }
 
-// 비교 대상 테이블 정의
+// 비교 대상 테이블 — selectFields를 최소한으로 제한
 const SYNC_TABLES = {
   campaigns: {
     regions: ['korea', 'japan', 'us', 'biz'],
     idField: 'id',
     keyFields: ['title', 'status', 'campaign_type', 'target_country', 'company_id', 'company_email'],
-    selectFields: '*',
     label: '캠페인'
   },
   applications: {
     regions: ['korea', 'japan', 'us', 'biz'],
     idField: 'id',
     keyFields: ['status', 'campaign_id', 'user_id', 'creator_name', 'applicant_email'],
-    selectFields: '*',
     label: '신청'
   },
   video_submissions: {
     regions: ['korea', 'japan', 'us', 'biz'],
     idField: 'id',
-    keyFields: ['status', 'campaign_id', 'user_id', 'video_number', 'version', 'video_file_url'],
-    selectFields: '*',
+    keyFields: ['status', 'campaign_id', 'user_id', 'video_number', 'version'],
     label: '영상 제출'
   },
   companies: {
     regions: ['korea', 'biz'],
     idField: 'id',
-    keyFields: ['company_name', 'email', 'phone', 'status'],
-    selectFields: '*',
+    keyFields: ['company_name', 'email', 'phone'],
     label: '기업'
   },
   contracts: {
     regions: ['biz'],
     idField: 'id',
     keyFields: ['status', 'company_id', 'campaign_id'],
-    selectFields: '*',
     label: '계약서'
   },
   payments: {
     regions: ['biz'],
     idField: 'id',
     keyFields: ['status', 'amount', 'company_id', 'campaign_id'],
-    selectFields: '*',
     label: '결제'
   }
 }
 
-// 안전한 테이블 조회 (테이블이 없을 수 있음)
-async function safeSelect(client, table, selectFields, regionName) {
+// 안전한 테이블 조회 — 필요한 컬럼만 select
+async function safeSelect(client, table, fields, limit) {
   try {
-    let query = client.from(table).select(selectFields)
-    const { data, error } = await query.limit(5000)
+    // id + keyFields만 조회
+    const selectStr = fields.join(', ')
+    const { data, error } = await client.from(table).select(selectStr).limit(limit)
     if (error) {
-      // 테이블이 없는 경우
-      if (error.message?.includes('does not exist') || error.code === '42P01') {
-        return { data: null, exists: false }
+      if (error.message?.includes('does not exist') || error.code === '42P01' || error.message?.includes('column')) {
+        // 컬럼이 없으면 id만 조회
+        const { data: d2, error: e2 } = await client.from(table).select('id').limit(limit)
+        if (e2) return { data: null, exists: false, error: e2.message }
+        return { data: d2 || [], exists: true, partial: true }
       }
       return { data: null, exists: true, error: error.message }
     }
@@ -82,27 +79,6 @@ async function safeSelect(client, table, selectFields, regionName) {
   } catch (e) {
     return { data: null, exists: false, error: e.message }
   }
-}
-
-// 두 객체의 필드 차이 비교
-function compareFields(recordA, recordB, skipFields = ['created_at', 'updated_at']) {
-  const diffs = []
-  const allKeys = new Set([...Object.keys(recordA || {}), ...Object.keys(recordB || {})])
-
-  for (const key of allKeys) {
-    if (skipFields.includes(key)) continue
-    const valA = recordA?.[key]
-    const valB = recordB?.[key]
-
-    // JSON 필드 비교
-    const strA = typeof valA === 'object' ? JSON.stringify(valA) : String(valA ?? '')
-    const strB = typeof valB === 'object' ? JSON.stringify(valB) : String(valB ?? '')
-
-    if (strA !== strB) {
-      diffs.push({ field: key, values: { a: valA, b: valB } })
-    }
-  }
-  return diffs
 }
 
 exports.handler = async (event) => {
@@ -119,153 +95,158 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}')
     const { tables, compareMode } = body
-    // tables: 조회할 테이블 목록 (기본: 전체)
-    // compareMode: 'existence' | 'key_fields' | 'all_fields'
 
     const targetTables = tables?.length > 0 ? tables : Object.keys(SYNC_TABLES)
-    const mode = compareMode || 'all_fields'
+    const mode = compareMode || 'key_fields'
+    const LIMIT = 2000 // 테이블당 최대 조회 수
+
+    // 사용 가능한 리전 확인
+    const availableRegions = {}
+    for (const r of ['korea', 'japan', 'us', 'biz']) {
+      const c = getClient(r)
+      availableRegions[r] = !!c
+    }
+    console.log('[check-data-sync] Available regions:', availableRegions)
 
     const results = {}
-    const summary = { total_records: 0, synced: 0, mismatches: 0, missing: 0, errors: [] }
+    const summary = { total_records: 0, synced: 0, mismatches: 0, missing: 0 }
 
+    // 테이블 순차 처리 (메모리 절약)
     for (const tableName of targetTables) {
       const tableConfig = SYNC_TABLES[tableName]
       if (!tableConfig) continue
 
-      console.log(`[check-data-sync] Checking table: ${tableName}`)
+      const startTime = Date.now()
+      console.log(`[check-data-sync] Checking: ${tableName}`)
 
-      // 모든 리전에서 데이터 조회
+      // 조회할 필드 목록
+      const selectFields = ['id', ...tableConfig.keyFields]
+
+      // 모든 리전에서 데이터 병렬 조회
       const regionData = {}
       const regionMeta = {}
 
-      await Promise.all(tableConfig.regions.map(async (region) => {
-        const client = getClient(region)
-        if (!client) {
-          regionMeta[region] = { exists: false, count: 0, error: 'Client not available' }
-          regionData[region] = {}
-          return
-        }
+      const queryResults = await Promise.allSettled(
+        tableConfig.regions.map(async (region) => {
+          const client = getClient(region)
+          if (!client) {
+            return { region, data: null, exists: false, error: 'No client (env var missing)' }
+          }
+          const result = await safeSelect(client, tableName, selectFields, LIMIT)
+          return { region, ...result }
+        })
+      )
 
-        const result = await safeSelect(client, tableName, tableConfig.selectFields, region)
-        regionMeta[region] = {
-          exists: result.exists,
-          count: result.data?.length || 0,
-          error: result.error || null
-        }
+      for (const qr of queryResults) {
+        const { region, data, exists, error, partial } = qr.status === 'fulfilled' ? qr.value : { region: 'unknown', data: null, exists: false, error: qr.reason?.message }
+        regionMeta[region] = { exists, count: data?.length || 0, error: error || null, partial: partial || false }
 
         // ID로 인덱싱
         const indexed = {}
-        if (result.data) {
-          for (const record of result.data) {
-            const id = record[tableConfig.idField]
-            if (id) indexed[id] = record
+        if (data) {
+          for (const record of data) {
+            if (record.id) indexed[record.id] = record
           }
         }
         regionData[region] = indexed
-      }))
+      }
 
-      // 모든 리전에서 발견된 고유 ID 수집
+      // 실제로 데이터가 있는 리전만 비교 대상
+      const activeRegions = tableConfig.regions.filter(r => regionMeta[r]?.exists && regionMeta[r]?.count > 0)
+
+      // 2개 미만이면 비교 불가
+      if (activeRegions.length < 2) {
+        results[tableName] = {
+          label: tableConfig.label,
+          regions: tableConfig.regions,
+          regionMeta,
+          totalIds: Object.keys(regionData[activeRegions[0]] || {}).length,
+          issues: [],
+          issueCount: 0,
+          elapsed: Date.now() - startTime
+        }
+        continue
+      }
+
+      // 모든 활성 리전에서 고유 ID 수집
       const allIds = new Set()
-      for (const region of tableConfig.regions) {
-        for (const id of Object.keys(regionData[region] || {})) {
+      for (const region of activeRegions) {
+        for (const id of Object.keys(regionData[region])) {
           allIds.add(id)
         }
       }
 
-      // ID별로 리전 간 비교
-      const records = []
+      // ID별 비교 — 오류만 수집 (최대 500건)
+      const issues = []
+      const MAX_ISSUES = 500
+
       for (const id of allIds) {
+        if (issues.length >= MAX_ISSUES) break
         summary.total_records++
 
-        const record = {
-          id,
-          regions: {},
-          status: 'synced', // synced | mismatch | missing
-          issues: []
+        // 존재 여부 체크
+        const presentIn = []
+        const missingIn = []
+        for (const region of activeRegions) {
+          if (regionData[region][id]) presentIn.push(region)
+          else missingIn.push(region)
         }
 
-        // 각 리전에 존재하는지 체크
-        const presentRegions = []
-        const missingRegions = []
-        for (const region of tableConfig.regions) {
-          if (!regionMeta[region]?.exists) continue
-          if (regionData[region][id]) {
-            presentRegions.push(region)
-            record.regions[region] = true
-          } else {
-            missingRegions.push(region)
-            record.regions[region] = false
-          }
-        }
-
-        // 존재 여부 비교
-        if (missingRegions.length > 0 && presentRegions.length > 0) {
-          record.status = 'missing'
-          record.issues.push({
-            type: 'missing',
-            message: `${missingRegions.join(', ')}에 없음`,
-            present: presentRegions,
-            missing: missingRegions
-          })
+        // 누락 체크
+        if (missingIn.length > 0 && presentIn.length > 0) {
           summary.missing++
+          const firstRecord = regionData[presentIn[0]][id]
+          issues.push({
+            id,
+            status: 'missing',
+            regions: Object.fromEntries(activeRegions.map(r => [r, !!regionData[r][id]])),
+            summary: `${missingIn.join(',')}에 없음`,
+            title: firstRecord?.title || firstRecord?.creator_name || firstRecord?.company_name || '',
+            fieldDiffs: []
+          })
+          continue
         }
 
-        // 필드 비교 (existence 모드가 아닌 경우)
-        if (mode !== 'existence' && presentRegions.length >= 2) {
-          const baseRegion = presentRegions[0]
-          const baseRecord = regionData[baseRegion][id]
+        // 필드 비교 (mode가 existence가 아닌 경우)
+        if (mode !== 'existence' && presentIn.length >= 2) {
+          const base = regionData[presentIn[0]][id]
+          const fieldDiffs = []
 
-          for (let i = 1; i < presentRegions.length; i++) {
-            const compareRegion = presentRegions[i]
-            const compareRecord = regionData[compareRegion][id]
+          for (let i = 1; i < presentIn.length; i++) {
+            const other = regionData[presentIn[i]][id]
+            const compareFields = mode === 'all_fields' ? [...new Set([...Object.keys(base), ...Object.keys(other)])] : tableConfig.keyFields
 
-            let diffs
-            if (mode === 'key_fields') {
-              // 주요 필드만 비교
-              const baseFiltered = {}
-              const compareFiltered = {}
-              for (const f of tableConfig.keyFields) {
-                baseFiltered[f] = baseRecord[f]
-                compareFiltered[f] = compareRecord[f]
+            for (const field of compareFields) {
+              if (field === 'id' || field === 'created_at' || field === 'updated_at') continue
+              const valA = base[field]
+              const valB = other[field]
+              const strA = typeof valA === 'object' ? JSON.stringify(valA) : String(valA ?? '')
+              const strB = typeof valB === 'object' ? JSON.stringify(valB) : String(valB ?? '')
+              if (strA !== strB) {
+                fieldDiffs.push({
+                  field,
+                  [presentIn[0]]: strA.length > 80 ? strA.slice(0, 80) + '…' : strA,
+                  [presentIn[i]]: strB.length > 80 ? strB.slice(0, 80) + '…' : strB
+                })
               }
-              diffs = compareFields(baseFiltered, compareFiltered, [])
-            } else {
-              // 전체 필드 비교
-              diffs = compareFields(baseRecord, compareRecord)
-            }
-
-            if (diffs.length > 0) {
-              record.status = 'mismatch'
-              record.issues.push({
-                type: 'field_mismatch',
-                regions: [baseRegion, compareRegion],
-                diffs: diffs.map(d => ({
-                  field: d.field,
-                  [baseRegion]: d.values.a,
-                  [compareRegion]: d.values.b
-                }))
-              })
             }
           }
 
-          if (record.status === 'mismatch') {
+          if (fieldDiffs.length > 0) {
             summary.mismatches++
-          } else if (record.status === 'synced') {
+            issues.push({
+              id,
+              status: 'mismatch',
+              regions: Object.fromEntries(activeRegions.map(r => [r, true])),
+              summary: `${fieldDiffs.length}개 필드 불일치`,
+              title: base?.title || base?.creator_name || base?.company_name || '',
+              fieldDiffs: fieldDiffs.slice(0, 20) // 필드 차이 최대 20개
+            })
+          } else {
             summary.synced++
           }
-        } else if (presentRegions.length === 1) {
-          // 하나의 리전에만 존재 → synced (비교 불필요)
+        } else {
           summary.synced++
-        }
-
-        // 문제가 있는 레코드만 포함 (전체 포함 시 너무 많을 수 있음)
-        if (record.status !== 'synced') {
-          // 각 리전별 실제 데이터도 포함 (엑셀 출력용)
-          record.data = {}
-          for (const region of presentRegions) {
-            record.data[region] = regionData[region][id]
-          }
-          records.push(record)
         }
       }
 
@@ -274,9 +255,12 @@ exports.handler = async (event) => {
         regions: tableConfig.regions,
         regionMeta,
         totalIds: allIds.size,
-        issues: records,
-        issueCount: records.length
+        issues,
+        issueCount: issues.length,
+        elapsed: Date.now() - startTime
       }
+
+      console.log(`[check-data-sync] ${tableName}: ${allIds.size} records, ${issues.length} issues (${Date.now() - startTime}ms)`)
     }
 
     return {
@@ -284,6 +268,7 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
+        availableRegions,
         summary,
         results,
         checkedAt: new Date().toISOString()
@@ -291,7 +276,7 @@ exports.handler = async (event) => {
     }
 
   } catch (error) {
-    console.error('[check-data-sync] Error:', error)
+    console.error('[check-data-sync] Error:', error.message, error.stack)
 
     try {
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
@@ -301,7 +286,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           functionName: 'check-data-sync',
           errorMessage: error.message,
-          context: {}
+          context: { stack: error.stack?.slice(0, 500) }
         })
       })
     } catch (e) { console.error('Error alert failed:', e.message) }

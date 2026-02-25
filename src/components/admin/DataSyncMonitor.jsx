@@ -102,7 +102,8 @@ export default function DataSyncMonitor() {
         const baseRow = {
           'ID': issue.id,
           '상태': STATUS_CONFIG[issue.status]?.label || issue.status,
-          '오류 유형': issue.issues.map(i => i.type === 'missing' ? i.message : '필드 불일치').join(', ')
+          '제목': issue.title || '',
+          '오류 내용': issue.summary || ''
         }
 
         // 리전별 존재 여부
@@ -111,17 +112,16 @@ export default function DataSyncMonitor() {
         }
 
         // 불일치 필드 상세
-        const fieldDiffs = issue.issues.filter(i => i.type === 'field_mismatch')
-        if (fieldDiffs.length > 0) {
-          for (const diff of fieldDiffs) {
-            for (const d of diff.diffs) {
-              const row = { ...baseRow, '불일치 필드': d.field }
-              for (const region of diff.regions) {
-                const val = d[region]
-                row[`${REGION_LABELS[region]} 값`] = typeof val === 'object' ? JSON.stringify(val) : String(val ?? '')
+        if (issue.fieldDiffs?.length > 0) {
+          for (const d of issue.fieldDiffs) {
+            const row = { ...baseRow, '불일치 필드': d.field }
+            // 각 리전의 값 추가
+            for (const region of tableData.regions) {
+              if (d[region] !== undefined) {
+                row[`${REGION_LABELS[region]} 값`] = String(d[region] ?? '')
               }
-              rows.push(row)
             }
+            rows.push(row)
           }
         } else {
           rows.push(baseRow)
@@ -130,35 +130,9 @@ export default function DataSyncMonitor() {
 
       if (rows.length > 0) {
         const ws = XLSX.utils.json_to_sheet(rows)
-        ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 30 }, ...Array(10).fill({ wch: 22 })]
+        ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 20 }, { wch: 30 }, ...Array(10).fill({ wch: 22 })]
         XLSX.utils.book_append_sheet(wb, ws, tableData.label)
       }
-    }
-
-    // 3. 나라별 전체 데이터 시트 (오류 레코드의 각 리전 데이터)
-    const regionSheets = {}
-    for (const [tableName, tableData] of Object.entries(data.results)) {
-      for (const issue of tableData.issues) {
-        if (!issue.data) continue
-        for (const [region, record] of Object.entries(issue.data)) {
-          const sheetName = `${REGION_LABELS[region]}_${tableData.label}`
-          if (!regionSheets[sheetName]) regionSheets[sheetName] = []
-          regionSheets[sheetName].push({
-            '테이블': tableData.label,
-            '오류상태': STATUS_CONFIG[issue.status]?.label || issue.status,
-            ...record
-          })
-        }
-      }
-    }
-
-    for (const [sheetName, rows] of Object.entries(regionSheets)) {
-      if (rows.length === 0) continue
-      // 시트 이름 31자 제한
-      const safeName = sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName
-      const ws = XLSX.utils.json_to_sheet(rows)
-      ws['!cols'] = Array(20).fill({ wch: 20 })
-      XLSX.utils.book_append_sheet(wb, ws, safeName)
     }
 
     const now = new Date().toISOString().slice(0, 10)
@@ -431,7 +405,7 @@ export default function DataSyncMonitor() {
                                     </td>
                                   ))}
                                   <td className="p-3 text-xs text-[#636E72] max-w-xs truncate">
-                                    {issue.issues.map(i => i.type === 'missing' ? i.message : `필드 불일치 ${i.diffs?.length || 0}건`).join(', ')}
+                                    {issue.summary} {issue.title && `— ${issue.title}`}
                                   </td>
                                 </tr>
                                 {/* 상세 펼침 */}
@@ -439,44 +413,43 @@ export default function DataSyncMonitor() {
                                   <tr key={`${issue.id}_detail`}>
                                     <td colSpan={4 + tableData.regions.length} className="p-0">
                                       <div className="bg-[#F8F9FA] p-4 border-b border-[#DFE6E9]">
-                                        <p className="text-xs font-semibold text-[#1A1A2E] mb-2">ID: {issue.id}</p>
-                                        {issue.issues.map((iss, iIdx) => (
-                                          <div key={iIdx} className="mb-3">
-                                            {iss.type === 'missing' && (
-                                              <p className="text-xs text-[#FDCB6E]">
-                                                ⚠ 누락: {iss.missing?.join(', ')}에 없음 (존재: {iss.present?.join(', ')})
-                                              </p>
-                                            )}
-                                            {iss.type === 'field_mismatch' && (
-                                              <div className="overflow-x-auto">
-                                                <table className="text-xs border border-[#DFE6E9] rounded-lg overflow-hidden w-full">
-                                                  <thead>
-                                                    <tr className="bg-white">
-                                                      <th className="p-2 text-left text-[#636E72] border-b border-[#DFE6E9]">필드</th>
-                                                      {iss.regions.map(r => (
-                                                        <th key={r} className="p-2 text-left border-b border-[#DFE6E9]" style={{ color: REGION_COLORS[r] }}>
-                                                          {REGION_LABELS[r]}
-                                                        </th>
-                                                      ))}
-                                                    </tr>
-                                                  </thead>
-                                                  <tbody>
-                                                    {iss.diffs?.map((d, dIdx) => (
-                                                      <tr key={dIdx} className="border-b border-[#DFE6E9] last:border-0">
-                                                        <td className="p-2 font-mono font-medium text-[#1A1A2E]">{d.field}</td>
-                                                        {iss.regions.map(r => (
-                                                          <td key={r} className="p-2 font-mono text-[#636E72] max-w-[200px] truncate">
-                                                            {typeof d[r] === 'object' ? JSON.stringify(d[r]) : String(d[r] ?? 'null')}
-                                                          </td>
-                                                        ))}
-                                                      </tr>
+                                        <p className="text-xs font-semibold text-[#1A1A2E] mb-2">ID: <span className="font-mono">{issue.id}</span></p>
+                                        <p className="text-xs text-[#636E72] mb-3">{issue.summary} {issue.title && `— ${issue.title}`}</p>
+
+                                        {issue.status === 'missing' && (
+                                          <p className="text-xs text-[#FDCB6E]">
+                                            ⚠ 누락 리전: {Object.entries(issue.regions).filter(([,v]) => !v).map(([r]) => REGION_LABELS[r] || r).join(', ')}
+                                          </p>
+                                        )}
+
+                                        {issue.fieldDiffs?.length > 0 && (
+                                          <div className="overflow-x-auto mt-2">
+                                            <table className="text-xs border border-[#DFE6E9] rounded-lg overflow-hidden w-full">
+                                              <thead>
+                                                <tr className="bg-white">
+                                                  <th className="p-2 text-left text-[#636E72] border-b border-[#DFE6E9]">필드</th>
+                                                  {tableData.regions.filter(r => issue.regions[r]).map(r => (
+                                                    <th key={r} className="p-2 text-left border-b border-[#DFE6E9]" style={{ color: REGION_COLORS[r] }}>
+                                                      {REGION_LABELS[r]}
+                                                    </th>
+                                                  ))}
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {issue.fieldDiffs.map((d, dIdx) => (
+                                                  <tr key={dIdx} className="border-b border-[#DFE6E9] last:border-0">
+                                                    <td className="p-2 font-mono font-medium text-[#1A1A2E]">{d.field}</td>
+                                                    {tableData.regions.filter(r => issue.regions[r]).map(r => (
+                                                      <td key={r} className="p-2 font-mono text-[#636E72] max-w-[200px] truncate">
+                                                        {d[r] ?? '-'}
+                                                      </td>
                                                     ))}
-                                                  </tbody>
-                                                </table>
-                                              </div>
-                                            )}
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
                                           </div>
-                                        ))}
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
