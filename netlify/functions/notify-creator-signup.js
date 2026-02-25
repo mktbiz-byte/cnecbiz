@@ -50,7 +50,7 @@ async function sendLineNotification(creatorId, creatorName, lineUserId) {
     : { creatorId, templateType: 'signup_complete', templateData: { creatorName } };
 
   try {
-    const response = await fetch(`${process.env.URL || 'https://cnectotal.netlify.app'}/.netlify/functions/send-line-message`, {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-line-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -75,10 +75,10 @@ LINE 연동: ${creator.line_user_id ? '✅' : '❌'}
 가입일시: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
 
   try {
-    const response = await fetch(`${process.env.URL || 'https://cnectotal.netlify.app'}/.netlify/functions/send-naver-works-message`, {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, isAdminNotification: true })
+      body: JSON.stringify({ message, isAdminNotification: true, channelId: 'b9387420-7c8d-e703-0f96-dbfc72565bb5' })
     });
     return response.ok;
   } catch (error) {

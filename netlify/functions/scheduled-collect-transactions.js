@@ -254,15 +254,15 @@ async function autoMatchTransaction(transaction) {
             .single();
 
           // 네이버 웍스 알림 발송
-          const axios = require('axios');
-          const naverWorksWebhook = process.env.NAVER_WORKS_WEBHOOK_URL;
-          
-          if (naverWorksWebhook && campaign) {
+          if (campaign) {
             try {
-              await axios.post(naverWorksWebhook, {
-                content: {
-                  type: 'text',
-                  text: `🎉 **새로운 캠페인 승인 요청**\n\n` +
+              const axios = require('axios');
+              await axios.post(
+                `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
+                {
+                  isAdminNotification: true,
+                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                  message: `🎉 **새로운 캠페인 승인 요청**\n\n` +
                         `🏬 **회사:** ${companyInfo?.company_name || '미상'}\n` +
                         `📝 **캠페인:** ${campaign.title}\n` +
                         `🎯 **타입:** ${campaign.campaign_type || '미상'}\n` +
@@ -270,7 +270,7 @@ async function autoMatchTransaction(transaction) {
                         `💰 **입금 금액:** ${parseInt(request.amount).toLocaleString()}원\n\n` +
                         `➡️ 관리자 페이지에서 확인해주세요.`
                 }
-              });
+              );
               console.log('✅ 네이버 웍스 알림 발송 완료');
             } catch (worksError) {
               console.error('❌ 네이버 웍스 알림 발송 실패:', worksError.message);
@@ -402,13 +402,14 @@ async function autoMatchTransaction(transaction) {
             `충전 금액: ${parseInt(request.amount).toLocaleString()}원\n` +
             `새 잔액: ${newPoints.toLocaleString()}P\n` +
             `확인 시간: ${koreanDate}\n\n` +
-            `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
+            `관리자 페이지: https://cnecbiz.com/admin/deposits`;
 
           await axios.post(
-            `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+            `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
             {
               message: naverMessage,
-              isAdminNotification: true
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
             }
           );
           console.log('✅ 관리자 알림 발송 완료');
@@ -637,13 +638,14 @@ exports.handler = async (event, context) => {
             alertMessage += `\n... 외 ${unmatchedTransactions.length - 5}건 더 있음\n`;
           }
           
-          alertMessage += `\n확인 페이지: https://cnectotal.netlify.app/admin/deposits`;
+          alertMessage += `\n확인 페이지: https://cnecbiz.com/admin/deposits`;
           
           await axios.post(
-            `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+            `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
             {
               message: alertMessage,
-              isAdminNotification: true
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
             }
           );
           console.log('✅ 미매칭 입금 알림 발송 완료');

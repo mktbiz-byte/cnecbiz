@@ -298,7 +298,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
             : '추후 안내'
           
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -333,7 +333,7 @@ exports.handler = async (event, context) => {
             ? new Date(campaign.end_date).toLocaleDateString('ko-KR')
             : '추후 안내'
           
-          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
           await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -391,7 +391,7 @@ exports.handler = async (event, context) => {
 
 🎉 캠페인이 자동 승인되어 모집이 시작되었습니다!
 
-관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
+관리 페이지: https://cnecbiz.com/admin/campaigns/${campaignId}`
 
     try {
       await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {

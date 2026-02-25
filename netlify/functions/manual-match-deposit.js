@@ -191,8 +191,9 @@ async function processDeposit(request, transaction) {
                      `🎯 **타입:** ${campaignTypeKo}\n` +
                      `👥 **모집 인원:** ${campaignInfo.total_slots || 0}명\n` +
                      `💰 **입금액:** ${request.amount.toLocaleString()}원\n\n` +
-                     `➡️ 승인 처리: https://cnectotal.netlify.app/admin/campaigns`,
-            isAdminNotification: true
+                     `➡️ 승인 처리: https://cnecbiz.com/admin/campaigns`,
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
           })
         })
         console.log('✅ 네이버 웍스 알림 전송 완료')

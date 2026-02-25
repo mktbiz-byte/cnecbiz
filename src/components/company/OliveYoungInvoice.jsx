@@ -385,8 +385,9 @@ export default function OliveYoungInvoice() {
                      `**입금자명:** ${depositorName}\n` +
                      `**신청 시간:** ${formattedDate}\n\n` +
                      `⚠️ **입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!**\n\n` +
-                     `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
-            isAdminNotification: true
+                     `➡️ 입금 확인: https://cnecbiz.com/admin/deposits`,
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
           })
         })
       } catch (notifError) {

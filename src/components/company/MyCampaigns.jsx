@@ -317,12 +317,12 @@ export default function MyCampaigns() {
       const { data: companyData } = await supabaseBiz.from('companies').select('company_name').eq('user_id', user.id).single()
       const companyName = companyData?.company_name || '회사명 없음'
 
-      const message = `[새로운 입금 확인 요청]\n\n• 지역: ${regionText}\n• 캠페인 타입: ${campaignTypeText}\n• 회사명: ${companyName}\n• 캠페인명: ${campaign.title}\n• 금액: ${total.toLocaleString()}원\n• 결제 방법: 계좌입금\n\n입금 확인 페이지: https://cnectotal.netlify.app/admin/payment-requests`
+      const message = `[새로운 입금 확인 요청]\n\n• 지역: ${regionText}\n• 캠페인 타입: ${campaignTypeText}\n• 회사명: ${companyName}\n• 캠페인명: ${campaign.title}\n• 금액: ${total.toLocaleString()}원\n• 결제 방법: 계좌입금\n\n입금 확인 페이지: https://cnecbiz.com/admin/payment-requests`
 
       await fetch('/.netlify/functions/send-naver-works-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, isAdminNotification: true })
+        body: JSON.stringify({ message, isAdminNotification: true, channelId: '75c24874-e370-afd5-9da3-72918ba15a3c' })
       }).catch(console.error)
 
       alert('입금 확인 요청이 전송되었습니다!')

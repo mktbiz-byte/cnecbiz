@@ -236,10 +236,11 @@ exports.handler = async (event, context) => {
               `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
 
             await axios.post(
-              `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+              `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
               {
                 message: naverMessage,
-                isAdminNotification: true
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
               }
             )
             console.log('[SUCCESS] Naver Works notification sent')

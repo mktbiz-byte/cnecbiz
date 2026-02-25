@@ -231,7 +231,7 @@ exports.handler = async (event, context) => {
       message += `${index + 1}. ${date} - ${deposit.briefs} / ${deposit.trade_balance.toLocaleString()}원\n`;
     });
 
-    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnectotal.netlify.app/admin/deposits`;
+    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnecbiz.com/admin/deposits`;
 
     // 네이버 웍스 메시지 전송
     try {
