@@ -88,23 +88,24 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
   // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
-  // 한국 캠페인: company_id = auth user ID (companies.id 아님!), company_biz_id = BIZ DB companies.id
+  // ★ 이관(transfer)된 캠페인 대응: company_email이 이관 시 업데이트되므로 이메일 조회를 최우선으로 함
+  // company_biz_id는 백필 시점 기준이라 이관 후에도 이전 기업을 가리킬 수 있음
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_biz_id로 조회 (한국 캠페인 - BIZ DB companies.id와 정확히 매칭)
-    if (campaignData.company_biz_id) {
+    // 1순위: company_email로 조회 (이관 시 업데이트되므로 가장 정확)
+    if (campaignData.company_email) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
       if (data) comp = data
     }
 
-    // 2순위: company_email로 조회
-    if (!comp && campaignData.company_email) {
+    // 2순위: company_biz_id로 조회 (한국 캠페인 - 이관 전 기업일 수 있으므로 email 다음)
+    if (!comp && campaignData.company_biz_id) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
       if (data) comp = data
     }
 

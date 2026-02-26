@@ -97,11 +97,23 @@ exports.handler = async (event, context) => {
 
     console.log('[send-campaign-activation-notification] Campaign:', campaign.title)
 
-    // 회사 정보 조회 (company_id → user_id → company_email 순서로 폴백)
+    // 회사 정보 조회 (company_email 우선 → company_id → user_id 순서로 폴백)
+    // ★ 이관(transfer)된 캠페인 대응: company_email이 이관 시 업데이트되므로 이메일 조회를 최우선으로 함
     let company = null
 
-    if (campaign.company_id) {
-      // 1. companies.id로 조회 (이관된 캠페인)
+    // 1. company_email로 조회 (이관 시 업데이트되므로 가장 정확)
+    if (campaign.company_email) {
+      const { data: byEmail } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (byEmail) company = byEmail
+    }
+
+    if (!company && campaign.company_id) {
+      // 2. companies.id로 조회
       const { data: byId } = await supabaseBiz
         .from('companies')
         .select('*')
@@ -111,7 +123,7 @@ exports.handler = async (event, context) => {
       if (byId) {
         company = byId
       } else {
-        // 2. companies.user_id로 조회 (원래 생성된 캠페인)
+        // 3. companies.user_id로 조회 (원래 생성된 캠페인)
         const { data: byUserId } = await supabaseBiz
           .from('companies')
           .select('*')
@@ -120,17 +132,6 @@ exports.handler = async (event, context) => {
 
         if (byUserId) company = byUserId
       }
-    }
-
-    // 3. company_email로 조회
-    if (!company && campaign.company_email) {
-      const { data: byEmail } = await supabaseBiz
-        .from('companies')
-        .select('*')
-        .eq('email', campaign.company_email)
-        .maybeSingle()
-
-      if (byEmail) company = byEmail
     }
 
     if (!company) {
@@ -173,11 +174,13 @@ exports.handler = async (event, context) => {
     // 이메일 HTML
     const emailHtml = generateEmailHtml(templateCode, variables)
 
-    // 알림 전송
-    if (company.phone || company.email) {
+    // 알림 전송 (notification_phone/notification_email 우선)
+    const notifyPhone = company.notification_phone || company.phone
+    const notifyEmail = company.notification_email || company.email
+    if (notifyPhone || notifyEmail) {
       await sendNotification({
-        receiverNum: company.phone,
-        receiverEmail: company.email,
+        receiverNum: notifyPhone,
+        receiverEmail: notifyEmail,
         receiverName: company.company_name,
         templateCode,
         variables,
