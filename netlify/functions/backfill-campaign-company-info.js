@@ -130,14 +130,14 @@ exports.handler = async (event, context) => {
 
     if (companiesError) throw companiesError;
 
-    // 이메일/user_id 기반 매핑 (phone이 없으면 notification_phone 사용)
+    // 이메일/user_id 기반 매핑 (notification_phone 우선, 없으면 phone 사용)
     const companyByEmail = {};
     const companyByUserId = {};
 
     companies?.forEach(company => {
       const companyWithPhone = {
         ...company,
-        phone: company.phone || company.notification_phone
+        phone: company.notification_phone || company.phone
       };
       if (company.email) companyByEmail[company.email.toLowerCase()] = companyWithPhone;
       if (company.user_id) companyByUserId[company.user_id] = companyWithPhone;
