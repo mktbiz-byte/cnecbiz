@@ -153,12 +153,15 @@ const CreatorMyPage = () => {
       }
 
       // 기존 video_files 조회하여 버전 계산 (Netlify Function으로 RLS 우회)
+      // 리전 결정: target_country 기반 (kr→korea, jp→japan, us→us)
+      const targetCountry = selectedCampaign?.campaigns?.target_country
+      const uploadRegion = targetCountry === 'jp' ? 'japan' : targetCountry === 'us' ? 'us' : 'korea'
       let existingFiles = []
       try {
         const getRes = await fetch('/.netlify/functions/save-video-upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_video_files', participantId })
+          body: JSON.stringify({ action: 'get_video_files', participantId, region: uploadRegion })
         })
         const getResult = await getRes.json()
         if (getResult.success) {
@@ -208,6 +211,7 @@ const CreatorMyPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   action: 'storage_upload',
+                  region: uploadRegion,
                   fileName,
                   fileBase64: base64,
                   fileMimeType: file.type
@@ -255,6 +259,7 @@ const CreatorMyPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'update_participant',
+          region: uploadRegion,
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',

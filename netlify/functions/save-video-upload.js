@@ -52,32 +52,32 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   console.log('[알림] 시작:', { campaignId, userId, region, creatorEmail: paramCreatorEmail })
 
   // ===== Phase 1: 캠페인 + 크리에이터 정보 병렬 조회 =====
-  // company_biz_id, company_phone: 한국 캠페인에만 존재할 수 있는 필드 (BIZ DB에는 없을 수 있음)
-  const campaignFieldsExtended = 'title, brand, brand_name, company_name, company_id, company_email, company_biz_id, company_phone, target_country'
-  const campaignFieldsBasic = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
+  // ★ select('*')를 사용하여 리전별 스키마 차이 문제 해결 (컬럼명 불일치로 쿼리 실패 방지)
   const safeQuery = (promise) => promise.then(r => r.data).catch((e) => { console.log('[알림] safeQuery 에러:', e.message); return null })
 
-  // 캠페인 조회: 확장 필드 우선 시도 (company_biz_id, company_phone 포함)
-  const buildCampaignQueries = (fields) => {
-    const queries = [safeQuery(client.from('campaigns').select(fields).eq('id', campaignId).maybeSingle())]
-    if (region !== 'korea' && client !== supabaseKorea) {
-      queries.push(safeQuery(supabaseKorea.from('campaigns').select(fields).eq('id', campaignId).maybeSingle()))
+  // 모든 리전 DB에서 캠페인 병렬 조회 (어느 DB에 있든 찾을 수 있도록)
+  const allRegionClients = [
+    { name: 'current', c: client },
+    { name: 'korea', c: supabaseKorea },
+    { name: 'japan', c: getRegionClient('japan') },
+    { name: 'us', c: getRegionClient('us') },
+    { name: 'biz', c: supabaseBiz }
+  ]
+  // 중복 클라이언트 제거
+  const uniqueClients = []
+  const seenClients = new Set()
+  for (const rc of allRegionClients) {
+    if (rc.c && !seenClients.has(rc.c)) {
+      seenClients.add(rc.c)
+      uniqueClients.push(rc)
     }
-    if (client !== supabaseBiz) {
-      queries.push(safeQuery(supabaseBiz.from('campaigns').select(fields).eq('id', campaignId).maybeSingle()))
-    }
-    return queries
   }
 
-  let campaignResults = await Promise.all(buildCampaignQueries(campaignFieldsExtended))
+  const campaignResults = await Promise.all(
+    uniqueClients.map(rc => safeQuery(rc.c.from('campaigns').select('*').eq('id', campaignId).maybeSingle()))
+  )
   let campaignData = campaignResults.find(r => r) || null
-
-  // 확장 필드로 못 찾으면 기본 필드로 재시도 (company_biz_id 컬럼이 없는 DB 대비)
-  if (!campaignData) {
-    campaignResults = await Promise.all(buildCampaignQueries(campaignFieldsBasic))
-    campaignData = campaignResults.find(r => r) || null
-  }
-  console.log('[알림] 캠페인 조회:', { found: !!campaignData, hasBizId: !!campaignData?.company_biz_id, hasPhone: !!campaignData?.company_phone, elapsed: Date.now() - startTime + 'ms' })
+  console.log('[알림] 캠페인 조회:', { found: !!campaignData, region, checkedDBs: uniqueClients.map(c => c.name), elapsed: Date.now() - startTime + 'ms' })
 
   if (campaignData) {
     campaignTitle = campaignData.title || campaignData.brand || '(캠페인명 없음)'
@@ -145,28 +145,15 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     // 이미 크리에이터 이름이 있으면 DB 조회 스킵
     if (!creatorName.startsWith('(')) return
 
-    // 모든 DB에서 동시에 크리에이터 이름 조회
+    // ★ 모든 리전 DB에서 동시에 크리에이터 이름 조회 (select('*')로 스키마 차이 대응)
     const appPromises = []
-    const allClients = [
-      { name: 'region', c: client },
-      { name: 'biz', c: supabaseBiz }
-    ]
-    // Korea DB fallback (리전이 korea가 아닌 경우)
-    if (region !== 'korea' && client !== supabaseKorea) {
-      allClients.push({ name: 'korea', c: supabaseKorea })
-    }
-    // US/Japan fallback 클라이언트 추가
-    const usClient = getRegionClient('us')
-    const jpClient = getRegionClient('japan')
-    if (usClient && usClient !== client) allClients.push({ name: 'us', c: usClient })
-    if (jpClient && jpClient !== client) allClients.push({ name: 'japan', c: jpClient })
 
     // userId가 있으면 applications에서 조회
     if (userId) {
-      for (const { name, c } of allClients) {
+      for (const { name, c } of uniqueClients) {
         appPromises.push(
-          safeQuery(c.from('applications').select('creator_name, applicant_name').eq('campaign_id', campaignId).eq('user_id', userId).maybeSingle())
-            .then(d => d ? (d.creator_name || d.applicant_name || null) : null)
+          safeQuery(c.from('applications').select('*').eq('campaign_id', campaignId).eq('user_id', userId).maybeSingle())
+            .then(d => d ? (d.creator_name || d.applicant_name || d.full_name || d.name || null) : null)
         )
       }
       // user_profiles에서도 동시에 조회
@@ -176,17 +163,17 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       )
     }
 
-    // creatorEmail이 있으면 applications에서 이메일로도 조회 (Korean campaigns fallback)
+    // creatorEmail이 있으면 applications에서 이메일로도 조회
     if (paramCreatorEmail) {
-      for (const { name, c } of allClients) {
+      for (const { name, c } of uniqueClients) {
         appPromises.push(
-          safeQuery(c.from('applications').select('creator_name, applicant_name').eq('campaign_id', campaignId).eq('applicant_email', paramCreatorEmail).maybeSingle())
-            .then(d => d ? (d.creator_name || d.applicant_name || null) : null)
+          safeQuery(c.from('applications').select('*').eq('campaign_id', campaignId).eq('applicant_email', paramCreatorEmail).maybeSingle())
+            .then(d => d ? (d.creator_name || d.applicant_name || d.full_name || d.name || null) : null)
         )
       }
       // user_profiles에서 이메일로도 조회
       appPromises.push(
-        safeQuery(client.from('user_profiles').select('name, full_name').eq('email', paramCreatorEmail).maybeSingle())
+        safeQuery(supabaseBiz.from('user_profiles').select('name, full_name').eq('email', paramCreatorEmail).maybeSingle())
           .then(d => d ? (d.name || d.full_name || null) : null)
       )
     }
@@ -455,19 +442,23 @@ exports.handler = async (event) => {
         try {
           console.log('[save-video-upload] update_participant 알림 시작:', { participantId, videoStatus, region })
 
-          // participant 조회: id 매칭 → user_id 매칭 fallback (admin 코드에서 user_id를 participantId로 전달하는 경우 대비)
-          // 리전 DB + BIZ DB 모두 조회
+          // participant 조회: 모든 리전 DB에서 검색 (select('*')로 스키마 차이 대응)
+          // ★ Japan/US 캠페인의 participant가 해당 리전 DB에만 있을 수 있으므로 모든 리전 체크
           let participant = null
-          const participantFields = 'campaign_id, user_id, creator_name, creator_email'
           const participantClients = [client]
           if (client !== supabaseBiz) participantClients.push(supabaseBiz)
           if (client !== supabaseKorea) participantClients.push(supabaseKorea)
+          const jpClient = getRegionClient('japan')
+          const usClient = getRegionClient('us')
+          if (jpClient && jpClient !== client && jpClient !== supabaseKorea) participantClients.push(jpClient)
+          if (usClient && usClient !== client && usClient !== supabaseKorea) participantClients.push(usClient)
 
           for (const pClient of participantClients) {
             if (participant) break
+            // select('*')로 스키마 차이 대응 (creator_name/creator_email 컬럼이 없는 리전도 OK)
             const { data: p1 } = await pClient
               .from('campaign_participants')
-              .select(participantFields)
+              .select('*')
               .eq('id', participantId)
               .maybeSingle()
 
@@ -478,7 +469,7 @@ exports.handler = async (event) => {
             // user_id로 fallback 조회
             const { data: p2 } = await pClient
               .from('campaign_participants')
-              .select(participantFields)
+              .select('*')
               .eq('user_id', participantId)
               .limit(1)
               .maybeSingle()
@@ -486,27 +477,6 @@ exports.handler = async (event) => {
             if (p2) {
               participant = p2
               break
-            }
-          }
-
-          if (!participant) {
-            console.log('[save-video-upload] participant 못 찾음, 기본 컬럼으로 재시도')
-            // creator_name/creator_email 컬럼이 없는 리전이 있을 수 있으므로 기본 컬럼으로 재시도
-            for (const pClient of participantClients) {
-              if (participant) break
-              const { data: p1 } = await pClient
-                .from('campaign_participants')
-                .select('campaign_id, user_id')
-                .eq('id', participantId)
-                .maybeSingle()
-              if (p1) { participant = p1; break }
-              const { data: p2 } = await pClient
-                .from('campaign_participants')
-                .select('campaign_id, user_id')
-                .eq('user_id', participantId)
-                .limit(1)
-                .maybeSingle()
-              if (p2) { participant = p2; break }
             }
           }
 
