@@ -1,23 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
 /**
- * 영상 업로드 시 기업에게 알림 발송 (Supabase Webhook용)
+ * 영상 업로드 시 네이버웍스 알림 발송 (Supabase Webhook용)
  *
  * Supabase Database Webhook 설정:
- * 1. Korea Supabase → Database → Webhooks → Create Webhook
- * 2. Name: video_upload_notification
- * 3. Table: campaign_participants
- * 4. Events: UPDATE
- * 5. URL: https://cnecbiz.com/.netlify/functions/webhook-video-upload
- * 6. HTTP Headers: x-webhook-secret: [your-secret]
- *
- * Body 형식 (Supabase Webhook):
- * {
- *   type: 'UPDATE',
- *   table: 'campaign_participants',
- *   record: { id, campaign_id, video_files, ... },
- *   old_record: { id, campaign_id, video_files, ... }
- * }
+ * - Table: campaign_participants
+ * - Events: UPDATE
+ * - URL: https://cnecbiz.com/.netlify/functions/webhook-video-upload
  */
 
 exports.handler = async (event) => {
@@ -27,99 +16,133 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  // OPTIONS 요청 처리
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
-
-  console.log('=== 영상 업로드 Webhook 시작 ===');
-  console.log('Headers:', JSON.stringify(event.headers, null, 2));
-
-  // 환경변수 확인 (디버깅용)
-  console.log('환경변수 확인:', {
-    VITE_SUPABASE_KOREA_URL: !!process.env.VITE_SUPABASE_KOREA_URL,
-    SUPABASE_KOREA_SERVICE_ROLE_KEY: !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    VITE_SUPABASE_BIZ_URL: !!process.env.VITE_SUPABASE_BIZ_URL,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-  });
-
-  // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
-  // Fallback 패턴 적용
-  const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
-  const koreaKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL_BIZ;
-  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!koreaUrl || !koreaKey) {
-    console.error('Korea Supabase 환경변수 누락:', { koreaUrl: !!koreaUrl, koreaKey: !!koreaKey });
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Korea Supabase 환경변수가 설정되지 않았습니다.' })
-    };
-  }
-
-  const supabaseKorea = createClient(koreaUrl, koreaKey);
-  const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : null;
 
   try {
     // Webhook Secret 검증 (선택적)
     const webhookSecret = event.headers['x-webhook-secret'];
     if (process.env.WEBHOOK_SECRET && webhookSecret !== process.env.WEBHOOK_SECRET) {
-      console.error('Invalid webhook secret');
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ error: 'Unauthorized' })
-      };
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
     }
 
     const body = JSON.parse(event.body);
-    console.log('Webhook body:', JSON.stringify(body, null, 2));
 
-    // Supabase Webhook 형식 확인
+    // campaign_participants UPDATE 이벤트만 처리
     if (body.type !== 'UPDATE' || body.table !== 'campaign_participants') {
-      console.log('Not a video upload event, skipping');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, message: 'Not a video upload event' })
-      };
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'Not a video upload event' }) };
     }
 
     const record = body.record;
     const oldRecord = body.old_record;
 
-    // video_files가 변경되었는지 확인
+    // video_files가 새로 추가되었는지 확인
     const oldVideoCount = oldRecord?.video_files?.length || 0;
     const newVideoCount = record?.video_files?.length || 0;
 
     if (newVideoCount <= oldVideoCount) {
-      console.log('No new video uploaded, skipping');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, message: 'No new video' })
-      };
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'No new video' }) };
     }
 
-    console.log(`새 영상 업로드 감지: ${oldVideoCount} → ${newVideoCount}`);
+    console.log(`[webhook-video-upload] 새 영상 감지: ${oldVideoCount} → ${newVideoCount}, campaign_id: ${record.campaign_id}`);
 
-    // 새로 추가된 영상 정보
+    // 캠페인 제목 + 크리에이터 이름 조회
+    const supabaseKorea = createClient(
+      process.env.VITE_SUPABASE_KOREA_URL,
+      process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const supabaseBiz = createClient(
+      process.env.VITE_SUPABASE_BIZ_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // 캠페인 제목 조회 (Korea DB → BIZ DB fallback)
+    let campaignTitle = '(캠페인명 없음)';
+    let companyName = '(기업명 없음)';
+    let companyId = null;
+
+    const { data: campaign } = await supabaseKorea
+      .from('campaigns')
+      .select('title, company_name, brand_name, brand, company_id')
+      .eq('id', record.campaign_id)
+      .maybeSingle();
+
+    if (campaign) {
+      campaignTitle = campaign.title || campaign.brand || campaignTitle;
+      companyName = campaign.company_name || campaign.brand_name || campaign.brand || companyName;
+      companyId = campaign.company_id;
+    } else {
+      // BIZ DB fallback
+      const { data: bizCampaign } = await supabaseBiz
+        .from('campaigns')
+        .select('title, company_name, brand_name, brand, company_id')
+        .eq('id', record.campaign_id)
+        .maybeSingle();
+      if (bizCampaign) {
+        campaignTitle = bizCampaign.title || bizCampaign.brand || campaignTitle;
+        companyName = bizCampaign.company_name || bizCampaign.brand_name || bizCampaign.brand || companyName;
+        companyId = bizCampaign.company_id;
+      }
+    }
+
+    // 크리에이터 이름 조회
+    let creatorName = record.creator_name || '(크리에이터명 없음)';
+    if (creatorName.startsWith('(') && record.user_id) {
+      const { data: profile } = await supabaseBiz
+        .from('user_profiles')
+        .select('name, full_name')
+        .eq('id', record.user_id)
+        .maybeSingle();
+      if (profile) creatorName = profile.name || profile.full_name || creatorName;
+    }
+
     const newVideo = record.video_files[newVideoCount - 1];
     const version = newVideo?.version || newVideoCount;
+    const koreanDate = new Date().toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
 
-    // 알림은 webhook-video-submission.js에서 처리 (중복 방지)
-    console.log('영상 업로드 감지 (campaign_participants) → 알림은 webhook-video-submission.js에서 처리');
+    // 네이버웍스 메시지 발송 (send-naver-works-message 함수 호출)
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
+    const naverWorksMessage = `📹 영상 제출 알림\n\n📋 캠페인: ${campaignTitle}\n🏢 기업: ${companyName}\n👤 크리에이터: ${creatorName}\n📌 버전: V${version}\n⏰ 제출 시간: ${koreanDate}`;
+
+    const nwRes = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isAdminNotification: true,
+        channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+        message: naverWorksMessage
+      })
+    });
+    const nwResult = await nwRes.json();
+    console.log('[webhook-video-upload] 네이버웍스 발송:', nwResult.success ? '성공' : JSON.stringify(nwResult));
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, message: 'Notification deferred to webhook-video-submission to prevent duplicates' })
+      body: JSON.stringify({ success: true, message: 'Naver Works notification sent' })
     };
 
   } catch (error) {
-    console.error('Webhook 처리 오류:', error);
+    console.error('[webhook-video-upload] 오류:', error);
+
+    // 에러 알림
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'webhook-video-upload',
+          errorMessage: error.message
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
     return {
       statusCode: 500,
       headers,
