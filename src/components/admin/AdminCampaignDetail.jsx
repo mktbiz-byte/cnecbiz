@@ -571,8 +571,21 @@ export default function AdminCampaignDetail() {
         let companyPhone = null
         let companyNameForKakao = companyDisplayName
 
-        // 1순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
-        if (campaign?.company_email) {
+        // 1순위: company_biz_id로 BIZ DB 조회 (한국 캠페인 - companies.id와 정확히 매칭)
+        if (campaign?.company_biz_id) {
+          const { data: byBizId } = await supabaseBiz
+            .from('companies')
+            .select('notification_phone, phone, company_name')
+            .eq('id', campaign.company_biz_id)
+            .maybeSingle()
+          if (byBizId) {
+            companyPhone = byBizId.notification_phone || byBizId.phone
+            if (byBizId.company_name) companyNameForKakao = byBizId.company_name
+          }
+        }
+
+        // 2순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
+        if (!companyPhone && campaign?.company_email) {
           const { data: byEmail } = await supabaseBiz
             .from('companies')
             .select('notification_phone, phone, company_name')
@@ -584,7 +597,7 @@ export default function AdminCampaignDetail() {
           }
         }
 
-        // 2순위: BIZ DB에서 company_id (user_id)로 조회
+        // 3순위: BIZ DB에서 company_id (user_id)로 조회
         if (!companyPhone && campaign?.company_id) {
           const { data: byUserId } = await supabaseBiz
             .from('companies')
@@ -595,6 +608,11 @@ export default function AdminCampaignDetail() {
             companyPhone = byUserId.notification_phone || byUserId.phone
             if (byUserId.company_name) companyNameForKakao = byUserId.company_name
           }
+        }
+
+        // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
+        if (!companyPhone && campaign?.company_phone) {
+          companyPhone = campaign.company_phone
         }
 
         if (companyPhone) {
