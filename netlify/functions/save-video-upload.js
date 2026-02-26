@@ -52,24 +52,32 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   console.log('[알림] 시작:', { campaignId, userId, region, creatorEmail: paramCreatorEmail })
 
   // ===== Phase 1: 캠페인 + 크리에이터 정보 병렬 조회 =====
-  const campaignFields = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
+  // company_biz_id, company_phone: 한국 캠페인에만 존재할 수 있는 필드 (BIZ DB에는 없을 수 있음)
+  const campaignFieldsExtended = 'title, brand, brand_name, company_name, company_id, company_email, company_biz_id, company_phone, target_country'
+  const campaignFieldsBasic = 'title, brand, brand_name, company_name, company_id, company_email, target_country'
   const safeQuery = (promise) => promise.then(r => r.data).catch((e) => { console.log('[알림] safeQuery 에러:', e.message); return null })
 
-  // 캠페인 조회 (리전 DB + Korea DB + BIZ DB fallback)
-  const campaignQueries = [
-    safeQuery(client.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle())
-  ]
-  // Korea DB fallback (리전이 korea가 아닌 경우)
-  if (region !== 'korea' && client !== supabaseKorea) {
-    campaignQueries.push(safeQuery(supabaseKorea.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()))
+  // 캠페인 조회: 확장 필드 우선 시도 (company_biz_id, company_phone 포함)
+  const buildCampaignQueries = (fields) => {
+    const queries = [safeQuery(client.from('campaigns').select(fields).eq('id', campaignId).maybeSingle())]
+    if (region !== 'korea' && client !== supabaseKorea) {
+      queries.push(safeQuery(supabaseKorea.from('campaigns').select(fields).eq('id', campaignId).maybeSingle()))
+    }
+    if (client !== supabaseBiz) {
+      queries.push(safeQuery(supabaseBiz.from('campaigns').select(fields).eq('id', campaignId).maybeSingle()))
+    }
+    return queries
   }
-  // BIZ DB fallback (중앙 DB에 캠페인이 있을 수 있음)
-  if (client !== supabaseBiz) {
-    campaignQueries.push(safeQuery(supabaseBiz.from('campaigns').select(campaignFields).eq('id', campaignId).maybeSingle()))
+
+  let campaignResults = await Promise.all(buildCampaignQueries(campaignFieldsExtended))
+  let campaignData = campaignResults.find(r => r) || null
+
+  // 확장 필드로 못 찾으면 기본 필드로 재시도 (company_biz_id 컬럼이 없는 DB 대비)
+  if (!campaignData) {
+    campaignResults = await Promise.all(buildCampaignQueries(campaignFieldsBasic))
+    campaignData = campaignResults.find(r => r) || null
   }
-  const campaignResults = await Promise.all(campaignQueries)
-  const campaignData = campaignResults.find(r => r) || null
-  console.log('[알림] 캠페인 조회:', { found: !!campaignData, sources: campaignResults.map((r, i) => !!r), elapsed: Date.now() - startTime + 'ms' })
+  console.log('[알림] 캠페인 조회:', { found: !!campaignData, hasBizId: !!campaignData?.company_biz_id, hasPhone: !!campaignData?.company_phone, elapsed: Date.now() - startTime + 'ms' })
 
   if (campaignData) {
     campaignTitle = campaignData.title || campaignData.brand || '(캠페인명 없음)'
@@ -80,30 +88,37 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
   // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
-  // AdminCampaignDetail.jsx와 동일한 조회 순서: company_email → company_id
+  // 한국 캠페인: company_id = auth user ID (companies.id 아님!), company_biz_id = BIZ DB companies.id
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_email로 조회 (가장 정확)
-    if (campaignData.company_email) {
+    // 1순위: company_biz_id로 조회 (한국 캠페인 - BIZ DB companies.id와 정확히 매칭)
+    if (campaignData.company_biz_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 2순위: company_email로 조회
+    if (!comp && campaignData.company_email) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
       if (data) comp = data
     }
 
-    // 2순위: company_id로 id 조회
-    if (!comp && campaignData.company_id) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 3순위: company_id로 user_id 조회
+    // 3순위: company_id로 user_id 조회 (company_id = auth user ID)
     if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 4순위: company_id로 id 조회 (일부 캠페인은 company_id가 BIZ DB id일 수 있음)
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
@@ -112,6 +127,16 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       companyEmail = comp.notification_email || comp.email
       if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
       console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
+    }
+
+    // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
+    if (!companyPhone && campaignData.company_phone) {
+      companyPhone = campaignData.company_phone
+      console.log('[알림] 기업 전화번호 (캠페인 직접 저장):', companyPhone)
+    }
+    if (!companyEmail && campaignData.company_email) {
+      companyEmail = campaignData.company_email
+      console.log('[알림] 기업 이메일 (캠페인 직접 저장):', companyEmail)
     }
   })()
 
