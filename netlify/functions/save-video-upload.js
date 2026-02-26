@@ -80,21 +80,31 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
   // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
+  // AdminCampaignDetail.jsx와 동일한 조회 순서: company_email → company_id
   const companyPromise = (async () => {
-    if (!campaignData || !campaignData.company_id) return
-
-    // BIZ DB에서 company_id로 조회 (id → user_id 순서)
+    if (!campaignData) return
+    const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
-    const { data: d1 } = await supabaseBiz.from('companies')
-      .select('company_name, notification_phone, phone, notification_email, email')
-      .eq('id', campaignData.company_id).maybeSingle()
-    if (d1) comp = d1
 
-    if (!comp) {
-      const { data: d2 } = await supabaseBiz.from('companies')
-        .select('company_name, notification_phone, phone, notification_email, email')
-        .eq('user_id', campaignData.company_id).maybeSingle()
-      if (d2) comp = d2
+    // 1순위: company_email로 조회 (가장 정확)
+    if (campaignData.company_email) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 2순위: company_id로 id 조회
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 3순위: company_id로 user_id 조회
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
     }
 
     if (comp) {
