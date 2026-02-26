@@ -1,103 +1,4 @@
 const { createClient } = require('@supabase/supabase-js')
-const https = require('https')
-const crypto = require('crypto')
-
-// 네이버웍스 직접 전송 (save-video-upload 내부에서 직접 호출하여 fetch→function 간접 호출 제거)
-const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
-MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
-veKKt2ZRAqV43wdYJpwxptx5GhWGX0FwAeDrItsEVrbAXnBjGEMtWzMks1cA0nxQ
-M7wc39d4IznKOJ0HqlkisPdRZnT0I3reaj7MW5B6GM3mscUC6pBLmPHClXdcWhft
-HirX8U0Y+l7EHtK8w92jFaR7SMy62LKYjC8Pyo6tnI4Wp4Q3OxCZ9WuGEhIP45EC
-wrgP8APCf4VoR1048gLmITUpF/Bm0t/idvl7Ebam4KJJm6E2w4+dEQvLx883lXq1
-L0gYXVYDAgMBAAECggEABQAjzTHkcnnnK48vxCUwPmMm3mAAKNtzkSXPkA/F1Ab2
-iY3bhCLZg/RqYPuP8Fr9joY6ahsLqYrYDsrFRh/KwBPKuzb9XaiHk4vKSI7nHdBb
-NUY2qF7TBEaKfjdZnnvJnuR2XmC8td6DCxJdhnHfTLHDC0tgSgJl98BgQnrCSBRV
-84vJqCr7Ouf56Oio1Fo8E7krYmqjsB3BaoKamuGUaAcAwUSEOpGSIsfP2aYOOZmk
-aNgWo8Lr19VIr4iWccqjA/CJ83/fk84bE4Bae1lKzjQY4WFKmGSdeOn/3cVr76fY
-Gt7qIBgWhe8DnKE6q3umNpAI5gC8j6mPhEbxmMUFsQKBgQDOkoC728Ay1PWoqP64
-ldniGatvTvHDTVgU/kRipEXO8xzCGj+C21cKoniF1a0bI4fWTSUTtASURZKvuXAQ
-Ij55GueWO5WjHAwskOacTYjUNpa8GlDDcBpSy/mYfNIh+IJE7bTO/rKX+wyJCAKp
-klz7FkS4dykWwAww3KHDGkNblQKBgQD5xsH2Ma/tkHrekV5i3A0mLBBJheYgkwgR
-YDSbkcp2pw+OIuby0bZlXiRrkDYBoCdLXyl4lmkmXwtcgOmuRpFnixb7YsJ7mTR1
-gqNunttaczTRQkkanxZe77qKIYV1dtnumjn6x5hU0+Q6sJ5uPbLUahrQ9ocD+eD0
-icJwkf/FNwKBgDHuRYGi900SHqL63j79saGuNLr96QAdFNpWL29sZ5dDOkNMludp
-Xxup89ndsS7rIq1RDlI55BV2z6L7/rNXo6QgNbQhiOTZJbQr/iHvt9AbtcmXzse+
-tA4pUZZjLWOarto8XsTd2YtU2k3RCtu0Dhd+5XN1EhB2sTuqSMtg8MEVAoGBAJ8Y
-itNWMskPDjRWQ9iUcYuu5XDvaPW2sZzfuqKc6mlJYA8ZDCH+kj9fB7O716qRaHYJ
-11CH/dIDGCmDs1Tefh+F6M2WymoP2+o9m/wKE445c5sWrZnXW1h9OkRhtbBsU8Q3
-WFb0a4MctHLtrPxrME08iHgxjy5pK3CXjtJFLLVhAoGAXjlxrXUIHcbaeFJ78J/G
-rv6RBqA2rzQOE0aaf/UcNnIAqJ4TUmgBfZ4TpXNkNHJ7YanXYdcKKVd2jGhoiZdH
-h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
-skmeYX6UpJwnuTP2xN5NDDI=
------END PRIVATE KEY-----`
-
-function naverWorksGenerateJWT(clientId) {
-  const now = Math.floor(Date.now() / 1000)
-  const header = { alg: 'RS256', typ: 'JWT' }
-  const payload = { iss: clientId, sub: '7c15c.serviceaccount@howlab.co.kr', iat: now, exp: now + 3600, scope: 'bot' }
-  const b64Header = Buffer.from(JSON.stringify(header)).toString('base64url')
-  const b64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const sigInput = `${b64Header}.${b64Payload}`
-  const sig = crypto.sign('RSA-SHA256', Buffer.from(sigInput), NAVER_WORKS_PRIVATE_KEY).toString('base64url')
-  return `${sigInput}.${sig}`
-}
-
-function naverWorksGetToken(clientId, clientSecret) {
-  return new Promise((resolve, reject) => {
-    const jwt = naverWorksGenerateJWT(clientId)
-    const postData = new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt, client_id: clientId, client_secret: clientSecret, scope: 'bot'
-    }).toString()
-    const req = https.request({
-      hostname: 'auth.worksmobile.com', path: '/oauth2/v2.0/token', method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Content-Length': Buffer.byteLength(postData) }
-    }, (res) => {
-      let data = ''
-      res.on('data', c => { data += c })
-      res.on('end', () => {
-        if (res.statusCode === 200) { resolve(JSON.parse(data).access_token) }
-        else { reject(new Error(`Token failed: ${res.statusCode} ${data}`)) }
-      })
-    })
-    req.on('error', reject)
-    req.write(postData)
-    req.end()
-  })
-}
-
-function naverWorksSendDirect(accessToken, botId, channelId, message) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({ content: { type: 'text', text: message } })
-    const req = https.request({
-      hostname: 'www.worksapis.com', path: `/v1.0/bots/${botId}/channels/${channelId}/messages`, method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
-    }, (res) => {
-      let data = ''
-      res.on('data', c => { data += c })
-      res.on('end', () => {
-        if (res.statusCode === 201 || res.statusCode === 200) { resolve({ success: true }) }
-        else { reject(new Error(`Send failed: ${res.statusCode} ${data}`)) }
-      })
-    })
-    req.on('error', reject)
-    req.write(postData)
-    req.end()
-  })
-}
-
-// 네이버웍스 직접 전송 래퍼 (토큰 발급 → 메시지 전송)
-async function sendNaverWorksDirectly(channelId, message) {
-  const clientId = process.env.NAVER_WORKS_CLIENT_ID
-  const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
-  const botId = process.env.NAVER_WORKS_BOT_ID
-  if (!clientId || !clientSecret || !botId || !channelId) {
-    throw new Error('네이버웍스 환경변수 누락: ' + JSON.stringify({ clientId: !!clientId, clientSecret: !!clientSecret, botId: !!botId, channelId: !!channelId }))
-  }
-  const token = await naverWorksGetToken(clientId, clientSecret)
-  return await naverWorksSendDirect(token, botId, channelId, message)
-}
 
 // Service role key로 RLS 우회하여 영상 업로드 관련 DB 작업 처리
 // 멀티 리전 지원: korea, japan, us, biz
@@ -178,68 +79,39 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   }
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
+  // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
+  // AdminCampaignDetail.jsx와 동일한 조회 순서: company_email → company_id
   const companyPromise = (async () => {
     if (!campaignData) return
-    // 리전 DB + BIZ DB 모두 조회하여 정확한 기업 찾기 (이관된 캠페인 지원)
-    const promises = []
+    const selectFields = 'company_name, notification_phone, phone, notification_email, email'
+    let comp = null
 
-    // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
-    if (campaignData.company_id) {
-      promises.push(
-        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('id', campaignData.company_id).maybeSingle())
-          .then(d => d ? { ...d, _source: 'regional_id' } : null)
-      )
-    }
-    // 2순위: 리전 DB에서 company_id (user_id)로 조회 (원래 캠페인)
-    if (campaignData.company_id) {
-      promises.push(
-        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('user_id', campaignData.company_id).maybeSingle())
-          .then(d => d ? { ...d, _source: 'regional_user_id' } : null)
-      )
-    }
-    // 3순위: 리전 DB에서 company_email로 조회
+    // 1순위: company_email로 조회 (가장 정확)
     if (campaignData.company_email) {
-      promises.push(
-        safeQuery(client.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('email', campaignData.company_email).maybeSingle())
-          .then(d => d ? { ...d, _source: 'regional_email' } : null)
-      )
-    }
-    // 4순위: BIZ DB에서 company_id (id)로 조회
-    if (campaignData.company_id) {
-      promises.push(
-        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('id', campaignData.company_id).maybeSingle())
-          .then(d => d ? { ...d, _source: 'biz_id' } : null)
-      )
-    }
-    // 5순위: BIZ DB에서 company_id (user_id)로 조회
-    if (campaignData.company_id) {
-      promises.push(
-        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('user_id', campaignData.company_id).maybeSingle())
-          .then(d => d ? { ...d, _source: 'biz_user_id' } : null)
-      )
-    }
-    // 6순위: BIZ DB에서 company_email로 조회
-    if (campaignData.company_email) {
-      promises.push(
-        safeQuery(supabaseBiz.from('companies').select('company_name, notification_phone, phone, notification_email, email').eq('email', campaignData.company_email).maybeSingle())
-          .then(d => d ? { ...d, _source: 'biz_email' } : null)
-      )
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+      if (data) comp = data
     }
 
-    const results = await Promise.all(promises)
-    // 우선순위대로 첫 번째 유효 결과 사용
-    for (const comp of results) {
-      if (comp) {
-        const resolvedPhone = comp.notification_phone || comp.phone
-        const resolvedEmail = comp.notification_email || comp.email
-        if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
-        if (resolvedPhone && !companyPhone) companyPhone = resolvedPhone
-        if (resolvedEmail && !companyEmail) companyEmail = resolvedEmail
-        if (companyPhone) {
-          console.log(`[알림] 기업 정보 (${comp._source}):`, { companyName: comp.company_name, phone: resolvedPhone })
-          break
-        }
-      }
+    // 2순위: company_id로 id 조회
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 3순위: company_id로 user_id 조회
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    if (comp) {
+      companyPhone = comp.notification_phone || comp.phone
+      companyEmail = comp.notification_email || comp.email
+      if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
+      console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
     }
   })()
 
@@ -324,9 +196,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const results = { naverWorks: null, kakao: null, email: null }
   const notificationPromises = []
 
-  // 네이버 웍스 (영상 제출 알림 전용 채널) — 직접 API 호출 (fetch→function 간접 호출 제거)
-  const VIDEO_ROOM_DEFAULT = '75c24874-e370-afd5-9da3-72918ba15a3c'
-  const channelId = process.env.NAVER_WORKS_VIDEO_ROOM_ID || VIDEO_ROOM_DEFAULT
+  // 네이버 웍스 (영상 제출 알림) — send-naver-works-message 함수 호출
   {
     let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
@@ -339,10 +209,18 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
 
     notificationPromises.push(
-      sendNaverWorksDirectly(channelId, naverWorksMessage).then(r => {
+      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: naverWorksMessage
+        })
+      }).then(r => r.json()).then(r => {
         results.naverWorks = r
-        console.log('[알림] 네이버 웍스 직접 전송 성공:', `(${Date.now() - startTime}ms)`)
-      }).catch(e => console.error('[알림] 네이버 웍스 직접 전송 실패:', e.message))
+        console.log('[알림] 네이버 웍스 전송 성공:', `(${Date.now() - startTime}ms)`)
+      }).catch(e => console.error('[알림] 네이버 웍스 전송 실패:', e.message))
     )
   }
 
