@@ -1,4 +1,108 @@
 const { createClient } = require('@supabase/supabase-js')
+const https = require('https')
+const crypto = require('crypto')
+
+// ===== 네이버웍스 직접 전송 (서버→서버 HTTP 호출 불안정 문제 해결) =====
+const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
+MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
+veKKt2ZRAqV43wdYJpwxptx5GhWGX0FwAeDrItsEVrbAXnBjGEMtWzMks1cA0nxQ
+M7wc39d4IznKOJ0HqlkisPdRZnT0I3reaj7MW5B6GM3mscUC6pBLmPHClXdcWhft
+HirX8U0Y+l7EHtK8w92jFaR7SMy62LKYjC8Pyo6tnI4Wp4Q3OxCZ9WuGEhIP45EC
+wrgP8APCf4VoR1048gLmITUpF/Bm0t/idvl7Ebam4KJJm6E2w4+dEQvLx883lXq1
+L0gYXVYDAgMBAAECggEABQAjzTHkcnnnK48vxCUwPmMm3mAAKNtzkSXPkA/F1Ab2
+iY3bhCLZg/RqYPuP8Fr9joY6ahsLqYrYDsrFRh/KwBPKuzb9XaiHk4vKSI7nHdBb
+NUY2qF7TBEaKfjdZnnvJnuR2XmC8td6DCxJdhnHfTLHDC0tgSgJl98BgQnrCSBRV
+84vJqCr7Ouf56Oio1Fo8E7krYmqjsB3BaoKamuGUaAcAwUSEOpGSIsfP2aYOOZmk
+aNgWo8Lr19VIr4iWccqjA/CJ83/fk84bE4Bae1lKzjQY4WFKmGSdeOn/3cVr76fY
+Gt7qIBgWhe8DnKE6q3umNpAI5gC8j6mPhEbxmMUFsQKBgQDOkoC728Ay1PWoqP64
+ldniGatvTvHDTVgU/kRipEXO8xzCGj+C21cKoniF1a0bI4fWTSUTtASURZKvuXAQ
+Ij55GueWO5WjHAwskOacTYjUNpa8GlDDcBpSy/mYfNIh+IJE7bTO/rKX+wyJCAKp
+klz7FkS4dykWwAww3KHDGkNblQKBgQD5xsH2Ma/tkHrekV5i3A0mLBBJheYgkwgR
+YDSbkcp2pw+OIuby0bZlXiRrkDYBoCdLXyl4lmkmXwtcgOmuRpFnixb7YsJ7mTR1
+gqNunttaczTRQkkanxZe77qKIYV1dtnumjn6x5hU0+Q6sJ5uPbLUahrQ9ocD+eD0
+icJwkf/FNwKBgDHuRYGi900SHqL63j79saGuNLr96QAdFNpWL29sZ5dDOkNMludp
+Xxup89ndsS7rIq1RDlI55BV2z6L7/rNXo6QgNbQhiOTZJbQr/iHvt9AbtcmXzse+
+tA4pUZZjLWOarto8XsTd2YtU2k3RCtu0Dhd+5XN1EhB2sTuqSMtg8MEVAoGBAJ8Y
+itNWMskPDjRWQ9iUcYuu5XDvaPW2sZzfuqKc6mlJYA8ZDCH+kj9fB7O716qRaHYJ
+11CH/dIDGCmDs1Tefh+F6M2WymoP2+o9m/wKE445c5sWrZnXW1h9OkRhtbBsU8Q3
+WFb0a4MctHLtrPxrME08iHgxjy5pK3CXjtJFLLVhAoGAXjlxrXUIHcbaeFJ78J/G
+rv6RBqA2rzQOE0aaf/UcNnIAqJ4TUmgBfZ4TpXNkNHJ7YanXYdcKKVd2jGhoiZdH
+h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
+skmeYX6UpJwnuTP2xN5NDDI=
+-----END PRIVATE KEY-----`
+
+const NAVER_WORKS_SERVICE_ACCOUNT = '7c15c.serviceaccount@howlab.co.kr'
+
+function generateNaverWorksJWT(clientId) {
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  const payload = { iss: clientId, sub: NAVER_WORKS_SERVICE_ACCOUNT, iat: now, exp: now + 3600, scope: 'bot' }
+  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url')
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const signatureInput = `${base64Header}.${base64Payload}`
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), NAVER_WORKS_PRIVATE_KEY)
+  return `${signatureInput}.${signature.toString('base64url')}`
+}
+
+async function getNaverWorksAccessToken(clientId, clientSecret) {
+  return new Promise((resolve, reject) => {
+    const jwt = generateNaverWorksJWT(clientId)
+    const postData = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt, client_id: clientId, client_secret: clientSecret, scope: 'bot'
+    }).toString()
+    const req = https.request({
+      hostname: 'auth.worksmobile.com', path: '/oauth2/v2.0/token', method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Content-Length': Buffer.byteLength(postData) }
+    }, (res) => {
+      let data = ''
+      res.on('data', (chunk) => { data += chunk })
+      res.on('end', () => {
+        if (res.statusCode === 200) resolve(JSON.parse(data).access_token)
+        else reject(new Error(`NaverWorks token failed: ${res.statusCode} ${data}`))
+      })
+    })
+    req.on('error', reject)
+    req.write(postData)
+    req.end()
+  })
+}
+
+async function sendNaverWorksMessageDirect(channelId, message) {
+  const clientId = process.env.NAVER_WORKS_CLIENT_ID
+  const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
+  const botId = process.env.NAVER_WORKS_BOT_ID
+  if (!clientId || !clientSecret || !botId) {
+    console.error('[알림] 네이버웍스 환경변수 누락')
+    return { success: false, error: '네이버웍스 환경변수 누락' }
+  }
+  try {
+    const accessToken = await getNaverWorksAccessToken(clientId, clientSecret)
+    return new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ content: { type: 'text', text: message } })
+      const req = https.request({
+        hostname: 'www.worksapis.com',
+        path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
+      }, (res) => {
+        let data = ''
+        res.on('data', (chunk) => { data += chunk })
+        res.on('end', () => {
+          if (res.statusCode === 201 || res.statusCode === 200) resolve({ success: true })
+          else reject(new Error(`NaverWorks send failed: ${res.statusCode} ${data}`))
+        })
+      })
+      req.on('error', reject)
+      req.write(postData)
+      req.end()
+    })
+  } catch (err) {
+    console.error('[알림] 네이버웍스 직접 전송 실패:', err.message)
+    return { success: false, error: err.message }
+  }
+}
 
 // Service role key로 RLS 우회하여 영상 업로드 관련 DB 작업 처리
 // 멀티 리전 지원: korea, japan, us, biz
@@ -88,24 +192,24 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
   // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
-  // ★ 이관(transfer)된 캠페인 대응: company_email이 이관 시 업데이트되므로 이메일 조회를 최우선으로 함
-  // company_biz_id는 백필 시점 기준이라 이관 후에도 이전 기업을 가리킬 수 있음
+  // ★ 관리자 페이지(CampaignDetail.jsx)와 동일한 우선순위 사용
+  // company_biz_id가 BIZ DB companies.id와 정확히 매칭되므로 최우선
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_email로 조회 (이관 시 업데이트되므로 가장 정확)
-    if (campaignData.company_email) {
+    // 1순위: company_biz_id로 BIZ DB 조회 (한국 캠페인 - companies.id와 정확히 매칭)
+    if (campaignData.company_biz_id) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
       if (data) comp = data
     }
 
-    // 2순위: company_biz_id로 조회 (한국 캠페인 - 이관 전 기업일 수 있으므로 email 다음)
-    if (!comp && campaignData.company_biz_id) {
+    // 2순위: company_email로 조회
+    if (!comp && campaignData.company_email) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
       if (data) comp = data
     }
 
@@ -209,7 +313,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const results = { naverWorks: null, kakao: null, email: null }
   const notificationPromises = []
 
-  // 네이버 웍스 (영상 제출 알림) — send-naver-works-message 함수 호출
+  // 네이버 웍스 (영상 제출 알림) — 직접 API 호출 (서버→서버 HTTP 호출 불안정 문제 해결)
   {
     let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
@@ -222,18 +326,11 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
 
     notificationPromises.push(
-      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isAdminNotification: true,
-          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: naverWorksMessage
-        })
-      }).then(r => r.json()).then(r => {
-        results.naverWorks = r
-        console.log('[알림] 네이버 웍스 전송 성공:', `(${Date.now() - startTime}ms)`)
-      }).catch(e => console.error('[알림] 네이버 웍스 전송 실패:', e.message))
+      sendNaverWorksMessageDirect('75c24874-e370-afd5-9da3-72918ba15a3c', naverWorksMessage)
+        .then(r => {
+          results.naverWorks = r
+          console.log('[알림] 네이버 웍스 직접 전송:', r.success ? '성공' : `실패: ${r.error}`, `(${Date.now() - startTime}ms)`)
+        }).catch(e => console.error('[알림] 네이버 웍스 직접 전송 실패:', e.message))
     )
   }
 
