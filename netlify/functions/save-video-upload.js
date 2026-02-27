@@ -191,57 +191,46 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   }
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
-  // companies 테이블은 BIZ DB에만 존재 → BIZ DB에서만 조회
-  // ★ 관리자 페이지(CampaignDetail.jsx)와 동일한 우선순위 사용
-  // company_biz_id가 BIZ DB companies.id와 정확히 매칭되므로 최우선
+  // ★★★ admin/campaigns 페이지(CampaignsManagement.jsx)의 getCompanyName()과 정확히 동일한 로직 ★★★
+  // admin 페이지: company_id → companies.id → companies.user_id → company_email → companies.email
+  // company_biz_id는 사용하지 않음! (admin 페이지에서 사용 안 함)
+  // 등록된 기업이 아니면 알림을 보내지 않음
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_biz_id로 BIZ DB 조회 (한국 캠페인 - companies.id와 정확히 매칭)
-    if (campaignData.company_biz_id) {
+    // 1순위: company_id로 companies.id 조회 (admin/campaigns와 동일)
+    if (campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
-    // 2순위: company_email로 조회
-    if (!comp && campaignData.company_email) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 3순위: company_id로 user_id 조회 (company_id = auth user ID)
+    // 2순위: company_id로 companies.user_id 조회 (admin/campaigns와 동일)
     if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
-    // 4순위: company_id로 id 조회 (일부 캠페인은 company_id가 BIZ DB id일 수 있음)
-    if (!comp && campaignData.company_id) {
+    // 3순위: company_email로 companies.email 조회 (admin/campaigns와 동일)
+    if (!comp && campaignData.company_email) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
       if (data) comp = data
     }
 
     if (comp) {
       companyPhone = comp.notification_phone || comp.phone
       companyEmail = comp.notification_email || comp.email
-      if (comp.company_name && companyName.startsWith('(')) companyName = comp.company_name
-      console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
-    }
-
-    // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
-    if (!companyPhone && campaignData.company_phone) {
-      companyPhone = campaignData.company_phone
-      console.log('[알림] 기업 전화번호 (캠페인 직접 저장):', companyPhone)
-    }
-    if (!companyEmail && campaignData.company_email) {
-      companyEmail = campaignData.company_email
-      console.log('[알림] 기업 이메일 (캠페인 직접 저장):', companyEmail)
+      if (comp.company_name) companyName = comp.company_name
+      console.log('[알림] 기업 정보 (BIZ DB - admin/campaigns 동일 로직):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
+    } else {
+      // admin/campaigns에 등록된 기업이 아니면 알림 발송 안 함
+      console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_id: campaignData.company_id, company_email: campaignData.company_email })
+      companyPhone = null
+      companyEmail = null
     }
   })()
 
