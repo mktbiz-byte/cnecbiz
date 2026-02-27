@@ -191,44 +191,65 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   }
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
-  // ★★★ admin/campaigns 페이지(CampaignsManagement.jsx)의 getCompanyName()과 정확히 동일한 로직 ★★★
-  // admin 페이지: company_id → companies.id → companies.user_id → company_email → companies.email
-  // company_biz_id는 사용하지 않음! (admin 페이지에서 사용 안 함)
-  // 등록된 기업이 아니면 알림을 보내지 않음
+  // ★★★ admin/campaigns 상세 모달(CampaignsManagement.jsx lines 954-1033)과 정확히 동일한 로직 ★★★
+  // 리전 DB → BIZ DB 순서로 조회 (Korea 캠페인의 company는 Korea DB에 있음!)
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_id로 companies.id 조회 (admin/campaigns와 동일)
-    if (campaignData.company_id) {
-      const { data } = await supabaseBiz.from('companies')
+    // 리전 DB 클라이언트 (캠페인이 속한 리전)
+    const regionalClient = client
+
+    // 1순위: 리전 DB companies.id (admin 상세와 동일)
+    if (!comp && campaignData.company_id) {
+      const { data } = await regionalClient.from('companies')
         .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
+      if (data) { comp = data; console.log('[알림] 기업 찾음: 리전DB companies.id') }
     }
 
-    // 2순위: company_id로 companies.user_id 조회 (admin/campaigns와 동일)
+    // 2순위: 리전 DB companies.user_id (admin 상세와 동일)
+    if (!comp && campaignData.company_id) {
+      const { data } = await regionalClient.from('companies')
+        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
+      if (data) { comp = data; console.log('[알림] 기업 찾음: 리전DB companies.user_id') }
+    }
+
+    // 3순위: BIZ DB companies.id (admin 상세와 동일)
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+      if (data) { comp = data; console.log('[알림] 기업 찾음: BIZ DB companies.id') }
+    }
+
+    // 4순위: BIZ DB companies.user_id (admin 상세와 동일)
     if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
+      if (data) { comp = data; console.log('[알림] 기업 찾음: BIZ DB companies.user_id') }
     }
 
-    // 3순위: company_email로 companies.email 조회 (admin/campaigns와 동일)
+    // 5순위: 리전 DB companies.email (admin 상세와 동일)
+    if (!comp && campaignData.company_email) {
+      const { data } = await regionalClient.from('companies')
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+      if (data) { comp = data; console.log('[알림] 기업 찾음: 리전DB companies.email') }
+    }
+
+    // 6순위: BIZ DB companies.email (admin 상세와 동일 - 최후 수단)
     if (!comp && campaignData.company_email) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
-      if (data) comp = data
+      if (data) { comp = data; console.log('[알림] 기업 찾음: BIZ DB companies.email') }
     }
 
     if (comp) {
       companyPhone = comp.notification_phone || comp.phone
       companyEmail = comp.notification_email || comp.email
       if (comp.company_name) companyName = comp.company_name
-      console.log('[알림] 기업 정보 (BIZ DB - admin/campaigns 동일 로직):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
+      console.log('[알림] 기업 정보:', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
     } else {
-      // admin/campaigns에 등록된 기업이 아니면 알림 발송 안 함
-      console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_id: campaignData.company_id, company_email: campaignData.company_email })
+      console.log('[알림] 기업을 찾을 수 없음:', { company_id: campaignData.company_id, company_email: campaignData.company_email })
       companyPhone = null
       companyEmail = null
     }
