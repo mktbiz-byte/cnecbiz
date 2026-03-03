@@ -89,6 +89,7 @@ import VideoFeedback from './components/admin/VideoFeedback'
 import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorMappingManagement from './components/admin/CreatorMappingManagement'
+import CreatorProposalManagement from './components/admin/CreatorProposalManagement'
 import YoutuberSearchPage from './components/admin/YoutuberSearchPage'
 import DailyReportPage from './components/admin/DailyReportPage'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
@@ -300,6 +301,7 @@ function App() {
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
         <Route path="/admin/creator-mapping" element={<CreatorMappingManagement />} />
+        <Route path="/admin/creator-proposals" element={<CreatorProposalManagement />} />
 
         {/* Creator Routes */}
         <Route path="/creator/mypage" element={<CreatorMyPage />} />

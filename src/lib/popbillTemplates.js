@@ -176,6 +176,14 @@ export const POPBILL_TEMPLATES = {
       params: ['크리에이터명', '캠페인명', '제출기한']
     },
 
+    // 소속 크리에이터 제안
+    MEMBERSHIP_PROPOSAL: {
+      code: '026020001350',
+      name: '소속 크리에이터 제안',
+      description: '캠페인 참여 이력이 있는 크리에이터에게 소속 제안 발송',
+      params: ['크리에이터명', '지원혜택']
+    },
+
     // 캠페인 초대장 (크넥 추천 크리에이터용)
     CAMPAIGN_INVITATION: {
       code: '025110001005',
