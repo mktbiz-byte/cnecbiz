@@ -325,16 +325,17 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     <div class="article-content">
       <ol>
         <li>크리에이터가 자신의 SNS 계정에 업로드한 영상은 2차 활용 기간 만료 후에도 <span class="highlight">삭제 의무가 없으며 계속 게시</span>할 수 있습니다.</li>
-        <li>단, 크리에이터의 SNS에 게시된 영상을 활용하여 <span class="highlight">Meta 광고(Facebook/Instagram 광고) 집행은 금지</span>합니다. 이 제한은 <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후</span> 즉시 적용됩니다.</li>
-        <li>광고주 또는 제3자가 크리에이터의 SNS 게시물을 Meta 광고에 무단 활용한 것이 발견될 경우, 별도의 2차 활용료가 발생하며 이는 회사(크넥)를 통해 협의합니다.</li>
+        <li>단, 크리에이터의 SNS에 게시된 영상을 Meta 광고(Facebook/Instagram 광고)에 활용하는 경우, <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후 1년간(${consentDateStr} ~ ${expiryDateStr})</span> 사용 가능합니다.</li>
+        <li><span class="highlight">2차 활용 기간(1년) 만료 후</span>, 광고주 또는 제3자가 크리에이터의 SNS 게시물을 Meta 광고에 무단 활용한 것이 발견될 경우, 별도의 2차 활용료가 발생하며 이는 회사(크넥)를 통해 협의합니다.</li>
       </ol>
     </div>
   </div>
 
   <div class="warning-box">
     <strong>중요 안내:</strong> Meta 광고(Facebook/Instagram 광고)에 크리에이터 영상을 활용하는 경우,
-    <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후</span> 반드시 사전에 별도 2차 활용 동의 및 추가 비용 협의가 필요합니다.
-    무단 활용 시 2차 활용료가 청구되며, 이는 주식회사 하우파파(크넥)를 통해 협의됩니다.
+    <span class="highlight">2차 활용 동의일(${consentDateStr}) 이후 1년간(${consentDateStr} ~ ${expiryDateStr})</span> 사용 가능합니다.
+    1년 경과 후 활용 시에는 반드시 사전에 별도 2차 활용 동의 및 추가 비용 협의가 필요하며,
+    무단 활용 시 2차 활용료가 청구됩니다. 이는 주식회사 하우파파(크넥)를 통해 협의됩니다.
   </div>
 
   <div class="article">
@@ -364,7 +365,7 @@ export const VideoSecondaryUseConsentTemplate = (data) => {
     </div>
     <div class="notice-item">
       <div class="notice-bullet">•</div>
-      <div>SNS에 게시된 영상은 삭제 의무가 없으나, Meta 광고(Facebook/Instagram 광고)에는 활용할 수 없으며, 위반 시 2차 활용료가 발생합니다.</div>
+      <div>SNS에 게시된 영상은 삭제 의무가 없으나, Meta 광고(Facebook/Instagram 광고)는 2차 활용 동의일 이후 1년간만 사용 가능하며, 1년 경과 후 무단 활용 시 2차 활용료가 발생합니다.</div>
     </div>
     <div class="notice-item">
       <div class="notice-bullet">•</div>
