@@ -95,7 +95,9 @@ exports.handler = async (event) => {
             title,
             company_name,
             company_id,
-            company_email
+            company_biz_id,
+            company_email,
+            company_phone
           )
         )
       `)
@@ -115,9 +117,11 @@ exports.handler = async (event) => {
     const companyNameFromCampaign = submission.applications?.campaigns?.company_name || '기업'
     const creatorName = submission.applications?.applicant_name || '크리에이터'
     const companyId = submission.applications?.campaigns?.company_id
+    const companyBizId = submission.applications?.campaigns?.company_biz_id
     const companyEmailFromCampaign = submission.applications?.campaigns?.company_email
+    const companyPhoneFromCampaign = submission.applications?.campaigns?.company_phone
 
-    console.log('[INFO] Campaign company info:', { companyId, companyEmailFromCampaign })
+    console.log('[INFO] Campaign company info:', { companyId, companyBizId, companyEmailFromCampaign })
 
     // 2. 기업 담당자 정보 조회 (리전 DB 우선 → BIZ DB 폴백)
     // ★ 캠페인 이관 후에도 올바른 기업에게 알림이 가도록 리전 DB 우선 조회
@@ -143,40 +147,46 @@ exports.handler = async (event) => {
       return false
     }
 
-    // 1순위: 리전 DB에서 company_id (id)로 조회 (이관된 캠페인)
-    if (!companyPhone && companyId) {
-      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
-      applyCompanyResult(data, 'regional_id')
+    // ★ 1순위: company_biz_id로 BIZ DB 조회 (백필된 정확한 매칭 — AdminCampaignDetail.jsx와 동일)
+    if (!companyPhone && companyBizId && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyBizId).maybeSingle()
+      applyCompanyResult(data, 'biz_id_via_company_biz_id')
     }
 
-    // 2순위: 리전 DB에서 company_id (user_id)로 조회 (원래 캠페인)
-    if (!companyPhone && companyId) {
-      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
-      applyCompanyResult(data, 'regional_user_id')
+    // 2순위: BIZ DB에서 company_email로 조회
+    if (!companyPhone && companyEmailFromCampaign && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
+      applyCompanyResult(data, 'biz_email')
     }
 
-    // 3순위: 리전 DB에서 company_email로 조회
-    if (!companyPhone && companyEmailFromCampaign) {
-      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
-      applyCompanyResult(data, 'regional_email')
-    }
-
-    // 4순위: BIZ DB에서 company_id (id)로 조회
-    if (!companyPhone && companyId && supabaseBiz) {
-      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
-      applyCompanyResult(data, 'biz_id')
-    }
-
-    // 5순위: BIZ DB에서 company_id (user_id)로 조회
+    // 3순위: BIZ DB에서 company_id (user_id)로 조회
     if (!companyPhone && companyId && supabaseBiz) {
       const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
       applyCompanyResult(data, 'biz_user_id')
     }
 
-    // 6순위: BIZ DB에서 company_email로 조회
-    if (!companyPhone && companyEmailFromCampaign && supabaseBiz) {
-      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
-      applyCompanyResult(data, 'biz_email')
+    // 4순위: BIZ DB에서 company_id (id)로 조회 (legacy)
+    if (!companyPhone && companyId && supabaseBiz) {
+      const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
+      applyCompanyResult(data, 'biz_id')
+    }
+
+    // 5순위: 리전 DB에서 company_email로 조회 (fallback)
+    if (!companyPhone && companyEmailFromCampaign) {
+      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
+      applyCompanyResult(data, 'regional_email')
+    }
+
+    // 6순위: 리전 DB에서 company_id (user_id)로 조회 (fallback)
+    if (!companyPhone && companyId) {
+      const { data } = await supabaseAdmin.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
+      applyCompanyResult(data, 'regional_user_id')
+    }
+
+    // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
+    if (!companyPhone && companyPhoneFromCampaign) {
+      companyPhone = companyPhoneFromCampaign
+      console.log('[INFO] Company phone from campaign field fallback:', { companyPhone })
     }
 
     if (!companyPhone && !companyEmail) {
