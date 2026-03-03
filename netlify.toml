@@ -147,6 +147,30 @@
 [functions."openclo-bot-tiktok"]
   timeout = 60
 
+# ============================================================
+# 카카오 AI 챗봇 설정
+# ============================================================
+
+# 프롬프트 테스트 (Gemini API 호출)
+[functions."chatbot-test-prompt"]
+  timeout = 60
+
+# 크리에이터 데이터 조회 (멀티-리전 순회)
+[functions."chatbot-creator-data"]
+  timeout = 30
+
+# 사용자 본인 확인 (멀티-리전 순회)
+[functions."chatbot-verify-user"]
+  timeout = 30
+
+# 챗봇 대화 데이터 정리 (매일 오후 12시 KST = UTC 03:00)
+[functions."scheduled-chatbot-cleanup"]
+  schedule = "0 3 * * *"
+
+# 챗봇 일일 리포트 → 네이버웍스 (매일 오전 9시 KST = UTC 00:00)
+[functions."scheduled-chatbot-daily-report"]
+  schedule = "0 0 * * *"
+
 # 오픈클로 IP 제한 Edge Function
 [[edge_functions]]
   function = "ip-restrict-openclo"

@@ -123,6 +123,18 @@ export default function AdminNavigation() {
       ]
     },
     {
+      id: 'chatbot',
+      type: 'group',
+      icon: MessageSquare,
+      label: 'AI 챗봇',
+      items: [
+        { path: '/admin/chatbot/dashboard', icon: BarChart3, label: '대시보드' },
+        { path: '/admin/chatbot/faq', icon: MessageCircle, label: 'FAQ 관리' },
+        { path: '/admin/chatbot/guardrails', icon: Shield, label: '기준틀' },
+        { path: '/admin/chatbot/prompts', icon: Settings, label: '프롬프트' },
+      ]
+    },
+    {
       id: 'settings',
       type: 'group',
       icon: Cog,
