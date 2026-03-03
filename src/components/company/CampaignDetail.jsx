@@ -724,6 +724,8 @@ export default function CampaignDetail() {
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
   const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
   const [deadlineEditData, setDeadlineEditData] = useState({})
+  const [showDetailEditModal, setShowDetailEditModal] = useState(false)
+  const [detailEditData, setDetailEditData] = useState({})
   const [adminSnsEditData, setAdminSnsEditData] = useState({
     submissionId: null,
     participantId: null,
@@ -12489,29 +12491,68 @@ Questions? Contact us.
           </CardHeader>
           <CardContent className="space-y-6 p-6">
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                캠페인 요구사항
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                  캠페인 요구사항
+                </h3>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDetailEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                )}
+              </div>
               <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.requirements}</p>
             </div>
 
-            {campaign.creator_guide && (
+            {(campaign.creator_guide || isAdmin) && (
               <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  크리에이터 가이드
-                </h3>
-                <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.creator_guide}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                    크리에이터 가이드
+                  </h3>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                      onClick={() => setShowDetailEditModal(true)}
+                    >
+                      <Edit2 className="w-3 h-3 mr-1" />
+                      수정
+                    </Button>
+                  )}
+                </div>
+                <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.creator_guide || '(미설정)'}</p>
               </div>
             )}
 
-            {campaign.product_name && (
+            {(campaign.product_name || isAdmin) && (
               <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  상품 정보
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    상품 정보
+                  </h3>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                      onClick={() => setShowDetailEditModal(true)}
+                    >
+                      <Edit2 className="w-3 h-3 mr-1" />
+                      수정
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-2 text-gray-600">
                   <p>
                     <span className="font-medium text-gray-700">상품명:</span> {campaign.product_name}
@@ -12533,22 +12574,37 @@ Questions? Contact us.
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-100">
-              <div className="bg-gray-50/50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">모집 마감일</p>
-                <p className="font-semibold text-gray-900">
-                  {campaign.application_deadline
-                    ? new Date(campaign.application_deadline).toLocaleDateString()
-                    : <span className="text-red-500">미설정</span>}
-                </p>
-              </div>
-              <div className="bg-gray-50/50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">캠페인 기간</p>
-                <p className="font-semibold text-gray-900">
-                  {campaign.start_date && campaign.end_date
-                    ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
-                    : <span className="text-red-500">미설정</span>}
-                </p>
+            <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-100">
+              {isAdmin && (
+                <div className="flex justify-end mb-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDetailEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-gray-50/50 rounded-xl p-3">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">모집 마감일</p>
+                  <p className="font-semibold text-gray-900">
+                    {campaign.application_deadline
+                      ? new Date(campaign.application_deadline).toLocaleDateString()
+                      : <span className="text-red-500">미설정</span>}
+                  </p>
+                </div>
+                <div className="bg-gray-50/50 rounded-xl p-3">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">캠페인 기간</p>
+                  <p className="font-semibold text-gray-900">
+                    {campaign.start_date && campaign.end_date
+                      ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
+                      : <span className="text-red-500">미설정</span>}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -16612,6 +16668,170 @@ Questions? Contact us.
                   } catch (error) {
                     console.error('Error updating deadlines:', error)
                     alert('마감일 수정에 실패했습니다: ' + error.message)
+                  }
+                }}
+              >
+                저장
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 캠페인 상세 정보 수정 모달 */}
+      {showDetailEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b">
+              <h3 className="text-base sm:text-lg font-bold">캠페인 상세 정보 수정 (관리자 전용)</h3>
+              <p className="text-sm text-gray-500 mt-1">캠페인 요구사항, 상품 정보, 일정을 수정합니다.</p>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+              {/* 캠페인 요구사항 */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">캠페인 요구사항</label>
+                <textarea
+                  className="w-full px-3 py-2 border rounded-lg text-sm min-h-[100px] resize-y"
+                  defaultValue={campaign.requirements || ''}
+                  onChange={(e) => setDetailEditData(prev => ({
+                    ...prev,
+                    requirements: e.target.value
+                  }))}
+                />
+              </div>
+
+              {/* 크리에이터 가이드 */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">크리에이터 가이드</label>
+                <textarea
+                  className="w-full px-3 py-2 border rounded-lg text-sm min-h-[80px] resize-y"
+                  defaultValue={campaign.creator_guide || ''}
+                  onChange={(e) => setDetailEditData(prev => ({
+                    ...prev,
+                    creator_guide: e.target.value
+                  }))}
+                />
+              </div>
+
+              {/* 상품 정보 */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">상품 정보</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">상품명</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      defaultValue={campaign.product_name || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        product_name: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">상품 설명</label>
+                    <textarea
+                      className="w-full px-3 py-2 border rounded-lg text-sm min-h-[60px] resize-y"
+                      defaultValue={campaign.product_description || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        product_description: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">상품 링크</label>
+                    <input
+                      type="url"
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      defaultValue={campaign.product_link || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        product_link: e.target.value
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 일정 */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">일정</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">모집 마감일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      defaultValue={campaign.application_deadline?.split('T')[0] || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        application_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">캠페인 시작일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      defaultValue={campaign.start_date?.split('T')[0] || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        start_date: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">캠페인 종료일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      defaultValue={campaign.end_date?.split('T')[0] || ''}
+                      onChange={(e) => setDetailEditData(prev => ({
+                        ...prev,
+                        end_date: e.target.value
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDetailEditModal(false)
+                  setDetailEditData({})
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={async () => {
+                  try {
+                    if (Object.keys(detailEditData).length === 0) {
+                      alert('수정할 내용이 없습니다.')
+                      return
+                    }
+
+                    const client = getSupabaseClient(region)
+                    const { error } = await client
+                      .from('campaigns')
+                      .update(detailEditData)
+                      .eq('id', campaign.id)
+
+                    if (error) throw error
+
+                    alert('캠페인 상세 정보가 수정되었습니다.')
+                    setShowDetailEditModal(false)
+                    setDetailEditData({})
+                    window.location.reload()
+                  } catch (error) {
+                    console.error('Error updating campaign details:', error)
+                    alert('캠페인 상세 정보 수정에 실패했습니다: ' + error.message)
                   }
                 }}
               >

@@ -133,6 +133,10 @@ import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
 import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
 import OpenCloReport from './components/admin/openclo/OpenCloReport'
+import ChatbotDashboard from './components/admin/chatbot/ChatbotDashboard'
+import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagement'
+import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
+import ChatbotPromptManagement from './components/admin/chatbot/ChatbotPromptManagement'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -286,6 +290,12 @@ function App() {
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
         <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
         <Route path="/admin/openclo/report" element={<OpenCloReport />} />
+
+        {/* AI 챗봇 Routes */}
+        <Route path="/admin/chatbot/dashboard" element={<ChatbotDashboard />} />
+        <Route path="/admin/chatbot/faq" element={<ChatbotFaqManagement />} />
+        <Route path="/admin/chatbot/guardrails" element={<ChatbotGuardrails />} />
+        <Route path="/admin/chatbot/prompts" element={<ChatbotPromptManagement />} />
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
