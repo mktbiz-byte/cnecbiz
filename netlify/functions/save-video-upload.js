@@ -191,33 +191,42 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   }
 
   // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
-  // ★★★ admin/campaigns 페이지(CampaignsManagement.jsx)의 getCompanyName()과 정확히 동일한 로직 ★★★
-  // admin 페이지: company_id → companies.id → companies.user_id → company_email → companies.email
-  // company_biz_id는 사용하지 않음! (admin 페이지에서 사용 안 함)
-  // 등록된 기업이 아니면 알림을 보내지 않음
+  // ★★★ AdminCampaignDetail.jsx의 알림톡 발송 로직과 동일한 우선순위 ★★★
+  // 1순위: company_biz_id → companies.id (백필된 정확한 매칭 — 가장 신뢰)
+  // 2순위: company_email → companies.email
+  // 3순위: company_id → companies.user_id
+  // 4순위: company_id → companies.id (legacy)
+  // 최종 fallback: campaign.company_phone 직접 사용
   const companyPromise = (async () => {
     if (!campaignData) return
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_id로 companies.id 조회 (admin/campaigns와 동일)
-    if (campaignData.company_id) {
+    // 1순위: company_biz_id로 BIZ DB 조회 (companies.id와 정확히 매칭 — AdminCampaignDetail.jsx와 동일)
+    if (campaignData.company_biz_id) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
       if (data) comp = data
     }
 
-    // 2순위: company_id로 companies.user_id 조회 (admin/campaigns와 동일)
+    // 2순위: company_email로 companies.email 조회
+    if (!comp && campaignData.company_email) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 3순위: company_id로 companies.user_id 조회
     if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
-    // 3순위: company_email로 companies.email 조회 (admin/campaigns와 동일)
-    if (!comp && campaignData.company_email) {
+    // 4순위: company_id로 companies.id 조회 (legacy fallback)
+    if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
+        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
@@ -225,12 +234,17 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       companyPhone = comp.notification_phone || comp.phone
       companyEmail = comp.notification_email || comp.email
       if (comp.company_name) companyName = comp.company_name
-      console.log('[알림] 기업 정보 (BIZ DB - admin/campaigns 동일 로직):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail })
+      console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail, usedBizId: !!campaignData.company_biz_id })
     } else {
-      // admin/campaigns에 등록된 기업이 아니면 알림 발송 안 함
-      console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_id: campaignData.company_id, company_email: campaignData.company_email })
-      companyPhone = null
-      companyEmail = null
+      // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
+      if (campaignData.company_phone) {
+        companyPhone = campaignData.company_phone
+        console.log('[알림] 기업 정보 (캠페인 직접 필드 fallback):', { companyPhone })
+      } else {
+        console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_biz_id: campaignData.company_biz_id, company_id: campaignData.company_id, company_email: campaignData.company_email })
+        companyPhone = null
+        companyEmail = null
+      }
     }
   })()
 
@@ -330,7 +344,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          receiverNum: companyPhone,
+          receiverNum: companyPhone.replace(/-/g, ''),
           receiverName: companyName,
           templateCode: '025100001008',
           variables: { '회사명': companyName, '캠페인명': campaignTitle, '크리에이터명': creatorName }
