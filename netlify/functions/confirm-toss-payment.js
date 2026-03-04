@@ -199,15 +199,33 @@ exports.handler = async (event, context) => {
         }
 
         // company_id 설정 (캠페인에서 가져오거나, company_email로 companies 조회)
-        if (campaign.company_id) {
-          // supabaseBiz의 companies 테이블에 해당 user_id가 있는지 확인
+        if (campaign.company_biz_id) {
           const { data: compCheck } = await supabaseBiz
             .from('companies')
-            .select('user_id')
-            .eq('user_id', campaign.company_id)
+            .select('id')
+            .eq('id', campaign.company_biz_id)
             .maybeSingle()
           if (compCheck) {
+            paymentData.company_id = campaign.company_biz_id
+          }
+        } else if (campaign.company_id) {
+          // companies.id 먼저 확인, 없으면 user_id로 확인
+          const { data: compById } = await supabaseBiz
+            .from('companies')
+            .select('id')
+            .eq('id', campaign.company_id)
+            .maybeSingle()
+          if (compById) {
             paymentData.company_id = campaign.company_id
+          } else {
+            const { data: compByUserId } = await supabaseBiz
+              .from('companies')
+              .select('user_id')
+              .eq('user_id', campaign.company_id)
+              .maybeSingle()
+            if (compByUserId) {
+              paymentData.company_id = campaign.company_id
+            }
           }
         } else if (campaign.company_email && supabaseBiz) {
           const { data: companyData } = await supabaseBiz
@@ -288,14 +306,33 @@ exports.handler = async (event, context) => {
             if (companyData?.company_name) {
               companyName = companyData.company_name
             }
-          } else if (campaign.company_id && supabaseBiz) {
+          } else if (campaign.company_biz_id && supabaseBiz) {
             const { data: companyData } = await supabaseBiz
               .from('companies')
               .select('company_name')
-              .eq('user_id', campaign.company_id)
+              .eq('id', campaign.company_biz_id)
               .maybeSingle()
             if (companyData?.company_name) {
               companyName = companyData.company_name
+            }
+          } else if (campaign.company_id && supabaseBiz) {
+            // id 먼저, 없으면 user_id
+            const { data: compById } = await supabaseBiz
+              .from('companies')
+              .select('company_name')
+              .eq('id', campaign.company_id)
+              .maybeSingle()
+            if (compById?.company_name) {
+              companyName = compById.company_name
+            } else {
+              const { data: compByUserId } = await supabaseBiz
+                .from('companies')
+                .select('company_name')
+                .eq('user_id', campaign.company_id)
+                .maybeSingle()
+              if (compByUserId?.company_name) {
+                companyName = compByUserId.company_name
+              }
             }
           }
 

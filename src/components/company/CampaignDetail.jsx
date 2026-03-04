@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -734,6 +734,7 @@ export default function CampaignDetail() {
     isEditMode: false
   })
   const [savingAdminSnsEdit, setSavingAdminSnsEdit] = useState(false)
+  const lastSnsCompanyNotifRef = useRef({}) // 중복 기업 알림 방지 (participantId → timestamp)
   const [currentWeek, setCurrentWeek] = useState(1)
   const [singleWeekGuideData, setSingleWeekGuideData] = useState({ required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' })
   const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
@@ -5652,7 +5653,13 @@ Questions? Contact us.
         setAdminSnsEditData({})
         await fetchParticipants()
 
-        // 기업에게 SNS 업로드 완료 알림 발송
+        // 기업에게 SNS 업로드 완료 알림 발송 (중복 방지)
+        const notifKey1 = `${adminSnsEditData.participantId}_multi`
+        const lastSent1 = lastSnsCompanyNotifRef.current[notifKey1]
+        if (lastSent1 && Date.now() - lastSent1 < 180000) {
+          console.log('중복 기업 알림 방지: 3분 이내 동일 참가자 알림 스킵', notifKey1)
+        } else {
+        lastSnsCompanyNotifRef.current[notifKey1] = Date.now()
         try {
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
@@ -5665,14 +5672,14 @@ Questions? Contact us.
             const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_biz_id).maybeSingle()
             if (data) companyData = data
           }
-          // 2순위: company_id → companies.user_id
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 3순위: company_id → companies.id (이관된 캠페인)
+          // 2순위: company_id → companies.id (직접 매칭 우선)
           if (!companyData && campaign?.company_id) {
             const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 3순위: company_id → companies.user_id (auth user ID 매칭)
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
             if (data) companyData = data
           }
           // 4순위: company_email → companies.email
@@ -5741,6 +5748,7 @@ Questions? Contact us.
         } catch (notifyError) {
           console.error('기업 알림 발송 실패:', notifyError)
         }
+        } // end duplicate guard
 
         alert('저장되었습니다.')
       } catch (error) {
@@ -5802,7 +5810,13 @@ Questions? Contact us.
         await fetchVideoSubmissions()
         await fetchParticipants()
 
-        // 기업에게 SNS 업로드 완료 알림 발송
+        // 기업에게 SNS 업로드 완료 알림 발송 (중복 방지)
+        const notifKey2 = `${adminSnsEditData.participantId}_edit`
+        const lastSent2 = lastSnsCompanyNotifRef.current[notifKey2]
+        if (lastSent2 && Date.now() - lastSent2 < 180000) {
+          console.log('중복 기업 알림 방지: 3분 이내 동일 참가자 알림 스킵', notifKey2)
+        } else {
+        lastSnsCompanyNotifRef.current[notifKey2] = Date.now()
         try {
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
@@ -5815,14 +5829,14 @@ Questions? Contact us.
             const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_biz_id).maybeSingle()
             if (data) companyData = data
           }
-          // 2순위: company_id → companies.user_id
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('user_id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 3순위: company_id → companies.id (이관된 캠페인)
+          // 2순위: company_id → companies.id (직접 매칭 우선)
           if (!companyData && campaign?.company_id) {
             const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 3순위: company_id → companies.user_id (auth user ID 매칭)
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('user_id', campaign.company_id).maybeSingle()
             if (data) companyData = data
           }
           // 4순위: company_email → companies.email
@@ -5891,6 +5905,7 @@ Questions? Contact us.
         } catch (notifyError) {
           console.error('기업 알림 발송 실패:', notifyError)
         }
+        } // end duplicate guard
 
         alert('저장되었습니다.')
         return
@@ -6555,21 +6570,21 @@ Questions? Contact us.
           if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 
-        // 2순위: company_email로 BIZ DB 조회
+        // 2순위: company_id로 BIZ DB id 조회 (직접 매칭 우선)
+        if (!companyPhone && campaign?.company_id) {
+          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
+          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
+        }
+
+        // 3순위: company_email로 BIZ DB 조회
         if (!companyPhone && campaign?.company_email) {
           const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
           if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 
-        // 3순위: company_id로 BIZ DB user_id 조회 (company_id = auth user ID)
+        // 4순위: company_id로 BIZ DB user_id 조회 (company_id = auth user ID)
         if (!companyPhone && campaign?.company_id) {
           const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
-          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
-        }
-
-        // 4순위: company_id로 BIZ DB id 조회 (일부 캠페인은 company_id가 BIZ DB id일 수 있음)
-        if (!companyPhone && campaign?.company_id) {
-          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
           if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
         }
 

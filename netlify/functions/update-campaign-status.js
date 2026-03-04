@@ -281,20 +281,7 @@ exports.handler = async (event, context) => {
             }
           }
 
-          // 3순위: company_id → companies.user_id (기업 회원이 직접 생성한 캠페인)
-          if (!company && campaign.company_id) {
-            const { data: companyData } = await bizClient
-              .from('companies')
-              .select('*')
-              .eq('user_id', campaign.company_id)
-              .maybeSingle()
-            if (companyData) {
-              company = companyData
-              console.log('[update-campaign-status] Found by company_id→user_id in biz DB')
-            }
-          }
-
-          // 4순위: company_id → companies.id (legacy / 이관된 캠페인)
+          // 3순위: company_id → companies.id (직접 매칭 우선)
           if (!company && campaign.company_id) {
             const { data: companyData } = await bizClient
               .from('companies')
@@ -304,6 +291,19 @@ exports.handler = async (event, context) => {
             if (companyData) {
               company = companyData
               console.log('[update-campaign-status] Found by company_id→id in biz DB')
+            }
+          }
+
+          // 4순위: company_id → companies.user_id (auth user ID 매칭)
+          if (!company && campaign.company_id) {
+            const { data: companyData } = await bizClient
+              .from('companies')
+              .select('*')
+              .eq('user_id', campaign.company_id)
+              .maybeSingle()
+            if (companyData) {
+              company = companyData
+              console.log('[update-campaign-status] Found by company_id→user_id in biz DB')
             }
           }
 
@@ -318,6 +318,17 @@ exports.handler = async (event, context) => {
               if (companyData) {
                 company = companyData
                 console.log('[update-campaign-status] Found by email in regional DB')
+              }
+            }
+            if (!company && campaign.company_id) {
+              const { data: companyData } = await supabaseClient
+                .from('companies')
+                .select('*')
+                .eq('id', campaign.company_id)
+                .maybeSingle()
+              if (companyData) {
+                company = companyData
+                console.log('[update-campaign-status] Found by id in regional DB')
               }
             }
             if (!company && campaign.company_id) {

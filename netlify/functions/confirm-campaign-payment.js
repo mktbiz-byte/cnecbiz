@@ -218,8 +218,36 @@ exports.handler = async (event, context) => {
     // 회사 정보 조회 (알림 발송용) - BIZ DB 우선, 리전 DB fallback
     let company = null
 
-    // 1. company_id로 Biz DB에서 조회 (BIZ DB가 기업 정보의 주 소스)
-    if (campaign.company_id) {
+    // 1. company_biz_id로 Biz DB에서 조회 (가장 정확)
+    if (campaign.company_biz_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_biz_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_biz_id in Biz DB')
+      }
+    }
+
+    // 2. company_id → companies.id (직접 매칭 우선)
+    if (!company && campaign.company_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_id→id in Biz DB')
+      }
+    }
+
+    // 3. company_id → companies.user_id (auth user ID 매칭)
+    if (!company && campaign.company_id) {
       const { data: companyData } = await supabaseBiz
         .from('companies')
         .select('company_name, email, phone, contact_person, notification_phone, notification_email')
@@ -228,11 +256,11 @@ exports.handler = async (event, context) => {
 
       if (companyData) {
         company = companyData
-        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
+        console.log('[confirm-campaign-payment] Company found by company_id→user_id in Biz DB')
       }
     }
 
-    // 2. company_email로 Biz DB에서 조회
+    // 4. company_email로 Biz DB에서 조회
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseBiz
         .from('companies')
@@ -246,7 +274,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 3. company_id로 Korea DB에서 조회 (fallback)
+    // 5. company_id로 Korea DB에서 조회 (fallback)
     if (!company && campaign.company_id) {
       const { data: companyData } = await supabaseKorea
         .from('companies')
