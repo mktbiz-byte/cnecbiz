@@ -261,6 +261,7 @@ export default function CampaignsManagement() {
 
   // 대시보드/리스트 뷰 모드
   const [viewMode, setViewMode] = useState('list') // 'dashboard' | 'list'
+  const [dashboardRegion, setDashboardRegion] = useState('all')
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(null)
 
   // 캠페인 번호 부여 관련 상태
@@ -1446,7 +1447,7 @@ export default function CampaignsManagement() {
 
               {/* 진행중 캠페인 현황 */}
               {(() => {
-                const activeCampaigns = campaigns
+                const allActiveCampaigns = campaigns
                   .filter(c => c.status === 'active' || c.status === 'approved' || c.status === 'in_progress')
                   .sort((a, b) => {
                     const dA = getDaysUntilDeadline(a.application_deadline)
@@ -1457,17 +1458,45 @@ export default function CampaignsManagement() {
                     return new Date(b.created_at || 0) - new Date(a.created_at || 0)
                   })
 
+                const activeCampaigns = dashboardRegion === 'all'
+                  ? allActiveCampaigns
+                  : allActiveCampaigns.filter(c => c.region === dashboardRegion)
+
                 return (
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                        <h2 className="text-lg font-semibold text-gray-900">진행중 캠페인</h2>
-                        <span className="text-sm text-blue-600 font-medium">({activeCampaigns.length}개)</span>
+                    <div className="px-6 py-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-blue-600" />
+                          <h2 className="text-lg font-semibold text-gray-900">진행중 캠페인</h2>
+                          <span className="text-sm text-blue-600 font-medium">({activeCampaigns.length}개)</span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('active') }} className="text-blue-600 hover:bg-blue-50 text-xs">
+                          전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('active') }} className="text-blue-600 hover:bg-blue-50 text-xs">
-                        전체보기 <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      {/* 나라별 필터 */}
+                      <div className="flex gap-1.5">
+                        {[
+                          { value: 'all', label: '전체' },
+                          { value: 'korea', label: '🇰🇷 한국' },
+                          { value: 'japan', label: '🇯🇵 일본' },
+                          { value: 'us', label: '🇺🇸 미국' },
+                          { value: 'taiwan', label: '🇹🇼 대만' }
+                        ].map(tab => (
+                          <button
+                            key={tab.value}
+                            onClick={() => setDashboardRegion(tab.value)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              dashboardRegion === tab.value
+                                ? 'bg-gray-900 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="p-4">
                       {activeCampaigns.length === 0 ? (
@@ -1478,14 +1507,18 @@ export default function CampaignsManagement() {
                             const maxParticipants = campaign.max_participants || campaign.total_slots || 0
                             const applicants = campaign.application_stats?.total || 0
                             const selected = campaign.application_stats?.selected || 0
+                            const completed = campaign.application_stats?.completed || 0
                             const companyName = getCompanyName(campaign) || campaign.company_name || '-'
                             const deadline = campaign.application_deadline || campaign.recruitment_deadline
                             const daysLeft = getDaysUntilDeadline(deadline)
                             const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
-                            const applicantProgress = maxParticipants > 0 ? Math.min((applicants / maxParticipants) * 100, 100) : 0
                             const regionInfo = regionConfig[campaign.region] || regionConfig.biz
                             const typeInfo = campaignTypeConfig[campaign.campaign_type]
                             const platforms = getPlatforms(campaign)
+                            // 영상 업로드 진행률 (completed = 영상 업로드 완료 또는 그 이후 상태)
+                            const videoUploaded = completed
+                            const videoPending = selected > 0 ? selected - videoUploaded : 0
+                            const videoProgress = selected > 0 ? Math.min((videoUploaded / selected) * 100, 100) : 0
 
                             return (
                               <div
@@ -1523,33 +1556,39 @@ export default function CampaignsManagement() {
                                   {platforms.includes('youtube') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">쇼츠</span>}
                                 </div>
 
-                                {/* 지원 진행률 */}
-                                <div className="mb-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[11px] text-gray-500">지원</span>
-                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                      <span className="text-blue-600">{applicants}</span>
-                                      <span className="text-gray-400">/{maxParticipants}</span>
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-1">
-                                    <div className="bg-blue-400 h-1 rounded-full" style={{ width: `${applicantProgress}%` }} />
-                                  </div>
-                                </div>
-
                                 {/* 선정 진행률 */}
-                                <div className="mb-3">
+                                <div className="mb-2">
                                   <div className="flex items-center justify-between mb-1">
                                     <span className="text-[11px] text-gray-500">선정</span>
                                     <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                       <span className="text-emerald-600">{selected}</span>
-                                      <span className="text-gray-400">/{maxParticipants}</span>
+                                      <span className="text-gray-400">/{maxParticipants}명</span>
                                     </span>
                                   </div>
                                   <div className="w-full bg-gray-100 rounded-full h-1">
                                     <div className="bg-emerald-400 h-1 rounded-full" style={{ width: `${selectionProgress}%` }} />
                                   </div>
                                 </div>
+
+                                {/* 영상 업로드 진행률 */}
+                                {selected > 0 && (
+                                  <div className="mb-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[11px] text-gray-500">영상 업로드</span>
+                                      <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <span className="text-violet-600">{videoUploaded}</span>
+                                        <span className="text-gray-400">/{selected}명</span>
+                                        <span className="text-gray-400 ml-1">({Math.round(videoProgress)}%)</span>
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-1">
+                                      <div className="bg-violet-400 h-1 rounded-full" style={{ width: `${videoProgress}%` }} />
+                                    </div>
+                                    {videoPending > 0 && (
+                                      <p className="text-[10px] text-amber-500 mt-1">미업로드 대기 {videoPending}명</p>
+                                    )}
+                                  </div>
+                                )}
 
                                 {/* 하단 예산 */}
                                 <div className="flex items-center justify-between pt-2 border-t border-gray-50 text-xs">
