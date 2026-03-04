@@ -327,7 +327,7 @@ export default function CampaignsManagement() {
     try {
       const { data, error } = await supabaseBiz
         .from('companies')
-        .select('id, user_id, email, company_name, notification_phone, notification_email')
+        .select('id, user_id, email, company_name, notification_phone, notification_email, phone')
 
       if (error || !data) return
 
@@ -343,23 +343,31 @@ export default function CampaignsManagement() {
     }
   }
 
-  // 캠페인에서 기업명 조회 헬퍼
-  const getCompanyName = useCallback((campaign) => {
+  // 캠페인에서 기업 데이터 조회 헬퍼 (올바른 우선순위)
+  const getCompanyData = useCallback((campaign) => {
     if (!campaign) return null
-    // company_id로 조회 (id 또는 user_id 모두 시도)
-    if (campaign.company_id) {
-      const byId = companyNameMap[`id:${campaign.company_id}`]
-      if (byId) return byId.company_name
-      const byUid = companyNameMap[`uid:${campaign.company_id}`]
-      if (byUid) return byUid.company_name
+    // 1순위: company_biz_id → companies.id (가장 정확)
+    if (campaign.company_biz_id) {
+      const byBiz = companyNameMap[`id:${campaign.company_biz_id}`]
+      if (byBiz) return byBiz
     }
-    // company_email로 조회
+    // 2순위: company_id → companies.user_id (auth user ID 매칭)
+    if (campaign.company_id) {
+      const byUid = companyNameMap[`uid:${campaign.company_id}`]
+      if (byUid) return byUid
+    }
+    // 3순위: company_email → companies.email
     if (campaign.company_email) {
       const byEmail = companyNameMap[`email:${campaign.company_email}`]
-      if (byEmail) return byEmail.company_name
+      if (byEmail) return byEmail
     }
     return null
   }, [companyNameMap])
+
+  // 캠페인에서 기업명 조회 헬퍼
+  const getCompanyName = useCallback((campaign) => {
+    return getCompanyData(campaign)?.company_name || null
+  }, [getCompanyData])
 
   const fetchCampaigns = async (withStats = false) => {
     setLoading(true)
@@ -557,30 +565,30 @@ export default function CampaignsManagement() {
 
   // 입금요청 발송 (알림톡 025100000918 + 이메일)
   const handlePaymentRequest = async (campaign) => {
-    const companyName = getCompanyName(campaign) || campaign.company_name || '기업'
     const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
     const amount = campaign.estimated_cost || campaign.budget || 0
 
-    if (!confirm(`입금요청 알림을 발송하시겠습니까?\n\n기업: ${companyName}\n캠페인: ${campaignTitle}\n금액: ${amount.toLocaleString()}원\n\n알림톡 + 이메일이 발송됩니다.`)) return
+    // getCompanyData로 기업 정보 조회 (올바른 우선순위: company_biz_id → user_id → email)
+    const companyData = getCompanyData(campaign)
+
+    if (!companyData) {
+      alert('기업 정보를 찾을 수 없습니다.\n\n캠페인에 연결된 기업이 companies 테이블에 없습니다.\n기업을 먼저 등록하거나 캠페인에 기업을 연결해 주세요.')
+      return
+    }
+
+    const phone = companyData.notification_phone || companyData.phone || ''
+    const email = companyData.notification_email || companyData.email || ''
+    const displayName = companyData.company_name || '기업'
+
+    if (!phone && !email) {
+      alert(`기업 "${displayName}"의 연락처(전화번호/이메일)가 등록되어 있지 않습니다.\n\n기업 정보를 먼저 수정해 주세요.`)
+      return
+    }
+
+    if (!confirm(`입금요청 알림을 발송하시겠습니까?\n\n기업: ${displayName}\n캠페인: ${campaignTitle}\n금액: ${amount.toLocaleString()}원\n\n발송 대상:\n${phone ? '알림톡: ' + phone : '알림톡: 번호 없음 (미발송)'}\n${email ? '이메일: ' + email : '이메일: 주소 없음 (미발송)'}`)) return
 
     setSendingPaymentRequest(campaign.id)
     try {
-      // 기업 정보 조회
-      let companyData = null
-      if (campaign.company_id) {
-        const byId = companyNameMap[`id:${campaign.company_id}`]
-        const byUid = companyNameMap[`uid:${campaign.company_id}`]
-        companyData = byId || byUid
-      }
-      if (!companyData && campaign.company_email) {
-        const byEmail = companyNameMap[`email:${campaign.company_email}`]
-        companyData = byEmail
-      }
-
-      const phone = companyData?.notification_phone || companyData?.phone || ''
-      const email = companyData?.notification_email || companyData?.email || campaign.company_email || ''
-      const displayName = companyData?.company_name || companyName
-
       // 1. 알림톡 발송 (025100000918)
       if (phone) {
         try {
@@ -598,7 +606,6 @@ export default function CampaignsManagement() {
               }
             })
           })
-          console.log('입금요청 알림톡 발송 완료:', displayName)
         } catch (kakaoErr) {
           console.error('입금요청 알림톡 발송 실패:', kakaoErr)
         }
@@ -643,13 +650,12 @@ export default function CampaignsManagement() {
               `
             })
           })
-          console.log('입금요청 이메일 발송 완료:', email)
         } catch (emailErr) {
           console.error('입금요청 이메일 발송 실패:', emailErr)
         }
       }
 
-      alert(`입금요청 발송 완료!\n${phone ? '알림톡: ' + phone : '알림톡: 번호 없음'}\n${email ? '이메일: ' + email : '이메일: 주소 없음'}`)
+      alert(`입금요청 발송 완료!\n\n기업: ${displayName}\n${phone ? '알림톡: ' + phone : ''}\n${email ? '이메일: ' + email : ''}`)
     } catch (error) {
       alert('입금요청 발송 실패: ' + error.message)
     } finally {
