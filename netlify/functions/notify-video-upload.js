@@ -60,7 +60,11 @@ exports.handler = async (event) => {
       campaignTitle: hintCampaignTitle,
       companyName: hintCompanyName,
       isResubmission,
-      videoFileCount
+      videoFileCount,
+      campaignType: hintCampaignType,
+      videoNumber: hintVideoNumber,
+      weekNumber: hintWeekNumber,
+      isCleanVideo: hintIsCleanVideo
     } = JSON.parse(event.body || '{}')
 
     if (!campaignId) {
@@ -91,7 +95,7 @@ exports.handler = async (event) => {
       try {
         const { data, error } = await c
           .from('campaigns')
-          .select('id, title, brand, brand_name, company_name, company_id, company_biz_id, company_email, company_phone, target_country')
+          .select('id, title, brand, brand_name, company_name, company_id, company_biz_id, company_email, company_phone, target_country, campaign_type')
           .eq('id', campaignId)
           .maybeSingle()
         if (data && !error) {
@@ -177,6 +181,32 @@ exports.handler = async (event) => {
       hour: '2-digit', minute: '2-digit'
     })
 
+    // 캠페인 타입 라벨
+    const campaignType = hintCampaignType || campaignData?.campaign_type || 'planned'
+    const campaignTypeMap = {
+      planned: '기획형', regular: '기획형',
+      olive_young: '올리브영', oliveyoung: '올리브영', oliveyoung_sale: '올리브영',
+      '4week_challenge': '4주챌린지', '4week': '4주챌린지',
+      megawari: '메가와리', 'mega-warri': '메가와리'
+    }
+    const campaignTypeLabel = campaignTypeMap[campaignType] || campaignType
+    const videoNumber = hintVideoNumber || null
+    const weekNumber = hintWeekNumber || null
+    const isCleanVideo = hintIsCleanVideo || false
+
+    // 상세 정보 조합
+    let detailParts = [campaignTypeLabel]
+    if (campaignType === '4week_challenge' || campaignType === '4week') {
+      const wk = weekNumber || videoNumber || null
+      if (wk) detailParts.push(`${wk}주차`)
+    } else if (campaignType === 'megawari' || campaignType === 'mega-warri') {
+      if (videoNumber) detailParts.push(`영상${videoNumber}`)
+    } else if (campaignType === 'olive_young' || campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+      if (videoNumber) detailParts.push(`Step${videoNumber}`)
+    }
+    if (isCleanVideo) detailParts.push('클린본')
+    const detailLabel = detailParts.join(' / ')
+
     const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출'
     const results = { naverWorks: false, kakao: false, email: false }
 
@@ -187,6 +217,7 @@ exports.handler = async (event) => {
         message += `📋 캠페인: ${campaignTitle}\n`
         message += `🏢 기업: ${companyName}\n`
         message += `👤 크리에이터: ${creatorName}\n`
+        message += `🎬 유형: ${detailLabel}\n`
         message += `📌 버전: V${version || 1}\n`
         message += `🌍 국가: ${countryLabel}\n`
         message += `⏰ 제출 시간: ${koreanDate}`

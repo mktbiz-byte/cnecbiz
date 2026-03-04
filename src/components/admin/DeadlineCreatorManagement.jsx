@@ -632,6 +632,14 @@ export default function DeadlineCreatorManagement() {
             className="whitespace-nowrap"
             onClick={() => navigate('/admin/campaigns')}
           >
+            대시보드
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="whitespace-nowrap"
+            onClick={() => navigate('/admin/campaigns')}
+          >
             📋 전체 캠페인
           </Button>
           <Button

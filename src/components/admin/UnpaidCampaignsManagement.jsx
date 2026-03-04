@@ -437,6 +437,9 @@ export default function UnpaidCampaignsManagement() {
         {/* 서브 탭 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
+            대시보드
+          </Button>
+          <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
             📋 전체 캠페인
           </Button>
           <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns/deadlines')}>
