@@ -8,7 +8,8 @@ import {
   TrendingUp, Search, Eye, CheckCircle, XCircle, Clock,
   DollarSign, Edit, Trash2, PlayCircle, Pause, CheckSquare,
   ChevronLeft, ChevronRight, Loader2, Users, Calendar, Target, ImageIcon,
-  ArrowRightLeft, Hash, Building2, Phone, Mail, User, Globe, MapPin
+  ArrowRightLeft, Hash, Building2, Phone, Mail, User, Globe, MapPin,
+  Send, LayoutDashboard
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
@@ -258,6 +259,10 @@ export default function CampaignsManagement() {
   const [companies, setCompanies] = useState([])
   const [companiesLoading, setCompaniesLoading] = useState(false)
 
+  // 대시보드/리스트 뷰 모드
+  const [viewMode, setViewMode] = useState('list') // 'dashboard' | 'list'
+  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(null)
+
   // 캠페인 번호 부여 관련 상태
   const [assigningNumbers, setAssigningNumbers] = useState(false)
 
@@ -274,6 +279,16 @@ export default function CampaignsManagement() {
     checkAuth()
     fetchCampaigns()
     fetchCompanyNameMap()
+
+    // URL 파라미터로 필터/뷰 모드 설정
+    const filterParam = searchParams.get('filter')
+    if (filterParam === 'active') {
+      setSelectedStatus('active')
+      setViewMode('list')
+    } else if (filterParam === 'pending') {
+      setSelectedStatus('pending')
+      setViewMode('list')
+    }
   }, [])
 
   // 필터 변경 시 페이지 초기화
@@ -537,6 +552,108 @@ export default function CampaignsManagement() {
       alert('삭제 실패: ' + error.message)
     } finally {
       setConfirming(false)
+    }
+  }
+
+  // 입금요청 발송 (알림톡 025100000918 + 이메일)
+  const handlePaymentRequest = async (campaign) => {
+    const companyName = getCompanyName(campaign) || campaign.company_name || '기업'
+    const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
+    const amount = campaign.estimated_cost || campaign.budget || 0
+
+    if (!confirm(`입금요청 알림을 발송하시겠습니까?\n\n기업: ${companyName}\n캠페인: ${campaignTitle}\n금액: ${amount.toLocaleString()}원\n\n알림톡 + 이메일이 발송됩니다.`)) return
+
+    setSendingPaymentRequest(campaign.id)
+    try {
+      // 기업 정보 조회
+      let companyData = null
+      if (campaign.company_id) {
+        const byId = companyNameMap[`id:${campaign.company_id}`]
+        const byUid = companyNameMap[`uid:${campaign.company_id}`]
+        companyData = byId || byUid
+      }
+      if (!companyData && campaign.company_email) {
+        const byEmail = companyNameMap[`email:${campaign.company_email}`]
+        companyData = byEmail
+      }
+
+      const phone = companyData?.notification_phone || companyData?.phone || ''
+      const email = companyData?.notification_email || companyData?.email || campaign.company_email || ''
+      const displayName = companyData?.company_name || companyName
+
+      // 1. 알림톡 발송 (025100000918)
+      if (phone) {
+        try {
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: phone.replace(/-/g, ''),
+              receiverName: displayName,
+              templateCode: '025100000918',
+              variables: {
+                '회사명': displayName,
+                '캠페인명': campaignTitle,
+                '금액': amount.toLocaleString()
+              }
+            })
+          })
+          console.log('입금요청 알림톡 발송 완료:', displayName)
+        } catch (kakaoErr) {
+          console.error('입금요청 알림톡 발송 실패:', kakaoErr)
+        }
+      }
+
+      // 2. 이메일 발송
+      if (email) {
+        try {
+          await fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: email,
+              subject: `[CNEC] ${campaignTitle} 캠페인 입금 안내`,
+              html: `
+                <div style="font-family: 'Pretendard', -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                  <div style="background: linear-gradient(135deg, #6C5CE7, #A29BFE); padding: 30px; border-radius: 16px; color: white; text-align: center; margin-bottom: 30px;">
+                    <h1 style="margin: 0; font-size: 22px;">캠페인 입금 안내</h1>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+                    <p style="margin: 0 0 16px; font-size: 16px;">${displayName}님, 안녕하세요.</p>
+                    <p style="margin: 0 0 16px; font-size: 15px; color: #333;">
+                      신청하신 <strong>${campaignTitle}</strong> 캠페인이 아직 미입금 상태로 라이브가 되지 않고 있습니다.
+                    </p>
+                    <p style="margin: 0 0 8px; font-size: 15px; color: #333;">
+                      캠페인을 활성화하시려면 아래 계좌로 입금해 주세요.
+                    </p>
+                  </div>
+                  <div style="background: white; border: 2px solid #6C5CE7; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 16px; color: #6C5CE7;">입금 정보</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr><td style="padding: 8px 0; color: #666; width: 100px;">입금 계좌</td><td style="padding: 8px 0; font-weight: 600;">IBK기업은행 047-122753-04-011</td></tr>
+                      <tr><td style="padding: 8px 0; color: #666;">예금주</td><td style="padding: 8px 0; font-weight: 600;">주식회사 하우파파</td></tr>
+                      <tr><td style="padding: 8px 0; color: #666;">입금 금액</td><td style="padding: 8px 0; font-weight: 600; color: #6C5CE7; font-size: 18px;">${amount.toLocaleString()}원</td></tr>
+                    </table>
+                  </div>
+                  <p style="text-align: center; color: #999; font-size: 13px;">
+                    입금 확인 후 캠페인이 활성화됩니다.<br/>
+                    문의: 1833-6025
+                  </p>
+                </div>
+              `
+            })
+          })
+          console.log('입금요청 이메일 발송 완료:', email)
+        } catch (emailErr) {
+          console.error('입금요청 이메일 발송 실패:', emailErr)
+        }
+      }
+
+      alert(`입금요청 발송 완료!\n${phone ? '알림톡: ' + phone : '알림톡: 번호 없음'}\n${email ? '이메일: ' + email : '이메일: 주소 없음'}`)
+    } catch (error) {
+      alert('입금요청 발송 실패: ' + error.message)
+    } finally {
+      setSendingPaymentRequest(null)
     }
   }
 
@@ -1189,9 +1306,19 @@ export default function CampaignsManagement() {
           {/* 서브 탭 */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             <Button
-              variant="default"
+              variant={viewMode === 'dashboard' ? 'default' : 'outline'}
               size="sm"
               className="whitespace-nowrap"
+              onClick={() => setViewMode('dashboard')}
+            >
+              <LayoutDashboard className="w-4 h-4 mr-1" />
+              대시보드
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => setViewMode('list')}
             >
               📋 전체 캠페인
             </Button>
@@ -1269,8 +1396,176 @@ export default function CampaignsManagement() {
             </div>
           </div>
 
+          {/* 대시보드 뷰 */}
+          {viewMode === 'dashboard' && (
+            <div className="mb-8 space-y-6">
+              {/* 승인 요청 중인 캠페인 */}
+              {(() => {
+                const pendingCampaigns = campaigns.filter(c => c.status === 'pending' || c.status === 'pending_approval')
+                if (pendingCampaigns.length === 0) return null
+                return (
+                  <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/50 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-amber-600" />
+                        <h2 className="text-lg font-semibold text-gray-900">승인 요청 중</h2>
+                        <span className="text-sm text-amber-600 font-medium">({pendingCampaigns.length}개)</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('pending') }} className="text-amber-600 hover:bg-amber-100 text-xs">
+                        전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {pendingCampaigns.slice(0, 6).map(campaign => {
+                        const companyName = getCompanyName(campaign) || campaign.company_name || '-'
+                        return (
+                          <div key={campaign.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => handleCampaignClick(campaign)}>
+                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                              {campaign.image_url ? <img src={campaign.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-5 h-5 text-gray-400" /></div>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{campaign.campaign_name || campaign.title || '제목 없음'}</p>
+                              <p className="text-xs text-gray-500">{companyName}</p>
+                            </div>
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); handleApproveCampaign(campaign) }} disabled={confirming} className="h-7 px-2.5 bg-blue-500 hover:bg-blue-600 text-xs">
+                              승인
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* 진행중 캠페인 현황 */}
+              {(() => {
+                const activeCampaigns = campaigns
+                  .filter(c => c.status === 'active' || c.status === 'approved' || c.status === 'in_progress')
+                  .sort((a, b) => {
+                    const dA = getDaysUntilDeadline(a.application_deadline)
+                    const dB = getDaysUntilDeadline(b.application_deadline)
+                    if (dA !== null && dB !== null) return dA - dB
+                    if (dA !== null) return -1
+                    if (dB !== null) return 1
+                    return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+                  })
+
+                return (
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <h2 className="text-lg font-semibold text-gray-900">진행중 캠페인</h2>
+                        <span className="text-sm text-blue-600 font-medium">({activeCampaigns.length}개)</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('active') }} className="text-blue-600 hover:bg-blue-50 text-xs">
+                        전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-4">
+                      {activeCampaigns.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">진행중인 캠페인이 없습니다.</div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {activeCampaigns.map(campaign => {
+                            const maxParticipants = campaign.max_participants || campaign.total_slots || 0
+                            const applicants = campaign.application_stats?.total || 0
+                            const selected = campaign.application_stats?.selected || 0
+                            const companyName = getCompanyName(campaign) || campaign.company_name || '-'
+                            const deadline = campaign.application_deadline || campaign.recruitment_deadline
+                            const daysLeft = getDaysUntilDeadline(deadline)
+                            const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
+                            const applicantProgress = maxParticipants > 0 ? Math.min((applicants / maxParticipants) * 100, 100) : 0
+                            const regionInfo = regionConfig[campaign.region] || regionConfig.biz
+                            const typeInfo = campaignTypeConfig[campaign.campaign_type]
+                            const platforms = getPlatforms(campaign)
+
+                            return (
+                              <div
+                                key={campaign.id}
+                                className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
+                                onClick={() => navigate(`/company/campaigns/${campaign.id}?region=${campaign.region}`)}
+                              >
+                                {/* 상단: 이미지 + 제목 */}
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                    {campaign.image_url ? (
+                                      <img src={campaign.image_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+                                        <ImageIcon className="w-6 h-6 text-blue-400" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{campaign.campaign_name || campaign.title || '제목 없음'}</h4>
+                                    <p className="text-xs text-gray-500 truncate">{companyName}</p>
+                                  </div>
+                                </div>
+
+                                {/* 태그 */}
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${regionInfo.color}`}>{regionInfo.flag} {regionInfo.label}</span>
+                                  {typeInfo && <span className={`text-[10px] px-1.5 py-0.5 rounded ${typeInfo.color}`}>{typeInfo.icon} {typeInfo.label}</span>}
+                                  {daysLeft !== null && (
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${daysLeft <= 3 ? 'bg-red-100 text-red-600' : daysLeft <= 7 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
+                                      {daysLeft > 0 ? `D-${daysLeft}` : daysLeft === 0 ? 'D-Day' : '마감'}
+                                    </span>
+                                  )}
+                                  {platforms.includes('instagram') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600">릴스</span>}
+                                  {platforms.includes('youtube') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">쇼츠</span>}
+                                </div>
+
+                                {/* 지원 진행률 */}
+                                <div className="mb-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[11px] text-gray-500">지원</span>
+                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                      <span className="text-blue-600">{applicants}</span>
+                                      <span className="text-gray-400">/{maxParticipants}</span>
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-1">
+                                    <div className="bg-blue-400 h-1 rounded-full" style={{ width: `${applicantProgress}%` }} />
+                                  </div>
+                                </div>
+
+                                {/* 선정 진행률 */}
+                                <div className="mb-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[11px] text-gray-500">선정</span>
+                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                      <span className="text-emerald-600">{selected}</span>
+                                      <span className="text-gray-400">/{maxParticipants}</span>
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-1">
+                                    <div className="bg-emerald-400 h-1 rounded-full" style={{ width: `${selectionProgress}%` }} />
+                                  </div>
+                                </div>
+
+                                {/* 하단 예산 */}
+                                <div className="flex items-center justify-between pt-2 border-t border-gray-50 text-xs">
+                                  <span className="text-gray-400">예산</span>
+                                  <span className="font-semibold text-gray-700" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                    {campaign.currency || '₩'}{(campaign.budget || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           {/* 필터 영역 */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4 lg:p-6 shadow-sm mb-6">
+          {viewMode === 'list' && <div className="bg-white rounded-xl border border-gray-100 p-4 lg:p-6 shadow-sm mb-6">
             {/* 지역 탭 */}
             <div className="flex flex-wrap gap-2 mb-4">
               {regionTabs.map(tab => (
@@ -1331,10 +1626,10 @@ export default function CampaignsManagement() {
                 </select>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* 일괄 액션 바 */}
-          {isSuperAdmin && selectedCampaigns.size > 0 && (
+          {viewMode === 'list' && isSuperAdmin && selectedCampaigns.size > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className="font-semibold text-blue-700">{selectedCampaigns.size}개 선택</span>
@@ -1356,7 +1651,7 @@ export default function CampaignsManagement() {
           )}
 
           {/* 기업 필터 표시 */}
-          {filterCompanyId && (
+          {viewMode === 'list' && filterCompanyId && (
             <div className="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Building2 className="w-5 h-5 text-indigo-600" />
@@ -1383,7 +1678,7 @@ export default function CampaignsManagement() {
           )}
 
           {/* 캠페인 목록 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {viewMode === 'list' && <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 헤더 */}
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1547,6 +1842,16 @@ export default function CampaignsManagement() {
                                 <Button size="sm" onClick={() => handleApproveCampaign(campaign)} disabled={confirming} className="h-8 px-3 bg-blue-500 hover:bg-blue-600 text-xs font-medium">
                                   <CheckCircle className="w-3.5 h-3.5 mr-1" />
                                   승인
+                                </Button>
+                              )}
+                              {campaign.status === 'draft' && (
+                                <Button size="sm" onClick={() => handlePaymentRequest(campaign)} disabled={sendingPaymentRequest === campaign.id} className="h-8 px-3 bg-amber-500 hover:bg-amber-600 text-xs font-medium text-white">
+                                  {sendingPaymentRequest === campaign.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                                  ) : (
+                                    <Send className="w-3.5 h-3.5 mr-1" />
+                                  )}
+                                  입금요청
                                 </Button>
                               )}
                               {isSuperAdmin && (
@@ -1721,7 +2026,7 @@ export default function CampaignsManagement() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </div>
 
