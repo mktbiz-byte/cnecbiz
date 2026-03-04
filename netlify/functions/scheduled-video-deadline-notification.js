@@ -427,6 +427,7 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
   return new Promise((resolve, reject) => {
     // 템플릿별 메시지 내용 (팝빌 등록 내용과 정확히 일치)
     const messages = {
+      // === 영상 제출 마감일 알림 ===
       '025100001013': `[CNEC] 참여하신 캠페인 영상 제출 기한 안내
 #{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 3일 남았습니다.
 
@@ -460,6 +461,22 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
 미제출 시 패널티가 부과됩니다.
 
 문의: 1833-6025`,
+      // === SNS 업로드 마감일 알림 ===
+      '025100001019': `[CNEC] 참여하신 캠페인 SNS 업로드 기한 임박
+#{크리에이터명}님, 참여하신 캠페인의 SNS 업로드 기한이 2일 남았습니다.
+캠페인: #{캠페인명}
+SNS 업로드 기한: #{업로드기한}
+아직 업로드가 확인되지 않았습니다. 크리에이터 대시보드에서 빠르게 업로드 링크를 제출해 주세요.
+기한 내 미제출 시 패널티가 부과됩니다.
+문의: 1833-6025`,
+      '025100001020': `[CNEC] 참여하신 캠페인 SNS 업로드 마감일
+#{크리에이터명}님, 참여하신 캠페인의 SNS 업로드 기한이 오늘입니다.
+캠페인: #{캠페인명}
+SNS 업로드 기한: #{업로드기한} (오늘)
+아직 업로드가 확인되지 않았습니다. 오늘 자정까지 크리에이터 대시보드에서 업로드 링크를 제출해 주세요.
+미제출 시 패널티가 부과됩니다.
+문의: 1833-6025`,
+      // === 제출 기한 지연 알림 ===
       '025100001021': `[CNEC] 참여하신 캠페인 제출 기한 지연
 #{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 지연되었습니다.
 
@@ -486,6 +503,7 @@ const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaign
     content = content.replace(/#{크리에이터명}/g, receiverName);
     content = content.replace(/#{캠페인명}/g, campaignName);
     content = content.replace(/#{제출기한}/g, deadline);
+    content = content.replace(/#{업로드기한}/g, deadline);
 
     // 대체 문자 내용 생성
     const altContent = content.substring(0, 90); // SMS 길이 제한
@@ -576,16 +594,18 @@ exports.handler = async (event, context) => {
     console.log('📢 영상 제출 마감일 알림 - Korea/Japan/US DB 조회');
 
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
+    // 영상 제출: 025100001013 (3일전), 025100001014 (2일전), 025100001015 (당일)
+    // SNS 업로드: 025100001019 (2일전), 025100001020 (당일) - 3일 전은 없음
     const deadlineDates = [
-      { date: in3DaysStr, templateCode: '025100001013', label: '3일 전' },
-      { date: in2DaysStr, templateCode: '025100001014', label: '2일 전' },
-      { date: todayStr, templateCode: '025100001015', label: '당일' }
+      { date: in3DaysStr, templateCode: '025100001013', snsTemplateCode: null, label: '3일 전' },
+      { date: in2DaysStr, templateCode: '025100001014', snsTemplateCode: '025100001019', label: '2일 전' },
+      { date: todayStr, templateCode: '025100001015', snsTemplateCode: '025100001020', label: '당일' }
     ];
 
     const allResults = [];
     const campaignCreatorsMap = {}; // 캠페인별 미제출 크리에이터 그룹화
 
-    for (const { date, templateCode, label } of deadlineDates) {
+    for (const { date, templateCode, snsTemplateCode, label } of deadlineDates) {
       try {
         console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
 
@@ -625,29 +645,52 @@ exports.handler = async (event, context) => {
         }
 
         // 캠페인 타입별 마감일 필터링 (getDatePart로 timestamp/date 타입 모두 처리)
-        const matchingCampaigns = (regionCampaigns || []).filter(campaign => {
+        // matchedDeadlineType: 'video' (영상 제출) 또는 'sns' (SNS 업로드) 구분
+        const matchingCampaigns = [];
+        for (const campaign of (regionCampaigns || [])) {
           const type = (campaign.campaign_type || '').toLowerCase();
+          let matched = false;
+          let deadlineType = 'video'; // 기본: 영상 제출
 
           if (type.includes('4week') || type.includes('challenge')) {
             // 4주 챌린지: 4개 마감일 체크
-            return getDatePart(campaign.week1_deadline) === date ||
-                   getDatePart(campaign.week2_deadline) === date ||
-                   getDatePart(campaign.week3_deadline) === date ||
-                   getDatePart(campaign.week4_deadline) === date;
+            matched = getDatePart(campaign.week1_deadline) === date ||
+                     getDatePart(campaign.week2_deadline) === date ||
+                     getDatePart(campaign.week3_deadline) === date ||
+                     getDatePart(campaign.week4_deadline) === date;
           } else if (type.includes('olive') || type.includes('올리브')) {
             // 올리브영: 2개 마감일 체크
-            return getDatePart(campaign.step1_deadline) === date ||
-                   getDatePart(campaign.step2_deadline) === date;
+            matched = getDatePart(campaign.step1_deadline) === date ||
+                     getDatePart(campaign.step2_deadline) === date;
           } else {
-            // 기획형/일반: content_submission_deadline 또는 video_deadline 체크
-            return getDatePart(campaign.content_submission_deadline) === date ||
-                   getDatePart(campaign.video_deadline) === date;
+            // 기획형/일반: content_submission_deadline, video_deadline, sns_deadline 각각 체크
+            if (getDatePart(campaign.content_submission_deadline) === date ||
+                getDatePart(campaign.video_deadline) === date) {
+              matched = true;
+              deadlineType = 'video';
+            }
+            // SNS 업로드 마감일 별도 체크 (영상 제출과 다른 템플릿 사용)
+            if (getDatePart(campaign.sns_deadline) === date) {
+              if (matched) {
+                // 영상 제출 + SNS 업로드 마감일이 같은 경우: SNS 업로드용도 추가
+                const snsCampaign = { ...campaign, region: region.name, matchedDeadlineType: 'sns' };
+                matchingCampaigns.push(snsCampaign);
+              } else {
+                matched = true;
+                deadlineType = 'sns';
+              }
+            }
           }
-        });
+
+          if (matched) {
+            campaign.matchedDeadlineType = deadlineType;
+            matchingCampaigns.push(campaign);
+          }
+        }
 
         if (matchingCampaigns.length > 0) {
           console.log(`${region.name} ${label}: ${matchingCampaigns.length}개 캠페인 발견`);
-          matchingCampaigns.forEach(c => c.region = region.name);
+          matchingCampaigns.forEach(c => { if (!c.region) c.region = region.name; });
           allCampaigns.push(...matchingCampaigns);
         }
       }
@@ -666,15 +709,22 @@ exports.handler = async (event, context) => {
         const regionConfig = regions.find(r => r.name === campaign.region);
         const supabase = createClient(regionConfig.url, regionConfig.key);
 
-        // filming: 촬영 중 (영상 미제출)
-        // selected: 선정됨 (가이드 전달 전)
-        // guide_approved: 가이드 승인됨
-        // video_submitted, sns_uploaded, completed 제외 (이미 제출 완료)
+        // 마감일 유형에 따라 대상 application 상태가 다름
+        const isSnsDeadline = campaign.matchedDeadlineType === 'sns';
+        let targetStatuses;
+        if (isSnsDeadline) {
+          // SNS 업로드 마감: 영상이 승인되었지만 아직 SNS에 업로드하지 않은 크리에이터
+          targetStatuses = ['video_approved', 'approved', 'video_submitted'];
+        } else {
+          // 영상 제출 마감: 아직 영상을 제출하지 않은 크리에이터
+          targetStatuses = ['filming', 'selected', 'guide_approved'];
+        }
+
         const { data: applications, error: appError } = await supabase
           .from('applications')
-          .select('id, user_id, campaign_id, status')
+          .select('id, user_id, campaign_id, status, sns_upload_url')
           .eq('campaign_id', campaign.id)
-          .in('status', ['filming', 'selected', 'guide_approved']);
+          .in('status', targetStatuses);
 
         if (appError) {
           console.error(`Applications 조회 오류 (campaign ${campaign.id}):`, appError);
@@ -682,7 +732,8 @@ exports.handler = async (event, context) => {
         }
 
         if (!applications || applications.length === 0) {
-          console.log(`${label} - ${campaign.title} (${campaign.region}): 알림 대상 없음 (filming/selected/guide_approved 상태 신청 없음)`);
+          const statusDesc = isSnsDeadline ? 'video_approved/approved/video_submitted' : 'filming/selected/guide_approved';
+          console.log(`${label} - ${campaign.title} (${campaign.region}): 알림 대상 없음 (${statusDesc} 상태 신청 없음)`);
           continue;
         }
 
@@ -743,72 +794,108 @@ exports.handler = async (event, context) => {
               continue;
             }
 
-          // 캠페인 타입에 따라 해당 마감일의 영상이 제출됐는지 확인
-          let targetVideoNumber = null; // 확인할 영상 번호 (week_number 또는 video_number)
-          let videoFieldName = 'video_number'; // 필드명
+          // SNS 업로드 마감일인 경우: SNS 업로드 여부 확인
+          if (isSnsDeadline) {
+            // sns_upload_url이 이미 있으면 (SNS 업로드 완료) 건너뜀
+            if (app.sns_upload_url) {
+              console.log(`✓ SNS 업로드 완료: ${creatorName} (url: ${app.sns_upload_url}) - 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: 'SNS 업로드 완료'
+              });
+              continue;
+            }
 
-          if (campaignType === '4week_challenge') {
-            videoFieldName = 'week_number';
-            const week1 = getDatePart(campaign.week1_deadline);
-            const week2 = getDatePart(campaign.week2_deadline);
-            const week3 = getDatePart(campaign.week3_deadline);
-            const week4 = getDatePart(campaign.week4_deadline);
+            // video_submissions에서도 sns_upload_url 확인
+            const { data: videoSubs } = await supabase
+              .from('video_submissions')
+              .select('id, sns_upload_url')
+              .eq('campaign_id', app.campaign_id)
+              .eq('user_id', app.user_id)
+              .not('sns_upload_url', 'is', null);
 
-            if (week1 === date) targetVideoNumber = 1;
-            else if (week2 === date) targetVideoNumber = 2;
-            else if (week3 === date) targetVideoNumber = 3;
-            else if (week4 === date) targetVideoNumber = 4;
-          } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
-            videoFieldName = 'video_number';
-            const step1 = getDatePart(campaign.step1_deadline);
-            const step2 = getDatePart(campaign.step2_deadline);
+            if (videoSubs && videoSubs.length > 0) {
+              console.log(`✓ SNS 업로드 완료 (video_submissions): ${creatorName} - 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: 'SNS 업로드 완료 (video_submissions)'
+              });
+              continue;
+            }
 
-            if (step1 === date) targetVideoNumber = 1;
-            else if (step2 === date) targetVideoNumber = 2;
+            console.log(`→ SNS 미업로드: ${creatorName} - SNS 업로드 마감일 알림 발송`);
           } else {
-            // 기획형 (regular) - content_submission_deadline 사용
-            // 기획형은 단일 영상이므로 번호 없음
-            targetVideoNumber = null;
-          }
+            // 영상 제출 마감일인 경우: 영상 제출 여부 확인
+            let targetVideoNumber = null;
+            let videoFieldName = 'video_number';
 
-          // video_submissions에서 해당 영상이 제출됐는지 확인
-          let submissionQuery = supabase
-            .from('video_submissions')
-            .select('id, status, week_number, video_number')
-            .eq('campaign_id', app.campaign_id)
-            .eq('user_id', app.user_id);
+            if (campaignType === '4week_challenge') {
+              videoFieldName = 'week_number';
+              const week1 = getDatePart(campaign.week1_deadline);
+              const week2 = getDatePart(campaign.week2_deadline);
+              const week3 = getDatePart(campaign.week3_deadline);
+              const week4 = getDatePart(campaign.week4_deadline);
 
-          // 올리브영/4주챌린지는 해당 번호의 영상만 확인
-          if (targetVideoNumber !== null) {
-            submissionQuery = submissionQuery.eq(videoFieldName, targetVideoNumber);
-          }
+              if (week1 === date) targetVideoNumber = 1;
+              else if (week2 === date) targetVideoNumber = 2;
+              else if (week3 === date) targetVideoNumber = 3;
+              else if (week4 === date) targetVideoNumber = 4;
+            } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+              videoFieldName = 'video_number';
+              const step1 = getDatePart(campaign.step1_deadline);
+              const step2 = getDatePart(campaign.step2_deadline);
 
-          const { data: submittedVideos, error: videoError } = await submissionQuery;
+              if (step1 === date) targetVideoNumber = 1;
+              else if (step2 === date) targetVideoNumber = 2;
+            } else {
+              targetVideoNumber = null;
+            }
 
-          if (videoError) {
-            console.error(`영상 제출 확인 오류 (user_id: ${app.user_id}):`, videoError);
-          }
+            // video_submissions에서 해당 영상이 제출됐는지 확인
+            let submissionQuery = supabase
+              .from('video_submissions')
+              .select('id, status, week_number, video_number')
+              .eq('campaign_id', app.campaign_id)
+              .eq('user_id', app.user_id);
 
-          // 해당 영상이 이미 제출됐는지 확인 (pending, approved, completed 등 모든 상태)
-          const hasSubmitted = submittedVideos && submittedVideos.length > 0;
+            if (targetVideoNumber !== null) {
+              submissionQuery = submissionQuery.eq(videoFieldName, targetVideoNumber);
+            }
 
-          if (hasSubmitted) {
-            const videoStatus = submittedVideos[0].status;
+            const { data: submittedVideos, error: videoError } = await submissionQuery;
+
+            if (videoError) {
+              console.error(`영상 제출 확인 오류 (user_id: ${app.user_id}):`, videoError);
+            }
+
+            const hasSubmitted = submittedVideos && submittedVideos.length > 0;
+
+            if (hasSubmitted) {
+              const videoStatus = submittedVideos[0].status;
+              const videoLabel = targetVideoNumber ? `${targetVideoNumber}차 영상` : '영상';
+              console.log(`✓ ${videoLabel} 제출 완료: ${creatorName} (상태: ${videoStatus}) - 알림 건너뜀`);
+              allResults.push({
+                userId: app.user_id,
+                campaignName,
+                deadline: date,
+                label,
+                status: 'skipped',
+                reason: `${videoLabel} 제출 완료 (상태: ${videoStatus})`
+              });
+              continue;
+            }
+
             const videoLabel = targetVideoNumber ? `${targetVideoNumber}차 영상` : '영상';
-            console.log(`✓ ${videoLabel} 제출 완료: ${creatorName} (상태: ${videoStatus}) - 알림 건너뜀`);
-            allResults.push({
-              userId: app.user_id,
-              campaignName,
-              deadline: date,
-              label,
-              status: 'skipped',
-              reason: `${videoLabel} 제출 완료 (상태: ${videoStatus})`
-            });
-            continue;
+            console.log(`→ ${videoLabel} 미제출: ${creatorName} - 알림 발송`);
           }
-
-          const videoLabel = targetVideoNumber ? `${targetVideoNumber}차 영상` : '영상';
-          console.log(`→ ${videoLabel} 미제출: ${creatorName} - 알림 발송`);
 
           // 마감일 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
           const deadlineFormatted = date.replace(/-/g, '.');
@@ -818,6 +905,17 @@ exports.handler = async (event, context) => {
           if (label === '3일 전') daysRemaining = 3;
           else if (label === '2일 전') daysRemaining = 2;
           else if (label === '당일') daysRemaining = 0;
+
+          // 사용할 템플릿 결정: SNS 업로드 vs 영상 제출
+          const actualTemplateCode = isSnsDeadline
+            ? (snsTemplateCode || templateCode)  // SNS 업로드용 템플릿 (3일 전은 없으므로 영상 제출 템플릿 사용)
+            : templateCode;
+
+          // SNS 업로드 3일 전 템플릿이 없으면 건너뜀
+          if (isSnsDeadline && !snsTemplateCode) {
+            console.log(`SNS 업로드 3일 전 알림 템플릿 없음 - 건너뜀 (크리에이터: ${creatorName})`);
+            continue;
+          }
 
           // 카카오톡 및 이메일 발송
           let kakaoSent = false;
@@ -829,11 +927,12 @@ exports.handler = async (event, context) => {
               await sendKakaoNotification(
                 creatorPhone,
                 creatorName,
-                templateCode,
+                actualTemplateCode,
                 campaignName,
                 deadlineFormatted
               );
-              console.log(`✓ 알림톡 발송 성공: ${creatorName} (${creatorPhone}) - ${campaignName}`);
+              const typeLabel = isSnsDeadline ? 'SNS 업로드' : '영상 제출';
+              console.log(`✓ ${typeLabel} 알림톡 발송 성공: ${creatorName} (${creatorPhone}) - ${campaignName}`);
               kakaoSent = true;
             } catch (kakaoError) {
               console.error(`✗ 알림톡 발송 실패: ${creatorName}`, kakaoError.message);

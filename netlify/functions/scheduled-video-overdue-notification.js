@@ -364,26 +364,46 @@ exports.handler = async (event, context) => {
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    console.log('\n=== 지연 캠페인 전체 조회 ===');
+    console.log('\n=== 지연 캠페인 전체 조회 (멀티 리전) ===');
     console.log('오늘:', todayStr);
 
-    const supabaseKorea = createClient(
-      process.env.VITE_SUPABASE_KOREA_URL,
-      process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
-    );
+    // 멀티 리전 지원: Korea, Japan, US DB 모두 조회
+    const regions = [
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY }
+    ];
 
-    // 모든 활성 캠페인 조회
-    const { data: allCampaigns, error: campaignError } = await supabaseKorea
-      .from('campaigns')
-      .select('id, title, company_id, campaign_type, content_submission_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
-      .in('status', ['active', 'recruiting', 'approved']);
+    let allCampaigns = [];
+    const regionClients = {};
 
-    if (campaignError) {
-      console.error('캠페인 조회 오류:', campaignError);
-      throw campaignError;
+    for (const region of regions) {
+      if (!region.url || !region.key) {
+        console.log(`${region.name} Supabase 미설정 - 건너뜀`);
+        continue;
+      }
+
+      const client = createClient(region.url, region.key);
+      regionClients[region.name] = client;
+
+      const { data: regionCampaigns, error: campaignError } = await client
+        .from('campaigns')
+        .select('id, title, company_id, campaign_type, content_submission_deadline, video_deadline, sns_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
+        .in('status', ['active', 'recruiting', 'approved']);
+
+      if (campaignError) {
+        console.error(`${region.name} 캠페인 조회 오류:`, campaignError);
+        continue;
+      }
+
+      if (regionCampaigns && regionCampaigns.length > 0) {
+        regionCampaigns.forEach(c => c.region = region.name);
+        allCampaigns.push(...regionCampaigns);
+      }
+      console.log(`[${region.name}] ${(regionCampaigns || []).length}개 활성 캠페인 조회됨`);
     }
 
-    console.log(`총 ${(allCampaigns || []).length}개 활성 캠페인 조회됨`);
+    console.log(`총 ${allCampaigns.length}개 활성 캠페인 조회됨 (전체 리전)`);
 
     // 지연일 계산 함수
     const calcDaysOverdue = (deadlineStr) => {
@@ -428,15 +448,24 @@ exports.handler = async (event, context) => {
           }
         });
       } else {
-        // 기획형: content_submission_deadline 확인
-        const daysOverdue = calcDaysOverdue(campaign.content_submission_deadline);
-        if (daysOverdue) {
-          overdueCampaigns.push({
-            ...campaign,
-            overdueDeadline: campaign.content_submission_deadline,
-            daysOverdue,
-            label: `${daysOverdue}일 지연`
-          });
+        // 기획형: content_submission_deadline, video_deadline, sns_deadline 모두 확인
+        const deadlineFields = [
+          { field: 'content_submission_deadline', value: campaign.content_submission_deadline },
+          { field: 'video_deadline', value: campaign.video_deadline },
+          { field: 'sns_deadline', value: campaign.sns_deadline }
+        ];
+
+        for (const { field, value } of deadlineFields) {
+          const daysOverdue = calcDaysOverdue(value);
+          if (daysOverdue) {
+            overdueCampaigns.push({
+              ...campaign,
+              overdueDeadline: value,
+              overdueField: field,
+              daysOverdue,
+              label: `${daysOverdue}일 지연`
+            });
+          }
         }
       }
     }
@@ -448,12 +477,24 @@ exports.handler = async (event, context) => {
     for (const campaign of overdueCampaigns) {
       const { daysOverdue, label, overdueDeadline, weekNumber, stepNumber } = campaign;
 
-      // 아직 영상 미제출인 신청 조회
-      const { data: applications, error: appError } = await supabaseKorea
+      // 해당 리전의 Supabase 클라이언트 사용
+      const regionClient = regionClients[campaign.region];
+      if (!regionClient) {
+        console.log(`리전 클라이언트 없음: ${campaign.region} - 건너뜀`);
+        continue;
+      }
+
+      // 마감일 유형에 따라 대상 application 상태 결정
+      const isSnsOverdue = campaign.overdueField === 'sns_deadline';
+      const targetStatuses = isSnsOverdue
+        ? ['video_approved', 'approved', 'video_submitted']
+        : ['filming', 'selected', 'guide_approved'];
+
+      const { data: applications, error: appError } = await regionClient
         .from('applications')
-        .select('id, user_id, campaign_id, status')
+        .select('id, user_id, campaign_id, status, sns_upload_url')
         .eq('campaign_id', campaign.id)
-        .in('status', ['filming', 'selected', 'guide_approved']);
+        .in('status', targetStatuses);
 
       if (appError || !applications || applications.length === 0) {
         continue;
@@ -464,7 +505,7 @@ exports.handler = async (event, context) => {
       for (const app of applications) {
         try {
           // user_profiles에서 크리에이터 정보 조회
-          const { data: profile } = await supabaseKorea
+          const { data: profile } = await regionClient
             .from('user_profiles')
             .select('name, email, phone')
             .eq('id', app.user_id)
@@ -472,7 +513,7 @@ exports.handler = async (event, context) => {
 
           let creatorProfile = profile;
           if (!creatorProfile) {
-            const { data: profile2 } = await supabaseKorea
+            const { data: profile2 } = await regionClient
               .from('user_profiles')
               .select('name, email, phone')
               .eq('user_id', app.user_id)
@@ -493,24 +534,45 @@ exports.handler = async (event, context) => {
             continue;
           }
 
-          // 4주 챌린지의 경우 해당 주차 영상만 확인
-          let submissionQuery = supabaseKorea
-            .from('video_submissions')
-            .select('id')
-            .eq('campaign_id', app.campaign_id)
-            .eq('user_id', app.user_id);
+          // SNS 업로드 지연인 경우: SNS 업로드 여부 확인
+          if (isSnsOverdue) {
+            if (app.sns_upload_url) {
+              console.log(`✓ SNS 업로드 완료: ${creatorName} - 건너뜀`);
+              continue;
+            }
 
-          if (weekNumber) {
-            submissionQuery = submissionQuery.eq('week_number', weekNumber);
-          } else if (stepNumber) {
-            submissionQuery = submissionQuery.eq('video_number', stepNumber);
-          }
+            // video_submissions에서도 sns_upload_url 확인
+            const { data: videoSubs } = await regionClient
+              .from('video_submissions')
+              .select('id, sns_upload_url')
+              .eq('campaign_id', app.campaign_id)
+              .eq('user_id', app.user_id)
+              .not('sns_upload_url', 'is', null);
 
-          const { data: submissions } = await submissionQuery;
+            if (videoSubs && videoSubs.length > 0) {
+              console.log(`✓ SNS 업로드 완료 (video_submissions): ${creatorName} - 건너뜀`);
+              continue;
+            }
+          } else {
+            // 영상 제출 지연인 경우: 영상 제출 여부 확인
+            let submissionQuery = regionClient
+              .from('video_submissions')
+              .select('id')
+              .eq('campaign_id', app.campaign_id)
+              .eq('user_id', app.user_id);
 
-          if (submissions && submissions.length > 0) {
-            console.log(`✓ 영상 제출 완료: ${creatorName} - 건너뜀`);
-            continue;
+            if (weekNumber) {
+              submissionQuery = submissionQuery.eq('week_number', weekNumber);
+            } else if (stepNumber) {
+              submissionQuery = submissionQuery.eq('video_number', stepNumber);
+            }
+
+            const { data: submissions } = await submissionQuery;
+
+            if (submissions && submissions.length > 0) {
+              console.log(`✓ 영상 제출 완료: ${creatorName} - 건너뜀`);
+              continue;
+            }
           }
 
           const deadlineStr = getDatePart(overdueDeadline);

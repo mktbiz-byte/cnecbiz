@@ -721,25 +721,11 @@ export default function WithdrawalManagement() {
 
         const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
 
-        // 1. 알림톡 발송 - 템플릿 025100001020 (출금 완료 알림)
+        // NOTE: 출금 완료 알림톡 - Popbill 템플릿 미등록으로 발송 생략
+        // 025100001020은 'SNS 업로드 마감일' 템플릿이므로 출금 완료용으로 사용 불가
+        // 별도 Popbill 템플릿 등록 후 코드 업데이트 필요
         if (creatorPhone) {
-          console.log('출금 완료 알림톡 발송:', creatorName, creatorPhone)
-          await axios.post(
-            `${baseUrl}/.netlify/functions/send-kakao-notification`,
-            {
-              receiverNum: creatorPhone,
-              receiverName: creatorName,
-              templateCode: '025100001020',
-              variables: {
-                '크리에이터명': creatorName,
-                '입금일': today
-              }
-            },
-            { timeout: 8000 }
-          )
-          console.log('출금 완료 알림톡 발송 완료')
-        } else {
-          console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          console.log('출금 완료 알림톡: Popbill 템플릿 미등록 상태 - 이메일만 발송 (크리에이터:', creatorName, ')')
         }
 
         // 2. 이메일 발송
@@ -1095,22 +1081,10 @@ export default function WithdrawalManagement() {
               }
             }
 
-            // 알림톡 발송 - 템플릿 025100001020 (출금 완료)
+            // NOTE: 출금 완료 알림톡 - Popbill 템플릿 미등록으로 발송 생략
+            // 025100001020은 'SNS 업로드 마감일' 템플릿이므로 출금 완료용으로 사용 불가
             if (creatorPhone) {
-              await axios.post(
-                `${baseUrl}/.netlify/functions/send-kakao-notification`,
-                {
-                  receiverNum: creatorPhone,
-                  receiverName: creatorName,
-                  templateCode: '025100001020',
-                  variables: {
-                    '크리에이터명': creatorName,
-                    '입금일': today
-                  }
-                },
-                { timeout: 8000 }
-              )
-              console.log(`알림톡 발송 완료: ${creatorName}`)
+              console.log(`출금 완료 알림톡: Popbill 템플릿 미등록 - 이메일만 발송 (${creatorName})`)
             }
 
             // 이메일 발송
