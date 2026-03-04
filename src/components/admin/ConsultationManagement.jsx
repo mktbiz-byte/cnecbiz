@@ -4,7 +4,7 @@ import {
   MessageCircle, CheckCircle, Clock, Mail, Phone, Building, Calendar,
   FileText, Search, Plus, Send, Paperclip, ChevronRight, User,
   DollarSign, FileCheck, AlertCircle, MoreHorizontal, X, Edit2, Trash2,
-  Upload, Loader2, Database
+  Upload, Loader2, Database, BookOpen
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import AdminNavigation from './AdminNavigation'
@@ -36,6 +36,13 @@ export default function ConsultationManagement() {
   // 메모
   const [memo, setMemo] = useState('')
   const [editingMemo, setEditingMemo] = useState(false)
+
+  // 소개서 메일 발송
+  const [showBrochureModal, setShowBrochureModal] = useState(false)
+  const [brochureSending, setBrochureSending] = useState(false)
+  const [brochureEmailTo, setBrochureEmailTo] = useState('')
+  const [brochureCompanyName, setBrochureCompanyName] = useState('')
+  const [brochureSubject, setBrochureSubject] = useState('')
 
   // 마이그레이션
   const [migrating, setMigrating] = useState(false)
@@ -406,6 +413,171 @@ export default function ConsultationManagement() {
     }
   }
 
+  // 소개서 메일 발송 모달 열기
+  const openBrochureModal = () => {
+    if (!selectedConsultation) return
+    const companyName = selectedConsultation.company_name || ''
+    setBrochureEmailTo(selectedConsultation.email || '')
+    setBrochureCompanyName(companyName)
+    setBrochureSubject(`[CNEC] ${companyName}님을 위한 글로벌 인플루언서 마케팅 제안`)
+    setShowBrochureModal(true)
+  }
+
+  // 소개서 메일 발송
+  const handleSendBrochure = async () => {
+    if (!brochureEmailTo || !brochureSubject) {
+      alert('이메일 주소와 제목을 입력해주세요.')
+      return
+    }
+
+    setBrochureSending(true)
+    try {
+      const brochureUrl = 'https://hbymozdhjseqebpomjsp.supabase.co/storage/v1/object/public/campaign-guides/cnec_brochure.pdf'
+      const companyName = brochureCompanyName || '고객'
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+    .wrapper { max-width: 640px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #6C5CE7 0%, #a855f7 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 26px; letter-spacing: -0.5px; }
+    .header p { color: rgba(255,255,255,0.85); margin: 10px 0 0; font-size: 14px; }
+    .content { background: #fff; padding: 36px 30px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb; border-top: none; }
+    .greeting { font-size: 17px; margin-bottom: 20px; }
+    .section { margin: 24px 0; }
+    .section h3 { font-size: 15px; color: #6C5CE7; margin-bottom: 12px; font-weight: 700; }
+    .feature-grid { display: table; width: 100%; border-collapse: separate; border-spacing: 8px; }
+    .feature-item { display: table-cell; width: 50%; background: #f8f7ff; padding: 16px; border-radius: 12px; vertical-align: top; }
+    .feature-item strong { display: block; font-size: 14px; color: #333; margin-bottom: 4px; }
+    .feature-item span { font-size: 12px; color: #666; }
+    .stats { background: linear-gradient(135deg, #f8f7ff, #ede9fe); padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+    .stats-row { display: table; width: 100%; }
+    .stat { display: table-cell; text-align: center; padding: 8px; }
+    .stat strong { display: block; font-size: 22px; color: #6C5CE7; font-family: 'Outfit', sans-serif; }
+    .stat span { font-size: 12px; color: #666; }
+    .cta { text-align: center; margin: 30px 0 20px; }
+    .cta a { display: inline-block; background: linear-gradient(135deg, #6C5CE7, #a855f7); color: #fff; padding: 14px 36px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 15px; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+    .footer { text-align: center; color: #999; font-size: 11px; margin-top: 20px; padding: 20px; }
+    .footer a { color: #6C5CE7; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>CNEC (크넥)</h1>
+      <p>글로벌 인플루언서 마케팅 플랫폼</p>
+    </div>
+    <div class="content">
+      <p class="greeting"><strong>${companyName}</strong> 담당자님, 안녕하세요.</p>
+      <p>크넥(CNEC)에 관심을 가져주셔서 감사합니다.<br>크넥은 <strong>한국, 일본, 미국, 대만</strong>을 아우르는 글로벌 인플루언서 마케팅 플랫폼으로, 기업의 해외 진출과 브랜드 성장을 돕고 있습니다.</p>
+
+      <div class="section">
+        <h3>크넥이 제공하는 핵심 서비스</h3>
+        <table class="feature-grid">
+          <tr>
+            <td class="feature-item">
+              <strong>글로벌 크리에이터 매칭</strong>
+              <span>한국/일본/미국/대만 현지 인플루언서와 직접 연결</span>
+            </td>
+            <td class="feature-item">
+              <strong>캠페인 올인원 관리</strong>
+              <span>기획부터 콘텐츠 검수, 성과 리포트까지 한 곳에서</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="feature-item">
+              <strong>올리브영/4주 챌린지</strong>
+              <span>검증된 캠페인 포맷으로 높은 ROI 달성</span>
+            </td>
+            <td class="feature-item">
+              <strong>실시간 대시보드</strong>
+              <span>실시간 진행 현황, 영상 검수, 정산 관리</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="stats">
+        <table class="stats-row">
+          <tr>
+            <td class="stat"><strong>4개국</strong><span>서비스 지역</span></td>
+            <td class="stat"><strong>500+</strong><span>등록 크리에이터</span></td>
+            <td class="stat"><strong>200+</strong><span>진행 캠페인</span></td>
+          </tr>
+        </table>
+      </div>
+
+      <p>더 자세한 내용은 아래 소개서(PDF)를 확인해 주세요.</p>
+
+      <div class="cta">
+        <a href="${brochureUrl}" target="_blank">소개서 PDF 다운로드</a>
+      </div>
+
+      <hr class="divider" />
+
+      <p style="font-size: 14px; color: #555;">궁금하신 점이 있으시면 언제든지 연락 주세요.<br>맞춤 제안서와 함께 상세한 안내를 드리겠습니다.</p>
+
+      <p style="font-size: 14px; color: #333; margin-top: 20px;">
+        감사합니다.<br>
+        <strong>크넥(CNEC) 팀</strong><br>
+        <span style="font-size: 13px; color: #666;">Tel. 1833-6025 | mkt_biz@cnec.co.kr</span>
+      </p>
+    </div>
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} 주식회사 하우파파 (HOWPAPA Inc.) All rights reserved.</p>
+      <p><a href="https://cnecbiz.com">cnecbiz.com</a></p>
+    </div>
+  </div>
+</body>
+</html>`
+
+      const response = await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: brochureEmailTo,
+          subject: brochureSubject,
+          html
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '메일 발송 실패')
+      }
+
+      // 상담 기록에 자동 추가
+      await supabaseBiz.from('consultation_records').insert({
+        consultation_id: selectedConsultation.id,
+        type: 'email',
+        content: `소개서 메일 발송 완료\n수신: ${brochureEmailTo}\n제목: ${brochureSubject}`,
+        author: '관리자'
+      })
+
+      // 상담 기록 새로고침
+      const { data: records } = await supabaseBiz
+        .from('consultation_records')
+        .select('*')
+        .eq('consultation_id', selectedConsultation.id)
+        .order('created_at', { ascending: true })
+
+      setSelectedConsultation({ ...selectedConsultation, records: records || [] })
+
+      setShowBrochureModal(false)
+      alert('소개서 메일이 성공적으로 발송되었습니다.')
+    } catch (error) {
+      console.error('소개서 메일 발송 오류:', error)
+      alert('발송 실패: ' + error.message)
+    } finally {
+      setBrochureSending(false)
+    }
+  }
+
   const handleUpdateStatus = async (newStatus) => {
     if (!selectedConsultation) return
 
@@ -643,6 +815,14 @@ export default function ConsultationManagement() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        onClick={openBrochureModal}
+                      >
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        소개서 발송
+                      </Button>
                       <Button variant="outline" onClick={() => handleUpdateStatus('pending')}>
                         계약 실패 처리
                       </Button>
@@ -1004,6 +1184,85 @@ export default function ConsultationManagement() {
           </div>
         </div>
       </div>
+
+      {/* 소개서 메일 발송 모달 */}
+      {showBrochureModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-purple-900 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  소개서 메일 발송
+                </h2>
+                <button onClick={() => setShowBrochureModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">수신 이메일</label>
+                <input
+                  type="email"
+                  value={brochureEmailTo}
+                  onChange={(e) => setBrochureEmailTo(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">기업명</label>
+                <input
+                  type="text"
+                  value={brochureCompanyName}
+                  onChange={(e) => {
+                    setBrochureCompanyName(e.target.value)
+                    setBrochureSubject(`[CNEC] ${e.target.value}님을 위한 글로벌 인플루언서 마케팅 제안`)
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">메일 제목</label>
+                <input
+                  type="text"
+                  value={brochureSubject}
+                  onChange={(e) => setBrochureSubject(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2">
+                <p className="font-medium text-gray-800">메일 내용 미리보기</p>
+                <div className="border-l-4 border-purple-400 pl-3 space-y-1">
+                  <p><strong>{brochureCompanyName || '고객'}</strong> 담당자님, 안녕하세요.</p>
+                  <p>크넥(CNEC)에 관심을 가져주셔서 감사합니다.</p>
+                  <p>한국/일본/미국/대만 글로벌 인플루언서 마케팅 플랫폼 크넥 소개, 핵심 서비스(크리에이터 매칭, 캠페인 올인원 관리, 올리브영/4주 챌린지, 실시간 대시보드), 실적 안내 포함</p>
+                  <p className="text-purple-700 font-medium flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5" />
+                    소개서 PDF 다운로드 링크 포함
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t flex gap-3 justify-end bg-gray-50 rounded-b-2xl">
+              <Button variant="outline" onClick={() => setShowBrochureModal(false)}>취소</Button>
+              <Button
+                onClick={handleSendBrochure}
+                disabled={brochureSending || !brochureEmailTo}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              >
+                {brochureSending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 발송 중...</>
+                ) : (
+                  <><Send className="w-4 h-4 mr-2" /> 소개서 메일 발송</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
