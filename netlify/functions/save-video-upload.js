@@ -589,32 +589,32 @@ exports.handler = async (event) => {
           if (jpClient && jpClient !== client && jpClient !== supabaseKorea) participantClients.push(jpClient)
           if (usClient && usClient !== client && usClient !== supabaseKorea) participantClients.push(usClient)
 
-          for (const pClient of participantClients) {
-            if (participant) break
-            // select('*')로 스키마 차이 대응 (creator_name/creator_email 컬럼이 없는 리전도 OK)
-            const { data: p1 } = await pClient
-              .from('campaign_participants')
-              .select('*')
-              .eq('id', participantId)
-              .maybeSingle()
+          // ★ 병렬 조회로 변경 (순차적 for loop → Promise.all) — 타임아웃 방지
+          const participantResults = await Promise.all(
+            participantClients.map(async (pClient) => {
+              try {
+                const { data: p1 } = await pClient
+                  .from('campaign_participants')
+                  .select('*')
+                  .eq('id', participantId)
+                  .maybeSingle()
+                if (p1) return p1
 
-            if (p1) {
-              participant = p1
-              break
-            }
-            // user_id로 fallback 조회
-            const { data: p2 } = await pClient
-              .from('campaign_participants')
-              .select('*')
-              .eq('user_id', participantId)
-              .limit(1)
-              .maybeSingle()
-
-            if (p2) {
-              participant = p2
-              break
-            }
-          }
+                // user_id로 fallback 조회
+                const { data: p2 } = await pClient
+                  .from('campaign_participants')
+                  .select('*')
+                  .eq('user_id', participantId)
+                  .limit(1)
+                  .maybeSingle()
+                return p2 || null
+              } catch (e) {
+                console.log('[save-video-upload] participant lookup error:', e.message)
+                return null
+              }
+            })
+          )
+          participant = participantResults.find(p => p !== null) || null
 
           if (participant) {
             console.log('[save-video-upload] participant 데이터:', {
@@ -640,6 +640,15 @@ exports.handler = async (event) => {
             })
           } else {
             console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })
+            // 에러 알림 채널로 통보 (디버깅용)
+            try {
+              await sendNaverWorksMessageDirect(
+                '54220a7e-0b14-1138-54ec-a55f62dc8b75',
+                `⚠️ [save-video-upload] 영상 알림 실패\n\nparticipantId: ${participantId}\nregion: ${region}\n원인: participant 조회 실패\n검색한 DB: ${participantClients.length}개\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+              )
+            } catch (alertErr) {
+              console.error('[save-video-upload] 에러 알림 발송도 실패:', alertErr.message)
+            }
           }
         } catch (notifyError) {
           console.error('[save-video-upload] update_participant 알림 발송 실패:', notifyError.message, notifyError.stack)

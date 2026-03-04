@@ -5563,12 +5563,29 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회 (BIZ DB에서 notification 필드 우선 사용)
-          const { data: companyData } = await supabaseBiz
-            .from('companies')
-            .select('notification_email, notification_phone, email, phone, company_name')
-            .eq('user_id', campaign.company_id)
-            .maybeSingle()
+          // 기업 정보 조회 (BIZ DB — 5단계 우선순위)
+          const selectFields = 'notification_email, notification_phone, email, phone, company_name'
+          let companyData = null
+          // 1순위: company_biz_id → companies.id
+          if (campaign?.company_biz_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_biz_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 2순위: company_id → companies.user_id
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 3순위: company_id → companies.id (이관된 캠페인)
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 4순위: company_email → companies.email
+          if (!companyData && campaign?.company_email) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
+            if (data) companyData = data
+          }
 
           const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
           const companyNotifyEmail = companyData?.notification_email || companyData?.email
@@ -5696,12 +5713,29 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회 (BIZ DB에서 notification 필드 우선 사용)
-          const { data: companyData } = await supabaseBiz
-            .from('companies')
-            .select('notification_email, notification_phone, email, phone, company_name')
-            .eq('user_id', campaign.company_id)
-            .maybeSingle()
+          // 기업 정보 조회 (BIZ DB — 5단계 우선순위)
+          const selectFields2 = 'notification_email, notification_phone, email, phone, company_name'
+          let companyData = null
+          // 1순위: company_biz_id → companies.id
+          if (campaign?.company_biz_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_biz_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 2순위: company_id → companies.user_id
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('user_id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 3순위: company_id → companies.id (이관된 캠페인)
+          if (!companyData && campaign?.company_id) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_id).maybeSingle()
+            if (data) companyData = data
+          }
+          // 4순위: company_email → companies.email
+          if (!companyData && campaign?.company_email) {
+            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('email', campaign.company_email).maybeSingle()
+            if (data) companyData = data
+          }
 
           const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
           const companyNotifyEmail = companyData?.notification_email || companyData?.email
