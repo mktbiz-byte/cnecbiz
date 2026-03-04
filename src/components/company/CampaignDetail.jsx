@@ -1202,6 +1202,38 @@ export default function CampaignDetail() {
         console.log('[fetchParticipants] clean_video_url 병합 실패:', e.message)
       }
 
+      // BIZ DB에서도 clean_video_url 병합 (Korea에서 못 찾은 경우)
+      try {
+        const missingClean = updatedParticipants.filter(p => !p.clean_video_url)
+        if (missingClean.length > 0) {
+          const { data: bizApps } = await supabaseBiz
+            .from('applications')
+            .select('id, user_id, applicant_name, clean_video_url, clean_video_file_url')
+            .eq('campaign_id', id)
+
+          if (bizApps && bizApps.length > 0) {
+            const bizAppsWithClean = bizApps.filter(a => a.clean_video_url || a.clean_video_file_url)
+            if (bizAppsWithClean.length > 0) {
+              missingClean.forEach(participant => {
+                const bizApp = bizAppsWithClean.find(a => a.user_id === participant.user_id)
+                if (bizApp) {
+                  const idx = updatedParticipants.findIndex(p => p.user_id === participant.user_id)
+                  if (idx !== -1) {
+                    updatedParticipants[idx] = {
+                      ...updatedParticipants[idx],
+                      clean_video_url: bizApp.clean_video_url || bizApp.clean_video_file_url
+                    }
+                  }
+                }
+              })
+              console.log('[fetchParticipants] BIZ DB clean_video_url 병합:', bizAppsWithClean.length, '개')
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[fetchParticipants] BIZ DB clean_video_url 병합 실패:', e.message)
+      }
+
       // Japan DB에서 영상 데이터 병합 (video_file_url, clean_video_file_url 등)
       if (supabaseJapan && region === 'japan') {
         try {
@@ -2153,7 +2185,18 @@ export default function CampaignDetail() {
           items.forEach(item => {
             // (user_id, video_number, version) 조합으로 중복 체크 (user_id만으로 건너뛰지 않음)
             const key = `${item.user_id}_${item.video_number || item.week_number || 1}_${item.version || 1}`
-            if (existingUserVideoKeys.has(key)) return
+            if (existingUserVideoKeys.has(key)) {
+              // 기존 레코드에 clean_video_url이 없고 fallback에 있으면 병합
+              if (item.clean_video_url) {
+                const existing = allVideoSubmissions.find(v =>
+                  `${v.user_id}_${v.video_number || v.week_number || 1}_${v.version || 1}` === key
+                )
+                if (existing && !existing.clean_video_url) {
+                  existing.clean_video_url = item.clean_video_url
+                }
+              }
+              return
+            }
             if (!seenFallbackKeys.has(key)) {
               seenFallbackKeys.add(key)
               allVideoSubmissions.push(item)
