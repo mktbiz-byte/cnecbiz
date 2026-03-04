@@ -12,27 +12,29 @@ const supabaseBiz = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// 리전별 클라이언트
+// Korea DB (캠페인 조회 fallback용)
+const supabaseKorea = (process.env.VITE_SUPABASE_KOREA_URL)
+  ? createClient(
+      process.env.VITE_SUPABASE_KOREA_URL,
+      process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+  : null
+
+// 리전별 클라이언트 (save-video-upload.js와 동일 패턴: 환경변수 없으면 Korea fallback)
 function getRegionClient(region) {
   switch (region) {
     case 'japan':
       if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY) {
         return createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
       }
-      return null
+      return supabaseKorea
     case 'us':
       if (process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_SERVICE_ROLE_KEY) {
         return createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
       }
-      return null
+      return supabaseKorea
     case 'korea':
-      if (process.env.VITE_SUPABASE_KOREA_URL) {
-        return createClient(
-          process.env.VITE_SUPABASE_KOREA_URL,
-          process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-        )
-      }
-      return null
+      return supabaseKorea
     default:
       return supabaseBiz
   }
@@ -78,9 +80,9 @@ exports.handler = async (event) => {
 
     console.log('[notify-video-upload] 시작:', { campaignId, region, creatorName, campaignTitle })
 
-    // ===== 1. 캠페인 정보 조회 (리전 DB + BIZ DB) =====
+    // ===== 1. 캠페인 정보 조회 (리전 DB + Korea DB + BIZ DB) =====
     const regionClient = getRegionClient(region || 'korea')
-    const clientsToSearch = [regionClient, supabaseBiz].filter(c => c)
+    const clientsToSearch = [regionClient, supabaseKorea, supabaseBiz].filter(c => c)
     // 중복 제거
     const uniqueClients = [...new Set(clientsToSearch)]
 
