@@ -246,7 +246,7 @@ export default function SnsUploadManagement() {
           if (!hasVideoStatus && !sub.sns_upload_url) return
 
           const campaign = campaignMap.get(sub.campaign_id)
-          const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+          const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
 
           // 중복 체크 - 멀티비디오 캠페인은 중복이어도 추가 (나중에 그룹화됨)
           const isDuplicate = allVideos.some(v =>
@@ -361,7 +361,7 @@ export default function SnsUploadManagement() {
             const hasSnsUrl = p.sns_upload_url || p.week1_url || p.week2_url ||
                              p.week3_url || p.week4_url || p.step1_url ||
                              p.step2_url || p.step3_url
-            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(p.status)
+            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(p.status)
 
             if (!isDuplicate && (hasSnsUrl || hasVideoStatus)) {
               const campaign = koreaCampaignMap.get(p.campaign_id)
@@ -414,6 +414,79 @@ export default function SnsUploadManagement() {
           })
         }
 
+        // 3-1. Korea DB에서 applications 테이블도 조회 (campaign_participants에 없는 데이터 보완)
+        try {
+          const { data: koreaApps, error: koreaAppError } = await supabaseKorea
+            .from('applications')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!koreaAppError && koreaApps) {
+            console.log('[SnsUploadManagement] Korea applications:', koreaApps.length)
+            koreaApps.forEach(app => {
+              // 이미 campaign_participants에서 추가된 항목은 건너뛰기
+              const isDuplicate = allVideos.some(v =>
+                v.campaign_id === app.campaign_id && v.user_id === app.user_id
+              )
+
+              const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
+                               app.week3_url || app.week4_url || app.step1_url ||
+                               app.step2_url || app.step3_url
+              const hasVideoFile = app.video_file_url
+              const hasVideoStatus = ['completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(app.status)
+
+              const campaign = koreaCampaignMap.get(app.campaign_id)
+              const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+
+              if ((!isDuplicate || isMultiVideoCampaign) && (hasSnsUrl || hasVideoFile || hasVideoStatus)) {
+                if (campaign) {
+                  campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
+                }
+
+                const videoEntry = {
+                  id: `korea_app_${app.id}`,
+                  application_id: app.id,
+                  campaign_id: app.campaign_id,
+                  user_id: app.user_id,
+                  sns_upload_url: app.sns_upload_url,
+                  partnership_code: app.partnership_code,
+                  video_file_url: app.video_file_url,
+                  created_at: app.updated_at || app.created_at,
+                  status: app.status,
+                  source: 'korea',
+                  country: campaign?.target_country || 'kr',
+                  campaignTitle: campaign?.title || campaign?.name || app.campaign_name || '-',
+                  campaignType: campaign?.campaign_type,
+                  creatorName: getKoreaCreatorName(app.user_id, app),
+                  creatorEmail: app.email,
+                  creatorInstagram: koreaProfileMap.get(app.user_id)?.instagram_url,
+                  creatorYoutube: koreaProfileMap.get(app.user_id)?.youtube_url,
+                  creatorTiktok: koreaProfileMap.get(app.user_id)?.tiktok_url,
+                  week1_url: app.week1_url, week2_url: app.week2_url,
+                  week3_url: app.week3_url, week4_url: app.week4_url,
+                  step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                  week1_partnership_code: app.week1_partnership_code,
+                  week2_partnership_code: app.week2_partnership_code,
+                  week3_partnership_code: app.week3_partnership_code,
+                  week4_partnership_code: app.week4_partnership_code,
+                  step1_2_partnership_code: app.step1_2_partnership_code,
+                  step3_partnership_code: app.step3_partnership_code,
+                }
+
+                if (isDuplicate && isMultiVideoCampaign) {
+                  allVideos.push(videoEntry) // 멀티비디오는 중복 허용 (나중에 그룹화)
+                } else if (!isDuplicate) {
+                  allVideos.push(videoEntry)
+                }
+              }
+            })
+          } else if (koreaAppError) {
+            console.log('[SnsUploadManagement] Korea applications query failed:', koreaAppError.message)
+          }
+        } catch (e) {
+          console.log('[SnsUploadManagement] Korea applications query failed, continuing:', e.message)
+        }
+
         // 4. Korea DB에서 video_submissions 조회 (JOIN 없이 단순 조회)
         const { data: koreaSubmissions, error: koreaSubError } = await supabaseKorea
           .from('video_submissions')
@@ -432,7 +505,7 @@ export default function SnsUploadManagement() {
             if (!hasVideoStatus && !sub.sns_upload_url) return
 
             const campaign = koreaCampaignMap.get(sub.campaign_id)
-            const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+            const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
 
             // 중복 체크 - 멀티비디오 캠페인은 중복이어도 추가 (나중에 그룹화됨)
             const isDuplicate = allVideos.some(v =>
@@ -770,7 +843,7 @@ export default function SnsUploadManagement() {
               if (!hasVideoStatus && !sub.sns_upload_url) return
 
               const campaign = usCampaignMap.get(sub.campaign_id)
-              const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+              const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
               // BIZ에 중복이 있으면 교체 (country 보정)
               const dupIndex = allVideos.findIndex(v =>
                 v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
@@ -829,6 +902,7 @@ export default function SnsUploadManagement() {
       console.log('[SnsUploadManagement] Grouping videos by campaign + user...')
       const multiVideoTypes = allVideos.filter(v =>
         v.campaignType === '4week_challenge' ||
+        v.campaignType === 'megawari' ||
         v.campaignType === 'oliveyoung' ||
         v.campaignType === 'oliveyoung_sale'
       )
@@ -1033,6 +1107,7 @@ export default function SnsUploadManagement() {
       case 'oliveyoung':
       case 'oliveyoung_sale': return '올리브영'
       case '4week_challenge': return '4주 챌린지'
+      case 'megawari': return '메가와리'
       default: return type || '일반'
     }
   }
@@ -1046,13 +1121,13 @@ export default function SnsUploadManagement() {
     }
   }
 
-  // 멀티비디오 URL 구조화 (4주 챌린지, 올리브영)
+  // 멀티비디오 URL 구조화 (4주 챌린지, 올리브영, 메가와리)
   // 각 주차별 SNS URL과 video_file_url(다운로드용)을 포함
   const getMultiVideoUrls = (video) => {
     const urls = []
 
-    // 4주 챌린지
-    if (video.campaignType === '4week_challenge') {
+    // 4주 챌린지 또는 메가와리 (주차별 URL)
+    if (video.campaignType === '4week_challenge' || video.campaignType === 'megawari') {
       if (video.week1_url) urls.push({
         label: '1주차', url: video.week1_url, code: video.week1_partnership_code,
         videoFileUrl: video.week1_video_file_url || video.video_file_url
@@ -1069,6 +1144,10 @@ export default function SnsUploadManagement() {
         label: '4주차', url: video.week4_url, code: video.week4_partnership_code,
         videoFileUrl: video.week4_video_file_url
       })
+      // 주차별 URL이 없지만 sns_upload_url이 있는 경우 폴백
+      if (urls.length === 0 && video.sns_upload_url) {
+        urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code, videoFileUrl: video.video_file_url })
+      }
     }
     // 올리브영
     else if (video.campaignType === 'oliveyoung' || video.campaignType === 'oliveyoung_sale') {
@@ -1084,8 +1163,12 @@ export default function SnsUploadManagement() {
         label: 'STEP3', url: video.step3_url, code: video.step3_partnership_code,
         videoFileUrl: video.step3_video_file_url
       })
+      // 스텝별 URL이 없지만 sns_upload_url이 있는 경우 폴백
+      if (urls.length === 0 && video.sns_upload_url) {
+        urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code, videoFileUrl: video.video_file_url })
+      }
     }
-    // 일반
+    // 일반/기획형
     else if (video.sns_upload_url) {
       urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code, videoFileUrl: video.video_file_url })
     }
@@ -1546,7 +1629,8 @@ export default function SnsUploadManagement() {
                               <TableCell colSpan={10}>
                                 <div className="py-3 px-4">
                                   <p className="text-sm font-medium text-gray-700 mb-3">
-                                    {video.campaignType === '4week_challenge' ? '4주 챌린지 영상' : '올리브영 STEP 영상'}
+                                    {video.campaignType === '4week_challenge' ? '4주 챌린지 영상' :
+                                     video.campaignType === 'megawari' ? '메가와리 영상' : '올리브영 STEP 영상'}
                                   </p>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {multiUrls.map((item, idx) => (
