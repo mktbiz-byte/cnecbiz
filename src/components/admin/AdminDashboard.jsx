@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import {
   Users, TrendingUp, DollarSign, Package,
   Building2, CheckCircle, Clock, XCircle,
-  BarChart3, PieChart, Calendar
+  BarChart3, PieChart, Calendar, ChevronRight,
+  Target, ImageIcon, Eye
 } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -36,6 +37,7 @@ export default function AdminDashboard() {
     cancelled: 0
   })
   const [monthlyRevenue, setMonthlyRevenue] = useState([])
+  const [activeCampaigns, setActiveCampaigns] = useState([])
 
   useEffect(() => {
     checkAuth()
@@ -177,6 +179,13 @@ export default function AdminDashboard() {
           cancelled: campaigns.filter(c => c.is_cancelled === true).length
         }
         setCampaignStats(stats)
+
+        // 진행중 캠페인 목록 (active/approved 상태)
+        const active = campaigns
+          .filter(c => c.status === 'active' || c.status === 'approved' || c.status === 'in_progress')
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+          .slice(0, 8)
+        setActiveCampaigns(active)
 
         // 월별 매출 데이터 (최근 6개월) - revenue_records 기준
         const monthlyData = []
@@ -460,6 +469,97 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 진행중 캠페인 현황 */}
+        {activeCampaigns.length > 0 && (
+          <Card className="mb-8 border-[#DFE6E9] rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-[#6C5CE7]" />
+                진행중 캠페인 현황
+                <span className="text-sm font-normal text-[#636E72] ml-1">({activeCampaigns.length}개)</span>
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[#6C5CE7] hover:bg-[#F0EDFF]"
+                onClick={() => navigate('/admin/campaigns?filter=active')}
+              >
+                전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {activeCampaigns.map(campaign => {
+                  const maxParticipants = campaign.max_participants || campaign.total_slots || 0
+                  const applicants = campaign.application_stats?.total || 0
+                  const selected = campaign.application_stats?.selected || 0
+                  const deadline = campaign.application_deadline || campaign.recruitment_deadline
+                  const daysLeft = deadline ? Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24)) : null
+                  const progress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
+                  const regionEmoji = { korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼' }[campaign.region] || '🌐'
+
+                  return (
+                    <div
+                      key={campaign.id}
+                      className="p-4 border border-[#DFE6E9] rounded-xl hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
+                      onClick={() => navigate(`/company/campaigns/${campaign.id}?region=${campaign.region}`)}
+                    >
+                      {/* 헤더 */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          {campaign.image_url ? (
+                            <img src={campaign.image_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#F0EDFF] to-[#E8E4FF]">
+                              <ImageIcon className="w-5 h-5 text-[#6C5CE7]" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-[#1A1A2E] truncate">
+                            {campaign.campaign_name || campaign.title || '제목 없음'}
+                          </h4>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs">{regionEmoji}</span>
+                            {daysLeft !== null && (
+                              <span className={`text-xs font-medium ${daysLeft <= 3 ? 'text-red-500' : daysLeft <= 7 ? 'text-amber-500' : 'text-[#636E72]'}`}>
+                                {daysLeft > 0 ? `D-${daysLeft}` : daysLeft === 0 ? 'D-Day' : '마감'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 선정 진행률 */}
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-[#636E72]">선정</span>
+                          <span className="text-xs font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            <span className="text-[#6C5CE7]">{selected}</span>
+                            <span className="text-[#636E72]">/{maxParticipants}명</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div
+                            className="bg-[#6C5CE7] h-1.5 rounded-full transition-all"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 통계 */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#636E72]">지원 <span className="font-semibold text-blue-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{applicants}</span></span>
+                        <span className="text-[#636E72]">예산 <span className="font-semibold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{campaign.currency || '₩'}{((campaign.budget || 0) / 10000).toFixed(0)}만</span></span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 빠른 액션 버튼 */}
         <Card>
