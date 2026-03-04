@@ -279,16 +279,15 @@ function generateEmailHtml(templateCode, variables) {
         <p>문의: 1833-6025</p>
       `
     },
-    '025100001020': { // SNS 업로드 마감일 (당일)
-      subject: `[CNEC] ${variables['캠페인명'] || '캠페인'} - SNS 업로드 마감일`,
+    '025100001020': { // 출금 완료 안내
+      subject: `[CNEC] 출금이 완료되었습니다`,
       html: `
-        <h2>SNS 업로드 마감일</h2>
-        <p>${variables['크리에이터명']}님, 참여하신 캠페인의 SNS 업로드 기한이 오늘입니다.</p>
+        <h2>출금 완료 안내</h2>
+        <p>${variables['크리에이터명']}님, 신청하신 출금이 완료되었습니다.</p>
         <ul>
-          <li><strong>캠페인:</strong> ${variables['캠페인명']}</li>
-          <li><strong>SNS 업로드 기한:</strong> ${variables['업로드기한']} (오늘)</li>
+          <li><strong>입금일:</strong> ${variables['입금일']}</li>
         </ul>
-        <p>오늘 자정까지 크리에이터 대시보드에서 업로드 링크를 제출해 주세요.</p>
+        <p>등록하신 계좌로 입금되었습니다. 크리에이터 대시보드에서 출금 내역을 확인하실 수 있습니다.</p>
         <p>문의: 1833-6025</p>
       `
     }

@@ -499,11 +499,11 @@ exports.handler = async (event, context) => {
 
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
     // 영상 제출: 025100001013 (3일전), 025100001014 (2일전), 025100001015 (당일)
-    // SNS 업로드: 025100001019 (2일전), 025100001020 (당일) - 3일 전은 없음
+    // SNS 업로드: 025100001019 (2일전) - 당일 알림톡 템플릿 미등록 (025100001020은 출금완료 템플릿)
     const deadlineDates = [
       { date: in3DaysStr, templateCode: '025100001013', snsTemplateCode: null, label: '3일 전' },
       { date: in2DaysStr, templateCode: '025100001014', snsTemplateCode: '025100001019', label: '2일 전' },
-      { date: todayStr, templateCode: '025100001015', snsTemplateCode: '025100001020', label: '당일' }
+      { date: todayStr, templateCode: '025100001015', snsTemplateCode: null, label: '당일' }
     ];
 
     const allResults = [];

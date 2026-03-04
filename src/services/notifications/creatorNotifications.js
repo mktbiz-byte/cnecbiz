@@ -122,7 +122,7 @@ export async function sendVideoRevisionRequestNotification(receiverNum, receiver
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_REVISION_REQUEST.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_REVISION_REQUESTED.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': revisionData.campaignName,
@@ -161,7 +161,7 @@ export async function sendPointAwardedNotification(receiverNum, receiverName, po
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.POINT_AWARDED.code,
+    POPBILL_TEMPLATES.CREATOR.CAMPAIGN_REWARD_PAID.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': pointData.campaignName,
@@ -170,24 +170,8 @@ export async function sendPointAwardedNotification(receiverNum, receiverName, po
   );
 }
 
-/**
- * 출금 신청 접수 알림
- * @param {string} receiverNum - 수신번호
- * @param {string} receiverName - 수신자 이름
- * @param {Object} withdrawalData - 출금 데이터
- */
-export async function sendWithdrawalRequestedNotification(receiverNum, receiverName, withdrawalData) {
-  return await sendKakaoNotification(
-    receiverNum,
-    receiverName,
-    POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_REQUESTED.code,
-    {
-      '크리에이터명': receiverName,
-      '출금금액': withdrawalData.amount.toLocaleString(),
-      '신청일': withdrawalData.requestDate
-    }
-  );
-}
+// 출금 신청 접수 알림 — Popbill 미등록 템플릿 (사용 불가)
+// export async function sendWithdrawalRequestedNotification() {}
 
 /**
  * 출금 완료 알림
@@ -274,7 +258,6 @@ export default {
   sendVideoRevisionRequestNotification,
   sendVideoApprovedNotification,
   sendPointAwardedNotification,
-  sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
   sendWithdrawalRejectedNotification,
   sendSubmissionDelayWarningNotification

@@ -721,11 +721,26 @@ export default function WithdrawalManagement() {
 
         const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
 
-        // NOTE: 출금 완료 알림톡 - Popbill 템플릿 미등록으로 발송 생략
-        // 025100001020은 'SNS 업로드 마감일' 템플릿이므로 출금 완료용으로 사용 불가
-        // 별도 Popbill 템플릿 등록 후 코드 업데이트 필요
+        // 출금 완료 알림톡 발송 (025100001020)
         if (creatorPhone) {
-          console.log('출금 완료 알림톡: Popbill 템플릿 미등록 상태 - 이메일만 발송 (크리에이터:', creatorName, ')')
+          try {
+            await axios.post(
+              `${baseUrl}/.netlify/functions/send-kakao-notification`,
+              {
+                receiverNum: creatorPhone.replace(/-/g, ''),
+                receiverName: creatorName,
+                templateCode: '025100001020',
+                variables: {
+                  '크리에이터명': creatorName,
+                  '입금일': today
+                }
+              },
+              { timeout: 10000 }
+            )
+            console.log('출금 완료 알림톡 발송 완료:', creatorName)
+          } catch (kakaoError) {
+            console.error('출금 완료 알림톡 발송 실패:', kakaoError.message)
+          }
         }
 
         // 2. 이메일 발송
@@ -1081,10 +1096,26 @@ export default function WithdrawalManagement() {
               }
             }
 
-            // NOTE: 출금 완료 알림톡 - Popbill 템플릿 미등록으로 발송 생략
-            // 025100001020은 'SNS 업로드 마감일' 템플릿이므로 출금 완료용으로 사용 불가
+            // 출금 완료 알림톡 발송 (025100001020)
             if (creatorPhone) {
-              console.log(`출금 완료 알림톡: Popbill 템플릿 미등록 - 이메일만 발송 (${creatorName})`)
+              try {
+                await axios.post(
+                  `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                  {
+                    receiverNum: creatorPhone.replace(/-/g, ''),
+                    receiverName: creatorName,
+                    templateCode: '025100001020',
+                    variables: {
+                      '크리에이터명': creatorName,
+                      '입금일': today
+                    }
+                  },
+                  { timeout: 10000 }
+                )
+                console.log(`출금 완료 알림톡 발송 완료: ${creatorName}`)
+              } catch (kakaoError) {
+                console.error(`출금 완료 알림톡 발송 실패 (${creatorName}):`, kakaoError.message)
+              }
             }
 
             // 이메일 발송

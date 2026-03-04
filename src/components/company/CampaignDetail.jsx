@@ -3002,19 +3002,26 @@ JSON만 출력.`
             } catch (e) { console.error('일본 가이드 알림 발송 실패:', e) }
           }
 
-          // 미국: SMS
-          if (region === 'us' && creatorPhone) {
+          // 미국: send-us-notification (LINE + SMS fallback + Email)
+          if (region === 'us') {
             try {
-              await fetch('/.netlify/functions/send-sms', {
+              await fetch('/.netlify/functions/send-us-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  to: creatorPhone,
-                  message: `[CNEC] Hi ${creatorName}, your filming guide for "${campaign?.title || 'Campaign'}" has been delivered. Please check your email. Deadline: ${deadline}`
+                  type: 'guide_confirm_request',
+                  creatorEmail: creatorEmail,
+                  creatorPhone: creatorPhone,
+                  data: {
+                    creatorName,
+                    campaignName: campaign?.title || 'Campaign',
+                    brandName: campaign?.brand_name || campaign?.brand,
+                    guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`
+                  }
                 })
               })
               results.notification++
-            } catch (e) { console.error('SMS 발송 실패:', e) }
+            } catch (e) { console.error('US 가이드 알림 발송 실패:', e) }
           }
 
           successCount++
@@ -3981,19 +3988,26 @@ Questions? Contact us.
       } catch (e) { console.error('일본 가이드 알림 발송 실패:', e) }
     }
 
-    // 미국: SMS
-    if (region === 'us' && creatorPhone) {
+    // 미국: send-us-notification (LINE + SMS fallback + Email)
+    if (region === 'us') {
       try {
-        await fetch('/.netlify/functions/send-sms', {
+        await fetch('/.netlify/functions/send-us-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: creatorPhone,
-            message: `[CNEC] Hi ${creatorName}, your filming guide for "${campaignTitle}" has been delivered. Please check your email. Deadline: ${deadlineText}`
+            type: 'guide_confirm_request',
+            creatorEmail: creatorEmail,
+            creatorPhone: creatorPhone,
+            data: {
+              creatorName,
+              campaignName: campaignTitle,
+              brandName: campaign?.brand_name || campaign?.brand,
+              guideUrl: campaign?.guide_pdf_url || `https://cnec.us/creator/campaigns/${id}`
+            }
           })
         })
         results.notification = true
-      } catch (e) { console.error('SMS 발송 실패:', e) }
+      } catch (e) { console.error('US 가이드 알림 발송 실패:', e) }
     }
 
     // 이메일 발송 (모든 리전)
