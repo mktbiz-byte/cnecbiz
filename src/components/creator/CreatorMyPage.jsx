@@ -263,6 +263,7 @@ const CreatorMyPage = () => {
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',
+          skipNotification: true,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName
@@ -281,22 +282,30 @@ const CreatorMyPage = () => {
           })
           .eq('id', participantId)
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
+      }
 
-        // 네이버웍스 알림만 별도로 발송 (Netlify Function 실패 시에도 관리자에게 알림)
-        try {
-          const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          await fetch('/.netlify/functions/send-naver-works-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-              message: `📹 영상 제출 알림 (fallback)\n\n📋 캠페인: ${hintCampaignTitle || '캠페인'}\n👤 크리에이터: ${hintCreatorName || '크리에이터'}\n⏰ ${koreanDate}`
-            })
+      // ★ 알림 발송: 별도 함수로 분리 (DB 업데이트와 독립적으로 실행)
+      // 관리자 영상 업로드와 동일한 패턴: 프론트엔드에서 별도 알림 함수 호출
+      const campaignId = selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id || null
+      if (campaignId) {
+        fetch('/.netlify/functions/notify-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId,
+            region: uploadRegion,
+            version: maxVersion,
+            creatorName: hintCreatorName,
+            campaignTitle: hintCampaignTitle,
+            companyName: hintCompanyName,
+            isResubmission: false,
+            videoFileCount: files.length
           })
-        } catch (notifyErr) {
-          console.error('Fallback 네이버웍스 알림 실패:', notifyErr)
-        }
+        }).then(r => r.json()).then(r => {
+          console.log('영상 업로드 알림 결과:', r)
+        }).catch(err => {
+          console.error('영상 업로드 알림 실패:', err)
+        })
       }
 
       alert('영상이 성공적으로 업로드되었습니다!')

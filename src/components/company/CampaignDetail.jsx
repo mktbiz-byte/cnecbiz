@@ -6624,7 +6624,8 @@ Questions? Contact us.
                 action: 'update_participant',
                 participantId: userId,
                 videoFiles: [...existingFiles, newVideoFile],
-                videoStatus: 'uploaded'
+                videoStatus: 'uploaded',
+                skipNotification: true
               })
             })
             console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
