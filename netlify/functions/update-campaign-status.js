@@ -246,71 +246,89 @@ exports.handler = async (event, context) => {
           let company = null
 
           console.log('[update-campaign-status] Campaign data:', {
+            company_biz_id: campaign.company_biz_id,
             company_id: campaign.company_id,
-            company_email: campaign.company_email,
-            user_id: campaign.user_id
+            company_email: campaign.company_email
           })
 
-          // 1. company_id로 찾기
-          if (campaign.company_id) {
-            const { data: companyData } = await supabaseClient
+          // ===== 회사 조회 (BIZ DB 우선 — companies 테이블은 BIZ DB에 존재) =====
+          // save-video-upload.js, notify-creator-application.js와 동일한 우선순위
+          const bizClient = getSupabaseClient('biz') || supabaseClient
+
+          // 1순위: company_biz_id → companies.id (백필된 정확한 매칭 — 가장 신뢰)
+          if (campaign.company_biz_id) {
+            const { data: companyData } = await bizClient
               .from('companies')
               .select('*')
-              .eq('id', campaign.company_id)
+              .eq('id', campaign.company_biz_id)
               .maybeSingle()
-            company = companyData
-            console.log('[update-campaign-status] Found by company_id:', !!companyData)
+            if (companyData) {
+              company = companyData
+              console.log('[update-campaign-status] Found by company_biz_id in biz DB')
+            }
           }
 
-          // 2. company_email로 찾기
+          // 2순위: company_email → companies.email
           if (!company && campaign.company_email) {
-            const { data: companyData } = await supabaseClient
+            const { data: companyData } = await bizClient
               .from('companies')
               .select('*')
               .eq('email', campaign.company_email)
               .maybeSingle()
-            company = companyData
-            console.log('[update-campaign-status] Found by company_email:', !!companyData)
+            if (companyData) {
+              company = companyData
+              console.log('[update-campaign-status] Found by company_email in biz DB')
+            }
           }
 
-          // 3. user_id로 찾기 (기업 회원인 경우)
-          if (!company && campaign.user_id) {
-            const { data: companyData } = await supabaseClient
+          // 3순위: company_id → companies.user_id (기업 회원이 직접 생성한 캠페인)
+          if (!company && campaign.company_id) {
+            const { data: companyData } = await bizClient
               .from('companies')
               .select('*')
-              .eq('user_id', campaign.user_id)
+              .eq('user_id', campaign.company_id)
               .maybeSingle()
-            company = companyData
-            console.log('[update-campaign-status] Found by user_id:', !!companyData)
+            if (companyData) {
+              company = companyData
+              console.log('[update-campaign-status] Found by company_id→user_id in biz DB')
+            }
           }
 
-          // 4. biz DB에서 찾기 (리전 DB에 없는 경우 fallback)
+          // 4순위: company_id → companies.id (legacy / 이관된 캠페인)
+          if (!company && campaign.company_id) {
+            const { data: companyData } = await bizClient
+              .from('companies')
+              .select('*')
+              .eq('id', campaign.company_id)
+              .maybeSingle()
+            if (companyData) {
+              company = companyData
+              console.log('[update-campaign-status] Found by company_id→id in biz DB')
+            }
+          }
+
+          // 5순위: 리전 DB에서도 fallback 조회 (BIZ DB에서 못 찾은 경우)
           if (!company && region !== 'biz') {
-            const bizClient = getSupabaseClient('biz')
-            if (bizClient) {
-              // company_id로 찾기
-              if (campaign.company_id) {
-                const { data: companyData } = await bizClient
-                  .from('companies')
-                  .select('*')
-                  .eq('id', campaign.company_id)
-                  .maybeSingle()
-                if (companyData) {
-                  company = companyData
-                  console.log('[update-campaign-status] Found in biz DB by company_id:', true)
-                }
+            if (campaign.company_email) {
+              const { data: companyData } = await supabaseClient
+                .from('companies')
+                .select('*')
+                .eq('email', campaign.company_email)
+                .maybeSingle()
+              if (companyData) {
+                company = companyData
+                console.log('[update-campaign-status] Found by email in regional DB')
               }
-              // company_email로 찾기
-              if (!company && campaign.company_email) {
-                const { data: companyData } = await bizClient
-                  .from('companies')
-                  .select('*')
-                  .eq('email', campaign.company_email)
-                  .maybeSingle()
-                if (companyData) {
-                  company = companyData
-                  console.log('[update-campaign-status] Found in biz DB by email:', true)
-                }
+            }
+            if (!company && campaign.company_id) {
+              const { data: companyData } = await supabaseClient
+                .from('companies')
+                .select('*')
+                .eq('user_id', campaign.company_id)
+                .maybeSingle()
+              if (companyData) {
+                company = companyData
+                console.log('[update-campaign-status] Found by user_id in regional DB')
               }
             }
           }
