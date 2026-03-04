@@ -362,6 +362,11 @@ export default function CampaignsManagement() {
       const byEmail = companyNameMap[`email:${campaign.company_email}`]
       if (byEmail) return byEmail
     }
+    // 4순위: company_id → companies.id (이관 등으로 company_id가 companies.id인 경우)
+    if (campaign.company_id) {
+      const byId = companyNameMap[`id:${campaign.company_id}`]
+      if (byId) return byId
+    }
     return null
   }, [companyNameMap])
 
@@ -833,27 +838,25 @@ export default function CampaignsManagement() {
       const supabaseClient = getSupabaseClient(transferCampaign.region || 'korea')
 
       // 1. 타겟 이메일의 company 정보 조회
-      // 일본(Japan)은 지역 DB에 companies 테이블이 없으므로 바로 BIZ DB에서 조회
       const campaignRegion = transferCampaign.region || 'korea'
-      let targetCompanyId = null
-      let targetUserId = null
+      let targetBizCompanyId = null  // BIZ DB companies.id (company_biz_id용)
+      let targetUserId = null        // auth user_id (company_id용)
 
-      // 일본 캠페인은 companies 테이블이 없으므로 BIZ DB에서만 조회
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        console.log('일본 캠페인: BIZ DB에서 기업 정보 조회')
-        const { data: bizCompany } = await supabaseBiz
-          .from('companies')
-          .select('id, user_id, email')
-          .eq('email', transferEmail)
-          .maybeSingle()
+      // 항상 BIZ DB에서 기업 정보 조회 (company_biz_id 및 기업명 매핑용)
+      const { data: bizCompany } = await supabaseBiz
+        .from('companies')
+        .select('id, user_id, email')
+        .eq('email', transferEmail)
+        .maybeSingle()
 
-        if (bizCompany) {
-          targetCompanyId = bizCompany.id
-          targetUserId = bizCompany.user_id
-          console.log('BIZ DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-        }
-      } else {
-        // Korea, US 등은 먼저 지역 DB의 companies 테이블에서 조회
+      if (bizCompany) {
+        targetBizCompanyId = bizCompany.id
+        targetUserId = bizCompany.user_id
+        console.log('BIZ DB에서 기업 정보 찾음:', { targetBizCompanyId, targetUserId })
+      }
+
+      // 지역 DB에서도 user_id 조회 (BIZ에서 못 찾은 경우)
+      if (!targetUserId && campaignRegion !== 'japan' && campaignRegion !== 'jp') {
         const { data: regionalCompany } = await supabaseClient
           .from('companies')
           .select('id, user_id, email')
@@ -861,87 +864,66 @@ export default function CampaignsManagement() {
           .maybeSingle()
 
         if (regionalCompany) {
-          targetCompanyId = regionalCompany.id
           targetUserId = regionalCompany.user_id
-          console.log('지역 DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-        }
-
-        // 지역 DB에 없으면 supabaseBiz에서 조회
-        if (!targetCompanyId) {
-          const { data: bizCompany } = await supabaseBiz
-            .from('companies')
-            .select('id, user_id, email')
-            .eq('email', transferEmail)
-            .maybeSingle()
-
-          if (bizCompany) {
-            targetCompanyId = bizCompany.id
-            targetUserId = bizCompany.user_id
-            console.log('Biz DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-          }
+          if (!targetBizCompanyId) targetBizCompanyId = regionalCompany.id
+          console.log('지역 DB에서 기업 정보 찾음:', { targetUserId })
         }
       }
 
-      // 2. 캠페인 소유권 이관 - 지역별 스키마 차이 고려
+      // 2. 캠페인 소유권 이관 - company_id는 auth user_id, company_biz_id는 BIZ DB companies.id
       const updateData = {
         updated_at: new Date().toISOString()
       }
 
-      // US 캠페인은 company_email 컬럼이 없음
+      // company_email 업데이트 (US 캠페인은 company_email 컬럼이 없을 수 있음)
       if (campaignRegion !== 'us') {
         updateData.company_email = transferEmail
       }
 
-      // company_id 업데이트 - 지역별로 다르게 처리
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        // 일본: company_email만 사용 (company_id는 사용하지 않음)
-        // MyCampaigns에서 company_email로 조회하므로 company_id 업데이트 불필요
-        console.log('일본: company_email만 업데이트 (company_id 사용 안함)')
-      } else if (campaignRegion === 'us') {
-        // US 캠페인은 BIZ Auth의 user_id를 company_id로 사용
-        if (targetUserId) {
-          updateData.company_id = targetUserId
-          console.log('US: BIZ Auth user_id로 이관:', targetUserId)
-        } else {
-          // BIZ companies에서 못 찾으면, 지역 companies에서 user_id 시도
-          if (!targetCompanyId) {
-            const { data: regionalCompanyByUserId } = await supabaseClient
-              .from('companies')
-              .select('user_id')
-              .eq('email', transferEmail)
-              .maybeSingle()
-
-            if (regionalCompanyByUserId?.user_id) {
-              updateData.company_id = regionalCompanyByUserId.user_id
-              console.log('US: 지역 DB에서 user_id로 이관:', regionalCompanyByUserId.user_id)
-            } else {
-              updateData.company_id = null
-              console.warn('US: BIZ Auth user_id를 찾을 수 없어 null로 설정합니다. 이관 대상 이메일로 기업 등록이 필요합니다.')
-            }
-          } else {
-            // targetCompanyId는 있지만 targetUserId가 없는 경우
-            updateData.company_id = null
-            console.warn('US: user_id를 찾을 수 없어 null로 설정합니다.')
-          }
-        }
-      } else {
-        // Korea 등은 company_id와 company_email 모두 사용
-        if (targetCompanyId) {
-          updateData.company_id = targetCompanyId
-          console.log('Korea: company_id 업데이트:', targetCompanyId)
-        } else {
-          // company_id를 찾지 못한 경우에도 null로 설정하여 이전 소유자 연결 끊기
-          updateData.company_id = null
-          console.warn('타겟 company_id를 찾을 수 없어 null로 설정합니다.')
-        }
+      // company_id = auth user_id (모든 지역 공통)
+      if (targetUserId) {
+        updateData.company_id = targetUserId
+        console.log('company_id (auth user_id) 업데이트:', targetUserId)
+      } else if (campaignRegion !== 'japan' && campaignRegion !== 'jp') {
+        // user_id를 못 찾은 경우 이전 소유자 연결 끊기
+        updateData.company_id = null
+        console.warn('타겟 user_id를 찾을 수 없어 company_id를 null로 설정')
       }
 
-      const { error: campaignError } = await supabaseClient
+      // company_biz_id = BIZ DB companies.id (기업명 매핑용, 컬럼 있는 경우만)
+      if (targetBizCompanyId && campaignRegion !== 'us') {
+        updateData.company_biz_id = targetBizCompanyId
+        console.log('company_biz_id (BIZ companies.id) 업데이트:', targetBizCompanyId)
+      }
+
+      let { error: campaignError } = await supabaseClient
         .from('campaigns')
         .update(updateData)
         .eq('id', transferCampaign.id)
 
-      if (campaignError) throw campaignError
+      // company_biz_id 컬럼이 없는 DB일 경우, 해당 필드 제외하고 재시도
+      if (campaignError && updateData.company_biz_id) {
+        console.log('company_biz_id 포함 업데이트 실패, 제외하고 재시도:', campaignError.message)
+        const { company_biz_id, ...updateDataWithoutBiz } = updateData
+        const { error: retryError } = await supabaseClient
+          .from('campaigns')
+          .update(updateDataWithoutBiz)
+          .eq('id', transferCampaign.id)
+        if (retryError) throw retryError
+
+        // BIZ DB에도 캠페인이 있으면 company_biz_id 업데이트 시도
+        try {
+          await supabaseBiz
+            .from('campaigns')
+            .update({ company_biz_id: targetBizCompanyId, updated_at: new Date().toISOString() })
+            .eq('id', transferCampaign.id)
+          console.log('BIZ DB에서 company_biz_id 업데이트 성공')
+        } catch (e) {
+          console.log('BIZ DB company_biz_id 업데이트 실패 (선택적):', e.message)
+        }
+      } else if (campaignError) {
+        throw campaignError
+      }
 
       // 3. 지원자 데이터의 company 관련 필드 업데이트 (applications 테이블)
       const finalCompanyIdForApps = updateData.company_id
@@ -980,27 +962,13 @@ export default function CampaignsManagement() {
         }
       }
 
-      // 성공 메시지 - 지역별로 다르게 표시
-      const finalCompanyId = updateData.company_id
-      let successMessage = '캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:'
-
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        // 일본은 company_email만 사용
-        successMessage += `\n- 캠페인 소유권: ${transferEmail}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명`
-      } else if (campaignRegion === 'us') {
-        // US는 company_id(user_id) 사용
-        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
-        successMessage += `\n- 캠페인 소유권 (US: BIZ Auth user_id 사용)`
-        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
-      } else {
-        // Korea 등은 company_email + company_id 모두 사용
-        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
-        successMessage += `\n- 캠페인 소유권 (company_email: ${transferEmail})`
-        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
-      }
+      // 성공 메시지
+      const warningMsg = !targetUserId ? '\n\n⚠️ 주의: 타겟 기업의 user_id를 찾을 수 없습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
+      let successMessage = `캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:`
+      successMessage += `\n- 소유권: ${transferEmail}`
+      if (targetBizCompanyId) successMessage += `\n- company_biz_id: ${targetBizCompanyId}`
+      if (targetUserId) successMessage += `\n- company_id (user_id): ${targetUserId}`
+      successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
 
       alert(successMessage)
       setShowTransferModal(false)
@@ -2151,12 +2119,15 @@ export default function CampaignsManagement() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  현재 소유자: <span className="text-gray-700">
-                    {transferCampaign.company_email
+                  현재 소유자: <span className="text-gray-700 font-medium">
+                    {getCompanyName(transferCampaign) || transferCampaign.company_email
                       || (transferCampaign.region === 'us' && transferCampaign.company_id
                           ? `US (ID: ${transferCampaign.company_id.slice(0, 8)}...)`
                           : '없음')}
                   </span>
+                  {transferCampaign.company_email && getCompanyName(transferCampaign) && (
+                    <span className="text-gray-400 ml-1">({transferCampaign.company_email})</span>
+                  )}
                 </p>
               </div>
 

@@ -842,6 +842,37 @@ export default function CampaignDetail() {
     }
   }, [participants, campaign?.status])
 
+  // 4주 챌린지/올영/기획형 캠페인: applications의 weekN_clean_video_url을 video_submissions에 병합
+  useEffect(() => {
+    if (participants.length === 0 || videoSubmissions.length === 0) return
+
+    // weekN_clean_video_url이 있는 참가자가 있는지 확인
+    const hasWeeklyClean = participants.some(p =>
+      p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url
+    )
+    if (!hasWeeklyClean) return
+
+    // 아직 병합 안 된 submission이 있는지 확인 (무한 루프 방지)
+    let needsMerge = false
+    const updatedSubs = videoSubmissions.map(sub => {
+      if (sub.clean_video_url) return sub
+      const participant = participants.find(p => p.user_id === sub.user_id)
+      if (!participant) return sub
+      const weekNum = sub.week_number || sub.video_number || 1
+      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`]
+      if (weekCleanUrl) {
+        needsMerge = true
+        return { ...sub, clean_video_url: weekCleanUrl }
+      }
+      return sub
+    })
+
+    if (needsMerge) {
+      console.log('[weeklyCleanMerge] 주차별 클린본 URL 병합 완료')
+      setVideoSubmissions(updatedSubs)
+    }
+  }, [participants, videoSubmissions])
+
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
@@ -1120,7 +1151,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status, guide_group')
+            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, sns_upload_url, partnership_code, status, guide_group')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -1169,12 +1200,17 @@ export default function CampaignDetail() {
             }
             if (koreaApp) {
               matchedKoreaIds.add(koreaApp.id)
-              if (koreaApp.clean_video_url) {
-                console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '->', koreaApp.clean_video_url.substring(0, 50) + '...')
+              const hasWeeklyClean = koreaApp.week1_clean_video_url || koreaApp.week2_clean_video_url || koreaApp.week3_clean_video_url || koreaApp.week4_clean_video_url
+              if (koreaApp.clean_video_url || hasWeeklyClean) {
+                console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '- clean_video_url:', !!koreaApp.clean_video_url, 'weekly:', !!hasWeeklyClean)
               }
               return {
                 ...participant,
                 clean_video_url: koreaApp.clean_video_url || participant.clean_video_url,
+                week1_clean_video_url: koreaApp.week1_clean_video_url || participant.week1_clean_video_url,
+                week2_clean_video_url: koreaApp.week2_clean_video_url || participant.week2_clean_video_url,
+                week3_clean_video_url: koreaApp.week3_clean_video_url || participant.week3_clean_video_url,
+                week4_clean_video_url: koreaApp.week4_clean_video_url || participant.week4_clean_video_url,
                 sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
                 partnership_code: koreaApp.partnership_code || participant.partnership_code,
                 guide_group: koreaApp.guide_group || participant.guide_group
@@ -11242,8 +11278,8 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
-                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                    if (p.clean_video_url) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url) return true
                     return false
                   })
 
@@ -11344,8 +11380,8 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
-                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                    if (p.clean_video_url) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url) return true
                     return false
                   })
 
@@ -12360,8 +12396,8 @@ Questions? Contact us.
                                     const allUserVideos = videoSubmissions.filter(sub => sub.user_id === participant.user_id)
                                     const videosWithFile = allUserVideos.filter(sub => sub.video_file_url)
                                     const videosWithClean = allUserVideos.filter(sub => sub.clean_video_url)
-                                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                                    const hasParticipantClean = !!participant.clean_video_url
+                                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                                    const hasParticipantClean = !!(participant.clean_video_url || participant.week1_clean_video_url || participant.week2_clean_video_url || participant.week3_clean_video_url || participant.week4_clean_video_url)
                                     const hasAnyVideo = videosWithFile.length > 0 || videosWithClean.length > 0 || hasParticipantClean
                                     const hasSnsOrCode = participant.sns_upload_url || participant.partnership_code
 
