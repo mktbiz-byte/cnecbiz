@@ -1,7 +1,8 @@
 const { createClient } = require('@supabase/supabase-js')
 const crypto = require('crypto')
+const https = require('https')
 
-// ===== 네이버웍스 직접 전송 (fetch API 사용 — https.request는 Lambda에서 불안정) =====
+// ===== 네이버웍스 직접 전송 (https.request 사용 — 스케줄러와 동일한 안정적 방식) =====
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
 MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
@@ -44,6 +45,80 @@ function generateNaverWorksJWT(clientId) {
   return `${signatureInput}.${signature.toString('base64url')}`
 }
 
+// Access Token 발급 (https.request — 스케줄러와 동일한 안정적 방식)
+function getNaverWorksAccessToken(clientId, clientSecret) {
+  return new Promise((resolve, reject) => {
+    const jwt = generateNaverWorksJWT(clientId)
+    const postData = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt, client_id: clientId, client_secret: clientSecret, scope: 'bot'
+    }).toString()
+
+    const options = {
+      hostname: 'auth.worksmobile.com',
+      path: '/oauth2/v2.0/token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ''
+      res.on('data', (chunk) => { data += chunk })
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            resolve(JSON.parse(data).access_token)
+          } catch (e) {
+            reject(new Error(`Token parse error: ${data}`))
+          }
+        } else {
+          reject(new Error(`Token failed: ${res.statusCode} ${data}`))
+        }
+      })
+    })
+    req.on('error', reject)
+    req.setTimeout(15000, () => { req.destroy(new Error('Token request timeout (15s)')) })
+    req.write(postData)
+    req.end()
+  })
+}
+
+// 메시지 전송 (https.request — 스케줄러와 동일한 안정적 방식)
+function sendNaverWorksMsg(accessToken, botId, channelId, message) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({ content: { type: 'text', text: message } })
+    const options = {
+      hostname: 'www.worksapis.com',
+      path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ''
+      res.on('data', (chunk) => { data += chunk })
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve({ success: true })
+        } else {
+          reject(new Error(`Send failed: ${res.statusCode} ${data}`))
+        }
+      })
+    })
+    req.on('error', reject)
+    req.setTimeout(15000, () => { req.destroy(new Error('Message send timeout (15s)')) })
+    req.write(postData)
+    req.end()
+  })
+}
+
 async function sendNaverWorksMessageDirect(channelId, message) {
   const clientId = process.env.NAVER_WORKS_CLIENT_ID
   const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
@@ -53,47 +128,15 @@ async function sendNaverWorksMessageDirect(channelId, message) {
     return { success: false, error: '네이버웍스 환경변수 누락' }
   }
   try {
-    // 1. Access Token 발급 (fetch API 사용 — 10초 타임아웃)
-    const jwt = generateNaverWorksJWT(clientId)
-    const tokenController = new AbortController()
-    const tokenTimeout = setTimeout(() => tokenController.abort(), 10000)
-    const tokenRes = await fetch('https://auth.worksmobile.com/oauth2/v2.0/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt, client_id: clientId, client_secret: clientSecret, scope: 'bot'
-      }).toString(),
-      signal: tokenController.signal
-    })
-    clearTimeout(tokenTimeout)
-
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text()
-      throw new Error(`NaverWorks token failed: ${tokenRes.status} ${errText}`)
-    }
-    const { access_token: accessToken } = await tokenRes.json()
-
-    // 2. 메시지 전송 (fetch API 사용 — 10초 타임아웃)
-    const msgController = new AbortController()
-    const msgTimeout = setTimeout(() => msgController.abort(), 10000)
-    const msgRes = await fetch(`https://www.worksapis.com/v1.0/bots/${botId}/channels/${channelId}/messages`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: { type: 'text', text: message } }),
-      signal: msgController.signal
-    })
-    clearTimeout(msgTimeout)
-
-    if (!msgRes.ok) {
-      const errText = await msgRes.text()
-      throw new Error(`NaverWorks send failed: ${msgRes.status} ${errText}`)
-    }
-    return { success: true }
+    console.log('[알림] 네이버웍스 토큰 발급 시작...')
+    const accessToken = await getNaverWorksAccessToken(clientId, clientSecret)
+    console.log('[알림] 네이버웍스 토큰 발급 완료, 메시지 전송 시작...')
+    const result = await sendNaverWorksMsg(accessToken, botId, channelId, message)
+    console.log('[알림] 네이버웍스 메시지 전송 완료')
+    return result
   } catch (err) {
-    const errorDetail = err.name === 'AbortError' ? '타임아웃 (10초 초과)' : err.message
-    console.error('[알림] 네이버웍스 직접 전송 실패:', errorDetail)
-    return { success: false, error: errorDetail }
+    console.error('[알림] 네이버웍스 직접 전송 실패:', err.message)
+    return { success: false, error: err.message }
   }
 }
 
