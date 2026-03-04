@@ -566,74 +566,26 @@ export default function AdminCampaignDetail() {
         console.error('네이버 웍스 알림 발송 실패:', worksErr)
       }
 
-      // 기업에게 알림톡 발송 (영상 제출 알림)
+      // 기업에게 알림톡 발송 (영상 제출 알림 — 서버사이드로 RLS 우회)
       try {
-        let companyPhone = null
-        let companyNameForKakao = companyDisplayName
-
-        // 1순위: company_biz_id로 BIZ DB 조회 (한국 캠페인 - companies.id와 정확히 매칭)
-        if (campaign?.company_biz_id) {
-          const { data: byBizId } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('id', campaign.company_biz_id)
-            .maybeSingle()
-          if (byBizId) {
-            companyPhone = byBizId.notification_phone || byBizId.phone
-            if (byBizId.company_name) companyNameForKakao = byBizId.company_name
-          }
-        }
-
-        // 2순위: BIZ DB에서 company_email로 조회 (notification 필드 우선)
-        if (!companyPhone && campaign?.company_email) {
-          const { data: byEmail } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('email', campaign.company_email)
-            .maybeSingle()
-          if (byEmail) {
-            companyPhone = byEmail.notification_phone || byEmail.phone
-            if (byEmail.company_name) companyNameForKakao = byEmail.company_name
-          }
-        }
-
-        // 3순위: BIZ DB에서 company_id (user_id)로 조회
-        if (!companyPhone && campaign?.company_id) {
-          const { data: byUserId } = await supabaseBiz
-            .from('companies')
-            .select('notification_phone, phone, company_name')
-            .eq('user_id', campaign.company_id)
-            .maybeSingle()
-          if (byUserId) {
-            companyPhone = byUserId.notification_phone || byUserId.phone
-            if (byUserId.company_name) companyNameForKakao = byUserId.company_name
-          }
-        }
-
-        // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
-        if (!companyPhone && campaign?.company_phone) {
-          companyPhone = campaign.company_phone
-        }
-
-        if (companyPhone) {
-          await fetch('/.netlify/functions/send-kakao-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              receiverNum: companyPhone.replace(/-/g, ''),
-              receiverName: companyNameForKakao,
-              templateCode: '025100001008',
-              variables: {
-                '회사명': companyNameForKakao,
-                '캠페인명': campaign?.title || '',
-                '크리에이터명': creatorName
-              }
-            })
+        const notifRes = await fetch('/.netlify/functions/notify-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: id,
+            region: campaign?.target_country === 'jp' ? 'japan' : campaign?.target_country === 'us' ? 'us' : 'korea',
+            version: version,
+            creatorName: creatorName,
+            campaignTitle: campaign?.title || '',
+            companyName: companyDisplayName,
+            isResubmission: false,
+            videoFileCount: 1
           })
-          console.log('영상 제출 알림톡 발송 완료:', creatorName)
-        }
+        })
+        const notifResult = await notifRes.json()
+        console.log('영상 제출 알림 발송 완료 (서버사이드):', notifResult)
       } catch (notifErr) {
-        console.error('알림톡 발송 실패:', notifErr)
+        console.error('알림 발송 실패:', notifErr)
       }
 
       alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
