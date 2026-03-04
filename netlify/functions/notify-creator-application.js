@@ -174,7 +174,7 @@ exports.handler = async (event) => {
     // 4. 기업 정보 조회 (companies 테이블 우선 → user_profiles 폴백)
     // 이관된 캠페인의 경우 company_id가 companies.id 또는 companies.user_id일 수 있음
     let companyRecord = null;
-    let companyProfile = null;
+    // companies 테이블에서만 조회 (user_profiles 사용 금지)
 
     if (campaign.company_id) {
       // 4-1. companies.id로 조회 (이관 후 company_id가 companies.id인 경우)
@@ -203,19 +203,9 @@ exports.handler = async (event) => {
         }
       }
 
-      // 4-3. user_profiles에서 조회 (폴백)
-      const { data: profileData } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, company_name, email, phone')
-        .eq('id', campaign.company_id)
-        .maybeSingle();
-
-      if (profileData) {
-        companyProfile = profileData;
-      }
     }
 
-    // 4-4. company_email로 조회 (company_id로 찾지 못한 경우)
+    // 4-3. company_email로 조회 (company_id로 찾지 못한 경우)
     if (!companyRecord && campaign.company_email) {
       const { data: byEmail } = await supabase
         .from('companies')
@@ -230,14 +220,13 @@ exports.handler = async (event) => {
     }
 
     const company = {
-      id: companyRecord?.user_id || companyProfile?.id,
-      full_name: companyProfile?.full_name,
-      company_name: companyRecord?.company_name || companyProfile?.company_name,
-      phone: companyRecord?.notification_phone || companyRecord?.phone || companyProfile?.phone,
-      email: companyRecord?.notification_email || companyRecord?.email || companyProfile?.email
+      id: companyRecord?.user_id,
+      company_name: companyRecord?.company_name,
+      phone: companyRecord?.notification_phone || companyRecord?.phone,
+      email: companyRecord?.notification_email || companyRecord?.email
     };
 
-    if (!companyProfile && !companyRecord) {
+    if (!companyRecord) {
       console.error('[ERROR] Company not found for company_id:', campaign.company_id, 'company_email:', campaign.company_email);
       return {
         statusCode: 404,

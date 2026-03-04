@@ -11122,6 +11122,15 @@ Questions? Contact us.
                   )
                 })()}
               </CardHeader>
+              {/* 영상 다운로드 재생 안내 */}
+              <div className="mx-6 mt-2 mb-0 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                <p className="font-medium mb-1">영상 재생이 안 될 경우 안내</p>
+                <ul className="list-disc list-inside space-y-0.5 text-amber-700 text-xs">
+                  <li>Windows: <a href="https://www.gomlab.com/gomplayerplus/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">곰플레이어</a> 또는 <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">VLC</a> 설치 후 재생해 주세요</li>
+                  <li>Mac: <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">VLC</a> 또는 <a href="https://iina.io/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">IINA</a> 플레이어를 추천합니다</li>
+                  <li>기본 동영상 플레이어에서 재생 불가 시 코덱 미지원이 원인이며, 위 플레이어 설치로 해결됩니다</li>
+                </ul>
+              </div>
               <CardContent>
                 {(() => {
                   // 멀티비디오 캠페인 여부 체크 (CardContent용, 리전별)

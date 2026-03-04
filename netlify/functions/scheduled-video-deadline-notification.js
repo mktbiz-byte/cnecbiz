@@ -917,12 +917,13 @@ exports.handler = async (event, context) => {
             continue;
           }
 
-          // 카카오톡 및 이메일 발송
+          // 카카오톡 및 이메일 발송 (한국만 — 일본/미국은 LINE/WhatsApp 사용 예정)
           let kakaoSent = false;
           let emailSent = false;
+          const isKorea = campaign.region === 'korea';
 
-          // 알림톡 발송
-          if (creatorPhone) {
+          // 알림톡 발송 (한국만)
+          if (isKorea && creatorPhone) {
             try {
               await sendKakaoNotification(
                 creatorPhone,
@@ -937,10 +938,12 @@ exports.handler = async (event, context) => {
             } catch (kakaoError) {
               console.error(`✗ 알림톡 발송 실패: ${creatorName}`, kakaoError.message);
             }
+          } else if (!isKorea) {
+            console.log(`ℹ️ ${campaign.region} 리전 - 카카오 알림톡 건너뜀 (${creatorName})`);
           }
 
-          // 이메일 발송
-          if (creatorEmail) {
+          // 이메일 발송 (한국만)
+          if (isKorea && creatorEmail) {
             try {
               await sendCreatorEmail(
                 creatorEmail,
@@ -954,40 +957,46 @@ exports.handler = async (event, context) => {
             } catch (emailError) {
               console.error(`✗ 이메일 발송 실패: ${creatorName}`, emailError.message);
             }
+          } else if (!isKorea) {
+            console.log(`ℹ️ ${campaign.region} 리전 - 이메일 건너뜀 (${creatorName})`);
           }
 
-          if (kakaoSent || emailSent) {
+          // 한국: 발송 결과 기록, 일본/미국: 네이버웍스 보고서용으로 기록
+          if (kakaoSent || emailSent || !isKorea) {
             allResults.push({
               userId: app.user_id,
               creatorName,
               campaignName,
               deadline: date,
               label,
-              status: 'sent',
+              region: campaign.region,
+              status: (kakaoSent || emailSent) ? 'sent' : 'skipped_non_korea',
               phone: creatorPhone,
               email: creatorEmail,
               kakaoSent,
               emailSent
             });
 
-            // 캠페인별 크리에이터 그룹화 (기업 이메일용)
-            const campaignId = campaign.id;
-            const companyId = campaign.company_id;
-            if (!campaignCreatorsMap[campaignId]) {
-              campaignCreatorsMap[campaignId] = {
-                campaignName,
-                companyId,
-                region: campaign.region, // 지역 정보 추가
-                deadline: date,
-                daysRemaining,
-                creators: []
-              };
+            // 캠페인별 크리에이터 그룹화 (기업 이메일용 — 한국만)
+            if (isKorea) {
+              const campaignId = campaign.id;
+              const companyId = campaign.company_id;
+              if (!campaignCreatorsMap[campaignId]) {
+                campaignCreatorsMap[campaignId] = {
+                  campaignName,
+                  companyId,
+                  region: campaign.region,
+                  deadline: date,
+                  daysRemaining,
+                  creators: []
+                };
+              }
+              campaignCreatorsMap[campaignId].creators.push({
+                creatorName,
+                phone: creatorPhone,
+                email: creatorEmail
+              });
             }
-            campaignCreatorsMap[campaignId].creators.push({
-              creatorName,
-              phone: creatorPhone,
-              email: creatorEmail
-            });
           } else {
             allResults.push({
               userId: app.user_id,
@@ -995,6 +1004,7 @@ exports.handler = async (event, context) => {
               campaignName,
               deadline: date,
               label,
+              region: campaign.region,
               status: 'failed',
               error: '알림톡/이메일 모두 발송 실패'
             });
@@ -1046,63 +1056,52 @@ exports.handler = async (event, context) => {
       console.log(`  ... 외 ${allResults.length - 20}건`);
     }
 
-    // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송
+    // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송 (한국만)
     console.log('\n=== 기업 이메일 발송 시작 ===');
+
+    // BIZ DB 클라이언트 (기업 정보는 항상 BIZ DB에서 조회)
+    const supabaseBiz = createClient(
+      process.env.VITE_SUPABASE_BIZ_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
     for (const [campaignId, campaignData] of Object.entries(campaignCreatorsMap)) {
       if (campaignData.creators.length === 0) continue;
 
-      try {
-        // 해당 캠페인의 지역 Supabase 클라이언트 생성
-        const regionConfig = regions.find(r => r.name === campaignData.region);
-        if (!regionConfig) {
-          console.log(`지역 설정 없음 (campaign_id: ${campaignId}, region: ${campaignData.region})`);
-          continue;
-        }
-        const supabase = createClient(regionConfig.url, regionConfig.key);
+      // 기업 이메일도 한국만 발송
+      if (campaignData.region !== 'korea') {
+        console.log(`기업 이메일 건너뜀 (${campaignData.region} 리전): ${campaignData.campaignName}`);
+        continue;
+      }
 
-        // companies 테이블에서 기업 정보 조회 (notification_email 우선)
+      try {
+        // BIZ DB companies 테이블에서 기업 정보 조회 (notification_email 우선)
         let companyEmail = null;
         let companyName = '기업';
 
-        // 1. user_id로 companies 테이블 조회 (notification_email 우선)
-        const { data: companyByUserId, error: companyError1 } = await supabase
+        // 1. user_id로 BIZ DB companies 테이블 조회
+        const { data: companyByUserId } = await supabaseBiz
           .from('companies')
           .select('company_name, notification_email, email')
           .eq('user_id', campaignData.companyId)
           .maybeSingle();
 
-        if (!companyError1 && companyByUserId) {
+        if (companyByUserId) {
           companyEmail = companyByUserId.notification_email || companyByUserId.email;
           companyName = companyByUserId.company_name || '기업';
         }
 
-        // 2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
+        // 2. id로 재시도 (레거시 데이터 호환)
         if (!companyEmail) {
-          const { data: companyById, error: companyError2 } = await supabase
+          const { data: companyById } = await supabaseBiz
             .from('companies')
             .select('company_name, notification_email, email')
             .eq('id', campaignData.companyId)
             .maybeSingle();
 
-          if (!companyError2 && companyById) {
+          if (companyById) {
             companyEmail = companyById.notification_email || companyById.email;
             companyName = companyById.company_name || '기업';
-          }
-        }
-
-        // 3. 아직도 못 찾으면 user_profiles에서 조회
-        if (!companyEmail) {
-          console.log(`companies 테이블에서 기업 정보 없음 (campaign_id: ${campaignId}), user_profiles 조회 시도`);
-
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('name, email')
-            .eq('id', campaignData.companyId)
-            .maybeSingle();
-
-          if (profile && profile.email) {
-            companyEmail = profile.email;
-            companyName = profile.name || '기업';
           }
         }
 

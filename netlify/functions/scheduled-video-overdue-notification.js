@@ -577,10 +577,11 @@ exports.handler = async (event, context) => {
 
           const deadlineStr = getDatePart(overdueDeadline);
           const deadlineFormatted = deadlineStr ? deadlineStr.replace(/-/g, '.') : '';
+          const isKorea = campaign.region === 'korea';
 
-          // 알림톡 발송
+          // 알림톡 발송 (한국만 — 일본/미국은 LINE/WhatsApp 사용 예정)
           let kakaoSent = false;
-          if (creatorPhone) {
+          if (isKorea && creatorPhone) {
             try {
               await sendKakaoNotification(creatorPhone, creatorName, campaign.title, deadlineFormatted);
               console.log(`🚨 지연 알림톡 발송: ${creatorName} (${creatorPhone}) - ${daysOverdue}일 지연`);
@@ -588,11 +589,13 @@ exports.handler = async (event, context) => {
             } catch (e) {
               console.error(`알림톡 실패: ${creatorName}`, e.message);
             }
+          } else if (!isKorea) {
+            console.log(`ℹ️ ${campaign.region} 리전 - 카카오 알림톡 건너뜀 (${creatorName})`);
           }
 
-          // 이메일 발송
+          // 이메일 발송 (한국만)
           let emailSent = false;
-          if (creatorEmail) {
+          if (isKorea && creatorEmail) {
             try {
               await sendOverdueEmail(creatorEmail, creatorName, campaign.title, deadlineFormatted, daysOverdue);
               console.log(`🚨 지연 이메일 발송: ${creatorName} (${creatorEmail}) - ${daysOverdue}일 지연`);
@@ -600,15 +603,19 @@ exports.handler = async (event, context) => {
             } catch (e) {
               console.error(`이메일 실패: ${creatorName}`, e.message);
             }
+          } else if (!isKorea) {
+            console.log(`ℹ️ ${campaign.region} 리전 - 이메일 건너뜀 (${creatorName})`);
           }
 
-          if (kakaoSent || emailSent) {
+          // 한국: 알림톡/이메일 발송 결과 기록, 일본/미국: 네이버웍스 보고서용으로 기록
+          if (kakaoSent || emailSent || !isKorea) {
             allResults.push({
               creatorName,
               campaignName: campaign.title,
               deadline: deadlineStr,
               daysOverdue,
               label,
+              region: campaign.region,
               phone: creatorPhone,
               email: creatorEmail,
               kakaoSent,

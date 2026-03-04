@@ -1707,7 +1707,7 @@ export default function RevenueManagementNew() {
                                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-700">
                                     {expense.category || '기타'}
                                   </span>
-                                  <span className="text-slate-500 text-sm">{expense.expense_date || expense.year_month}</span>
+                                  <span className="text-slate-500 text-sm">{(expense.expense_date || expense.year_month || '').replace(/-/g, '.')}</span>
                                 </div>
                                 <div className="text-sm text-slate-500 mt-1">
                                   {expense.description || '-'}
@@ -2486,6 +2486,10 @@ export default function RevenueManagementNew() {
                   {generateMonths().map(m => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>비용 적용일</Label>
+              <Input type="date" value={expenseForm.expense_date} onChange={(e) => setExpenseForm({...expenseForm, expense_date: e.target.value})} />
             </div>
             <div>
               <Label>카테고리</Label>
