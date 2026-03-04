@@ -152,6 +152,8 @@ exports.handler = async (event) => {
           allStats[app.campaign_id] = {
             total: 0,
             selected: 0,
+            video_submitted: 0,
+            sns_uploaded: 0,
             completed: 0
           }
         }
@@ -160,6 +162,16 @@ exports.handler = async (event) => {
 
         if (selectedStatuses.includes(app.status)) {
           allStats[app.campaign_id].selected++
+        }
+
+        // 영상 업로드 완료: video_submitted 이후 상태 모두 포함
+        if (['video_submitted', 'revision_requested', 'sns_uploaded', 'completed'].includes(app.status)) {
+          allStats[app.campaign_id].video_submitted++
+        }
+
+        // SNS 업로드 완료: sns_uploaded 이후 상태
+        if (['sns_uploaded', 'completed'].includes(app.status)) {
+          allStats[app.campaign_id].sns_uploaded++
         }
 
         if (app.status === 'completed') {

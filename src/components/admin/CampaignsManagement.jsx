@@ -1505,20 +1505,40 @@ export default function CampaignsManagement() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                           {activeCampaigns.map(campaign => {
                             const maxParticipants = campaign.max_participants || campaign.total_slots || 0
-                            const applicants = campaign.application_stats?.total || 0
                             const selected = campaign.application_stats?.selected || 0
-                            const completed = campaign.application_stats?.completed || 0
+                            const videoSubmitted = campaign.application_stats?.video_submitted || 0
+                            const snsUploaded = campaign.application_stats?.sns_uploaded || 0
                             const companyName = getCompanyName(campaign) || campaign.company_name || '-'
-                            const deadline = campaign.application_deadline || campaign.recruitment_deadline
-                            const daysLeft = getDaysUntilDeadline(deadline)
-                            const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
                             const regionInfo = regionConfig[campaign.region] || regionConfig.biz
                             const typeInfo = campaignTypeConfig[campaign.campaign_type]
                             const platforms = getPlatforms(campaign)
-                            // 영상 업로드 진행률 (completed = 영상 업로드 완료 또는 그 이후 상태)
-                            const videoUploaded = completed
-                            const videoPending = selected > 0 ? selected - videoUploaded : 0
-                            const videoProgress = selected > 0 ? Math.min((videoUploaded / selected) * 100, 100) : 0
+
+                            // 캠페인 타입별 영상 슬롯 수
+                            const cType = campaign.campaign_type || ''
+                            const isMultiVideo = ['4week_challenge', '4week', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(cType)
+                            const videoSlotsCount = (cType === '4week_challenge' || cType === '4week') ? 4
+                              : cType === 'megawari' ? 2
+                              : (cType === 'oliveyoung' || cType === 'oliveyoung_sale') ? 3
+                              : 1
+
+                            // 영상/SNS 진행률 계산 (멀티영상 캠페인은 영상 갯수 기준)
+                            const videoUnit = isMultiVideo ? '개' : '명'
+                            const totalExpectedVideos = selected * videoSlotsCount
+                            const totalVideoUploaded = videoSubmitted * videoSlotsCount
+                            const totalSnsUploaded = snsUploaded * videoSlotsCount
+                            const videoBase = isMultiVideo ? totalExpectedVideos : selected
+                            const videoCount = isMultiVideo ? totalVideoUploaded : videoSubmitted
+                            const snsCount = isMultiVideo ? totalSnsUploaded : snsUploaded
+                            const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
+                            const videoProgress = videoBase > 0 ? Math.min((videoCount / videoBase) * 100, 100) : 0
+                            const snsProgress = videoBase > 0 ? Math.min((snsCount / videoBase) * 100, 100) : 0
+
+                            // 일정
+                            const createdDate = campaign.created_at ? new Date(campaign.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
+                            const recruitDeadline = campaign.application_deadline || campaign.recruitment_deadline
+                            const recruitDate = recruitDeadline ? new Date(recruitDeadline).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
+                            const videoDeadline = campaign.content_submission_deadline || campaign.video_deadline
+                            const videoDate = videoDeadline ? new Date(videoDeadline).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
 
                             return (
                               <div
@@ -1527,75 +1547,98 @@ export default function CampaignsManagement() {
                                 onClick={() => navigate(`/company/campaigns/${campaign.id}?region=${campaign.region}`)}
                               >
                                 {/* 상단: 이미지 + 제목 */}
-                                <div className="flex items-start gap-3 mb-3">
-                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                <div className="flex items-start gap-3 mb-2.5">
+                                  <div className="w-11 h-11 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                                     {campaign.image_url ? (
                                       <img src={campaign.image_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-                                        <ImageIcon className="w-6 h-6 text-blue-400" />
+                                        <ImageIcon className="w-5 h-5 text-blue-400" />
                                       </div>
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{campaign.campaign_name || campaign.title || '제목 없음'}</h4>
-                                    <p className="text-xs text-gray-500 truncate">{companyName}</p>
+                                    <h4 className="text-sm font-semibold text-gray-900 truncate leading-tight">{campaign.campaign_name || campaign.title || '제목 없음'}</h4>
+                                    <p className="text-[11px] text-gray-500 truncate">{companyName}</p>
                                   </div>
                                 </div>
 
                                 {/* 태그 */}
-                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                <div className="flex flex-wrap gap-1 mb-3">
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${regionInfo.color}`}>{regionInfo.flag} {regionInfo.label}</span>
                                   {typeInfo && <span className={`text-[10px] px-1.5 py-0.5 rounded ${typeInfo.color}`}>{typeInfo.icon} {typeInfo.label}</span>}
-                                  {daysLeft !== null && (
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${daysLeft <= 3 ? 'bg-red-100 text-red-600' : daysLeft <= 7 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
-                                      {daysLeft > 0 ? `D-${daysLeft}` : daysLeft === 0 ? 'D-Day' : '마감'}
-                                    </span>
-                                  )}
                                   {platforms.includes('instagram') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600">릴스</span>}
                                   {platforms.includes('youtube') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">쇼츠</span>}
+                                  {isMultiVideo && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">영상 {videoSlotsCount}개</span>}
                                 </div>
 
-                                {/* 선정 진행률 */}
-                                <div className="mb-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[11px] text-gray-500">선정</span>
-                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                      <span className="text-emerald-600">{selected}</span>
-                                      <span className="text-gray-400">/{maxParticipants}명</span>
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-1">
-                                    <div className="bg-emerald-400 h-1 rounded-full" style={{ width: `${selectionProgress}%` }} />
-                                  </div>
-                                </div>
-
-                                {/* 영상 업로드 진행률 */}
-                                {selected > 0 && (
-                                  <div className="mb-3">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className="text-[11px] text-gray-500">영상 업로드</span>
+                                {/* 진행 현황 */}
+                                <div className="space-y-1.5 mb-3">
+                                  {/* 1. 모집인원 대비 선정인원 */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <span className="text-[11px] text-gray-500">선정</span>
                                       <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                        <span className="text-violet-600">{videoUploaded}</span>
-                                        <span className="text-gray-400">/{selected}명</span>
-                                        <span className="text-gray-400 ml-1">({Math.round(videoProgress)}%)</span>
+                                        <span className="text-emerald-600">{selected}</span>
+                                        <span className="text-gray-400">/{maxParticipants}명</span>
                                       </span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-1">
-                                      <div className="bg-violet-400 h-1 rounded-full" style={{ width: `${videoProgress}%` }} />
+                                      <div className="bg-emerald-400 h-1 rounded-full transition-all" style={{ width: `${selectionProgress}%` }} />
                                     </div>
-                                    {videoPending > 0 && (
-                                      <p className="text-[10px] text-amber-500 mt-1">미업로드 대기 {videoPending}명</p>
-                                    )}
                                   </div>
-                                )}
 
-                                {/* 하단 예산 */}
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-50 text-xs">
-                                  <span className="text-gray-400">예산</span>
-                                  <span className="font-semibold text-gray-700" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                    {campaign.currency || '₩'}{(campaign.budget || 0).toLocaleString()}
-                                  </span>
+                                  {/* 2. 영상 업로드 완료 */}
+                                  {selected > 0 && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[11px] text-gray-500">영상 업로드</span>
+                                        <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                          <span className="text-violet-600">{videoCount}</span>
+                                          <span className="text-gray-400">/{videoBase}{videoUnit}</span>
+                                          {videoBase > 0 && <span className="text-gray-400 ml-1">({Math.round(videoProgress)}%)</span>}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 rounded-full h-1">
+                                        <div className="bg-violet-400 h-1 rounded-full transition-all" style={{ width: `${videoProgress}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 3. SNS 업로드 완료 */}
+                                  {selected > 0 && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[11px] text-gray-500">SNS 업로드</span>
+                                        <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                          <span className="text-blue-600">{snsCount}</span>
+                                          <span className="text-gray-400">/{videoBase}{videoUnit}</span>
+                                          {videoBase > 0 && <span className="text-gray-400 ml-1">({Math.round(snsProgress)}%)</span>}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 rounded-full h-1">
+                                        <div className="bg-blue-400 h-1 rounded-full transition-all" style={{ width: `${snsProgress}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* 진행 일정 */}
+                                <div className="pt-2 border-t border-gray-50">
+                                  <div className="grid grid-cols-3 gap-1 text-center">
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">생성일</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{createdDate}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">모집마감</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{recruitDate}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">영상마감</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{videoDate}</p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             )

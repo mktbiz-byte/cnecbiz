@@ -374,6 +374,8 @@ export const getCampaignsWithStats = async () => {
     campaign.application_stats = stats[campaign.id] || {
       total: 0,
       selected: 0,
+      video_submitted: 0,
+      sns_uploaded: 0,
       completed: 0
     }
   })
@@ -421,10 +423,18 @@ const getApplicationStatsDirectFromAllDBs = async (allCampaignIds) => {
   const stats = {}
   allApplications.forEach(app => {
     if (!stats[app.campaign_id]) {
-      stats[app.campaign_id] = { total: 0, selected: 0, completed: 0 }
+      stats[app.campaign_id] = { total: 0, selected: 0, video_submitted: 0, sns_uploaded: 0, completed: 0 }
     }
     stats[app.campaign_id].total++
     if (selectedStatuses.includes(app.status)) stats[app.campaign_id].selected++
+    // 영상 업로드 완료: video_submitted 이후 상태 모두 포함
+    if (['video_submitted', 'revision_requested', 'sns_uploaded', 'completed'].includes(app.status)) {
+      stats[app.campaign_id].video_submitted++
+    }
+    // SNS 업로드 완료
+    if (['sns_uploaded', 'completed'].includes(app.status)) {
+      stats[app.campaign_id].sns_uploaded++
+    }
     if (app.status === 'completed') stats[app.campaign_id].completed++
   })
 
@@ -436,7 +446,7 @@ const getApplicationStatsDirectFromAllDBs = async (allCampaignIds) => {
 export const getCampaignsFast = async () => {
   const campaigns = await getCampaignsFromAllRegions()
   campaigns.forEach(campaign => {
-    campaign.application_stats = { total: 0, selected: 0, completed: 0 }
+    campaign.application_stats = { total: 0, selected: 0, video_submitted: 0, sns_uploaded: 0, completed: 0 }
   })
   return campaigns
 }
