@@ -372,6 +372,28 @@ exports.handler = async (event, context) => {
             console.log('[update-campaign-status] No company phone found')
           }
 
+          // 기업 이메일 발송
+          const companyNotifyEmail = company ? (company.notification_email || company.email) : null
+          if (companyNotifyEmail) {
+            try {
+              const { generateEmailHtml } = require('./send-notification-helper')
+              const emailTemplate = generateEmailHtml('025100001005', variables)
+              const emailResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: companyNotifyEmail,
+                  subject: emailTemplate.subject,
+                  html: emailTemplate.html
+                })
+              })
+              const emailResult = await emailResponse.json()
+              console.log('[update-campaign-status] Company email result:', emailResult)
+            } catch (emailError) {
+              console.error('[update-campaign-status] Company email failed:', emailError.message)
+            }
+          }
+
           // 네이버 웍스 알림 (active 변경 시)
           try {
             const companyDisplayName = company?.company_name || '기업'

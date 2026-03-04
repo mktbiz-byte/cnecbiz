@@ -25,7 +25,6 @@ export {
   sendVideoRevisionRequestNotification,
   sendVideoApprovedNotification,
   sendPointAwardedNotification,
-  sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
   sendSubmissionDelayWarningNotification,
   sendCampaignCancelledNotification

@@ -155,11 +155,11 @@ export const POPBILL_TEMPLATES = {
       params: ['크리에이터명', '캠페인명', '업로드기한']
     },
 
-    SNS_UPLOAD_DEADLINE_TODAY: {
+    WITHDRAWAL_COMPLETED: {
       code: '025100001020',
-      name: 'SNS 업로드 마감일',
-      description: 'SNS 업로드 마감일 당일 알림',
-      params: ['크리에이터명', '캠페인명', '업로드기한']
+      name: '출금 완료 안내',
+      description: '출금 완료 및 입금 안내',
+      params: ['크리에이터명', '입금일']
     },
 
     WITHDRAWAL_REJECTED: {
