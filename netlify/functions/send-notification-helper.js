@@ -266,28 +266,29 @@ function generateEmailHtml(templateCode, variables) {
         <p>문의: 1833-6025</p>
       `
     },
-    '025100001019': { // 출금 접수 완료
-      subject: '[CNEC] 출금 신청 접수',
+    '025100001019': { // SNS 업로드 기한 임박 (2일 전)
+      subject: `[CNEC] ${variables['캠페인명'] || '캠페인'} - SNS 업로드 기한 임박`,
       html: `
-        <h2>출금 신청 접수</h2>
-        <p>${variables['크리에이터명']}님, 출금 신청이 접수되었습니다.</p>
+        <h2>SNS 업로드 기한 임박</h2>
+        <p>${variables['크리에이터명']}님, 참여하신 캠페인의 SNS 업로드 기한이 2일 남았습니다.</p>
         <ul>
-          <li><strong>출금 금액:</strong> ${variables['출금금액']}원</li>
-          <li><strong>신청일:</strong> ${variables['신청일']}</li>
+          <li><strong>캠페인:</strong> ${variables['캠페인명']}</li>
+          <li><strong>SNS 업로드 기한:</strong> ${variables['업로드기한']}</li>
         </ul>
-        <p>영업일 기준 3-5일 내 입금 예정입니다.</p>
+        <p>크리에이터 대시보드에서 빠르게 업로드 링크를 제출해 주세요.</p>
         <p>문의: 1833-6025</p>
       `
     },
-    '025100001020': { // 출금 완료
-      subject: '[CNEC] 출금 완료',
+    '025100001020': { // SNS 업로드 마감일 (당일)
+      subject: `[CNEC] ${variables['캠페인명'] || '캠페인'} - SNS 업로드 마감일`,
       html: `
-        <h2>출금 완료</h2>
-        <p>${variables['크리에이터명']}님, 출금이 완료되었습니다.</p>
+        <h2>SNS 업로드 마감일</h2>
+        <p>${variables['크리에이터명']}님, 참여하신 캠페인의 SNS 업로드 기한이 오늘입니다.</p>
         <ul>
-          <li><strong>입금일:</strong> ${variables['입금일']}</li>
+          <li><strong>캠페인:</strong> ${variables['캠페인명']}</li>
+          <li><strong>SNS 업로드 기한:</strong> ${variables['업로드기한']} (오늘)</li>
         </ul>
-        <p>계좌를 확인해 주세요. 감사합니다.</p>
+        <p>오늘 자정까지 크리에이터 대시보드에서 업로드 링크를 제출해 주세요.</p>
         <p>문의: 1833-6025</p>
       `
     }

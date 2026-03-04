@@ -146,19 +146,20 @@ export const POPBILL_TEMPLATES = {
       description: '캠페인 완료 및 포인트 지급 알림',
       params: ['크리에이터명', '캠페인명', '완료일']
     },
-    
-    WITHDRAWAL_REQUESTED: {
+
+    // SNS 업로드 마감일 알림
+    SNS_UPLOAD_DEADLINE_2DAYS: {
       code: '025100001019',
-      name: '출금 접수 완료',
-      description: '출금 신청 접수 및 처리 안내',
-      params: ['크리에이터명', '출금금액', '신청일']
+      name: 'SNS 업로드 기한 임박',
+      description: 'SNS 업로드 기한 2일 전 알림',
+      params: ['크리에이터명', '캠페인명', '업로드기한']
     },
-    
-    WITHDRAWAL_COMPLETED: {
+
+    SNS_UPLOAD_DEADLINE_TODAY: {
       code: '025100001020',
-      name: '출금 완료 알림',
-      description: '출금 완료 및 입금 확인 안내',
-      params: ['크리에이터명', '입금일']
+      name: 'SNS 업로드 마감일',
+      description: 'SNS 업로드 마감일 당일 알림',
+      params: ['크리에이터명', '캠페인명', '업로드기한']
     },
 
     WITHDRAWAL_REJECTED: {
