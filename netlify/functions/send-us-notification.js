@@ -4,8 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
  * 미국 크리에이터 알림 발송 Function
  *
  * 발송 순서:
- * 1. LINE 메시지 시도
- * 2. LINE 실패 시 → 이메일 발송
+ * 1. WhatsApp 메시지 시도 (전화번호 있을 때)
+ * 2. WhatsApp 실패 시 → SMS 발송
  * 3. 이메일 발송 (항상)
  *
  * 사용법:
@@ -274,39 +274,73 @@ ${data.stepInfo ? `<p style="color:#92400e;font-weight:bold;margin:0 0 10px;">�
   })
 };
 
-// LINE 메시지 발송
-async function sendLineMessage(lineUserId, message) {
-  const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  if (!accessToken || !lineUserId) {
-    return { success: false, error: 'LINE not configured or no user ID' };
+// WhatsApp 메시지 발송 (Twilio API)
+async function sendWhatsAppMessage(phoneNumber, message) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+13203078933';
+
+  if (!accountSid || !authToken || !phoneNumber) {
+    return { success: false, error: 'WhatsApp not configured or no phone number' };
   }
 
   try {
-    const response = await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        to: lineUserId,
-        messages: [{ type: 'text', text: message }]
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log(`[LINE] Error: ${response.status} - ${errorText}`);
-
-      if (response.status === 400 || response.status === 403) {
-        return { success: false, error: 'NOT_FRIEND', details: errorText };
+    // 전화번호 포맷 (E.164)
+    let formattedPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    if (!formattedPhone.startsWith('+')) {
+      if (formattedPhone.length === 10 && /^\d+$/.test(formattedPhone)) {
+        formattedPhone = '+1' + formattedPhone;
+      } else if (formattedPhone.startsWith('1') && formattedPhone.length === 11) {
+        formattedPhone = '+' + formattedPhone;
       }
-      return { success: false, error: errorText };
     }
 
-    return { success: true };
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+
+    const formData = new URLSearchParams();
+    formData.append('From', formattedFrom);
+    formData.append('To', `whatsapp:${formattedPhone}`);
+    formData.append('Body', message);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData.toString()
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log(`[WhatsApp] Error: ${response.status} - ${JSON.stringify(data)}`);
+      return { success: false, error: data.message || JSON.stringify(data), code: data.code };
+    }
+
+    console.log(`[WhatsApp] Message sent. SID: ${data.sid}`);
+
+    // DB에 메시지 저장
+    try {
+      const supabase = createClient(
+        process.env.VITE_SUPABASE_BIZ_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await supabase.from('whatsapp_messages').insert({
+        phone_number: formattedPhone,
+        direction: 'outgoing',
+        content: message,
+        twilio_sid: data.sid,
+        status: data.status
+      });
+    } catch (dbErr) {
+      console.warn('[WhatsApp] DB save failed:', dbErr.message);
+    }
+
+    return { success: true, sid: data.sid };
   } catch (error) {
-    console.error('[LINE] Exception:', error);
+    console.error('[WhatsApp] Exception:', error);
     return { success: false, error: error.message };
   }
 }
@@ -314,7 +348,7 @@ async function sendLineMessage(lineUserId, message) {
 // 이메일 발송
 async function sendEmail(to, subject, html) {
   try {
-    const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const response = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -367,7 +401,7 @@ exports.handler = async (event) => {
       // 먼저 id 컬럼으로 시도
       const { data: c, error: e } = await supabase
         .from('user_profiles')
-        .select('id, name, email, phone, line_user_id')
+        .select('id, name, email, phone')
         .eq('id', creatorId)
         .maybeSingle();
 
@@ -378,7 +412,7 @@ exports.handler = async (event) => {
         console.log(`[send-us-notification] id lookup failed, trying user_id column`);
         const { data: c2, error: e2 } = await supabase
           .from('user_profiles')
-          .select('id, name, email, phone, line_user_id')
+          .select('id, name, email, phone')
           .eq('user_id', creatorId)
           .maybeSingle();
         creator = c2;
@@ -389,7 +423,7 @@ exports.handler = async (event) => {
       console.log(`[send-us-notification] Looking up by creatorEmail: ${creatorEmail}`);
       const { data: c, error: e } = await supabase
         .from('user_profiles')
-        .select('id, name, email, phone, line_user_id')
+        .select('id, name, email, phone')
         .eq('email', creatorEmail.toLowerCase())
         .single();
       creator = c;
@@ -403,8 +437,7 @@ exports.handler = async (event) => {
         creator = {
           name: data.creatorName || 'Creator',
           email: creatorEmail,
-          phone: creatorPhone,
-          line_user_id: null
+          phone: creatorPhone
         };
       } else {
         console.log(`[send-us-notification] Creator not found - creatorId: ${creatorId}, creatorEmail: ${creatorEmail}`);
@@ -421,7 +454,7 @@ exports.handler = async (event) => {
       creator.phone = creatorPhone;
     }
 
-    console.log(`[send-us-notification] Creator info: ${creator.name}, line_user_id: ${creator.line_user_id || 'NONE'}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
+    console.log(`[send-us-notification] Creator info: ${creator.name}, phone: ${creator.phone || 'NONE'}, email: ${creator.email || 'NONE'}`);
 
     // 데이터에 크리에이터 이름 추가
     data.creatorName = data.creatorName || creator.name || 'Creator';
@@ -438,26 +471,26 @@ exports.handler = async (event) => {
 
     const messages = template(data);
     const results = {
-      line: { attempted: false, success: false },
+      whatsapp: { attempted: false, success: false },
       sms: { attempted: false, success: false },
       email: { attempted: false, success: false }
     };
 
-    // 1. LINE 메시지 시도
-    if (creator.line_user_id) {
-      results.line.attempted = true;
-      const lineResult = await sendLineMessage(creator.line_user_id, messages.line);
-      results.line.success = lineResult.success;
-      results.line.error = lineResult.error;
+    // 1. WhatsApp 메시지 시도 (전화번호 있을 때)
+    if (creator.phone) {
+      results.whatsapp.attempted = true;
+      const whatsappResult = await sendWhatsAppMessage(creator.phone, messages.line);
+      results.whatsapp.success = whatsappResult.success;
+      results.whatsapp.error = whatsappResult.error;
 
-      console.log(`[US Notification] LINE result:`, lineResult);
+      console.log(`[US Notification] WhatsApp result:`, whatsappResult);
     }
 
-    // 2. SMS 발송 (LINE 미등록 시 또는 항상)
-    if (creator.phone && !results.line.success) {
+    // 2. SMS 발송 (WhatsApp 실패 시)
+    if (creator.phone && !results.whatsapp.success) {
       results.sms.attempted = true;
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+        const baseUrl = process.env.URL || 'https://cnecbiz.com';
         const smsResponse = await fetch(`${baseUrl}/.netlify/functions/send-sms`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -494,7 +527,7 @@ exports.handler = async (event) => {
     }
 
     // 결과 요약
-    const anySuccess = results.line.success || results.sms.success || results.email.success;
+    const anySuccess = results.whatsapp.success || results.sms.success || results.email.success;
 
     return {
       statusCode: anySuccess ? 200 : 500,
@@ -502,7 +535,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: anySuccess,
         message: anySuccess
-          ? `Notification sent (LINE: ${results.line.success}, SMS: ${results.sms.success}, Email: ${results.email.success})`
+          ? `Notification sent (WhatsApp: ${results.whatsapp.success}, SMS: ${results.sms.success}, Email: ${results.email.success})`
           : 'All notifications failed',
         results,
         creatorId: creator.id
@@ -511,6 +544,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[US Notification] Error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-us-notification',
+          errorMessage: error.message,
+          context: { type: body?.type, creatorId: body?.creatorId }
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
     return {
       statusCode: 500,
       headers,
