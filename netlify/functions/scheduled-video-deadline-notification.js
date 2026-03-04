@@ -11,30 +11,9 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const popbill = require('popbill');
 const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-
-// 팝빌 설정
-const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
-const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
-const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
-const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
-
-// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
-popbill.config({
-  LinkID: POPBILL_LINK_ID,
-  SecretKey: POPBILL_SECRET_KEY,
-  IsTest: false, // 운영환경
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true
-});
-
-// 팝빌 카카오톡 서비스 초기화
-const kakaoService = popbill.KakaoService();
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -422,115 +401,40 @@ const sendCompanyEmail = async (to, companyName, campaignName, pendingCreators, 
   }
 };
 
-// 카카오톡 알림 발송 함수 (팝빌 등록된 템플릿과 정확히 일치해야 함)
-const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaignName, deadline) => {
-  return new Promise((resolve, reject) => {
-    // 템플릿별 메시지 내용 (팝빌 등록 내용과 정확히 일치)
-    const messages = {
-      // === 영상 제출 마감일 알림 ===
-      '025100001013': `[CNEC] 참여하신 캠페인 영상 제출 기한 안내
-#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 3일 남았습니다.
+// 카카오톡 알림 발송 함수 (send-kakao-notification 함수를 HTTP로 호출하여 템플릿 일원화)
+const sendKakaoNotification = async (receiverNum, receiverName, templateCode, campaignName, deadline) => {
+  const baseUrl = process.env.URL || 'https://cnecbiz.com';
 
-캠페인: #{캠페인명}
-영상 제출 기한: #{제출기한}
+  // 템플릿에 따라 변수 구성
+  const isSnsTemplate = ['025100001019', '025100001020'].includes(templateCode);
+  const variables = {
+    '크리에이터명': receiverName,
+    '캠페인명': campaignName
+  };
+  if (isSnsTemplate) {
+    variables['업로드기한'] = deadline;
+  } else {
+    variables['제출기한'] = deadline;
+  }
 
-크리에이터 대시보드에서 촬영한 영상을 제출해 주세요.
-
-기한 내 미제출 시 패널티가 부과됩니다.
-
-문의: 1833-6025`,
-      '025100001014': `[CNEC] 참여하신 캠페인 영상 제출 기한 임박
-#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 2일 남았습니다.
-
-캠페인: #{캠페인명}
-영상 제출 기한: #{제출기한}
-
-아직 영상이 제출되지 않았습니다. 크리에이터 대시보드에서 빠르게 제출해 주세요.
-
-기한 내 미제출 시 패널티가 부과됩니다.
-
-문의: 1833-6025`,
-      '025100001015': `[CNEC] 참여하신 캠페인 영상 제출 마감일
-#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 오늘입니다.
-
-캠페인: #{캠페인명}
-영상 제출 기한: #{제출기한} (오늘)
-
-아직 영상이 제출되지 않았습니다. 오늘 자정까지 크리에이터 대시보드에서 제출해 주세요.
-
-미제출 시 패널티가 부과됩니다.
-
-문의: 1833-6025`,
-      // === SNS 업로드 마감일 알림 ===
-      '025100001019': `[CNEC] 참여하신 캠페인 SNS 업로드 기한 임박
-#{크리에이터명}님, 참여하신 캠페인의 SNS 업로드 기한이 2일 남았습니다.
-캠페인: #{캠페인명}
-SNS 업로드 기한: #{업로드기한}
-아직 업로드가 확인되지 않았습니다. 크리에이터 대시보드에서 빠르게 업로드 링크를 제출해 주세요.
-기한 내 미제출 시 패널티가 부과됩니다.
-문의: 1833-6025`,
-      '025100001020': `[CNEC] 참여하신 캠페인 SNS 업로드 마감일
-#{크리에이터명}님, 참여하신 캠페인의 SNS 업로드 기한이 오늘입니다.
-캠페인: #{캠페인명}
-SNS 업로드 기한: #{업로드기한} (오늘)
-아직 업로드가 확인되지 않았습니다. 오늘 자정까지 크리에이터 대시보드에서 업로드 링크를 제출해 주세요.
-미제출 시 패널티가 부과됩니다.
-문의: 1833-6025`,
-      // === 제출 기한 지연 알림 ===
-      '025100001021': `[CNEC] 참여하신 캠페인 제출 기한 지연
-#{크리에이터명}님, 참여하신 캠페인의 영상 제출 기한이 지연되었습니다.
-
-캠페인: #{캠페인명}
-제출 기한: #{제출기한}
-
-패널티예정
-1일 지연시 보상금의 10% 차감
-3일 지연시 보상금의 30% 차감
-5일 지연시 캠페인 취소 및 제품값 배상
-
-빠른 시일 내에 영상을 제출해 주세요.
-추가 지연 시 패널티가 증가합니다.
-
-사유가 있으실 경우 관리자에게 별도 기간 연장 요청을 해주세요.
-특별한 사유 없이 지연 될 경우 패널티 부과 됩니다.
-
-문의: 1833-6025`
-    };
-
-    let content = messages[templateCode] || '';
-
-    // 변수 치환
-    content = content.replace(/#{크리에이터명}/g, receiverName);
-    content = content.replace(/#{캠페인명}/g, campaignName);
-    content = content.replace(/#{제출기한}/g, deadline);
-    content = content.replace(/#{업로드기한}/g, deadline);
-
-    // 대체 문자 내용 생성
-    const altContent = content.substring(0, 90); // SMS 길이 제한
-
-    kakaoService.sendATS_one(
-      POPBILL_CORP_NUM,
+  const res = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverNum: receiverNum.replace(/-/g, ''),
+      receiverName: receiverName || '',
       templateCode,
-      POPBILL_SENDER_NUM,
-      content,
-      content,     // 대체 문자 내용 (알림톡과 동일)
-      'C',         // altSendType: 'C' = 알림톡과 동일한 내용으로 대체문자 발송
-      '',          // sndDT (즉시 발송)
-      receiverNum.replace(/-/g, ''),  // 전화번호 하이픈 제거
-      receiverName || '',
-      POPBILL_USER_ID,  // userID
-      '',          // requestNum
-      null,        // btns
-      (receiptNum) => {
-        console.log(`카카오 알림톡 발송 성공: ${receiverNum} (${templateCode})`, receiptNum);
-        resolve({ receiptNum });
-      },
-      (error) => {
-        console.error(`카카오 알림톡 발송 실패: ${receiverNum} (${templateCode})`, error);
-        reject(error);
-      }
-    );
+      variables
+    })
   });
+
+  const result = await res.json();
+  if (!result.success) {
+    throw new Error(result.error || `알림톡 발송 실패 (${templateCode})`);
+  }
+
+  console.log(`카카오 알림톡 발송 성공: ${receiverNum} (${templateCode})`, result.receiptNum);
+  return result;
 };
 
 const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');

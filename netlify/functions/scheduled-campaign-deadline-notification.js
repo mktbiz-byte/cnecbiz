@@ -12,30 +12,9 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const popbill = require('popbill');
 const nodemailer = require('nodemailer');
 const https = require('https');
 const crypto = require('crypto');
-
-// 팝빌 설정
-const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
-const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
-const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
-const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
-
-// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
-popbill.config({
-  LinkID: POPBILL_LINK_ID,
-  SecretKey: POPBILL_SECRET_KEY,
-  IsTest: false, // 운영환경
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true
-});
-
-// 팝빌 카카오톡 서비스 초기화
-const kakaoService = popbill.KakaoService();
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -278,60 +257,35 @@ const sendEmail = async (to, companyName, campaignTitle, applicantCount) => {
   }
 };
 
-// 카카오톡 알림 발송 함수 (sendATS_one 사용 - send-kakao-notification.js와 동일)
-const sendKakaoNotification = (receiverNum, receiverName, templateCode, variables) => {
-  return new Promise((resolve, reject) => {
-    // 템플릿 내용 (팝빌 등록된 템플릿과 정확히 일치해야 함)
-    const templateContent = `[CNEC] 신청하신 캠페인 모집 마감
-#{회사명}님, 신청하신 캠페인의 크리에이터 모집이 마감되었습니다.
-캠페인: #{캠페인명}
-지원 크리에이터: #{지원자수}명
-관리자 페이지에서 지원한 크리에이터 리스트를 확인하시고, 최종 선정을 진행해 주세요.
-문의: 1833-6025`;
+// 카카오톡 알림 발송 함수 (send-kakao-notification 함수를 HTTP로 호출하여 템플릿 일원화)
+const sendKakaoNotification = async (receiverNum, receiverName, templateCode, variables) => {
+  const baseUrl = process.env.URL || 'https://cnecbiz.com';
 
-    // 변수 치환
-    let content = templateContent;
-    for (const [key, value] of Object.entries(variables)) {
-      content = content.replace(new RegExp(`#\\{${key}\\}`, 'g'), value);
-    }
+  const cleanPhoneNum = receiverNum.replace(/[^0-9]/g, '');
+  console.log(`[sendKakaoNotification] 번호: "${cleanPhoneNum}", 템플릿: ${templateCode}`);
 
-    // 전화번호 형식 정리 (숫자만 남기기: 하이픈, 공백, 괄호 등 모두 제거)
-    const cleanPhoneNum = receiverNum.replace(/[^0-9]/g, '');
+  if (!cleanPhoneNum || cleanPhoneNum.length < 10) {
+    throw new Error(`유효하지 않은 전화번호: ${cleanPhoneNum}`);
+  }
 
-    console.log(`[sendKakaoNotification] 원본 번호: "${receiverNum}" → 정리 후: "${cleanPhoneNum}", 템플릿: ${templateCode}`);
-    console.log(`[sendKakaoNotification] 메시지 내용:`, content);
-
-    // 전화번호 유효성 검사
-    if (!cleanPhoneNum || cleanPhoneNum.length < 10) {
-      console.error(`[sendKakaoNotification] 유효하지 않은 전화번호: "${cleanPhoneNum}" (원본: "${receiverNum}")`);
-      reject(new Error(`유효하지 않은 전화번호: ${cleanPhoneNum}`));
-      return;
-    }
-
-    // sendATS_one 사용 (send-kakao-notification.js와 동일한 방식)
-    kakaoService.sendATS_one(
-      POPBILL_CORP_NUM,
+  const res = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverNum: cleanPhoneNum,
+      receiverName: receiverName || '',
       templateCode,
-      POPBILL_SENDER_NUM,
-      content,
-      content, // altContent (대체 문자)
-      'C', // altSendType: C=동일내용
-      '', // requestNum
-      cleanPhoneNum,
-      receiverName || '',
-      POPBILL_USER_ID,
-      '', // reserveDT (예약시간, 빈값=즉시발송)
-      null, // btns
-      (receiptNum) => {
-        console.log(`[sendKakaoNotification] 알림톡 발송 성공: ${cleanPhoneNum}`, receiptNum);
-        resolve({ receiptNum });
-      },
-      (error) => {
-        console.error(`[sendKakaoNotification] 알림톡 발송 실패: ${cleanPhoneNum}`, error);
-        reject(error);
-      }
-    );
+      variables
+    })
   });
+
+  const result = await res.json();
+  if (!result.success) {
+    throw new Error(result.error || `알림톡 발송 실패 (${templateCode})`);
+  }
+
+  console.log(`[sendKakaoNotification] 알림톡 발송 성공: ${cleanPhoneNum}`, result.receiptNum);
+  return result;
 };
 
 const { checkDuplicate, skipResponse } = require('./lib/scheduler-dedup');
@@ -584,9 +538,10 @@ exports.handler = async (event, context) => {
         // 알림 발송 결과 추적
         let kakaoSent = false;
         let emailSent = false;
+        const isKorea = campaign.region === 'korea';
 
-        // 1. 카카오톡 알림 발송
-        if (companyPhone) {
+        // 1. 카카오톡 알림 발송 (한국만)
+        if (isKorea && companyPhone) {
           try {
             const variables = {
               '회사명': companyName,
@@ -605,11 +560,13 @@ exports.handler = async (event, context) => {
           } catch (kakaoError) {
             console.error(`알림톡 발송 실패: ${companyName}`, kakaoError.message);
           }
+        } else if (!isKorea) {
+          console.log(`${campaign.region} 리전 - 카카오 알림톡 건너뜀 (${companyName})`);
         } else {
           console.log(`전화번호 없음 - 알림톡 발송 생략: ${companyName}`);
         }
 
-        // 2. 이메일 발송
+        // 2. 이메일 발송 (모든 리전)
         if (companyEmail) {
           try {
             const emailResult = await sendEmail(

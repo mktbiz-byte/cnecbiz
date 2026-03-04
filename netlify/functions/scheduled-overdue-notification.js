@@ -7,18 +7,9 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const popbill = require('popbill');
 const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-
-// 팝빌 설정
-const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
-const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY;
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
-const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
-
-const kakaoService = popbill.KakaoService(POPBILL_LINK_ID, POPBILL_SECRET_KEY);
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -114,56 +105,33 @@ const calculateOverdueDays = (deadlineStr) => {
   return diffDays;
 };
 
-// 카카오톡 알림 발송
-const sendKakaoNotification = (receiverNum, receiverName, campaignName, deadline, overdueDays) => {
-  return new Promise((resolve, reject) => {
-    const templateCode = '025100001021';
+// 카카오톡 알림 발송 (send-kakao-notification 함수를 HTTP로 호출하여 템플릿 일원화)
+const sendKakaoNotification = async (receiverNum, receiverName, campaignName, deadline, overdueDays) => {
+  const baseUrl = process.env.URL || 'https://cnecbiz.com';
+  const templateCode = '025100001021';
 
-    const content = `[CNEC] 참여하신 캠페인 제출 기한 지연
-
-${receiverName}님, 참여하신 캠페인의 영상 제출 기한이 지연되었습니다.
-
-캠페인: ${campaignName}
-제출 기한: ${deadline}
-
-패널티예정
-1일 지연시 보상금의 10% 차감
-3일 지연시 보상금의 30% 차감
-5일 지연시 캠페인 취소 및 제품값 배상
-
-빠른 시일 내에 영상을 제출해 주세요.
-추가 지연 시 패널티가 증가합니다.
-
-사유가 있으실 경우 관리자에게 별도 기간 연장 요청을 해주세요.
-특별한 사유 없이 지연 될 경우 패널티 부과 됩니다.
-
-문의: 1833-6025`;
-
-    const altContent = `[CNEC] 영상 제출 ${overdueDays}일 지연 - ${campaignName}. 기간연장 요청은 관리자 카톡 필수. 문의: 1833-6025`;
-
-    kakaoService.sendATS_one(
-      POPBILL_CORP_NUM,
+  const res = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverNum: receiverNum.replace(/-/g, ''),
+      receiverName: receiverName || '',
       templateCode,
-      POPBILL_SENDER_NUM,
-      content,
-      altContent,
-      'A',
-      '',
-      receiverNum.replace(/-/g, ''),
-      receiverName,
-      '',
-      '',
-      null,
-      (receiptNum) => {
-        console.log(`지연 알림톡 발송 성공: ${receiverNum}`, receiptNum);
-        resolve({ receiptNum });
-      },
-      (error) => {
-        console.error(`지연 알림톡 발송 실패: ${receiverNum}`, error);
-        reject(error);
+      variables: {
+        '크리에이터명': receiverName,
+        '캠페인명': campaignName,
+        '제출기한': deadline
       }
-    );
+    })
   });
+
+  const result = await res.json();
+  if (!result.success) {
+    throw new Error(result.error || `지연 알림톡 발송 실패 (${templateCode})`);
+  }
+
+  console.log(`지연 알림톡 발송 성공: ${receiverNum}`, result.receiptNum);
+  return result;
 };
 
 // 지연 경고 이메일 발송

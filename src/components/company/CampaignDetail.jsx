@@ -3592,7 +3592,7 @@ JSON만 출력.`
       await fetchApplications()
       await fetchParticipants()
       
-         // 선정 완료 알림톡 발송
+         // 선정 완료 알림 발송 (리전별)
       let successCount = 0
       for (const app of toAdd) {
         try {
@@ -3615,15 +3615,67 @@ JSON만 출력.`
             profile = profileByUserId
           }
 
-          if (profile?.phone) {
-            await sendCampaignSelectedNotification(
+          if (!profile) {
+            console.error('선정 알림: 크리에이터 프로필 없음', { userId: app.user_id, name: app.applicant_name })
+            continue
+          }
+
+          const creatorName = app.applicant_name || '크리에이터'
+          const campaignName = campaign?.title || '캠페인'
+
+          // 한국: 카카오 알림톡
+          if (region === 'korea' && profile.phone) {
+            const result = await sendCampaignSelectedNotification(
               profile.phone,
-              app.applicant_name,
-              {
-                campaignName: campaign?.title || '캠페인'
-              }
+              creatorName,
+              { campaignName }
             )
-            successCount++
+            if (result?.success === false) {
+              console.error('선정 알림톡 발송 실패 (Popbill 오류):', result)
+            } else {
+              successCount++
+            }
+          }
+
+          // 일본: LINE 메시지
+          if (region === 'japan' && profile.line_user_id) {
+            try {
+              await fetch('/.netlify/functions/send-line-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: profile.line_user_id,
+                  templateType: 'campaign_selected',
+                  templateData: { creatorName, campaignName }
+                })
+              })
+              successCount++
+            } catch (lineErr) {
+              console.error('일본 선정 LINE 알림 실패:', lineErr)
+            }
+          }
+
+          // 미국: 이메일
+          if (region === 'us' && profile.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] Congratulations! You've been selected for ${campaignName}`,
+                  html: `<p>Hi ${creatorName},</p><p>You have been selected for the campaign: <strong>${campaignName}</strong>.</p><p>Please check your creator dashboard for details.</p><p>Contact: 1833-6025</p>`
+                })
+              })
+              successCount++
+            } catch (emailErr) {
+              console.error('미국 선정 이메일 알림 실패:', emailErr)
+            }
+          }
+
+          // 한국: 전화번호 없는 경우 로그
+          if (region === 'korea' && !profile.phone) {
+            console.error('선정 알림: 한국 크리에이터 전화번호 없음', { userId: app.user_id, name: creatorName })
           }
         } catch (notificationError) {
           console.error('Notification error for', app.applicant_name, notificationError)
@@ -5148,6 +5200,13 @@ Questions? Contact us.
           profile = profileByUserId
         }
 
+        if (!profile) {
+          console.error('캠페인 완료 알림: user_profiles 조회 실패', { userId })
+        }
+        if (profile && !profile.phone) {
+          console.error('캠페인 완료 알림: 전화번호 없음', { userId })
+        }
+
         if (profile) {
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
@@ -5157,7 +5216,7 @@ Questions? Contact us.
               const completedDate = new Date().toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
               })
-              await fetch('/.netlify/functions/send-kakao-notification', {
+              const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -5171,7 +5230,12 @@ Questions? Contact us.
                   }
                 })
               })
-              console.log('캠페인 완료 포인트 지급 알림톡 발송 성공')
+              const kakaoResult = await kakaoResponse.json()
+              if (kakaoResult.success) {
+                console.log('캠페인 완료 포인트 지급 알림톡 발송 성공')
+              } else {
+                console.error('캠페인 완료 알림톡 발송 실패 (Popbill 오류):', kakaoResult)
+              }
             } catch (e) {
               console.error('캠페인 완료 포인트 지급 알림톡 발송 실패:', e)
             }
