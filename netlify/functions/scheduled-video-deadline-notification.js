@@ -653,7 +653,7 @@ exports.handler = async (event, context) => {
             // user_profiles에서 크리에이터 정보 조회
             const { data: profile } = await supabase
               .from('user_profiles')
-              .select('name, email, phone')
+              .select('name, email, phone, line_user_id')
               .eq('id', app.user_id)
               .maybeSingle();
 
@@ -662,7 +662,7 @@ exports.handler = async (event, context) => {
             if (!creatorProfile) {
               const { data: profile2 } = await supabase
                 .from('user_profiles')
-                .select('name, email, phone')
+                .select('name, email, phone, line_user_id')
                 .eq('user_id', app.user_id)
                 .maybeSingle();
               creatorProfile = profile2;
@@ -846,7 +846,7 @@ exports.handler = async (event, context) => {
             console.log(`ℹ️ ${campaign.region} 리전 - 카카오 알림톡 건너뜀 (${creatorName})`);
           }
 
-          // 이메일 발송 (한국만)
+          // 이메일/알림 발송 (리전별)
           if (isKorea && creatorEmail) {
             try {
               await sendCreatorEmail(
@@ -861,8 +861,42 @@ exports.handler = async (event, context) => {
             } catch (emailError) {
               console.error(`✗ 이메일 발송 실패: ${creatorName}`, emailError.message);
             }
-          } else if (!isKorea) {
-            console.log(`ℹ️ ${campaign.region} 리전 - 이메일 건너뜀 (${creatorName})`);
+          } else if (campaign.region === 'japan') {
+            try {
+              const baseUrl = process.env.URL || 'https://cnecbiz.com';
+              await fetch(`${baseUrl}/.netlify/functions/send-japan-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'video_deadline_reminder',
+                  lineUserId: creatorProfile?.line_user_id,
+                  email: creatorEmail,
+                  phone: creatorPhone,
+                  data: { creatorName, campaignName, deadline: deadlineFormatted }
+                })
+              });
+              console.log(`✓ 일본 알림 발송 성공: ${creatorName} - ${campaignName}`);
+              emailSent = true;
+            } catch (jpError) {
+              console.error(`✗ 일본 알림 발송 실패: ${creatorName}`, jpError.message);
+            }
+          } else if (campaign.region === 'us') {
+            try {
+              const baseUrl = process.env.URL || 'https://cnecbiz.com';
+              await fetch(`${baseUrl}/.netlify/functions/send-us-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'video_deadline_reminder',
+                  email: creatorEmail,
+                  data: { creatorName, campaignName, deadline: deadlineFormatted }
+                })
+              });
+              console.log(`✓ 미국 알림 발송 성공: ${creatorName} - ${campaignName}`);
+              emailSent = true;
+            } catch (usError) {
+              console.error(`✗ 미국 알림 발송 실패: ${creatorName}`, usError.message);
+            }
           }
 
           // 한국: 발송 결과 기록, 일본/미국: 네이버웍스 보고서용으로 기록
@@ -881,8 +915,8 @@ exports.handler = async (event, context) => {
               emailSent
             });
 
-            // 캠페인별 크리에이터 그룹화 (기업 이메일용 — 한국만)
-            if (isKorea) {
+            // 캠페인별 크리에이터 그룹화 (기업 이메일용 — 전 리전)
+            {
               const campaignId = campaign.id;
               const companyId = campaign.company_id;
               if (!campaignCreatorsMap[campaignId]) {
@@ -960,7 +994,7 @@ exports.handler = async (event, context) => {
       console.log(`  ... 외 ${allResults.length - 20}건`);
     }
 
-    // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송 (한국만)
+    // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송 (전 리전)
     console.log('\n=== 기업 이메일 발송 시작 ===');
 
     // BIZ DB 클라이언트 (기업 정보는 항상 BIZ DB에서 조회)
@@ -971,12 +1005,6 @@ exports.handler = async (event, context) => {
 
     for (const [campaignId, campaignData] of Object.entries(campaignCreatorsMap)) {
       if (campaignData.creators.length === 0) continue;
-
-      // 기업 이메일도 한국만 발송
-      if (campaignData.region !== 'korea') {
-        console.log(`기업 이메일 건너뜀 (${campaignData.region} 리전): ${campaignData.campaignName}`);
-        continue;
-      }
 
       try {
         // BIZ DB companies 테이블에서 기업 정보 조회 (notification_email 우선)

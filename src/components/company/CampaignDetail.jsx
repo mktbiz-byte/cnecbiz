@@ -3623,59 +3623,75 @@ JSON만 출력.`
           const creatorName = app.applicant_name || '크리에이터'
           const campaignName = campaign?.title || '캠페인'
 
-          // 한국: 카카오 알림톡
-          if (region === 'korea' && profile.phone) {
-            const result = await sendCampaignSelectedNotification(
-              profile.phone,
-              creatorName,
-              { campaignName }
-            )
-            if (result?.success === false) {
-              console.error('선정 알림톡 발송 실패 (Popbill 오류):', result)
+          // 한국: 카카오 알림톡 + 이메일
+          if (region === 'korea') {
+            if (profile.phone) {
+              const result = await sendCampaignSelectedNotification(
+                profile.phone,
+                creatorName,
+                { campaignName }
+              )
+              if (result?.success === false) {
+                console.error('선정 알림톡 발송 실패 (Popbill 오류):', result)
+              } else {
+                successCount++
+              }
             } else {
-              successCount++
+              console.error('선정 알림: 한국 크리에이터 전화번호 없음', { userId: app.user_id, name: creatorName })
+            }
+            if (profile.email) {
+              try {
+                await fetch('/.netlify/functions/send-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: profile.email,
+                    subject: `[CNEC] ${campaignName} 캠페인 선정 축하드립니다!`,
+                    html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:30px;border-radius:10px 10px 0 0;text-align:center;"><h1 style="color:#fff;margin:0;font-size:24px;">🎉 캠페인 선정</h1></div><div style="background:#fff;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;"><p style="font-size:16px;color:#333;">${creatorName}님, 축하합니다!</p><p style="font-size:14px;color:#666;">지원하신 <strong>${campaignName}</strong> 캠페인에 선정되셨습니다.</p><p style="font-size:14px;color:#666;">크리에이터 대시보드에서 캠페인 상세 정보를 확인하고 준비를 시작해 주세요.</p><div style="text-align:center;margin:30px 0;"><a href="https://cnec.co.kr/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">대시보드 바로가기</a></div><p style="color:#999;font-size:12px;">문의: 1833-6025</p></div></div>`
+                  })
+                })
+              } catch (emailErr) {
+                console.error('한국 선정 이메일 알림 실패:', emailErr)
+              }
             }
           }
 
-          // 일본: LINE 메시지
-          if (region === 'japan' && profile.line_user_id) {
+          // 일본: send-japan-notification (LINE + SMS + 일본어 이메일)
+          if (region === 'japan') {
             try {
-              await fetch('/.netlify/functions/send-line-message', {
+              await fetch('/.netlify/functions/send-japan-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  userId: profile.line_user_id,
-                  templateType: 'campaign_selected',
-                  templateData: { creatorName, campaignName }
+                  type: 'campaign_selected',
+                  lineUserId: profile.line_user_id,
+                  email: profile.email,
+                  phone: profile.phone,
+                  data: { creatorName, campaignName }
                 })
               })
               successCount++
-            } catch (lineErr) {
-              console.error('일본 선정 LINE 알림 실패:', lineErr)
+            } catch (jpErr) {
+              console.error('일본 선정 알림 실패:', jpErr)
             }
           }
 
-          // 미국: 이메일
-          if (region === 'us' && profile.email) {
+          // 미국: send-us-notification (영어 이메일)
+          if (region === 'us') {
             try {
-              await fetch('/.netlify/functions/send-email', {
+              await fetch('/.netlify/functions/send-us-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  to: profile.email,
-                  subject: `[CNEC] Congratulations! You've been selected for ${campaignName}`,
-                  html: `<p>Hi ${creatorName},</p><p>You have been selected for the campaign: <strong>${campaignName}</strong>.</p><p>Please check your creator dashboard for details.</p><p>Contact: 1833-6025</p>`
+                  type: 'campaign_selected',
+                  email: profile.email,
+                  data: { creatorName, campaignName }
                 })
               })
               successCount++
-            } catch (emailErr) {
-              console.error('미국 선정 이메일 알림 실패:', emailErr)
+            } catch (usErr) {
+              console.error('미국 선정 알림 실패:', usErr)
             }
-          }
-
-          // 한국: 전화번호 없는 경우 로그
-          if (region === 'korea' && !profile.phone) {
-            console.error('선정 알림: 한국 크리에이터 전화번호 없음', { userId: app.user_id, name: creatorName })
           }
         } catch (notificationError) {
           console.error('Notification error for', app.applicant_name, notificationError)
@@ -14242,73 +14258,97 @@ Questions? Contact us.
 
                     if (error) throw error
 
-                    // 팝빌 알림톡 및 이메일 발송 (수정 요청)
+                    // 알림 발송 (수정 요청) - 리전별
                     if (selectedParticipant.user_id) {
                       const { data: profile } = await supabase
                         .from('user_profiles')
-                        .select('phone, email')
+                        .select('phone, email, line_user_id')
                         .eq('id', selectedParticipant.user_id)
                         .maybeSingle()
 
                       const creatorName = selectedParticipant.creator_name || selectedParticipant.applicant_name || '크리에이터'
 
-                      // 알림톡 발송
-                      if (profile?.phone) {
-                        try {
-                          // 재제출 기한: 오늘 + 2일
-                          const resubmitDate = new Date()
-                          resubmitDate.setDate(resubmitDate.getDate() + 2)
-                          const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+                      // 한국: 알림톡 + 이메일
+                      if (region === 'korea') {
+                        if (profile?.phone) {
+                          try {
+                            const resubmitDate = new Date()
+                            resubmitDate.setDate(resubmitDate.getDate() + 2)
+                            const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 
-                          await fetch('/.netlify/functions/send-kakao-notification', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              receiverNum: profile.phone,
-                              receiverName: creatorName,
-                              templateCode: '025100001016',  // 영상 수정 요청 템플릿
-                              variables: {
-                                '크리에이터명': creatorName,
-                                '캠페인명': campaign.title,
-                                '요청일': new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }),
-                                '재제출기한': resubmitDeadline
-                              }
+                            await fetch('/.netlify/functions/send-kakao-notification', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                receiverNum: profile.phone,
+                                receiverName: creatorName,
+                                templateCode: '025100001016',
+                                variables: {
+                                  '크리에이터명': creatorName,
+                                  '캠페인명': campaign.title,
+                                  '요청일': new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }),
+                                  '재제출기한': resubmitDeadline
+                                }
+                              })
                             })
-                          })
-                          console.log('수정 요청 알림톡 발송 성공')
-                        } catch (alimtalkError) {
-                          console.error('수정 요청 알림톡 발송 실패:', alimtalkError)
+                            console.log('수정 요청 알림톡 발송 성공')
+                          } catch (alimtalkError) {
+                            console.error('수정 요청 알림톡 발송 실패:', alimtalkError)
+                          }
+                        }
+                        if (profile?.email) {
+                          try {
+                            await fetch('/.netlify/functions/send-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                to: profile.email,
+                                subject: `[CNEC] 영상 수정 요청 - ${campaign.title}`,
+                                html: `<div style="font-family:'Noto Sans KR',sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#F59E0B;">영상 수정이 요청되었습니다</h2><p>안녕하세요, <strong>${creatorName}</strong>님!</p><p>참여하신 캠페인의 영상에 대해 수정이 요청되었습니다.</p><div style="background:#FEF3C7;padding:15px;border-radius:8px;margin:20px 0;border-left:4px solid #F59E0B;"><p style="margin:5px 0;"><strong>캠페인:</strong> ${campaign.title}</p><p style="margin:10px 0 5px 0;"><strong>수정 요청 내용:</strong></p><p style="margin:5px 0;white-space:pre-wrap;">${revisionComment}</p></div><p>수정 후 다시 제출해 주세요.</p><p style="color:#6B7280;font-size:14px;margin-top:30px;">감사합니다.<br/>CNEC 팀</p></div>`
+                              })
+                            })
+                            console.log('수정 요청 이메일 발송 성공')
+                          } catch (emailError) {
+                            console.error('수정 요청 이메일 발송 실패:', emailError)
+                          }
                         }
                       }
 
-                      // 이메일 발송
-                      if (profile?.email) {
+                      // 일본: send-japan-notification (LINE + SMS + 일본어 이메일)
+                      if (region === 'japan') {
                         try {
-                          await fetch('/.netlify/functions/send-email', {
+                          await fetch('/.netlify/functions/send-japan-notification', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                              to: profile.email,
-                              subject: `[CNEC] 영상 수정 요청 - ${campaign.title}`,
-                              html: `
-                                <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                                  <h2 style="color: #F59E0B;">영상 수정이 요청되었습니다</h2>
-                                  <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                                  <p>참여하신 캠페인의 영상에 대해 수정이 요청되었습니다.</p>
-                                  <div style="background: #FEF3C7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
-                                    <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
-                                    <p style="margin: 10px 0 5px 0;"><strong>수정 요청 내용:</strong></p>
-                                    <p style="margin: 5px 0; white-space: pre-wrap;">${revisionComment}</p>
-                                  </div>
-                                  <p>수정 후 다시 제출해 주세요.</p>
-                                  <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
-                                </div>
-                              `
+                              type: 'video_review_request',
+                              lineUserId: profile?.line_user_id,
+                              email: profile?.email,
+                              phone: profile?.phone,
+                              data: { creatorName, campaignName: campaign.title, feedback: revisionComment }
                             })
                           })
-                          console.log('수정 요청 이메일 발송 성공')
-                        } catch (emailError) {
-                          console.error('수정 요청 이메일 발송 실패:', emailError)
+                          console.log('일본 수정 요청 알림 발송 성공')
+                        } catch (jpErr) {
+                          console.error('일본 수정 요청 알림 실패:', jpErr)
+                        }
+                      }
+
+                      // 미국: send-us-notification (영어 이메일)
+                      if (region === 'us') {
+                        try {
+                          await fetch('/.netlify/functions/send-us-notification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              type: 'video_review_request',
+                              email: profile?.email,
+                              data: { creatorName, campaignName: campaign.title, feedback: revisionComment }
+                            })
+                          })
+                          console.log('미국 수정 요청 알림 발송 성공')
+                        } catch (usErr) {
+                          console.error('미국 수정 요청 알림 실패:', usErr)
                         }
                       }
                     }
