@@ -252,17 +252,17 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       if (data) comp = data
     }
 
-    // 3순위: company_id로 companies.user_id 조회
-    if (!comp && campaignData.company_id) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 4순위: company_id로 companies.id 조회 (legacy fallback)
+    // 3순위: company_id로 companies.id 조회 (직접 매칭 우선)
     if (!comp && campaignData.company_id) {
       const { data } = await supabaseBiz.from('companies')
         .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+      if (data) comp = data
+    }
+
+    // 4순위: company_id로 companies.user_id 조회 (auth user ID fallback)
+    if (!comp && campaignData.company_id) {
+      const { data } = await supabaseBiz.from('companies')
+        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
       if (data) comp = data
     }
 
@@ -978,6 +978,41 @@ exports.handler = async (event) => {
       })
 
       console.log(`[save-video-upload] fetch_video_submissions: ${all.length} total (incl. ${seenFallbackUsers.size} app fallbacks) for campaign ${campaignId}`)
+
+      // applications에서 clean_video_url 병합 (video_submissions에 이미 있는 유저의 클린본)
+      try {
+        const cleanVideoMergeResults = await Promise.all(
+          clients.map(async ({ name, client: c }) => {
+            try {
+              const { data: apps } = await c
+                .from('applications')
+                .select('user_id, clean_video_file_url, clean_video_url')
+                .eq('campaign_id', campaignId)
+              return (apps || []).filter(a => a.user_id && (a.clean_video_file_url || a.clean_video_url))
+            } catch (err) { return [] }
+          })
+        )
+
+        const cleanVideoMap = new Map()
+        cleanVideoMergeResults.flat().forEach(a => {
+          if (!cleanVideoMap.has(a.user_id)) {
+            cleanVideoMap.set(a.user_id, a.clean_video_file_url || a.clean_video_url)
+          }
+        })
+
+        let cleanMergedCount = 0
+        all.forEach(r => {
+          if (!r.clean_video_url && cleanVideoMap.has(r.user_id)) {
+            r.clean_video_url = cleanVideoMap.get(r.user_id)
+            cleanMergedCount++
+          }
+        })
+        if (cleanMergedCount > 0) {
+          console.log(`[save-video-upload] Merged ${cleanMergedCount} clean_video_url(s) from applications`)
+        }
+      } catch (cleanErr) {
+        console.log('[save-video-upload] clean_video_url merge error:', cleanErr.message)
+      }
 
       // sns_uploads 테이블에서 platform_video_url 병합 (SNS 자동 업로드된 URL)
       try {
