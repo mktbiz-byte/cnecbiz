@@ -144,26 +144,35 @@ exports.handler = async (event) => {
     const allFeed = []
     const globalCampaignMap = {}
 
-    // 프로세스 현황 (전체)
+    // 프로세스 현황 (전체) — 캠페인 수 기준
     const process = {
       consulting: companyCount,   // 상담/가입
       campaignCreated: 0,         // 캠페인생성
       pendingPayment: 0,          // 결제대기
       recruiting: 0,              // 모집중
-      pendingSelection: 0,        // 선정대기
-      filming: 0,                 // 촬영중
-      reviewing: 0,               // 수정/검수
-      snsWaiting: 0               // 업로드대기
+      pendingSelection: 0,        // 선정대기 (캠페인 수)
+      filming: 0,                 // 촬영중 (캠페인 수)
+      reviewing: 0,               // 수정/검수 (캠페인 수)
+      snsWaiting: 0               // 업로드대기 (캠페인 수)
     }
 
     // 국가별 상세
     const countryStats = {}
-    // 관리 포인트 (Action Required)
+    // 관리 포인트 (Action Required) — 캠페인 수 기준
     const actionRequired = {
       approvalPending: 0,         // 승인 요청 대기
       selectionDelayed: 0,        // 크리에이터 선정 지연
       reviewDelayed: 0,           // 영상 검수 지연
-      snsDelayed: 0               // SNS 업로드 지연
+      snsDelayed: 0,              // SNS 업로드 지연
+      pointDelayed: 0             // 포인트 지급 지연
+    }
+    // 각 Action Required에 해당하는 캠페인 이름 목록
+    const actionCampaigns = {
+      approval: [],
+      selection: [],
+      review: [],
+      sns: [],
+      point: []
     }
 
     // 오늘 영상 통계
@@ -209,35 +218,69 @@ exports.handler = async (event) => {
         }
       })
 
-      // 프로세스 현황: application 상태별
+      // 프로세스 현황: application → 캠페인 수 기준 (Set으로 중복 제거)
+      const filmingCampaigns = new Set()
+      const reviewingCampaigns = new Set()
+      const snsWaitingCampaigns = new Set()
+      const snsUploadedCampaigns = new Set()  // 포인트 지급 지연용
+
       r.allApps.forEach(a => {
+        if (!activeCampaignIds.has(a.campaign_id)) return
         switch (a.status) {
-          case 'pending':
-            // active 캠페인이고 아직 아무도 선정 안 된 캠페인의 pending만
-            if (activeCampaignIds.has(a.campaign_id) && !campaignsWithSelected.has(a.campaign_id)) {
-              process.pendingSelection++
-            }
-            break
-          case 'selected': case 'filming': process.filming++; break
-          case 'video_submitted': process.reviewing++; break
-          case 'approved': case 'video_approved': process.snsWaiting++; break
-          case 'revision_requested': process.reviewing++; break
+          case 'selected': case 'filming': filmingCampaigns.add(a.campaign_id); break
+          case 'video_submitted': reviewingCampaigns.add(a.campaign_id); break
+          case 'approved': case 'video_approved': snsWaitingCampaigns.add(a.campaign_id); break
+          case 'revision_requested': reviewingCampaigns.add(a.campaign_id); break
+          case 'sns_uploaded': snsUploadedCampaigns.add(a.campaign_id); break
         }
       })
 
-      // 관리 포인트
-      // 승인 대기: 캠페인 status=pending
-      actionRequired.approvalPending += r.allCampaigns.filter(c => c.status === 'pending' || c.status === 'draft').length
-      // 선정 지연: active 캠페인인데 아직 아무도 선정 안 한 캠페인 수
+      // 선정대기: active 캠페인 중 아무도 선정 안 된 + pending 지원자 있는 캠페인 수
       const campaignsNeedSelection = [...activeCampaignIds].filter(id => !campaignsWithSelected.has(id))
       const campaignsWithPendingApplicants = new Set(
         r.allApps.filter(a => a.status === 'pending' && campaignsNeedSelection.includes(a.campaign_id)).map(a => a.campaign_id)
       )
+
+      process.pendingSelection += campaignsWithPendingApplicants.size
+      process.filming += filmingCampaigns.size
+      process.reviewing += reviewingCampaigns.size
+      process.snsWaiting += snsWaitingCampaigns.size
+
+      // 관리 포인트 (캠페인 수 기준)
+      // 승인 대기
+      const approvalCamps = r.allCampaigns.filter(c => c.status === 'pending' || c.status === 'draft')
+      actionRequired.approvalPending += approvalCamps.length
+      approvalCamps.forEach(c => actionCampaigns.approval.push({ title: c.title, id: c.id, region: r.code }))
+
+      // 선정 지연
       actionRequired.selectionDelayed += campaignsWithPendingApplicants.size
-      // 검수 지연: video_submitted 상태 (active 캠페인만)
-      actionRequired.reviewDelayed += r.allApps.filter(a => a.status === 'video_submitted' && activeCampaignIds.has(a.campaign_id)).length
-      // SNS 지연: approved인데 sns_uploaded 아닌 (active 캠페인만)
-      actionRequired.snsDelayed += r.allApps.filter(a => (a.status === 'approved' || a.status === 'video_approved') && activeCampaignIds.has(a.campaign_id)).length
+      campaignsWithPendingApplicants.forEach(id => {
+        const info = r.campaignMap[id]
+        actionCampaigns.selection.push({ title: info?.title || '', id, region: r.code })
+      })
+
+      // 검수 지연 (캠페인 수)
+      const reviewCampSet = new Set(r.allApps.filter(a => a.status === 'video_submitted' && activeCampaignIds.has(a.campaign_id)).map(a => a.campaign_id))
+      actionRequired.reviewDelayed += reviewCampSet.size
+      reviewCampSet.forEach(id => {
+        const info = r.campaignMap[id]
+        actionCampaigns.review.push({ title: info?.title || '', id, region: r.code })
+      })
+
+      // SNS 지연 (캠페인 수)
+      const snsCampSet = new Set(r.allApps.filter(a => (a.status === 'approved' || a.status === 'video_approved') && activeCampaignIds.has(a.campaign_id)).map(a => a.campaign_id))
+      actionRequired.snsDelayed += snsCampSet.size
+      snsCampSet.forEach(id => {
+        const info = r.campaignMap[id]
+        actionCampaigns.sns.push({ title: info?.title || '', id, region: r.code })
+      })
+
+      // 포인트 지급 지연 (SNS 업로드 완료했는데 completed 아닌 캠페인 수)
+      actionRequired.pointDelayed += snsUploadedCampaigns.size
+      snsUploadedCampaigns.forEach(id => {
+        const info = r.campaignMap[id]
+        actionCampaigns.point.push({ title: info?.title || '', id, region: r.code })
+      })
 
       // 피드 생성 (영상)
       r.recentVideos.forEach(v => {
@@ -248,6 +291,7 @@ exports.handler = async (event) => {
           userId: v.user_id,
           creator: '',
           campaign: cInfo?.title || '',
+          campaignId: v.campaign_id,
           campaignType: cInfo?.type || 'planned',
           version: v.version,
           weekNumber: v.week_number,
@@ -265,6 +309,7 @@ exports.handler = async (event) => {
           userId: a.user_id,
           creator: '',
           campaign: cInfo?.title || '',
+          campaignId: a.campaign_id,
           region: r.code
         })
       })
@@ -339,6 +384,7 @@ exports.handler = async (event) => {
         },
         // 관리 포인트 (Action Required)
         actionRequired,
+        actionCampaigns,
         // 전체 프로세스 현황
         process,
         // 국가별 상세
