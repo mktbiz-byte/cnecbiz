@@ -263,7 +263,7 @@ const CreatorMyPage = () => {
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',
-          skipNotification: true,
+          skipNotification: false,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName
@@ -284,29 +284,7 @@ const CreatorMyPage = () => {
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
       }
 
-      // ★ 알림 발송: 별도 함수로 분리 (DB 업데이트와 독립적으로 실행)
-      // 관리자 영상 업로드와 동일한 패턴: 프론트엔드에서 별도 알림 함수 호출
-      const campaignId = selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id || null
-      if (campaignId) {
-        fetch('/.netlify/functions/notify-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId,
-            region: uploadRegion,
-            version: maxVersion,
-            creatorName: hintCreatorName,
-            campaignTitle: hintCampaignTitle,
-            companyName: hintCompanyName,
-            isResubmission: false,
-            videoFileCount: files.length
-          })
-        }).then(r => r.json()).then(r => {
-          console.log('영상 업로드 알림 결과:', r)
-        }).catch(err => {
-          console.error('영상 업로드 알림 실패:', err)
-        })
-      }
+      // 알림은 save-video-upload 내부에서 자동 발송 (skipNotification: false)
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)
