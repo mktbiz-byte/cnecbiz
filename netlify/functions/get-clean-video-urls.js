@@ -40,12 +40,11 @@ exports.handler = async (event) => {
 
     const supabaseKorea = createClient(koreaUrl, koreaKey);
 
-    // applications 테이블에서 clean_video_url 가져오기
+    // applications 테이블에서 clean_video_url 가져오기 (weekN_clean_video_url 포함)
     const { data: applications, error: appError } = await supabaseKorea
       .from('applications')
-      .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status')
-      .eq('campaign_id', campaign_id)
-      .not('clean_video_url', 'is', null);
+      .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, step1_clean_video_url, step2_clean_video_url, sns_upload_url, partnership_code, status, guide_group')
+      .eq('campaign_id', campaign_id);
 
     if (appError) {
       console.error('applications query error:', appError);

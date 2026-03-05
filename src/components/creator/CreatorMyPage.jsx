@@ -263,6 +263,7 @@ const CreatorMyPage = () => {
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',
+          skipNotification: false,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName
@@ -281,23 +282,9 @@ const CreatorMyPage = () => {
           })
           .eq('id', participantId)
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
-
-        // 네이버웍스 알림만 별도로 발송 (Netlify Function 실패 시에도 관리자에게 알림)
-        try {
-          const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          await fetch('/.netlify/functions/send-naver-works-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-              message: `📹 영상 제출 알림 (fallback)\n\n📋 캠페인: ${hintCampaignTitle || '캠페인'}\n👤 크리에이터: ${hintCreatorName || '크리에이터'}\n⏰ ${koreanDate}`
-            })
-          })
-        } catch (notifyErr) {
-          console.error('Fallback 네이버웍스 알림 실패:', notifyErr)
-        }
       }
+
+      // 알림은 save-video-upload 내부에서 자동 발송 (skipNotification: false)
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)

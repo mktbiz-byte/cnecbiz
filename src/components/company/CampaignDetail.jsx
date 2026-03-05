@@ -842,6 +842,37 @@ export default function CampaignDetail() {
     }
   }, [participants, campaign?.status])
 
+  // 4주 챌린지/올영/기획형 캠페인: applications의 weekN_clean_video_url을 video_submissions에 병합
+  useEffect(() => {
+    if (participants.length === 0 || videoSubmissions.length === 0) return
+
+    // weekN_clean_video_url이 있는 참가자가 있는지 확인
+    const hasWeeklyClean = participants.some(p =>
+      p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url
+    )
+    if (!hasWeeklyClean) return
+
+    // 아직 병합 안 된 submission이 있는지 확인 (무한 루프 방지)
+    let needsMerge = false
+    const updatedSubs = videoSubmissions.map(sub => {
+      if (sub.clean_video_url) return sub
+      const participant = participants.find(p => p.user_id === sub.user_id)
+      if (!participant) return sub
+      const weekNum = sub.week_number || sub.video_number || 1
+      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`]
+      if (weekCleanUrl) {
+        needsMerge = true
+        return { ...sub, clean_video_url: weekCleanUrl }
+      }
+      return sub
+    })
+
+    if (needsMerge) {
+      console.log('[weeklyCleanMerge] 주차별 클린본 URL 병합 완료')
+      setVideoSubmissions(updatedSubs)
+    }
+  }, [participants, videoSubmissions])
+
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
@@ -1120,7 +1151,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, sns_upload_url, partnership_code, status, guide_group')
+            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, step1_clean_video_url, step2_clean_video_url, sns_upload_url, partnership_code, status, guide_group')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -1169,12 +1200,19 @@ export default function CampaignDetail() {
             }
             if (koreaApp) {
               matchedKoreaIds.add(koreaApp.id)
-              if (koreaApp.clean_video_url) {
-                console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '->', koreaApp.clean_video_url.substring(0, 50) + '...')
+              const hasWeeklyClean = koreaApp.week1_clean_video_url || koreaApp.week2_clean_video_url || koreaApp.week3_clean_video_url || koreaApp.week4_clean_video_url || koreaApp.step1_clean_video_url || koreaApp.step2_clean_video_url
+              if (koreaApp.clean_video_url || hasWeeklyClean) {
+                console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '- clean_video_url:', !!koreaApp.clean_video_url, 'weekly:', !!hasWeeklyClean)
               }
               return {
                 ...participant,
                 clean_video_url: koreaApp.clean_video_url || participant.clean_video_url,
+                week1_clean_video_url: koreaApp.week1_clean_video_url || participant.week1_clean_video_url,
+                week2_clean_video_url: koreaApp.week2_clean_video_url || participant.week2_clean_video_url,
+                week3_clean_video_url: koreaApp.week3_clean_video_url || participant.week3_clean_video_url,
+                week4_clean_video_url: koreaApp.week4_clean_video_url || participant.week4_clean_video_url,
+                step1_clean_video_url: koreaApp.step1_clean_video_url || participant.step1_clean_video_url,
+                step2_clean_video_url: koreaApp.step2_clean_video_url || participant.step2_clean_video_url,
                 sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
                 partnership_code: koreaApp.partnership_code || participant.partnership_code,
                 guide_group: koreaApp.guide_group || participant.guide_group
@@ -5696,7 +5734,7 @@ Questions? Contact us.
         setAdminSnsEditData({})
         await fetchParticipants()
 
-        // 기업에게 SNS 업로드 완료 알림 발송 (중복 방지)
+        // 기업에게 SNS 업로드 완료 알림 발송 (서버사이드 — RLS 우회)
         const notifKey1 = `${adminSnsEditData.participantId}_multi`
         const lastSent1 = lastSnsCompanyNotifRef.current[notifKey1]
         if (lastSent1 && Date.now() - lastSent1 < 180000) {
@@ -5707,87 +5745,21 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회 (BIZ DB — 5단계 우선순위)
-          const selectFields = 'notification_email, notification_phone, email, phone, company_name'
-          let companyData = null
-          // 1순위: company_biz_id → companies.id
-          if (campaign?.company_biz_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_biz_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 2순위: company_id → companies.id (직접 매칭 우선)
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 3순위: company_id → companies.user_id (auth user ID 매칭)
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 4순위: company_email → companies.email
-          if (!companyData && campaign?.company_email) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
-            if (data) companyData = data
-          }
-
-          const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
-          const companyNotifyEmail = companyData?.notification_email || companyData?.email
-
-          if (companyNotifyPhone) {
-            // 카카오톡 알림
-            await fetch('/.netlify/functions/send-kakao-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                receiverNum: companyNotifyPhone.replace(/-/g, ''),
-                receiverName: companyData.company_name || '담당자',
-                templateCode: '025100001009',
-                variables: {
-                  '회사명': companyData.company_name || '담당자',
-                  '캠페인명': campaign?.title || '캠페인'
-                }
-              })
-            })
-            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
-          }
-
-          if (companyNotifyEmail) {
-            // 이메일 알림
-            await fetch('/.netlify/functions/send-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: companyNotifyEmail,
-                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
-                html: `
-                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
-                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
-                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
-                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
-                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
-                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
-                    </div>
-                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
-                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
-                  </div>
-                `
-              })
-            })
-            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
-          }
-
-          // 네이버 웍스 알림
-          await fetch('/.netlify/functions/send-naver-works-message', {
+          const notifRes = await fetch('/.netlify/functions/notify-sns-upload-complete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-              message: `[SNS 업로드 완료 - 멀티비디오]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+              campaignId: id,
+              region: campaign?.target_country === 'jp' ? 'japan' : campaign?.target_country === 'us' ? 'us' : 'korea',
+              creatorName,
+              campaignTitle: campaign?.title,
+              companyBizId: campaign?.company_biz_id,
+              companyId: campaign?.company_id,
+              companyEmail: campaign?.company_email
             })
           })
+          const notifResult = await notifRes.json()
+          console.log('✓ SNS 업로드 완료 기업 알림 발송:', notifResult)
         } catch (notifyError) {
           console.error('기업 알림 발송 실패:', notifyError)
         }
@@ -5853,7 +5825,7 @@ Questions? Contact us.
         await fetchVideoSubmissions()
         await fetchParticipants()
 
-        // 기업에게 SNS 업로드 완료 알림 발송 (중복 방지)
+        // 기업에게 SNS 업로드 완료 알림 발송 (서버사이드 — RLS 우회)
         const notifKey2 = `${adminSnsEditData.participantId}_edit`
         const lastSent2 = lastSnsCompanyNotifRef.current[notifKey2]
         if (lastSent2 && Date.now() - lastSent2 < 180000) {
@@ -5864,87 +5836,21 @@ Questions? Contact us.
           const participant = participants.find(p => p.id === adminSnsEditData.participantId)
           const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
 
-          // 기업 정보 조회 (BIZ DB — 5단계 우선순위)
-          const selectFields2 = 'notification_email, notification_phone, email, phone, company_name'
-          let companyData = null
-          // 1순위: company_biz_id → companies.id
-          if (campaign?.company_biz_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_biz_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 2순위: company_id → companies.id (직접 매칭 우선)
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 3순위: company_id → companies.user_id (auth user ID 매칭)
-          if (!companyData && campaign?.company_id) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('user_id', campaign.company_id).maybeSingle()
-            if (data) companyData = data
-          }
-          // 4순위: company_email → companies.email
-          if (!companyData && campaign?.company_email) {
-            const { data } = await supabaseBiz.from('companies').select(selectFields2).eq('email', campaign.company_email).maybeSingle()
-            if (data) companyData = data
-          }
-
-          const companyNotifyPhone = companyData?.notification_phone || companyData?.phone
-          const companyNotifyEmail = companyData?.notification_email || companyData?.email
-
-          if (companyNotifyPhone) {
-            // 카카오톡 알림
-            await fetch('/.netlify/functions/send-kakao-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                receiverNum: companyNotifyPhone.replace(/-/g, ''),
-                receiverName: companyData.company_name || '담당자',
-                templateCode: '025100001009',
-                variables: {
-                  '회사명': companyData.company_name || '담당자',
-                  '캠페인명': campaign?.title || '캠페인'
-                }
-              })
-            })
-            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
-          }
-
-          if (companyNotifyEmail) {
-            // 이메일 알림
-            await fetch('/.netlify/functions/send-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: companyNotifyEmail,
-                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
-                html: `
-                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
-                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
-                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
-                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
-                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
-                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
-                    </div>
-                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
-                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
-                  </div>
-                `
-              })
-            })
-            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
-          }
-
-          // 네이버 웍스 알림
-          await fetch('/.netlify/functions/send-naver-works-message', {
+          const notifRes = await fetch('/.netlify/functions/notify-sns-upload-complete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-              message: `[SNS 업로드 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+              campaignId: id,
+              region: campaign?.target_country === 'jp' ? 'japan' : campaign?.target_country === 'us' ? 'us' : 'korea',
+              creatorName,
+              campaignTitle: campaign?.title,
+              companyBizId: campaign?.company_biz_id,
+              companyId: campaign?.company_id,
+              companyEmail: campaign?.company_email
             })
           })
+          const notifResult = await notifRes.json()
+          console.log('✓ SNS 업로드 완료 기업 알림 발송:', notifResult)
         } catch (notifyError) {
           console.error('기업 알림 발송 실패:', notifyError)
         }
@@ -6275,6 +6181,35 @@ Questions? Contact us.
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
 
+      // 한국 크리에이터 선정 알림 발송 (알림톡 + 이메일 + 네이버웍스)
+      if (region === 'korea') {
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
+            const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+            const pName = participant.applicant_name || participant.creator_name || '크리에이터'
+            try {
+              await fetch('/.netlify/functions/dispatch-campaign-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventType: 'creator_selected',
+                  creatorName: pName,
+                  creatorPhone: pPhone,
+                  creatorEmail: pEmail,
+                  campaignTitle: campaign?.title || '캠페인',
+                  campaignId: id
+                })
+              })
+            } catch (notifError) {
+              console.error('[Korea] Selection notification error:', notifError.message)
+            }
+          }
+        }
+      }
+
       // 일본 크리에이터 선정 알림 발송 (LINE + SMS + Email + LINE 초대)
       if (region === 'japan') {
         alert('일본 크리에이터에게 선정 알림을 발송합니다...')
@@ -6588,7 +6523,8 @@ Questions? Contact us.
                 action: 'update_participant',
                 participantId: userId,
                 videoFiles: [...existingFiles, newVideoFile],
-                videoStatus: 'uploaded'
+                videoStatus: 'uploaded',
+                skipNotification: true
               })
             })
             console.log('campaign_participants video_files 업데이트 완료 (v' + version + ')')
@@ -6598,85 +6534,27 @@ Questions? Contact us.
         }
       }
 
-      // 기업에게 알림톡 발송 (영상 제출 알림)
+      // 기업에게 알림톡 발송 (영상 제출 알림 — 서버사이드로 처리하여 RLS 우회)
       const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
       try {
-        // 기업 전화번호 조회 (BIZ DB에서만 조회 - companies 테이블은 BIZ DB에만 존재)
-        // 한국 캠페인: company_id = auth user ID (companies.id가 아님!), company_biz_id = BIZ DB companies.id
-        let companyPhone = null
-        let companyDisplayName = campaign?.brand_name || campaign?.brand || '기업'
-        const selectFields = 'notification_phone, phone, company_name'
-
-        // 1순위: company_biz_id로 BIZ DB 조회 (한국 캠페인 - companies.id와 정확히 매칭)
-        if (campaign?.company_biz_id) {
-          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_biz_id).maybeSingle()
-          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
-        }
-
-        // 2순위: company_id로 BIZ DB id 조회 (직접 매칭 우선)
-        if (!companyPhone && campaign?.company_id) {
-          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', campaign.company_id).maybeSingle()
-          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
-        }
-
-        // 3순위: company_email로 BIZ DB 조회
-        if (!companyPhone && campaign?.company_email) {
-          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', campaign.company_email).maybeSingle()
-          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
-        }
-
-        // 4순위: company_id로 BIZ DB user_id 조회 (company_id = auth user ID)
-        if (!companyPhone && campaign?.company_id) {
-          const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', campaign.company_id).maybeSingle()
-          if (data) { companyPhone = data.notification_phone || data.phone; companyDisplayName = data.company_name || companyDisplayName }
-        }
-
-        // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
-        if (!companyPhone && campaign?.company_phone) {
-          companyPhone = campaign.company_phone
-        }
-
-        console.log('기업 전화번호 조회 결과:', { companyPhone, companyDisplayName, company_biz_id: campaign?.company_biz_id, company_email: campaign?.company_email, company_id: campaign?.company_id })
-
-        if (companyPhone) {
-          await fetch('/.netlify/functions/send-kakao-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              receiverNum: companyPhone.replace(/-/g, ''),
-              receiverName: companyDisplayName,
-              templateCode: '025100001008',
-              variables: {
-                '회사명': companyDisplayName,
-                '캠페인명': campaign?.title || '',
-                '크리에이터명': creatorName
-              }
-            })
+        const notifRes = await fetch('/.netlify/functions/notify-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: id,
+            region: campaign?.target_country === 'jp' ? 'japan' : campaign?.target_country === 'us' ? 'us' : 'korea',
+            version: version,
+            creatorName: creatorName,
+            campaignTitle: campaign?.title || '',
+            companyName: campaign?.brand_name || campaign?.brand || '기업',
+            isResubmission: false,
+            videoFileCount: 1
           })
-          console.log('영상 제출 알림톡 발송 완료:', creatorName)
-        } else {
-          console.warn('기업 전화번호를 찾을 수 없어 알림톡 스킵')
-        }
-
-        // 네이버 웍스 알림 (프론트엔드에서 직접 호출 — 서버사이드 간접 호출 불안정 대체)
-        const koreanDate = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-        const naverWorksMsg = `📹 영상 제출 알림\n\n📋 캠페인: ${campaign?.title || ''}\n🏢 기업: ${companyDisplayName}\n👤 크리에이터: ${creatorName}\n📌 버전: V${version}\n⏰ 제출 시간: ${koreanDate}`
-        try {
-          await fetch('/.netlify/functions/send-naver-works-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-              message: naverWorksMsg
-            })
-          })
-          console.log('영상 제출 네이버웍스 알림 발송 완료:', creatorName)
-        } catch (nwErr) {
-          console.error('네이버웍스 알림 발송 실패:', nwErr)
-        }
+        })
+        const notifResult = await notifRes.json()
+        console.log('영상 제출 알림 발송 완료 (서버사이드):', notifResult)
       } catch (notifErr) {
-        console.error('알림톡 발송 실패:', notifErr)
+        console.error('알림 발송 실패:', notifErr)
       }
 
       alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
@@ -11242,8 +11120,8 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
-                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                    if (p.clean_video_url) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
                     return false
                   })
 
@@ -11344,8 +11222,8 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && v.clean_video_url
                     )
                     if (hasCleanVideo) return true
-                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                    if (p.clean_video_url) return true
+                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
                     return false
                   })
 
@@ -11685,7 +11563,12 @@ Questions? Contact us.
                                     // video_submissions의 클린본 + applications 테이블의 클린본 합산
                                     const submissionCleanVideos = creatorSubmissions.filter(s => s.clean_video_url)
                                     const hasParticipantClean = participant.clean_video_url && !submissionCleanVideos.some(s => s.clean_video_url === participant.clean_video_url)
-                                    const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0)
+                                    // step1/step2 클린본 (올영 캠페인용)
+                                    const stepCleanVideos = [
+                                      participant.step1_clean_video_url && { url: participant.step1_clean_video_url, label: 'Step 1', stepNum: 1 },
+                                      participant.step2_clean_video_url && { url: participant.step2_clean_video_url, label: 'Step 2', stepNum: 2 }
+                                    ].filter(Boolean).filter(s => !submissionCleanVideos.some(sv => sv.clean_video_url === s.url))
+                                    const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0) + stepCleanVideos.length
 
                                     return (
                                       <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
@@ -11782,6 +11665,44 @@ Questions? Contact us.
                                               </div>
                                             </div>
                                           )}
+                                          {/* step 클린본 (올영 캠페인) */}
+                                          {stepCleanVideos.map((stepClean) => (
+                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">{stepClean.label} 클린본</span>
+                                                    <Badge variant="outline" className="text-xs bg-emerald-100">SNS 업로드용</Badge>
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(stepClean.url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}_${stepClean.label}_클린본.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(stepClean.url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ))}
                                           {totalCleanCount === 0 && (
                                             <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
                                           )}
@@ -12360,8 +12281,8 @@ Questions? Contact us.
                                     const allUserVideos = videoSubmissions.filter(sub => sub.user_id === participant.user_id)
                                     const videosWithFile = allUserVideos.filter(sub => sub.video_file_url)
                                     const videosWithClean = allUserVideos.filter(sub => sub.clean_video_url)
-                                    // applications 테이블에 직접 저장된 clean_video_url도 체크
-                                    const hasParticipantClean = !!participant.clean_video_url
+                                    // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
+                                    const hasParticipantClean = !!(participant.clean_video_url || participant.week1_clean_video_url || participant.week2_clean_video_url || participant.week3_clean_video_url || participant.week4_clean_video_url)
                                     const hasAnyVideo = videosWithFile.length > 0 || videosWithClean.length > 0 || hasParticipantClean
                                     const hasSnsOrCode = participant.sns_upload_url || participant.partnership_code
 
@@ -14236,7 +14157,7 @@ Questions? Contact us.
 
                     if (phone) {
                       try {
-                        await fetch('/.netlify/functions/send-kakao-notification', {
+                        const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
@@ -14254,8 +14175,6 @@ Questions? Contact us.
                         console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
                         if (!kakaoResponse.ok || !kakaoResult.success) {
                           console.error('알림톡 발송 실패 응답:', kakaoResult)
-                          const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
-                          console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
                         }
                       } catch (kakaoError) {
                         console.error('알림톡 발송 실패:', kakaoError)
@@ -14290,6 +14209,21 @@ Questions? Contact us.
                       } catch (emailError) {
                         console.error('영상 승인 이메일 발송 실패:', emailError)
                       }
+                    }
+
+                    // 네이버 웍스 알림 (검수 완료)
+                    try {
+                      await fetch('/.netlify/functions/send-naver-works-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          isAdminNotification: true,
+                          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                          message: `[영상 검수 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n업로드 기한: ${uploadDeadline}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                        })
+                      })
+                    } catch (worksError) {
+                      console.error('네이버 웍스 알림 발송 실패:', worksError)
                     }
 
                     alert('영상이 승인되었습니다!')
@@ -14422,6 +14356,21 @@ Questions? Contact us.
                         } catch (usErr) {
                           console.error('미국 수정 요청 알림 실패:', usErr)
                         }
+                      }
+
+                      // 네이버 웍스 알림 (수정 요청)
+                      try {
+                        await fetch('/.netlify/functions/send-naver-works-message', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            isAdminNotification: true,
+                            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                            message: `[영상 수정 요청]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n수정 내용: ${revisionComment.substring(0, 100)}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                          })
+                        })
+                      } catch (worksError) {
+                        console.error('네이버 웍스 알림 발송 실패:', worksError)
                       }
                     }
 

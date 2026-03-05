@@ -10,9 +10,13 @@
 [functions."check-data-sync"]
   timeout = 60
 
-# 영상 업로드 - 알림 발송(네이버웍스+카카오+이메일) 포함으로 타임아웃 연장
+# 영상 업로드 - DB 업데이트 전용 (알림은 notify-video-upload로 분리)
 [functions."save-video-upload"]
   timeout = 30
+
+# 영상 업로드 알림 전용 (네이버웍스+카카오+이메일)
+[functions."notify-video-upload"]
+  timeout = 20
 
 [functions."webhook-video-submission"]
   timeout = 30

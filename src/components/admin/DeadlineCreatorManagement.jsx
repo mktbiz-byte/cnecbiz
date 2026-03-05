@@ -632,6 +632,14 @@ export default function DeadlineCreatorManagement() {
             className="whitespace-nowrap"
             onClick={() => navigate('/admin/campaigns')}
           >
+            대시보드
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="whitespace-nowrap"
+            onClick={() => navigate('/admin/campaigns')}
+          >
             📋 전체 캠페인
           </Button>
           <Button
@@ -648,6 +656,14 @@ export default function DeadlineCreatorManagement() {
             onClick={() => navigate('/admin/campaigns/unpaid')}
           >
             💰 포인트 미지급
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="whitespace-nowrap"
+            onClick={() => navigate('/admin/campaigns/dummy')}
+          >
+            🧪 더미 캠페인
           </Button>
           <div className="flex-1" />
           <Button

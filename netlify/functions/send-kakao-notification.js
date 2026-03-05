@@ -1,5 +1,25 @@
 // 팝빌 설정
 const popbill = require('popbill');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseBizLog = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function logNotification(status, recipient, messagePreview, errorMessage, metadata) {
+  try {
+    await supabaseBizLog.from('notification_send_logs').insert({
+      channel: 'kakao',
+      status,
+      function_name: 'send-kakao-notification',
+      recipient: recipient || null,
+      message_preview: messagePreview ? messagePreview.substring(0, 200) : null,
+      error_message: errorMessage || null,
+      metadata: metadata || {}
+    });
+  } catch (e) { console.error('[logNotification] failed:', e.message); }
+}
 
 const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
 const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
@@ -432,6 +452,9 @@ exports.handler = async (event) => {
       );
     });
 
+    // 성공 로그
+    await logNotification('success', receiverNum, message, null, { templateCode, receiptNum });
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -443,6 +466,12 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[ERROR] Kakao notification error:', error);
+
+    // 실패 로그
+    try {
+      const { receiverNum: rn, templateCode: tc } = JSON.parse(event.body || '{}');
+      await logNotification('failed', rn, null, error.message || error.code, { templateCode: tc });
+    } catch (logErr) { /* skip */ }
 
     // 팝빌 에러 코드 해석
     const errorCodeMessages = {

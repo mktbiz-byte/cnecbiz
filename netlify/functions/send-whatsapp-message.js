@@ -106,8 +106,8 @@ exports.handler = async (event) => {
   // Twilio 환경변수 확인
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  // WhatsApp 번호: 직접 설정하거나 Twilio Sandbox 번호 사용
-  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
+  // WhatsApp 번호: 환경변수 또는 프로덕션 번호 사용
+  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+13203078933';
 
   if (!accountSid || !authToken) {
     return {
@@ -195,6 +195,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[WhatsApp] Error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-whatsapp-message',
+          errorMessage: error.message,
+          context: { phoneNumber: body?.phoneNumber }
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
     return {
       statusCode: 500,
       headers,

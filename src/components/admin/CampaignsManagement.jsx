@@ -261,6 +261,7 @@ export default function CampaignsManagement() {
 
   // 대시보드/리스트 뷰 모드
   const [viewMode, setViewMode] = useState('list') // 'dashboard' | 'list'
+  const [dashboardRegion, setDashboardRegion] = useState('all')
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(null)
 
   // 캠페인 번호 부여 관련 상태
@@ -327,7 +328,7 @@ export default function CampaignsManagement() {
     try {
       const { data, error } = await supabaseBiz
         .from('companies')
-        .select('id, user_id, email, company_name, notification_phone, notification_email')
+        .select('id, user_id, email, company_name, notification_phone, notification_email, phone')
 
       if (error || !data) return
 
@@ -343,23 +344,36 @@ export default function CampaignsManagement() {
     }
   }
 
-  // 캠페인에서 기업명 조회 헬퍼
-  const getCompanyName = useCallback((campaign) => {
+  // 캠페인에서 기업 데이터 조회 헬퍼 (올바른 우선순위)
+  const getCompanyData = useCallback((campaign) => {
     if (!campaign) return null
-    // company_id로 조회 (id 또는 user_id 모두 시도)
-    if (campaign.company_id) {
-      const byId = companyNameMap[`id:${campaign.company_id}`]
-      if (byId) return byId.company_name
-      const byUid = companyNameMap[`uid:${campaign.company_id}`]
-      if (byUid) return byUid.company_name
+    // 1순위: company_biz_id → companies.id (가장 정확)
+    if (campaign.company_biz_id) {
+      const byBiz = companyNameMap[`id:${campaign.company_biz_id}`]
+      if (byBiz) return byBiz
     }
-    // company_email로 조회
+    // 2순위: company_id → companies.user_id (auth user ID 매칭)
+    if (campaign.company_id) {
+      const byUid = companyNameMap[`uid:${campaign.company_id}`]
+      if (byUid) return byUid
+    }
+    // 3순위: company_email → companies.email
     if (campaign.company_email) {
       const byEmail = companyNameMap[`email:${campaign.company_email}`]
-      if (byEmail) return byEmail.company_name
+      if (byEmail) return byEmail
+    }
+    // 4순위: company_id → companies.id (이관 등으로 company_id가 companies.id인 경우)
+    if (campaign.company_id) {
+      const byId = companyNameMap[`id:${campaign.company_id}`]
+      if (byId) return byId
     }
     return null
   }, [companyNameMap])
+
+  // 캠페인에서 기업명 조회 헬퍼
+  const getCompanyName = useCallback((campaign) => {
+    return getCompanyData(campaign)?.company_name || null
+  }, [getCompanyData])
 
   const fetchCampaigns = async (withStats = false) => {
     setLoading(true)
@@ -557,30 +571,30 @@ export default function CampaignsManagement() {
 
   // 입금요청 발송 (알림톡 025100000918 + 이메일)
   const handlePaymentRequest = async (campaign) => {
-    const companyName = getCompanyName(campaign) || campaign.company_name || '기업'
     const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
     const amount = campaign.estimated_cost || campaign.budget || 0
 
-    if (!confirm(`입금요청 알림을 발송하시겠습니까?\n\n기업: ${companyName}\n캠페인: ${campaignTitle}\n금액: ${amount.toLocaleString()}원\n\n알림톡 + 이메일이 발송됩니다.`)) return
+    // getCompanyData로 기업 정보 조회 (올바른 우선순위: company_biz_id → user_id → email)
+    const companyData = getCompanyData(campaign)
+
+    if (!companyData) {
+      alert('기업 정보를 찾을 수 없습니다.\n\n캠페인에 연결된 기업이 companies 테이블에 없습니다.\n기업을 먼저 등록하거나 캠페인에 기업을 연결해 주세요.')
+      return
+    }
+
+    const phone = companyData.notification_phone || companyData.phone || ''
+    const email = companyData.notification_email || companyData.email || ''
+    const displayName = companyData.company_name || '기업'
+
+    if (!phone && !email) {
+      alert(`기업 "${displayName}"의 연락처(전화번호/이메일)가 등록되어 있지 않습니다.\n\n기업 정보를 먼저 수정해 주세요.`)
+      return
+    }
+
+    if (!confirm(`입금요청 알림을 발송하시겠습니까?\n\n기업: ${displayName}\n캠페인: ${campaignTitle}\n금액: ${amount.toLocaleString()}원\n\n발송 대상:\n${phone ? '알림톡: ' + phone : '알림톡: 번호 없음 (미발송)'}\n${email ? '이메일: ' + email : '이메일: 주소 없음 (미발송)'}`)) return
 
     setSendingPaymentRequest(campaign.id)
     try {
-      // 기업 정보 조회
-      let companyData = null
-      if (campaign.company_id) {
-        const byId = companyNameMap[`id:${campaign.company_id}`]
-        const byUid = companyNameMap[`uid:${campaign.company_id}`]
-        companyData = byId || byUid
-      }
-      if (!companyData && campaign.company_email) {
-        const byEmail = companyNameMap[`email:${campaign.company_email}`]
-        companyData = byEmail
-      }
-
-      const phone = companyData?.notification_phone || companyData?.phone || ''
-      const email = companyData?.notification_email || companyData?.email || campaign.company_email || ''
-      const displayName = companyData?.company_name || companyName
-
       // 1. 알림톡 발송 (025100000918)
       if (phone) {
         try {
@@ -598,7 +612,6 @@ export default function CampaignsManagement() {
               }
             })
           })
-          console.log('입금요청 알림톡 발송 완료:', displayName)
         } catch (kakaoErr) {
           console.error('입금요청 알림톡 발송 실패:', kakaoErr)
         }
@@ -643,13 +656,12 @@ export default function CampaignsManagement() {
               `
             })
           })
-          console.log('입금요청 이메일 발송 완료:', email)
         } catch (emailErr) {
           console.error('입금요청 이메일 발송 실패:', emailErr)
         }
       }
 
-      alert(`입금요청 발송 완료!\n${phone ? '알림톡: ' + phone : '알림톡: 번호 없음'}\n${email ? '이메일: ' + email : '이메일: 주소 없음'}`)
+      alert(`입금요청 발송 완료!\n\n기업: ${displayName}\n${phone ? '알림톡: ' + phone : ''}\n${email ? '이메일: ' + email : ''}`)
     } catch (error) {
       alert('입금요청 발송 실패: ' + error.message)
     } finally {
@@ -826,27 +838,25 @@ export default function CampaignsManagement() {
       const supabaseClient = getSupabaseClient(transferCampaign.region || 'korea')
 
       // 1. 타겟 이메일의 company 정보 조회
-      // 일본(Japan)은 지역 DB에 companies 테이블이 없으므로 바로 BIZ DB에서 조회
       const campaignRegion = transferCampaign.region || 'korea'
-      let targetCompanyId = null
-      let targetUserId = null
+      let targetBizCompanyId = null  // BIZ DB companies.id (company_biz_id용)
+      let targetUserId = null        // auth user_id (company_id용)
 
-      // 일본 캠페인은 companies 테이블이 없으므로 BIZ DB에서만 조회
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        console.log('일본 캠페인: BIZ DB에서 기업 정보 조회')
-        const { data: bizCompany } = await supabaseBiz
-          .from('companies')
-          .select('id, user_id, email')
-          .eq('email', transferEmail)
-          .maybeSingle()
+      // 항상 BIZ DB에서 기업 정보 조회 (company_biz_id 및 기업명 매핑용)
+      const { data: bizCompany } = await supabaseBiz
+        .from('companies')
+        .select('id, user_id, email')
+        .eq('email', transferEmail)
+        .maybeSingle()
 
-        if (bizCompany) {
-          targetCompanyId = bizCompany.id
-          targetUserId = bizCompany.user_id
-          console.log('BIZ DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-        }
-      } else {
-        // Korea, US 등은 먼저 지역 DB의 companies 테이블에서 조회
+      if (bizCompany) {
+        targetBizCompanyId = bizCompany.id
+        targetUserId = bizCompany.user_id
+        console.log('BIZ DB에서 기업 정보 찾음:', { targetBizCompanyId, targetUserId })
+      }
+
+      // 지역 DB에서도 user_id 조회 (BIZ에서 못 찾은 경우)
+      if (!targetUserId && campaignRegion !== 'japan' && campaignRegion !== 'jp') {
         const { data: regionalCompany } = await supabaseClient
           .from('companies')
           .select('id, user_id, email')
@@ -854,87 +864,66 @@ export default function CampaignsManagement() {
           .maybeSingle()
 
         if (regionalCompany) {
-          targetCompanyId = regionalCompany.id
           targetUserId = regionalCompany.user_id
-          console.log('지역 DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-        }
-
-        // 지역 DB에 없으면 supabaseBiz에서 조회
-        if (!targetCompanyId) {
-          const { data: bizCompany } = await supabaseBiz
-            .from('companies')
-            .select('id, user_id, email')
-            .eq('email', transferEmail)
-            .maybeSingle()
-
-          if (bizCompany) {
-            targetCompanyId = bizCompany.id
-            targetUserId = bizCompany.user_id
-            console.log('Biz DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-          }
+          if (!targetBizCompanyId) targetBizCompanyId = regionalCompany.id
+          console.log('지역 DB에서 기업 정보 찾음:', { targetUserId })
         }
       }
 
-      // 2. 캠페인 소유권 이관 - 지역별 스키마 차이 고려
+      // 2. 캠페인 소유권 이관 - company_id는 auth user_id, company_biz_id는 BIZ DB companies.id
       const updateData = {
         updated_at: new Date().toISOString()
       }
 
-      // US 캠페인은 company_email 컬럼이 없음
+      // company_email 업데이트 (US 캠페인은 company_email 컬럼이 없을 수 있음)
       if (campaignRegion !== 'us') {
         updateData.company_email = transferEmail
       }
 
-      // company_id 업데이트 - 지역별로 다르게 처리
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        // 일본: company_email만 사용 (company_id는 사용하지 않음)
-        // MyCampaigns에서 company_email로 조회하므로 company_id 업데이트 불필요
-        console.log('일본: company_email만 업데이트 (company_id 사용 안함)')
-      } else if (campaignRegion === 'us') {
-        // US 캠페인은 BIZ Auth의 user_id를 company_id로 사용
-        if (targetUserId) {
-          updateData.company_id = targetUserId
-          console.log('US: BIZ Auth user_id로 이관:', targetUserId)
-        } else {
-          // BIZ companies에서 못 찾으면, 지역 companies에서 user_id 시도
-          if (!targetCompanyId) {
-            const { data: regionalCompanyByUserId } = await supabaseClient
-              .from('companies')
-              .select('user_id')
-              .eq('email', transferEmail)
-              .maybeSingle()
-
-            if (regionalCompanyByUserId?.user_id) {
-              updateData.company_id = regionalCompanyByUserId.user_id
-              console.log('US: 지역 DB에서 user_id로 이관:', regionalCompanyByUserId.user_id)
-            } else {
-              updateData.company_id = null
-              console.warn('US: BIZ Auth user_id를 찾을 수 없어 null로 설정합니다. 이관 대상 이메일로 기업 등록이 필요합니다.')
-            }
-          } else {
-            // targetCompanyId는 있지만 targetUserId가 없는 경우
-            updateData.company_id = null
-            console.warn('US: user_id를 찾을 수 없어 null로 설정합니다.')
-          }
-        }
-      } else {
-        // Korea 등은 company_id와 company_email 모두 사용
-        if (targetCompanyId) {
-          updateData.company_id = targetCompanyId
-          console.log('Korea: company_id 업데이트:', targetCompanyId)
-        } else {
-          // company_id를 찾지 못한 경우에도 null로 설정하여 이전 소유자 연결 끊기
-          updateData.company_id = null
-          console.warn('타겟 company_id를 찾을 수 없어 null로 설정합니다.')
-        }
+      // company_id = auth user_id (모든 지역 공통)
+      if (targetUserId) {
+        updateData.company_id = targetUserId
+        console.log('company_id (auth user_id) 업데이트:', targetUserId)
+      } else if (campaignRegion !== 'japan' && campaignRegion !== 'jp') {
+        // user_id를 못 찾은 경우 이전 소유자 연결 끊기
+        updateData.company_id = null
+        console.warn('타겟 user_id를 찾을 수 없어 company_id를 null로 설정')
       }
 
-      const { error: campaignError } = await supabaseClient
+      // company_biz_id = BIZ DB companies.id (기업명 매핑용, 컬럼 있는 경우만)
+      if (targetBizCompanyId && campaignRegion !== 'us') {
+        updateData.company_biz_id = targetBizCompanyId
+        console.log('company_biz_id (BIZ companies.id) 업데이트:', targetBizCompanyId)
+      }
+
+      let { error: campaignError } = await supabaseClient
         .from('campaigns')
         .update(updateData)
         .eq('id', transferCampaign.id)
 
-      if (campaignError) throw campaignError
+      // company_biz_id 컬럼이 없는 DB일 경우, 해당 필드 제외하고 재시도
+      if (campaignError && updateData.company_biz_id) {
+        console.log('company_biz_id 포함 업데이트 실패, 제외하고 재시도:', campaignError.message)
+        const { company_biz_id, ...updateDataWithoutBiz } = updateData
+        const { error: retryError } = await supabaseClient
+          .from('campaigns')
+          .update(updateDataWithoutBiz)
+          .eq('id', transferCampaign.id)
+        if (retryError) throw retryError
+
+        // BIZ DB에도 캠페인이 있으면 company_biz_id 업데이트 시도
+        try {
+          await supabaseBiz
+            .from('campaigns')
+            .update({ company_biz_id: targetBizCompanyId, updated_at: new Date().toISOString() })
+            .eq('id', transferCampaign.id)
+          console.log('BIZ DB에서 company_biz_id 업데이트 성공')
+        } catch (e) {
+          console.log('BIZ DB company_biz_id 업데이트 실패 (선택적):', e.message)
+        }
+      } else if (campaignError) {
+        throw campaignError
+      }
 
       // 3. 지원자 데이터의 company 관련 필드 업데이트 (applications 테이블)
       const finalCompanyIdForApps = updateData.company_id
@@ -973,27 +962,13 @@ export default function CampaignsManagement() {
         }
       }
 
-      // 성공 메시지 - 지역별로 다르게 표시
-      const finalCompanyId = updateData.company_id
-      let successMessage = '캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:'
-
-      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
-        // 일본은 company_email만 사용
-        successMessage += `\n- 캠페인 소유권: ${transferEmail}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명`
-      } else if (campaignRegion === 'us') {
-        // US는 company_id(user_id) 사용
-        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
-        successMessage += `\n- 캠페인 소유권 (US: BIZ Auth user_id 사용)`
-        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
-      } else {
-        // Korea 등은 company_email + company_id 모두 사용
-        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
-        successMessage += `\n- 캠페인 소유권 (company_email: ${transferEmail})`
-        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
-        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
-      }
+      // 성공 메시지
+      const warningMsg = !targetUserId ? '\n\n⚠️ 주의: 타겟 기업의 user_id를 찾을 수 없습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
+      let successMessage = `캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:`
+      successMessage += `\n- 소유권: ${transferEmail}`
+      if (targetBizCompanyId) successMessage += `\n- company_biz_id: ${targetBizCompanyId}`
+      if (targetUserId) successMessage += `\n- company_id (user_id): ${targetUserId}`
+      successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
 
       alert(successMessage)
       setShowTransferModal(false)
@@ -1440,7 +1415,7 @@ export default function CampaignsManagement() {
 
               {/* 진행중 캠페인 현황 */}
               {(() => {
-                const activeCampaigns = campaigns
+                const allActiveCampaigns = campaigns
                   .filter(c => c.status === 'active' || c.status === 'approved' || c.status === 'in_progress')
                   .sort((a, b) => {
                     const dA = getDaysUntilDeadline(a.application_deadline)
@@ -1451,17 +1426,45 @@ export default function CampaignsManagement() {
                     return new Date(b.created_at || 0) - new Date(a.created_at || 0)
                   })
 
+                const activeCampaigns = dashboardRegion === 'all'
+                  ? allActiveCampaigns
+                  : allActiveCampaigns.filter(c => c.region === dashboardRegion)
+
                 return (
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                        <h2 className="text-lg font-semibold text-gray-900">진행중 캠페인</h2>
-                        <span className="text-sm text-blue-600 font-medium">({activeCampaigns.length}개)</span>
+                    <div className="px-6 py-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-blue-600" />
+                          <h2 className="text-lg font-semibold text-gray-900">진행중 캠페인</h2>
+                          <span className="text-sm text-blue-600 font-medium">({activeCampaigns.length}개)</span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('active') }} className="text-blue-600 hover:bg-blue-50 text-xs">
+                          전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); setSelectedStatus('active') }} className="text-blue-600 hover:bg-blue-50 text-xs">
-                        전체보기 <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      {/* 나라별 필터 */}
+                      <div className="flex gap-1.5">
+                        {[
+                          { value: 'all', label: '전체' },
+                          { value: 'korea', label: '🇰🇷 한국' },
+                          { value: 'japan', label: '🇯🇵 일본' },
+                          { value: 'us', label: '🇺🇸 미국' },
+                          { value: 'taiwan', label: '🇹🇼 대만' }
+                        ].map(tab => (
+                          <button
+                            key={tab.value}
+                            onClick={() => setDashboardRegion(tab.value)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              dashboardRegion === tab.value
+                                ? 'bg-gray-900 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="p-4">
                       {activeCampaigns.length === 0 ? (
@@ -1470,16 +1473,40 @@ export default function CampaignsManagement() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                           {activeCampaigns.map(campaign => {
                             const maxParticipants = campaign.max_participants || campaign.total_slots || 0
-                            const applicants = campaign.application_stats?.total || 0
                             const selected = campaign.application_stats?.selected || 0
+                            const videoSubmitted = campaign.application_stats?.video_submitted || 0
+                            const snsUploaded = campaign.application_stats?.sns_uploaded || 0
                             const companyName = getCompanyName(campaign) || campaign.company_name || '-'
-                            const deadline = campaign.application_deadline || campaign.recruitment_deadline
-                            const daysLeft = getDaysUntilDeadline(deadline)
-                            const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
-                            const applicantProgress = maxParticipants > 0 ? Math.min((applicants / maxParticipants) * 100, 100) : 0
                             const regionInfo = regionConfig[campaign.region] || regionConfig.biz
                             const typeInfo = campaignTypeConfig[campaign.campaign_type]
                             const platforms = getPlatforms(campaign)
+
+                            // 캠페인 타입별 영상 슬롯 수
+                            const cType = campaign.campaign_type || ''
+                            const isMultiVideo = ['4week_challenge', '4week', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(cType)
+                            const videoSlotsCount = (cType === '4week_challenge' || cType === '4week') ? 4
+                              : cType === 'megawari' ? 2
+                              : (cType === 'oliveyoung' || cType === 'oliveyoung_sale') ? 3
+                              : 1
+
+                            // 영상/SNS 진행률 계산 (멀티영상 캠페인은 영상 갯수 기준)
+                            const videoUnit = isMultiVideo ? '개' : '명'
+                            const totalExpectedVideos = selected * videoSlotsCount
+                            const totalVideoUploaded = videoSubmitted * videoSlotsCount
+                            const totalSnsUploaded = snsUploaded * videoSlotsCount
+                            const videoBase = isMultiVideo ? totalExpectedVideos : selected
+                            const videoCount = isMultiVideo ? totalVideoUploaded : videoSubmitted
+                            const snsCount = isMultiVideo ? totalSnsUploaded : snsUploaded
+                            const selectionProgress = maxParticipants > 0 ? Math.min((selected / maxParticipants) * 100, 100) : 0
+                            const videoProgress = videoBase > 0 ? Math.min((videoCount / videoBase) * 100, 100) : 0
+                            const snsProgress = videoBase > 0 ? Math.min((snsCount / videoBase) * 100, 100) : 0
+
+                            // 일정
+                            const createdDate = campaign.created_at ? new Date(campaign.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
+                            const recruitDeadline = campaign.application_deadline || campaign.recruitment_deadline
+                            const recruitDate = recruitDeadline ? new Date(recruitDeadline).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
+                            const videoDeadline = campaign.content_submission_deadline || campaign.video_deadline
+                            const videoDate = videoDeadline ? new Date(videoDeadline).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '-'
 
                             return (
                               <div
@@ -1488,69 +1515,98 @@ export default function CampaignsManagement() {
                                 onClick={() => navigate(`/company/campaigns/${campaign.id}?region=${campaign.region}`)}
                               >
                                 {/* 상단: 이미지 + 제목 */}
-                                <div className="flex items-start gap-3 mb-3">
-                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                <div className="flex items-start gap-3 mb-2.5">
+                                  <div className="w-11 h-11 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                                     {campaign.image_url ? (
                                       <img src={campaign.image_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-                                        <ImageIcon className="w-6 h-6 text-blue-400" />
+                                        <ImageIcon className="w-5 h-5 text-blue-400" />
                                       </div>
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{campaign.campaign_name || campaign.title || '제목 없음'}</h4>
-                                    <p className="text-xs text-gray-500 truncate">{companyName}</p>
+                                    <h4 className="text-sm font-semibold text-gray-900 truncate leading-tight">{campaign.campaign_name || campaign.title || '제목 없음'}</h4>
+                                    <p className="text-[11px] text-gray-500 truncate">{companyName}</p>
                                   </div>
                                 </div>
 
                                 {/* 태그 */}
-                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                <div className="flex flex-wrap gap-1 mb-3">
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${regionInfo.color}`}>{regionInfo.flag} {regionInfo.label}</span>
                                   {typeInfo && <span className={`text-[10px] px-1.5 py-0.5 rounded ${typeInfo.color}`}>{typeInfo.icon} {typeInfo.label}</span>}
-                                  {daysLeft !== null && (
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${daysLeft <= 3 ? 'bg-red-100 text-red-600' : daysLeft <= 7 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
-                                      {daysLeft > 0 ? `D-${daysLeft}` : daysLeft === 0 ? 'D-Day' : '마감'}
-                                    </span>
-                                  )}
                                   {platforms.includes('instagram') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600">릴스</span>}
                                   {platforms.includes('youtube') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">쇼츠</span>}
+                                  {isMultiVideo && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">영상 {videoSlotsCount}개</span>}
                                 </div>
 
-                                {/* 지원 진행률 */}
-                                <div className="mb-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[11px] text-gray-500">지원</span>
-                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                      <span className="text-blue-600">{applicants}</span>
-                                      <span className="text-gray-400">/{maxParticipants}</span>
-                                    </span>
+                                {/* 진행 현황 */}
+                                <div className="space-y-1.5 mb-3">
+                                  {/* 1. 모집인원 대비 선정인원 */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <span className="text-[11px] text-gray-500">선정</span>
+                                      <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <span className="text-emerald-600">{selected}</span>
+                                        <span className="text-gray-400">/{maxParticipants}명</span>
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-1">
+                                      <div className="bg-emerald-400 h-1 rounded-full transition-all" style={{ width: `${selectionProgress}%` }} />
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-1">
-                                    <div className="bg-blue-400 h-1 rounded-full" style={{ width: `${applicantProgress}%` }} />
-                                  </div>
+
+                                  {/* 2. 영상 업로드 완료 */}
+                                  {selected > 0 && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[11px] text-gray-500">영상 업로드</span>
+                                        <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                          <span className="text-violet-600">{videoCount}</span>
+                                          <span className="text-gray-400">/{videoBase}{videoUnit}</span>
+                                          {videoBase > 0 && <span className="text-gray-400 ml-1">({Math.round(videoProgress)}%)</span>}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 rounded-full h-1">
+                                        <div className="bg-violet-400 h-1 rounded-full transition-all" style={{ width: `${videoProgress}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 3. SNS 업로드 완료 */}
+                                  {selected > 0 && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[11px] text-gray-500">SNS 업로드</span>
+                                        <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                          <span className="text-blue-600">{snsCount}</span>
+                                          <span className="text-gray-400">/{videoBase}{videoUnit}</span>
+                                          {videoBase > 0 && <span className="text-gray-400 ml-1">({Math.round(snsProgress)}%)</span>}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 rounded-full h-1">
+                                        <div className="bg-blue-400 h-1 rounded-full transition-all" style={{ width: `${snsProgress}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {/* 선정 진행률 */}
-                                <div className="mb-3">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[11px] text-gray-500">선정</span>
-                                    <span className="text-[11px] font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                      <span className="text-emerald-600">{selected}</span>
-                                      <span className="text-gray-400">/{maxParticipants}</span>
-                                    </span>
+                                {/* 진행 일정 */}
+                                <div className="pt-2 border-t border-gray-50">
+                                  <div className="grid grid-cols-3 gap-1 text-center">
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">생성일</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{createdDate}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">모집마감</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{recruitDate}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">영상마감</p>
+                                      <p className="text-[11px] font-medium text-gray-600" style={{ fontFamily: "'Outfit', sans-serif" }}>{videoDate}</p>
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-1">
-                                    <div className="bg-emerald-400 h-1 rounded-full" style={{ width: `${selectionProgress}%` }} />
-                                  </div>
-                                </div>
-
-                                {/* 하단 예산 */}
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-50 text-xs">
-                                  <span className="text-gray-400">예산</span>
-                                  <span className="font-semibold text-gray-700" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                    {campaign.currency || '₩'}{(campaign.budget || 0).toLocaleString()}
-                                  </span>
                                 </div>
                               </div>
                             )
@@ -2063,12 +2119,15 @@ export default function CampaignsManagement() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  현재 소유자: <span className="text-gray-700">
-                    {transferCampaign.company_email
+                  현재 소유자: <span className="text-gray-700 font-medium">
+                    {getCompanyName(transferCampaign) || transferCampaign.company_email
                       || (transferCampaign.region === 'us' && transferCampaign.company_id
                           ? `US (ID: ${transferCampaign.company_id.slice(0, 8)}...)`
                           : '없음')}
                   </span>
+                  {transferCampaign.company_email && getCompanyName(transferCampaign) && (
+                    <span className="text-gray-400 ml-1">({transferCampaign.company_email})</span>
+                  )}
                 </p>
               </div>
 

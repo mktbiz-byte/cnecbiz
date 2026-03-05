@@ -98,6 +98,15 @@ exports.handler = async (event) => {
       subject
     });
 
+    // 성공 로그
+    try {
+      await supabase.from('notification_send_logs').insert({
+        channel: 'email', status: 'success', function_name: 'send-template-email',
+        recipient: to, message_preview: subject ? subject.substring(0, 200) : null,
+        metadata: { templateKey }
+      });
+    } catch (e) { /* skip */ }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -108,6 +117,17 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[send-template-email] Error:', error);
+
+    // 실패 로그
+    try {
+      const { to: t, templateKey: tk } = JSON.parse(event.body || '{}');
+      await supabase.from('notification_send_logs').insert({
+        channel: 'email', status: 'failed', function_name: 'send-template-email',
+        recipient: t, error_message: error.message,
+        metadata: { templateKey: tk }
+      });
+    } catch (e) { /* skip */ }
+
     return {
       statusCode: 500,
       body: JSON.stringify({

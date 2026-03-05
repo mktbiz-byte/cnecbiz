@@ -420,7 +420,7 @@ export default function UnpaidCampaignsManagement() {
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">캠페인 포인트 지급 관리</h1>
+            <h1 className="text-2xl font-bold text-gray-900">캠페인 관리</h1>
             <p className="text-gray-600 mt-1">point_transactions 기준으로 실제 포인트 지급 현황을 확인합니다</p>
           </div>
           <Button
@@ -431,6 +431,25 @@ export default function UnpaidCampaignsManagement() {
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             새로고침
+          </Button>
+        </div>
+
+        {/* 서브 탭 */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
+            대시보드
+          </Button>
+          <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
+            📋 전체 캠페인
+          </Button>
+          <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns/deadlines')}>
+            ⏰ 마감일 관리
+          </Button>
+          <Button variant="default" size="sm" className="whitespace-nowrap">
+            💰 포인트 미지급
+          </Button>
+          <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns/dummy')}>
+            🧪 더미 캠페인
           </Button>
         </div>
 

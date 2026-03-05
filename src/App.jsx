@@ -66,6 +66,8 @@ import CreatorPointHistory from './components/admin/CreatorPointHistory'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import ConsultationManagement from './components/admin/ConsultationManagement'
+import QuoteManagement from './components/admin/QuoteManagement'
+import BillingScheduleManagement from './components/admin/BillingScheduleManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
@@ -127,6 +129,7 @@ import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemp
 import DeadlineCreatorManagement from './components/admin/DeadlineCreatorManagement'
 import UnpaidCampaignsManagement from './components/admin/UnpaidCampaignsManagement'
 import DummyCampaignManagement from './components/admin/DummyCampaignManagement'
+import LiveDashboard from './components/admin/LiveDashboard'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
@@ -243,10 +246,13 @@ function App() {
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/consultations" element={<ConsultationManagement />} />
+        <Route path="/admin/quotes" element={<QuoteManagement />} />
+        <Route path="/admin/billing-schedule" element={<BillingScheduleManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaigns/deadlines" element={<DeadlineCreatorManagement />} />
         <Route path="/admin/campaigns/unpaid" element={<UnpaidCampaignsManagement />} />
         <Route path="/admin/campaigns/dummy" element={<DummyCampaignManagement />} />
+        <Route path="/admin/live-dashboard" element={<LiveDashboard />} />
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />
