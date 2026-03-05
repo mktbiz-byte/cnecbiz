@@ -21,9 +21,35 @@ const TYPE_LABELS_US = { planned: '기획', other: '기타' }
 const BAR_COLORS = { kr: '#E879A8', jp: '#F87171', us: '#60A5FA' }
 const ACCENT_PINK = '#FF6B8A'
 
+// 싱글 AudioContext 재사용 (브라우저 자동재생 정책: 사용자 인터랙션 후 resume 필요)
+let _audioCtx = null
+function getAudioContext() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  // suspended 상태면 resume (사용자 인터랙션 후에만 성공)
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume()
+  }
+  return _audioCtx
+}
+
+// 페이지 아무 곳이나 클릭/터치하면 AudioContext resume (맥/iOS 필수)
+if (typeof document !== 'undefined') {
+  const resumeAudio = () => {
+    if (_audioCtx && _audioCtx.state === 'suspended') {
+      _audioCtx.resume()
+    }
+  }
+  document.addEventListener('click', resumeAudio, { once: false })
+  document.addEventListener('touchstart', resumeAudio, { once: false })
+  document.addEventListener('keydown', resumeAudio, { once: false })
+}
+
 function playSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') return // 아직 사용자 인터랙션 없으면 스킵
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -34,13 +60,13 @@ function playSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.4)
-  } catch (e) {}
+  } catch (e) { console.warn('[LiveDashboard] playSound error:', e.message) }
 }
 
 function playAlertSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    // 더 눈에 띄는 알림음 (2톤)
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') return
     ;[880, 1100].forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -54,7 +80,7 @@ function playAlertSound() {
       osc.start(start)
       osc.stop(start + 0.3)
     })
-  } catch (e) {}
+  } catch (e) { console.warn('[LiveDashboard] playAlertSound error:', e.message) }
 }
 
 function timeAgo(t) {
@@ -280,7 +306,15 @@ export default function LiveDashboard() {
             <span className="text-[#808090] text-xs" style={{ fontFamily: 'Outfit' }}>
               {lastUpdated?.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-            <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={() => setSoundOn(!soundOn)}>
+            <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={() => {
+              const next = !soundOn
+              setSoundOn(next)
+              if (next) {
+                // 사운드 켤 때 AudioContext resume + 테스트 사운드 (사용자 인터랙션 시점)
+                getAudioContext()
+                setTimeout(() => playSound(), 100)
+              }
+            }}>
               {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
             </Button>
             <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={fetchData}>
