@@ -227,7 +227,7 @@ export default function DummyCampaignManagement() {
   "product_link": "제품 공식 사이트 또는 구매 링크 URL (실제 URL을 찾을 수 없으면 빈 문자열)"
 }`
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -236,7 +236,10 @@ export default function DummyCampaignManagement() {
         })
       })
 
-      if (!response.ok) throw new Error('Gemini API 호출 실패')
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        throw new Error(`Gemini API 호출 실패 (${response.status}): ${errText.substring(0, 200)}`)
+      }
       const data = await response.json()
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
@@ -295,7 +298,7 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
   "required_dialogues": ["번역된 멘트1", "번역된 멘트2", ...]
 }`
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
