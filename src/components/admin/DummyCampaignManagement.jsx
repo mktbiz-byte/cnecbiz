@@ -317,12 +317,12 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
       const filePath = `dummy/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
 
       const { error: uploadError } = await supabaseBiz.storage
-        .from('campaign-images')
+        .from('campaign-guides')
         .upload(filePath, file, { cacheControl: '3600', upsert: false })
       if (uploadError) throw uploadError
 
       const { data: urlData } = supabaseBiz.storage
-        .from('campaign-images')
+        .from('campaign-guides')
         .getPublicUrl(filePath)
 
       if (!urlData?.publicUrl) throw new Error('Public URL을 가져올 수 없습니다.')
