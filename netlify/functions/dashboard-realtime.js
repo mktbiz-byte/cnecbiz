@@ -122,14 +122,26 @@ exports.handler = async (event) => {
       }
     })
 
-    // BIZ DB: 기업/상담 현황
+    // BIZ DB: 기업/상담 현황 + 결제/입금
     const bizPromises = Promise.allSettled([
       supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
       supabaseBiz.from('whatsapp_logs')
         .select('id, template_name, status, creator_name, campaign_name, created_at')
         .gte('created_at', todayISO)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(50),
+      // 오늘 기업 가입
+      supabaseBiz.from('companies')
+        .select('id, company_name, contact_person, created_at')
+        .gte('created_at', todayISO)
+        .order('created_at', { ascending: false })
+        .limit(20),
+      // 최근 결제/입금 (24시간)
+      supabaseBiz.from('payments')
+        .select('id, company_id, amount, payment_method, status, campaign_id, created_at')
+        .gte('created_at', last24h)
+        .order('created_at', { ascending: false })
+        .limit(30)
     ])
 
     const [regionResults, bizResults] = await Promise.all([
@@ -139,6 +151,8 @@ exports.handler = async (event) => {
 
     const companyCount = bizResults[0]?.status === 'fulfilled' ? (bizResults[0].value?.count || 0) : 0
     const waLogs = bizResults[1]?.status === 'fulfilled' ? (bizResults[1].value?.data || []) : []
+    const todaySignups = bizResults[2]?.status === 'fulfilled' ? (bizResults[2].value?.data || []) : []
+    const recentPayments = bizResults[3]?.status === 'fulfilled' ? (bizResults[3].value?.data || []) : []
 
     // ===== 통계 집계 =====
     const allFeed = []
@@ -336,6 +350,47 @@ exports.handler = async (event) => {
       })
     })
 
+    // 기업 가입 피드
+    todaySignups.forEach(s => {
+      allFeed.push({
+        type: 'company_signup',
+        time: s.created_at,
+        creator: s.company_name || s.contact_person || '',
+        campaign: '',
+        important: true
+      })
+    })
+
+    // 결제/입금 피드
+    const companyIdToName = {}
+    if (recentPayments.length > 0) {
+      const companyIds = [...new Set(recentPayments.map(p => p.company_id).filter(Boolean))]
+      if (companyIds.length > 0) {
+        try {
+          const { data: companyNames } = await supabaseBiz
+            .from('companies')
+            .select('id, company_name')
+            .in('id', companyIds)
+          if (companyNames) companyNames.forEach(c => { companyIdToName[c.id] = c.company_name })
+        } catch (e) { /* skip */ }
+      }
+    }
+
+    recentPayments.forEach(p => {
+      const cInfo = globalCampaignMap[p.campaign_id]
+      allFeed.push({
+        type: 'payment',
+        time: p.created_at,
+        creator: companyIdToName[p.company_id] || '',
+        campaign: cInfo?.title || '',
+        campaignId: p.campaign_id,
+        amount: p.amount,
+        paymentMethod: p.payment_method,
+        paymentStatus: p.status,
+        important: true
+      })
+    })
+
     allFeed.sort((a, b) => new Date(b.time) - new Date(a.time))
 
     // 크리에이터 이름 매핑
@@ -389,7 +444,9 @@ exports.handler = async (event) => {
             total: waLogs.length,
             success: waLogs.filter(w => w.status !== 'failed').length,
             failed: waLogs.filter(w => w.status === 'failed').length
-          }
+          },
+          signups: todaySignups.length,
+          payments: recentPayments.filter(p => new Date(p.created_at) >= kstTodayStart).length
         },
         // 관리 포인트 (Action Required)
         actionRequired,

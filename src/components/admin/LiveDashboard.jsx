@@ -7,7 +7,7 @@ import {
   CheckCircle, AlertCircle, Clock, Users, FileText,
   CreditCard, Eye, Film, Scissors, MonitorPlay, ArrowRight,
   MessageCircle, ExternalLink, ChevronDown, ChevronUp, Coins,
-  ChevronRight
+  ChevronRight, UserPlus, DollarSign, X, Building2
 } from 'lucide-react'
 
 const POLL_INTERVAL = 15000
@@ -35,6 +35,26 @@ function playSound() {
   } catch (e) {}
 }
 
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    // 더 눈에 띄는 알림음 (2톤)
+    ;[880, 1100].forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = freq
+      osc.type = 'sine'
+      const start = ctx.currentTime + i * 0.15
+      gain.gain.setValueAtTime(0.15, start)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3)
+      osc.start(start)
+      osc.stop(start + 0.3)
+    })
+  } catch (e) {}
+}
+
 function timeAgo(t) {
   if (!t) return ''
   const m = Math.floor((Date.now() - new Date(t).getTime()) / 60000)
@@ -58,6 +78,13 @@ function feedLabel(item) {
       return 'SNS 업로드 완료'
     case 'whatsapp':
       return `WhatsApp ${item.template || ''} ${item.status === 'failed' ? '실패' : '발송'}`
+    case 'company_signup':
+      return '신규 기업 가입'
+    case 'payment': {
+      const method = item.paymentMethod === 'card' ? '카드' : item.paymentMethod === 'bank' ? '계좌이체' : (item.paymentMethod || '')
+      const amount = item.amount ? `${Number(item.amount).toLocaleString()}원` : ''
+      return `결제 ${amount} (${method})`
+    }
     default:
       return item.type
   }
@@ -72,6 +99,10 @@ export default function LiveDashboard() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [expandedAction, setExpandedAction] = useState(null)
   const prevFeedRef = useRef([])
+  // 중요 이벤트 팝업
+  const [alertQueue, setAlertQueue] = useState([])
+  const [currentAlert, setCurrentAlert] = useState(null)
+  const dismissedAlertsRef = useRef(new Set())
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,9 +115,25 @@ export default function LiveDashboard() {
       setError(null)
 
       const newFeed = result.feed || []
+
+      // 새 피드 감지 + 중요 이벤트 팝업
       if (prevFeedRef.current.length > 0 && newFeed.length > 0) {
         const prevFirst = prevFeedRef.current[0]?.time
-        if (newFeed[0]?.time > prevFirst && soundOn) playSound()
+        const newItems = newFeed.filter(f => f.time > prevFirst)
+
+        if (newItems.length > 0 && soundOn) playSound()
+
+        // 중요 이벤트 (가입, 결제)만 팝업
+        const importantNew = newItems.filter(f => f.important || f.type === 'company_signup' || f.type === 'payment')
+        if (importantNew.length > 0) {
+          const newAlerts = importantNew
+            .filter(f => !dismissedAlertsRef.current.has(`${f.type}-${f.time}`))
+            .map(f => ({ ...f, alertId: `${f.type}-${f.time}` }))
+          if (newAlerts.length > 0) {
+            if (soundOn) playAlertSound()
+            setAlertQueue(prev => [...prev, ...newAlerts])
+          }
+        }
       }
       prevFeedRef.current = newFeed
       setLoading(false)
@@ -101,6 +148,21 @@ export default function LiveDashboard() {
     const iv = setInterval(fetchData, POLL_INTERVAL)
     return () => clearInterval(iv)
   }, [fetchData])
+
+  // 팝업 큐 처리: 현재 팝업이 없으면 다음 꺼냄
+  useEffect(() => {
+    if (!currentAlert && alertQueue.length > 0) {
+      setCurrentAlert(alertQueue[0])
+      setAlertQueue(prev => prev.slice(1))
+    }
+  }, [currentAlert, alertQueue])
+
+  const dismissAlert = () => {
+    if (currentAlert) {
+      dismissedAlertsRef.current.add(currentAlert.alertId)
+      setCurrentAlert(null)
+    }
+  }
 
   if (loading && !data) {
     return (
@@ -126,6 +188,11 @@ export default function LiveDashboard() {
     <div className="min-h-screen bg-[#0A0A0F] text-white overflow-hidden">
       <div className="max-w-[1600px] mx-auto p-4 flex flex-col h-screen">
 
+        {/* 중요 이벤트 팝업 모달 */}
+        {currentAlert && (
+          <AlertModal alert={currentAlert} onDismiss={dismissAlert} remaining={alertQueue.length} />
+        )}
+
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -140,6 +207,23 @@ export default function LiveDashboard() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               LIVE
             </span>
+            {/* 오늘 가입/결제 뱃지 */}
+            {(today.signups > 0 || today.payments > 0) && (
+              <div className="flex items-center gap-2 ml-2">
+                {today.signups > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <UserPlus className="w-3 h-3" />
+                    오늘 가입 {today.signups}
+                  </span>
+                )}
+                {today.payments > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <CreditCard className="w-3 h-3" />
+                    오늘 결제 {today.payments}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-3">
@@ -364,13 +448,17 @@ export default function LiveDashboard() {
                 allFeed.map((item, idx) => (
                   <div
                     key={`${item.time}-${idx}`}
-                    className={`flex items-start gap-2.5 px-4 py-2.5 border-b border-[#141420] ${idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'} transition-colors group`}
+                    className={`flex items-start gap-2.5 px-4 py-2.5 border-b border-[#141420] transition-colors group ${
+                      item.important ? 'bg-amber-500/5 hover:bg-amber-500/10' :
+                      idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'
+                    }`}
                   >
                     <FeedIcon type={item.type} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
+                        {item.important && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
                         <span className="text-xs font-bold text-white truncate max-w-[80px]">
-                          {item.creator ? `@${item.creator}` : ''}
+                          {item.creator ? (item.type === 'company_signup' || item.type === 'payment' ? item.creator : `@${item.creator}`) : ''}
                         </span>
                         <span className="text-[10px] text-[#505060]">—</span>
                         <span className="text-[11px] text-[#909098] truncate">{feedLabel(item)}</span>
@@ -392,6 +480,88 @@ export default function LiveDashboard() {
 }
 
 // --- Sub components ---
+
+function AlertModal({ alert, onDismiss, remaining }) {
+  const isSignup = alert.type === 'company_signup'
+  const isPayment = alert.type === 'payment'
+
+  const bgGradient = isSignup
+    ? 'from-amber-500/20 to-amber-600/5'
+    : 'from-blue-500/20 to-blue-600/5'
+  const borderColor = isSignup ? 'border-amber-500/30' : 'border-blue-500/30'
+  const iconBg = isSignup ? 'bg-amber-500/20' : 'bg-blue-500/20'
+  const iconColor = isSignup ? 'text-amber-400' : 'text-blue-400'
+  const title = isSignup ? '신규 기업 가입' : '신규 결제/입금'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className={`w-[420px] bg-gradient-to-b ${bgGradient} bg-[#12121A] rounded-2xl border ${borderColor} shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
+        {/* 상단 컬러 라인 */}
+        <div className="h-1" style={{ background: isSignup ? 'linear-gradient(90deg, #F59E0B, #F97316)' : 'linear-gradient(90deg, #3B82F6, #6366F1)' }} />
+
+        <div className="p-6">
+          {/* 아이콘 + 타이틀 */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center`}>
+              {isSignup ? <Building2 className={`w-6 h-6 ${iconColor}`} /> : <CreditCard className={`w-6 h-6 ${iconColor}`} />}
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">{title}</h3>
+              <p className="text-xs text-[#808090]">{new Date(alert.time).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+          </div>
+
+          {/* 내용 */}
+          <div className="bg-[#0A0A0F]/50 rounded-xl p-4 mb-4 space-y-2">
+            {isSignup && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#808090] w-14">회사명</span>
+                  <span className="text-sm font-bold text-white">{alert.creator || '(미입력)'}</span>
+                </div>
+              </>
+            )}
+            {isPayment && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#808090] w-14">기업명</span>
+                  <span className="text-sm font-bold text-white">{alert.creator || '(미확인)'}</span>
+                </div>
+                {alert.amount && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#808090] w-14">금액</span>
+                    <span className="text-sm font-bold text-[#60A5FA]" style={{ fontFamily: 'Outfit' }}>{Number(alert.amount).toLocaleString()}원</span>
+                  </div>
+                )}
+                {alert.campaign && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#808090] w-14">캠페인</span>
+                    <span className="text-sm text-[#C0C0D0] truncate">{alert.campaign}</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* 하단 */}
+          <div className="flex items-center justify-between">
+            {remaining > 0 && (
+              <span className="text-[11px] text-[#606070]">+{remaining}건 더 있음</span>
+            )}
+            <div className="flex-1" />
+            <Button
+              onClick={onDismiss}
+              className="bg-white/10 hover:bg-white/20 text-white border-0 px-6 py-2 rounded-xl text-sm font-bold"
+            >
+              <CheckCircle className="w-4 h-4 mr-1.5" />
+              확인
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, campaigns = [], navigate }) {
   const hasItems = value > 0
@@ -470,12 +640,16 @@ function FeedIcon({ type }) {
   const styles = {
     video_upload: 'text-blue-400 bg-blue-500/15',
     sns_upload: 'text-emerald-400 bg-emerald-500/15',
-    whatsapp: 'text-green-400 bg-green-500/15'
+    whatsapp: 'text-green-400 bg-green-500/15',
+    company_signup: 'text-amber-400 bg-amber-500/15',
+    payment: 'text-blue-400 bg-blue-500/15'
   }
   const icons = {
     video_upload: <Film className="w-3.5 h-3.5" />,
     sns_upload: <Upload className="w-3.5 h-3.5" />,
-    whatsapp: <MessageCircle className="w-3.5 h-3.5" />
+    whatsapp: <MessageCircle className="w-3.5 h-3.5" />,
+    company_signup: <UserPlus className="w-3.5 h-3.5" />,
+    payment: <CreditCard className="w-3.5 h-3.5" />
   }
   return (
     <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${styles[type] || 'text-gray-400 bg-gray-500/15'}`}>
@@ -488,5 +662,7 @@ function MiniIcon({ type }) {
   if (type === 'video_upload') return <Film className="w-3 h-3 text-blue-400 flex-shrink-0" />
   if (type === 'sns_upload') return <Upload className="w-3 h-3 text-emerald-400 flex-shrink-0" />
   if (type === 'whatsapp') return <MessageCircle className="w-3 h-3 text-green-400 flex-shrink-0" />
+  if (type === 'company_signup') return <UserPlus className="w-3 h-3 text-amber-400 flex-shrink-0" />
+  if (type === 'payment') return <CreditCard className="w-3 h-3 text-blue-400 flex-shrink-0" />
   return <Activity className="w-3 h-3 text-gray-400 flex-shrink-0" />
 }
