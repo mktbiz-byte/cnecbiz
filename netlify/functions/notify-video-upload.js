@@ -161,9 +161,29 @@ exports.handler = async (event) => {
         if (comp.company_name) companyName = comp.company_name
         console.log('[notify-video-upload] 기업 정보:', { companyName, phone: !!companyPhone, email: !!companyEmail })
       } else {
-        // fallback: 캠페인에 직접 저장된 company_phone
-        if (campaignData.company_phone) companyPhone = campaignData.company_phone
-        if (campaignData.company_email) companyEmail = campaignData.company_email
+        // fallback: 캠페인에 직접 저장된 company_phone을 사용하되,
+        // 해당 전화번호로 companies 테이블에서 한번 더 검색하여 notification_phone이 있으면 우선 사용
+        const fallbackPhone = campaignData.company_phone
+        const fallbackEmail = campaignData.company_email
+        if (fallbackPhone) {
+          try {
+            const { data: compByPhone } = await supabaseBiz.from('companies')
+              .select(selectFields)
+              .eq('phone', fallbackPhone.replace(/-/g, ''))
+              .maybeSingle()
+            if (compByPhone) {
+              companyPhone = compByPhone.notification_phone || compByPhone.phone
+              companyEmail = compByPhone.notification_email || compByPhone.email || fallbackEmail
+              if (compByPhone.company_name) companyName = compByPhone.company_name
+              console.log('[notify-video-upload] fallback phone → companies 매칭:', compByPhone.company_name)
+            } else {
+              companyPhone = fallbackPhone
+            }
+          } catch (e) {
+            companyPhone = fallbackPhone
+          }
+        }
+        if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
         console.log('[notify-video-upload] 기업 fallback:', { phone: !!companyPhone, email: !!companyEmail })
       }
     }

@@ -155,9 +155,29 @@ exports.handler = async (event) => {
       companyEmail = comp.notification_email || comp.email
       companyName = comp.company_name || companyName
     } else {
-      // 최종 fallback: 캠페인에 직접 저장된 값
-      if (campaignData?.company_phone) companyPhone = campaignData.company_phone
-      if (campaignData?.company_email) companyEmail = campaignData.company_email
+      // 최종 fallback: 캠페인에 직접 저장된 값을 사용하되,
+      // 해당 전화번호로 companies 테이블에서 한번 더 검색하여 notification_phone이 있으면 우선 사용
+      const fallbackPhone = campaignData?.company_phone
+      const fallbackEmail = campaignData?.company_email
+      if (fallbackPhone) {
+        try {
+          const { data: compByPhone } = await supabaseBiz.from('companies')
+            .select(selectFields)
+            .eq('phone', fallbackPhone.replace(/-/g, ''))
+            .maybeSingle()
+          if (compByPhone) {
+            companyPhone = compByPhone.notification_phone || compByPhone.phone
+            companyEmail = compByPhone.notification_email || compByPhone.email || fallbackEmail
+            companyName = compByPhone.company_name || companyName
+            console.log('[notify-sns-upload-complete] fallback phone → companies 매칭:', compByPhone.company_name)
+          } else {
+            companyPhone = fallbackPhone
+          }
+        } catch (e) {
+          companyPhone = fallbackPhone
+        }
+      }
+      if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
     }
 
     console.log('[notify-sns-upload-complete] 기업 정보:', { companyName, phone: companyPhone, email: companyEmail })
@@ -167,10 +187,13 @@ exports.handler = async (event) => {
       timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     })
 
+    // ===== 모든 알림 병렬 발송 (순차 실행 시 Netlify Function 타임아웃 방지) =====
+    const notificationPromises = []
+
     // --- 카카오 알림톡 (025100001009: 캠페인 최종 완료) ---
     if (companyPhone) {
-      try {
-        const res = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+      notificationPromises.push(
+        fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -182,21 +205,21 @@ exports.handler = async (event) => {
               '캠페인명': campaignTitle
             }
           })
+        }).then(r => r.json()).then(r => {
+          results.kakao = !!r.success
+          console.log('[notify-sns-upload-complete] 카카오:', r.success ? '성공' : JSON.stringify(r))
+        }).catch(e => {
+          console.error('[notify-sns-upload-complete] 카카오 실패:', e.message)
         })
-        const r = await res.json()
-        results.kakao = !!r.success
-        console.log('[notify-sns-upload-complete] 카카오:', r.success ? '성공' : JSON.stringify(r))
-      } catch (e) {
-        console.error('[notify-sns-upload-complete] 카카오 실패:', e.message)
-      }
+      )
     } else {
       console.warn('[notify-sns-upload-complete] 카카오 스킵: companyPhone 없음')
     }
 
     // --- 이메일 ---
     if (companyEmail) {
-      try {
-        const res = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
+      notificationPromises.push(
+        fetch(`${baseUrl}/.netlify/functions/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -216,18 +239,18 @@ exports.handler = async (event) => {
               </div>
             `
           })
+        }).then(r => r.json()).then(r => {
+          results.email = !!r.success
+          console.log('[notify-sns-upload-complete] 이메일:', r.success ? '성공' : JSON.stringify(r))
+        }).catch(e => {
+          console.error('[notify-sns-upload-complete] 이메일 실패:', e.message)
         })
-        const r = await res.json()
-        results.email = !!r.success
-        console.log('[notify-sns-upload-complete] 이메일:', r.success ? '성공' : JSON.stringify(r))
-      } catch (e) {
-        console.error('[notify-sns-upload-complete] 이메일 실패:', e.message)
-      }
+      )
     }
 
     // --- 네이버 웍스 ---
-    try {
-      const res = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+    notificationPromises.push(
+      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,13 +258,17 @@ exports.handler = async (event) => {
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
           message: `[SNS 업로드 완료]\n\n📋 캠페인: ${campaignTitle}\n🏢 기업: ${companyName}\n👤 크리에이터: ${creatorName}\n⏰ 시간: ${koreanDate}`
         })
+      }).then(r => r.json()).then(r => {
+        results.naverWorks = !!r.success
+        console.log('[notify-sns-upload-complete] 네이버웍스:', r.success ? '성공' : JSON.stringify(r))
+      }).catch(e => {
+        console.error('[notify-sns-upload-complete] 네이버웍스 실패:', e.message)
       })
-      const r = await res.json()
-      results.naverWorks = !!r.success
-      console.log('[notify-sns-upload-complete] 네이버웍스:', r.success ? '성공' : JSON.stringify(r))
-    } catch (e) {
-      console.error('[notify-sns-upload-complete] 네이버웍스 실패:', e.message)
-    }
+    )
+
+    // 모든 알림 병렬 발송 완료 대기
+    await Promise.allSettled(notificationPromises)
+    console.log('[notify-sns-upload-complete] 전체 완료:', results)
 
     return {
       statusCode: 200,

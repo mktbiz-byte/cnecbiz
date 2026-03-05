@@ -955,6 +955,7 @@ export default function VideoReview() {
             creatorName: submission?.applications?.applicant_name || '크리에이터',
             creatorPhone: submission?.applications?.phone_number,
             campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
+            companyName: submission?.applications?.campaigns?.company_name || submission?.applications?.campaigns?.brand || '',
             feedbackCount: comments.length,
             submissionId: actualSubmissionId
           })
