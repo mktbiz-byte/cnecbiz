@@ -169,31 +169,17 @@ exports.handler = async (event) => {
         if (comp.company_name) companyName = comp.company_name
         console.log('[notify-video-upload] 기업 정보:', { companyName, phone: !!companyPhone, email: !!companyEmail })
       } else {
-        // fallback: 캠페인에 직접 저장된 company_phone으로 companies 재검색
-        // ★ 검색 실패 시 campaign.company_phone을 직접 사용하지 않음 (관리자 번호일 수 있음)
-        const fallbackPhone = campaignData?.company_phone
+        // ★ company_biz_id/company_email/company_id 모두 매칭 실패 시
+        // campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
         const fallbackEmail = campaignData?.company_email
-        if (fallbackPhone) {
-          try {
-            const { data: compByPhone } = await supabaseBiz.from('companies')
-              .select(selectFields)
-              .eq('phone', fallbackPhone.replace(/-/g, ''))
-              .maybeSingle()
-            if (compByPhone) {
-              companyPhone = compByPhone.notification_phone || compByPhone.phone
-              companyEmail = compByPhone.notification_email || compByPhone.email || fallbackEmail
-              if (compByPhone.company_name) companyName = compByPhone.company_name
-              console.log('[notify-video-upload] fallback phone → companies 매칭:', compByPhone.company_name)
-            } else {
-              // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
-              console.warn('[notify-video-upload] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
-            }
-          } catch (e) {
-            console.warn('[notify-video-upload] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
-          }
-        }
+        console.warn('[notify-video-upload] BIZ DB 기업 매칭 실패. 카카오 발송 스킵:', {
+          company_biz_id: campaignData?.company_biz_id,
+          company_id: campaignData?.company_id,
+          company_email: campaignData?.company_email,
+          company_phone: campaignData?.company_phone
+        })
+        companyPhone = null
         if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
-        console.log('[notify-video-upload] 기업 fallback:', { phone: !!companyPhone, email: !!companyEmail })
       }
     }
 

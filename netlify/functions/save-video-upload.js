@@ -288,34 +288,17 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       if (comp.company_name) companyName = comp.company_name
       console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail, usedBizId: !!campaignData.company_biz_id })
     } else {
-      // 최종 fallback: 캠페인에 직접 저장된 company_phone을 사용하되,
-      // 해당 전화번호로 companies 테이블에서 한번 더 검색하여 notification_phone이 있으면 우선 사용
-      const fallbackPhone = campaignData.company_phone
+      // ★ company_biz_id/company_email/company_id 모두 매칭 실패 시
+      // campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
+      // (캠페인 생성 시 관리자 번호가 company_phone에 저장되는 경우가 있음)
       const fallbackEmail = campaignData.company_email
-      if (fallbackPhone) {
-        try {
-          const { data: compByPhone } = await supabaseBiz.from('companies')
-            .select(selectFields)
-            .eq('phone', fallbackPhone.replace(/-/g, ''))
-            .maybeSingle()
-          if (compByPhone) {
-            companyPhone = compByPhone.notification_phone || compByPhone.phone
-            companyEmail = compByPhone.notification_email || compByPhone.email || fallbackEmail
-            if (compByPhone.company_name) companyName = compByPhone.company_name
-            console.log('[알림] fallback phone → companies 매칭:', compByPhone.company_name, { notification_phone: !!compByPhone.notification_phone })
-          } else {
-            // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
-            console.warn('[알림] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
-          }
-        } catch (e) {
-          // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
-          console.warn('[알림] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
-        }
-      } else {
-        console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_biz_id: campaignData.company_biz_id, company_id: campaignData.company_id, company_email: campaignData.company_email })
-        companyPhone = null
-        companyEmail = null
-      }
+      console.warn('[알림] BIZ DB 기업 매칭 실패. 카카오 발송 스킵:', {
+        company_biz_id: campaignData.company_biz_id,
+        company_id: campaignData.company_id,
+        company_email: campaignData.company_email,
+        company_phone: campaignData.company_phone
+      })
+      companyPhone = null
       if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
     }
   })()
