@@ -21,8 +21,13 @@ import {
   PlayCircle,
   Upload,
   Video,
-  Loader2
+  Loader2,
+  MessageCircle,
+  Send,
+  Phone
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -42,6 +47,11 @@ export default function AdminCampaignDetail() {
   const [editingGuide, setEditingGuide] = useState(false)
   const [editedGuideContent, setEditedGuideContent] = useState('')
   const [generatingGuides, setGeneratingGuides] = useState(new Set())
+
+  // WhatsApp 일괄 발송 상태
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+  const [whatsAppSending, setWhatsAppSending] = useState(false)
+  const [whatsAppResult, setWhatsAppResult] = useState(null)
 
   // 영상 업로드 관련 상태
   const [showVideoUploadModal, setShowVideoUploadModal] = useState(false)
@@ -1155,6 +1165,25 @@ export default function AdminCampaignDetail() {
                       </div>
                     </div>
                   )}
+                  {/* US 캠페인: WhatsApp 일괄 발송 버튼 */}
+                  {region === 'us' && selectedApplications.length > 0 && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-green-900 mb-1">WhatsApp 일괄 발송</h3>
+                          <p className="text-sm text-green-700">선정된 {selectedApplications.length}명의 크리에이터에게 WhatsApp 템플릿 메시지를 발송합니다.</p>
+                        </div>
+                        <Button
+                          onClick={() => { setWhatsAppResult(null); setShowWhatsAppModal(true) }}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          WhatsApp 발송
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <ApplicationList
                     applications={selectedApplications}
                     getStatusBadge={getStatusBadge}
@@ -1503,6 +1532,21 @@ export default function AdminCampaignDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* WhatsApp 일괄 발송 모달 */}
+      {showWhatsAppModal && (
+        <WhatsAppBulkSendModal
+          campaignId={id}
+          campaignTitle={campaign?.title || campaign?.campaign_name || ''}
+          applications={selectedApplications}
+          open={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          sending={whatsAppSending}
+          setSending={setWhatsAppSending}
+          result={whatsAppResult}
+          setResult={setWhatsAppResult}
+        />
       )}
     </>
   )
@@ -2632,5 +2676,171 @@ function GuideDisplay({ guide }) {
         </div>
       )}
     </div>
+  )
+}
+
+// WhatsApp 템플릿 정보
+const WHATSAPP_TEMPLATES = [
+  { name: 'creator_selected_v2', label: '크리에이터 선정', variables: ['이름', '대시보드링크'] },
+  { name: 'selection_guide_delivery_v2', label: '선정 + 가이드 전달', variables: ['이름', '가이드링크'] },
+  { name: 'verification_complete_v2', label: '검증 완료', variables: ['이름', '콘텐츠제목', '날짜', '링크'] },
+  { name: 'modification_request_v2', label: '수정 요청', variables: ['이름', '콘텐츠제목', '수정내용', '마감일', '링크'] },
+  { name: 'points_awarded_v2', label: '포인트 지급', variables: ['이름', '포인트', '이유', '날짜', '총포인트', '링크'] },
+  { name: 'payment_received_v2', label: '결제 확인', variables: ['이름', '금액', '통화', '거래ID', '날짜', '영수증링크'] },
+  { name: 'account_registration_v2', label: '계정 등록 완료', variables: ['이름', '이메일', '날짜', '링크'] },
+  { name: 'account_deactivation_v2', label: '계정 비활성화', variables: ['이름', '날짜', '링크'] }
+]
+
+function WhatsAppBulkSendModal({ campaignId, campaignTitle, applications, open, onClose, sending, setSending, result, setResult }) {
+  const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [variables, setVariables] = useState({})
+
+  const template = WHATSAPP_TEMPLATES.find(t => t.name === selectedTemplate)
+
+  const handleTemplateChange = (templateName) => {
+    setSelectedTemplate(templateName)
+    setResult(null)
+    const tmpl = WHATSAPP_TEMPLATES.find(t => t.name === templateName)
+    if (tmpl) {
+      const defaults = {}
+      tmpl.variables.forEach((v, i) => {
+        if (v === '이름') defaults[String(i + 1)] = '(자동: 크리에이터명)'
+        else if (v === '대시보드링크' || v === '가이드링크' || v === '링크') defaults[String(i + 1)] = 'https://cnec.us/creator/mypage'
+        else if (v === '날짜') defaults[String(i + 1)] = new Date().toLocaleDateString('en-US')
+        else defaults[String(i + 1)] = ''
+      })
+      setVariables(defaults)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!selectedTemplate) { alert('템플릿을 선택하세요.'); return }
+
+    const varsToSend = { ...variables }
+    // '이름' 자동 채우기는 서버에서 처리하므로 placeholder 제거
+    Object.keys(varsToSend).forEach(k => {
+      if (varsToSend[k] === '(자동: 크리에이터명)') delete varsToSend[k]
+    })
+
+    if (!confirm(`${applications.length}명에게 "${template.label}" WhatsApp 메시지를 발송합니다. 계속하시겠습니까?`)) return
+
+    setSending(true)
+    setResult(null)
+
+    try {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'campaign',
+          campaignId,
+          templateName: selectedTemplate,
+          variableDefaults: varsToSend,
+          sentBy: 'admin'
+        })
+      })
+      const data = await response.json()
+      setResult(data)
+    } catch (err) {
+      setResult({ success: false, error: err.message })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-green-600" />
+            WhatsApp 일괄 발송
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+            <p className="font-medium text-green-900">캠페인: {campaignTitle}</p>
+            <p className="text-green-700">대상: 선정된 크리에이터 {applications.length}명</p>
+          </div>
+
+          {/* 템플릿 선택 */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">템플릿 선택</label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">-- 템플릿을 선택하세요 --</option>
+              {WHATSAPP_TEMPLATES.map(t => (
+                <option key={t.name} value={t.name}>{t.label} ({t.name})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 변수 입력 */}
+          {template && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">변수 입력</label>
+              {template.variables.map((varLabel, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-24 flex-shrink-0">{`{{${i + 1}}} ${varLabel}`}</span>
+                  <Input
+                    value={variables[String(i + 1)] || ''}
+                    onChange={(e) => setVariables(prev => ({ ...prev, [String(i + 1)]: e.target.value }))}
+                    placeholder={varLabel}
+                    disabled={varLabel === '이름'}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+              <p className="text-xs text-gray-400">이름은 각 크리에이터 이름으로 자동 대체됩니다.</p>
+            </div>
+          )}
+
+          {/* 발송 결과 */}
+          {result && (
+            <div className={`p-3 rounded-lg text-sm ${result.success ? 'bg-blue-50 border border-blue-200' : 'bg-red-50 border border-red-200'}`}>
+              {result.success ? (
+                <>
+                  <p className="font-medium text-blue-900">{result.message}</p>
+                  {result.results && (
+                    <div className="mt-2 space-y-1 max-h-[150px] overflow-y-auto">
+                      {result.results.map((r, i) => (
+                        <div key={i} className={`text-xs flex items-center gap-1 ${r.success ? 'text-green-700' : 'text-red-700'}`}>
+                          {r.success ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {r.creatorName}: {r.success ? '발송 성공' : r.error}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-red-900">{result.error || '발송 실패'}</p>
+              )}
+            </div>
+          )}
+
+          {/* 버튼 */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose} disabled={sending}>
+              닫기
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={sending || !selectedTemplate}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {sending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 발송 중...</>
+              ) : (
+                <><Send className="w-4 h-4 mr-2" /> {applications.length}명에게 발송</>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
