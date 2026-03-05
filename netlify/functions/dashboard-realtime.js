@@ -315,15 +315,24 @@ exports.handler = async (event) => {
       })
     }
 
-    // WhatsApp 피드
+    // WhatsApp 피드 (campaign_name으로 리전 매핑)
+    const campaignTitleToRegion = {}
+    for (const r of regionResults) {
+      r.allCampaigns.forEach(c => {
+        if (c.title) campaignTitleToRegion[c.title] = r.code
+      })
+    }
+
     waLogs.forEach(w => {
+      const region = w.campaign_name ? campaignTitleToRegion[w.campaign_name] : undefined
       allFeed.push({
         type: 'whatsapp',
         time: w.created_at,
         creator: w.creator_name || '',
         template: w.template_name,
         campaign: w.campaign_name || '',
-        status: w.status
+        status: w.status,
+        region: region || undefined
       })
     })
 

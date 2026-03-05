@@ -259,7 +259,7 @@ export default function LiveDashboard() {
           {/* 국가별 패널들 */}
           {['kr', 'jp', 'us'].map(code => {
             const s = cs[code] || { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
-            const countryFeed = allFeed.filter(f => f.region === code).slice(0, 5)
+            const countryFeed = allFeed.filter(f => f.region === code).slice(0, 10)
             const barColor = BAR_COLORS[code]
             const labels = code === 'us'
               ? { planned: s.planned || 0, other: (s.total - (s.planned || 0)) || 0 }
