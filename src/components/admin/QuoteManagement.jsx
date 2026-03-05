@@ -74,7 +74,6 @@ export default function QuoteManagement() {
       const { data } = await supabaseBiz
         .from('companies')
         .select('id, company_name, business_number, ceo_name, company_address, email, contact_email, notification_email')
-        .eq('status', 'active')
         .order('company_name')
         .limit(500)
       if (data) setCompanies(data)
@@ -452,59 +451,58 @@ export default function QuoteManagement() {
               <CardContent className="p-0">
                 <div
                   ref={printRef}
-                  className="bg-white p-10"
-                  style={{ fontFamily: 'Pretendard, "Noto Sans KR", sans-serif', minHeight: '900px' }}
+                  style={{ fontFamily: 'Pretendard, "Noto Sans KR", sans-serif', minHeight: '900px', backgroundColor: '#ffffff', padding: '40px', color: '#111827' }}
                 >
                   {/* 제목 */}
-                  <h1 className="text-center text-3xl font-extrabold text-gray-900 mb-2 tracking-wider">견 적 서</h1>
-                  <div className="text-sm text-gray-600 mb-6">견적일자: {quoteDate}</div>
+                  <h1 style={{ textAlign: 'center', fontSize: '1.875rem', fontWeight: 800, color: '#111827', marginBottom: '8px', letterSpacing: '0.1em' }}>견 적 서</h1>
+                  <div style={{ fontSize: '13px', color: '#4B5563', marginBottom: '24px' }}>견적일자: {quoteDate}</div>
 
                   {/* 상단 정보 테이블 */}
-                  <table className="w-full border-collapse mb-8" style={{ fontSize: '13px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '32px', fontSize: '13px' }}>
                     <tbody>
                       <tr>
                         {/* 거래처 (공급받는자) */}
-                        <td className="align-top w-1/2 pr-3">
-                          <table className="w-full border-collapse border border-gray-400">
+                        <td style={{ verticalAlign: 'top', width: '50%', paddingRight: '12px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9CA3AF' }}>
                             <tbody>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 w-20 text-center">등록번호</td>
-                                <td className="border border-gray-400 px-3 py-2">{client.businessNumber || <span className="text-gray-300">-</span>}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', width: '80px', textAlign: 'center' }}>등록번호</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{client.businessNumber || <span style={{ color: '#D1D5DB' }}>-</span>}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">회사명</td>
-                                <td className="border border-gray-400 px-3 py-2">{client.companyName || <span className="text-gray-300">-</span>}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>회사명</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{client.companyName || <span style={{ color: '#D1D5DB' }}>-</span>}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">대표자</td>
-                                <td className="border border-gray-400 px-3 py-2">{client.ceoName || <span className="text-gray-300">-</span>}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>대표자</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{client.ceoName || <span style={{ color: '#D1D5DB' }}>-</span>}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">소재지</td>
-                                <td className="border border-gray-400 px-3 py-2 leading-snug">{client.address || <span className="text-gray-300">-</span>}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>소재지</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', lineHeight: '1.4' }}>{client.address || <span style={{ color: '#D1D5DB' }}>-</span>}</td>
                               </tr>
                             </tbody>
                           </table>
                         </td>
                         {/* 공급자 (우리) */}
-                        <td className="align-top w-1/2 pl-3">
-                          <table className="w-full border-collapse border border-gray-400">
+                        <td style={{ verticalAlign: 'top', width: '50%', paddingLeft: '12px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9CA3AF' }}>
                             <tbody>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 w-20 text-center">등록번호</td>
-                                <td className="border border-gray-400 px-3 py-2">{OUR_COMPANY.businessNumber}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', width: '80px', textAlign: 'center' }}>등록번호</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{OUR_COMPANY.businessNumber}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">회사명</td>
-                                <td className="border border-gray-400 px-3 py-2">{OUR_COMPANY.companyName}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>회사명</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{OUR_COMPANY.companyName}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">대표자</td>
-                                <td className="border border-gray-400 px-3 py-2">{OUR_COMPANY.ceoName}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>대표자</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{OUR_COMPANY.ceoName}</td>
                               </tr>
                               <tr>
-                                <td className="border border-gray-400 bg-gray-100 font-bold px-3 py-2 text-center">소재지</td>
-                                <td className="border border-gray-400 px-3 py-2 leading-snug">{OUR_COMPANY.address}</td>
+                                <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '8px 12px', textAlign: 'center' }}>소재지</td>
+                                <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', lineHeight: '1.4' }}>{OUR_COMPANY.address}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -514,30 +512,30 @@ export default function QuoteManagement() {
                   </table>
 
                   {/* 구분선 */}
-                  <div className="border-t-2 border-gray-900 mb-1" />
-                  <div className="border-t border-gray-400 mb-6" />
+                  <div style={{ borderTop: '2px solid #111827', marginBottom: '4px' }} />
+                  <div style={{ borderTop: '1px solid #9CA3AF', marginBottom: '24px' }} />
 
                   {/* 품목 테이블 */}
-                  <table className="w-full border-collapse border border-gray-400 mb-6" style={{ fontSize: '13px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9CA3AF', marginBottom: '24px', fontSize: '13px' }}>
                     <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-gray-400 px-3 py-2 w-12 text-center font-bold">No</th>
-                        <th className="border border-gray-400 px-3 py-2 text-left font-bold">품명</th>
-                        <th className="border border-gray-400 px-3 py-2 w-20 text-center font-bold">수량</th>
-                        <th className="border border-gray-400 px-3 py-2 w-28 text-right font-bold">단가</th>
-                        <th className="border border-gray-400 px-3 py-2 w-32 text-right font-bold">금액</th>
+                      <tr style={{ backgroundColor: '#F3F4F6' }}>
+                        <th style={{ border: '1px solid #9CA3AF', padding: '8px 12px', width: '48px', textAlign: 'center', fontWeight: 'bold' }}>No</th>
+                        <th style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'left', fontWeight: 'bold' }}>품명</th>
+                        <th style={{ border: '1px solid #9CA3AF', padding: '8px 12px', width: '80px', textAlign: 'center', fontWeight: 'bold' }}>수량</th>
+                        <th style={{ border: '1px solid #9CA3AF', padding: '8px 12px', width: '112px', textAlign: 'right', fontWeight: 'bold' }}>단가</th>
+                        <th style={{ border: '1px solid #9CA3AF', padding: '8px 12px', width: '128px', textAlign: 'right', fontWeight: 'bold' }}>금액</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((item, idx) => (
                         <tr key={idx}>
-                          <td className="border border-gray-400 px-3 py-2 text-center">{String(idx + 1).padStart(2, '0')}</td>
-                          <td className="border border-gray-400 px-3 py-2">{getItemName(item) || ''}</td>
-                          <td className="border border-gray-400 px-3 py-2 text-center">{item.qty || ''}</td>
-                          <td className="border border-gray-400 px-3 py-2 text-right" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'center' }}>{String(idx + 1).padStart(2, '0')}</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>{getItemName(item) || ''}</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'center' }}>{item.qty || ''}</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'right', fontFamily: 'Outfit, sans-serif' }}>
                             {item.price ? fmt(Number(item.price)) : ''}
                           </td>
-                          <td className="border border-gray-400 px-3 py-2 text-right font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'Outfit, sans-serif' }}>
                             {getAmount(item) > 0 ? fmt(getAmount(item)) : ''}
                           </td>
                         </tr>
@@ -545,34 +543,34 @@ export default function QuoteManagement() {
                       {/* 빈 행 채우기 (최소 5행) */}
                       {items.length < 5 && Array.from({ length: 5 - items.length }).map((_, idx) => (
                         <tr key={`empty-${idx}`}>
-                          <td className="border border-gray-400 px-3 py-2 text-center text-gray-300">{String(items.length + idx + 1).padStart(2, '0')}</td>
-                          <td className="border border-gray-400 px-3 py-2">&nbsp;</td>
-                          <td className="border border-gray-400 px-3 py-2">&nbsp;</td>
-                          <td className="border border-gray-400 px-3 py-2">&nbsp;</td>
-                          <td className="border border-gray-400 px-3 py-2">&nbsp;</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px', textAlign: 'center', color: '#D1D5DB' }}>{String(items.length + idx + 1).padStart(2, '0')}</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>&nbsp;</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>&nbsp;</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>&nbsp;</td>
+                          <td style={{ border: '1px solid #9CA3AF', padding: '8px 12px' }}>&nbsp;</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
 
                   {/* 합계 테이블 */}
-                  <table className="w-full border-collapse border border-gray-400 mb-8" style={{ fontSize: '13px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9CA3AF', marginBottom: '32px', fontSize: '13px' }}>
                     <tbody>
                       <tr>
-                        <td className="border border-gray-400 bg-gray-100 font-bold px-4 py-2.5 w-24 text-center">소계</td>
-                        <td className="border border-gray-400 px-4 py-2.5 text-right" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '10px 16px', width: '96px', textAlign: 'center' }}>소계</td>
+                        <td style={{ border: '1px solid #9CA3AF', padding: '10px 16px', textAlign: 'right', fontFamily: 'Outfit, sans-serif' }}>
                           {fmt(subtotal)}원
                         </td>
                       </tr>
                       <tr>
-                        <td className="border border-gray-400 bg-gray-100 font-bold px-4 py-2.5 text-center">세액</td>
-                        <td className="border border-gray-400 px-4 py-2.5 text-right" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#F3F4F6', fontWeight: 'bold', padding: '10px 16px', textAlign: 'center' }}>세액</td>
+                        <td style={{ border: '1px solid #9CA3AF', padding: '10px 16px', textAlign: 'right', fontFamily: 'Outfit, sans-serif' }}>
                           {fmt(tax)}원
                         </td>
                       </tr>
-                      <tr className="bg-gray-50">
-                        <td className="border border-gray-400 bg-gray-200 font-extrabold px-4 py-3 text-center text-base">합계</td>
-                        <td className="border border-gray-400 px-4 py-3 text-right font-extrabold text-lg" style={{ fontFamily: 'Outfit, sans-serif', color: '#6C5CE7' }}>
+                      <tr style={{ backgroundColor: '#F9FAFB' }}>
+                        <td style={{ border: '1px solid #9CA3AF', backgroundColor: '#E5E7EB', fontWeight: 800, padding: '12px 16px', textAlign: 'center', fontSize: '16px' }}>합계</td>
+                        <td style={{ border: '1px solid #9CA3AF', padding: '12px 16px', textAlign: 'right', fontWeight: 800, fontSize: '18px', fontFamily: 'Outfit, sans-serif', color: '#6C5CE7' }}>
                           {fmt(total)}원
                         </td>
                       </tr>
@@ -580,9 +578,9 @@ export default function QuoteManagement() {
                   </table>
 
                   {/* 계좌번호 */}
-                  <div className="text-sm">
-                    <span className="font-bold text-gray-900">계좌번호: </span>
-                    <span className="text-gray-700">{BANK_ACCOUNT}</span>
+                  <div style={{ fontSize: '14px' }}>
+                    <span style={{ fontWeight: 'bold', color: '#111827' }}>계좌번호: </span>
+                    <span style={{ color: '#374151' }}>{BANK_ACCOUNT}</span>
                   </div>
                 </div>
               </CardContent>
