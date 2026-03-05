@@ -79,6 +79,13 @@ const getSupabase = () => {
   );
 };
 
+const getBizSupabase = () => {
+  return createClient(
+    process.env.VITE_SUPABASE_BIZ_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+};
+
 // 메시지 템플릿
 const MESSAGE_TEMPLATES = {
   // 캠페인 선정 알림
@@ -400,6 +407,17 @@ exports.handler = async (event) => {
       result = { success: true, sent: totalSent };
     }
 
+    // 성공 로그
+    try {
+      const bizDb = getBizSupabase();
+      await bizDb.from('notification_send_logs').insert({
+        channel: 'line', status: 'success', function_name: 'send-line-message',
+        recipient: targetUserIds[0],
+        message_preview: (finalMessages[0]?.text || '').substring(0, 200),
+        metadata: { templateType, sent: result.sent }
+      });
+    } catch (e) { /* skip */ }
+
     return {
       statusCode: 200,
       headers,
@@ -408,6 +426,18 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Send LINE message error:', error);
+
+    // 실패 로그
+    try {
+      const bizDb = getBizSupabase();
+      const { templateType: tt } = JSON.parse(event.body || '{}');
+      await bizDb.from('notification_send_logs').insert({
+        channel: 'line', status: 'failed', function_name: 'send-line-message',
+        error_message: error.message,
+        metadata: { templateType: tt }
+      });
+    } catch (e) { /* skip */ }
+
     return {
       statusCode: 500,
       headers,

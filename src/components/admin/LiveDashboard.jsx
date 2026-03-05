@@ -7,7 +7,8 @@ import {
   CheckCircle, AlertCircle, Clock, Users, FileText,
   CreditCard, Eye, Film, Scissors, MonitorPlay, ArrowRight,
   MessageCircle, ExternalLink, ChevronDown, ChevronUp, Coins,
-  ChevronRight, UserPlus, DollarSign, X, Building2
+  ChevronRight, UserPlus, DollarSign, X, Building2,
+  Mail, Send, AlertTriangle
 } from 'lucide-react'
 
 const POLL_INTERVAL = 15000
@@ -179,6 +180,8 @@ export default function LiveDashboard() {
   const cs = data?.countryStats || {}
   const allFeed = data?.feed || []
   const regions = data?.regions || []
+  const notifications = data?.notifications || {}
+  const notificationFailures = data?.notificationFailures || []
 
   const toggleAction = (key) => {
     setExpandedAction(expandedAction === key ? null : key)
@@ -208,18 +211,24 @@ export default function LiveDashboard() {
               LIVE
             </span>
             {/* 오늘 가입/결제 뱃지 */}
-            {(today.signups > 0 || today.payments > 0) && (
+            {(today.signups > 0 || today.payments > 0 || today.creatorSignups > 0) && (
               <div className="flex items-center gap-2 ml-2">
                 {today.signups > 0 && (
                   <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <Building2 className="w-3 h-3" />
+                    기업 {today.signups}
+                  </span>
+                )}
+                {today.creatorSignups > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
                     <UserPlus className="w-3 h-3" />
-                    오늘 가입 {today.signups}
+                    크리에이터 {today.creatorSignups}
                   </span>
                 )}
                 {today.payments > 0 && (
                   <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
                     <CreditCard className="w-3 h-3" />
-                    오늘 결제 {today.payments}
+                    결제 {today.payments}
                   </span>
                 )}
               </div>
@@ -334,6 +343,65 @@ export default function LiveDashboard() {
               <ProcessNode label="수정/검수" value={proc.reviewing || 0} />
               <ProcessArrow />
               <ProcessNode label="업로드대기" value={proc.snsWaiting || 0} />
+            </div>
+          </div>
+        </div>
+
+        {/* 오늘의 신규 현황 + 알림 발송 현황 */}
+        <div className="mb-4 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+            {/* 오늘의 신규 현황 */}
+            <div className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] px-5 py-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-[#C084FC]" />
+                <span className="text-sm font-bold text-white">오늘의 신규 현황</span>
+              </div>
+              <div className="grid grid-cols-5 gap-3">
+                <StatMini label="기업 가입" value={today.signups || 0} color="#F59E0B" icon={<Building2 className="w-3.5 h-3.5" />} />
+                <StatMini label="크리에이터 가입" value={today.creatorSignups || 0} color="#A78BFA" icon={<UserPlus className="w-3.5 h-3.5" />} />
+                {['kr', 'jp', 'us'].map(code => (
+                  <StatMini
+                    key={code}
+                    label={`${FLAGS[code]} 크리에이터`}
+                    value={today.creatorSignupsByRegion?.[code] || 0}
+                    color={BAR_COLORS[code]}
+                    icon={<UserPlus className="w-3.5 h-3.5" />}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 알림 발송 현황 */}
+            <div className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] px-5 py-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Send className="w-4 h-4 text-[#C084FC]" />
+                <span className="text-sm font-bold text-white">오늘 알림 발송 현황</span>
+                {Object.values(notifications).some(n => n.failed > 0) && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                    <AlertTriangle className="w-3 h-3" />
+                    실패 있음
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-5 gap-3">
+                <NotifChannel label="네이버웍스" stats={notifications.naver_works} />
+                <NotifChannel label="카카오" stats={notifications.kakao} />
+                <NotifChannel label="이메일" stats={notifications.email} />
+                <NotifChannel label="LINE" stats={notifications.line} />
+                <NotifChannel label="WhatsApp" stats={{ success: today.whatsapp?.success || 0, failed: today.whatsapp?.failed || 0 }} />
+              </div>
+              {notificationFailures.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-[#1A1A28]">
+                  <div className="text-[10px] text-red-400/80 font-medium mb-1">최근 실패 로그</div>
+                  <div className="space-y-0.5 max-h-[40px] overflow-y-auto">
+                    {notificationFailures.slice(0, 3).map((f, i) => (
+                      <div key={i} className="text-[10px] text-[#707080] truncate">
+                        <span className="text-red-400/60">{f.channel}</span> — {f.error || '(알 수 없는 오류)'} <span className="text-[#404050]">{timeAgo(f.time)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -665,4 +733,48 @@ function MiniIcon({ type }) {
   if (type === 'company_signup') return <UserPlus className="w-3 h-3 text-amber-400 flex-shrink-0" />
   if (type === 'payment') return <CreditCard className="w-3 h-3 text-blue-400 flex-shrink-0" />
   return <Activity className="w-3 h-3 text-gray-400 flex-shrink-0" />
+}
+
+function StatMini({ label, value, color, icon }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}20`, color }}>
+        {icon}
+      </div>
+      <div>
+        <div className="text-[10px] text-[#808090]">{label}</div>
+        <div className="text-lg font-extrabold text-white leading-none" style={{ fontFamily: 'Outfit' }}>
+          {value}<span className="text-[10px] text-[#505060] font-normal ml-0.5">명</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NotifChannel({ label, stats }) {
+  const s = stats || { success: 0, failed: 0 }
+  const total = s.success + s.failed
+  const hasFailed = s.failed > 0
+  return (
+    <div className="text-center">
+      <div className="text-[10px] text-[#808090] mb-1">{label}</div>
+      <div className="flex items-center justify-center gap-1.5">
+        <span className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'Outfit' }}>{s.success}</span>
+        <span className="text-[10px] text-[#404050]">/</span>
+        <span className={`text-sm font-bold ${hasFailed ? 'text-red-400' : 'text-[#404050]'}`} style={{ fontFamily: 'Outfit' }}>{s.failed}</span>
+      </div>
+      <div className="text-[9px] text-[#505060]">성공/실패</div>
+      {total > 0 && (
+        <div className="mt-1 h-1.5 bg-[#1A1A28] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${(s.success / total) * 100}%`,
+              backgroundColor: hasFailed ? '#F59E0B' : '#10B981'
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
 }

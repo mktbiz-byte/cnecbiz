@@ -122,7 +122,7 @@ exports.handler = async (event) => {
       }
     })
 
-    // BIZ DB: 기업/상담 현황 + 결제/입금
+    // BIZ DB: 기업/상담 현황 + 결제/입금 + 알림 로그
     const bizPromises = Promise.allSettled([
       supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
       supabaseBiz.from('whatsapp_logs')
@@ -141,18 +141,74 @@ exports.handler = async (event) => {
         .select('id, company_id, amount, payment_method, status, campaign_id, created_at')
         .gte('created_at', last24h)
         .order('created_at', { ascending: false })
-        .limit(30)
+        .limit(30),
+      // 오늘 알림 발송 로그
+      supabaseBiz.from('notification_send_logs')
+        .select('id, channel, status, function_name, error_message, created_at')
+        .gte('created_at', todayISO)
+        .order('created_at', { ascending: false })
+        .limit(200)
     ])
 
-    const [regionResults, bizResults] = await Promise.all([
+    // 리전별 크리에이터 가입자 조회 (오늘)
+    const creatorSignupPromises = regionalClients.map(async (region) => {
+      try {
+        const { data, count } = await region.client
+          .from('user_profiles')
+          .select('id, name, created_at', { count: 'exact' })
+          .gte('created_at', todayISO)
+          .order('created_at', { ascending: false })
+          .limit(20)
+        return { code: region.code, count: count || (data?.length || 0), data: data || [] }
+      } catch (e) {
+        return { code: region.code, count: 0, data: [] }
+      }
+    })
+
+    const [regionResults, bizResults, creatorSignupResults] = await Promise.all([
       Promise.all(regionPromises),
-      bizPromises
+      bizPromises,
+      Promise.all(creatorSignupPromises)
     ])
 
     const companyCount = bizResults[0]?.status === 'fulfilled' ? (bizResults[0].value?.count || 0) : 0
     const waLogs = bizResults[1]?.status === 'fulfilled' ? (bizResults[1].value?.data || []) : []
     const todaySignups = bizResults[2]?.status === 'fulfilled' ? (bizResults[2].value?.data || []) : []
     const recentPayments = bizResults[3]?.status === 'fulfilled' ? (bizResults[3].value?.data || []) : []
+    const notificationLogs = bizResults[4]?.status === 'fulfilled' ? (bizResults[4].value?.data || []) : []
+
+    // 알림 통계 집계
+    const notificationStats = {
+      naver_works: { success: 0, failed: 0 },
+      kakao: { success: 0, failed: 0 },
+      email: { success: 0, failed: 0 },
+      line: { success: 0, failed: 0 },
+      sms: { success: 0, failed: 0 }
+    }
+    const recentFailures = []
+    notificationLogs.forEach(log => {
+      const ch = notificationStats[log.channel]
+      if (ch) {
+        if (log.status === 'success') ch.success++
+        else ch.failed++
+      }
+      if (log.status === 'failed') {
+        recentFailures.push({
+          channel: log.channel,
+          function_name: log.function_name,
+          error: log.error_message,
+          time: log.created_at
+        })
+      }
+    })
+
+    // 크리에이터 가입자 통계
+    const creatorSignups = {}
+    let totalCreatorSignups = 0
+    creatorSignupResults.forEach(r => {
+      creatorSignups[r.code] = r.count
+      totalCreatorSignups += r.count
+    })
 
     // ===== 통계 집계 =====
     const allFeed = []
@@ -446,7 +502,9 @@ exports.handler = async (event) => {
             failed: waLogs.filter(w => w.status === 'failed').length
           },
           signups: todaySignups.length,
-          payments: recentPayments.filter(p => new Date(p.created_at) >= kstTodayStart).length
+          payments: recentPayments.filter(p => new Date(p.created_at) >= kstTodayStart).length,
+          creatorSignups: totalCreatorSignups,
+          creatorSignupsByRegion: creatorSignups
         },
         // 관리 포인트 (Action Required)
         actionRequired,
@@ -457,6 +515,9 @@ exports.handler = async (event) => {
         countryStats,
         // 활동 피드
         feed: allFeed.slice(0, 60),
+        // 알림 발송 현황
+        notifications: notificationStats,
+        notificationFailures: recentFailures.slice(0, 10),
         // 활성 캠페인 목록
         activeCampaigns: Object.values(globalCampaignMap)
           .filter(c => c.status === 'active')

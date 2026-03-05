@@ -1,5 +1,25 @@
 const https = require('https');
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseBiz = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function logNotification(channel, status, functionName, recipient, messagePreview, errorMessage, metadata) {
+  try {
+    await supabaseBiz.from('notification_send_logs').insert({
+      channel,
+      status,
+      function_name: functionName,
+      recipient: recipient || null,
+      message_preview: messagePreview ? messagePreview.substring(0, 200) : null,
+      error_message: errorMessage || null,
+      metadata: metadata || {}
+    });
+  } catch (e) { console.error('[logNotification] failed:', e.message); }
+}
 
 /**
  * 네이버웍스 메시지 전송 Netlify Function
@@ -246,17 +266,26 @@ exports.handler = async (event, context) => {
     // 메시지 전송
     await sendMessage(accessToken, botId, channelId, finalMessage);
 
+    // 성공 로그
+    await logNotification('naver_works', 'success', 'send-naver-works-message', channelId, finalMessage, null, { isAdminNotification });
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ 
-        success: true, 
-        message: '문의가 성공적으로 전송되었습니다.' 
+      body: JSON.stringify({
+        success: true,
+        message: '문의가 성공적으로 전송되었습니다.'
       })
     };
 
   } catch (error) {
     console.error('Error:', error);
+
+    // 실패 로그
+    try {
+      const { channelId: ch, message: msg } = JSON.parse(event.body || '{}');
+      await logNotification('naver_works', 'failed', 'send-naver-works-message', ch, msg, error.message);
+    } catch (logErr) { /* skip */ }
 
     // 에러 채널로 알림 (무한루프 방지: 에러 채널 자체 실패 시에는 알림 안 보냄)
     const ERROR_CHANNEL_ID = '54220a7e-0b14-1138-54ec-a55f62dc8b75';

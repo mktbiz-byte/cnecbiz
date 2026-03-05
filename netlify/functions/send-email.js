@@ -80,6 +80,14 @@ exports.handler = async (event) => {
 
     console.log('이메일 발송 성공:', info.messageId);
 
+    // 성공 로그
+    try {
+      await supabase.from('notification_send_logs').insert({
+        channel: 'email', status: 'success', function_name: 'send-email',
+        recipient: to, message_preview: subject ? subject.substring(0, 200) : null
+      });
+    } catch (e) { /* skip */ }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -91,6 +99,16 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('이메일 발송 오류:', error);
+
+    // 실패 로그
+    try {
+      const { to: t, subject: s } = JSON.parse(event.body || '{}');
+      await supabase.from('notification_send_logs').insert({
+        channel: 'email', status: 'failed', function_name: 'send-email',
+        recipient: t, message_preview: s ? s.substring(0, 200) : null,
+        error_message: error.message
+      });
+    } catch (e) { /* skip */ }
 
     // 에러 알림 발송
     try {
