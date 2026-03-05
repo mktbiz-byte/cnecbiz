@@ -75,8 +75,22 @@ function feedLabel(item) {
       if (item.videoNumber) d += ` V${item.videoNumber}`
       return `영상 ${item.version > 1 ? '재' : ''}제출 (${d})`
     }
+    case 'application':
+      return '캠페인 지원'
+    case 'selection':
+      return '크리에이터 선정'
+    case 'filming_start':
+      return '촬영 시작'
+    case 'video_submit':
+      return '영상 제출'
+    case 'approval':
+      return '영상 승인'
+    case 'revision':
+      return '수정 요청'
     case 'sns_upload':
       return 'SNS 업로드 완료'
+    case 'completion':
+      return '캠페인 완료'
     case 'whatsapp':
       return `WhatsApp ${item.template || ''} ${item.status === 'failed' ? '실패' : '발송'}`
     case 'company_signup':
@@ -707,14 +721,28 @@ function ProcessArrow() {
 function FeedIcon({ type }) {
   const styles = {
     video_upload: 'text-blue-400 bg-blue-500/15',
+    application: 'text-cyan-400 bg-cyan-500/15',
+    selection: 'text-purple-400 bg-purple-500/15',
+    filming_start: 'text-orange-400 bg-orange-500/15',
+    video_submit: 'text-indigo-400 bg-indigo-500/15',
+    approval: 'text-emerald-400 bg-emerald-500/15',
+    revision: 'text-yellow-400 bg-yellow-500/15',
     sns_upload: 'text-emerald-400 bg-emerald-500/15',
+    completion: 'text-teal-400 bg-teal-500/15',
     whatsapp: 'text-green-400 bg-green-500/15',
     company_signup: 'text-amber-400 bg-amber-500/15',
     payment: 'text-blue-400 bg-blue-500/15'
   }
   const icons = {
     video_upload: <Film className="w-3.5 h-3.5" />,
+    application: <FileText className="w-3.5 h-3.5" />,
+    selection: <CheckCircle className="w-3.5 h-3.5" />,
+    filming_start: <Video className="w-3.5 h-3.5" />,
+    video_submit: <MonitorPlay className="w-3.5 h-3.5" />,
+    approval: <CheckCircle className="w-3.5 h-3.5" />,
+    revision: <Scissors className="w-3.5 h-3.5" />,
     sns_upload: <Upload className="w-3.5 h-3.5" />,
+    completion: <CheckCircle className="w-3.5 h-3.5" />,
     whatsapp: <MessageCircle className="w-3.5 h-3.5" />,
     company_signup: <UserPlus className="w-3.5 h-3.5" />,
     payment: <CreditCard className="w-3.5 h-3.5" />
@@ -728,7 +756,14 @@ function FeedIcon({ type }) {
 
 function MiniIcon({ type }) {
   if (type === 'video_upload') return <Film className="w-3 h-3 text-blue-400 flex-shrink-0" />
+  if (type === 'application') return <FileText className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+  if (type === 'selection') return <CheckCircle className="w-3 h-3 text-purple-400 flex-shrink-0" />
+  if (type === 'filming_start') return <Video className="w-3 h-3 text-orange-400 flex-shrink-0" />
+  if (type === 'video_submit') return <MonitorPlay className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+  if (type === 'approval') return <CheckCircle className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+  if (type === 'revision') return <Scissors className="w-3 h-3 text-yellow-400 flex-shrink-0" />
   if (type === 'sns_upload') return <Upload className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+  if (type === 'completion') return <CheckCircle className="w-3 h-3 text-teal-400 flex-shrink-0" />
   if (type === 'whatsapp') return <MessageCircle className="w-3 h-3 text-green-400 flex-shrink-0" />
   if (type === 'company_signup') return <UserPlus className="w-3 h-3 text-amber-400 flex-shrink-0" />
   if (type === 'payment') return <CreditCard className="w-3 h-3 text-blue-400 flex-shrink-0" />

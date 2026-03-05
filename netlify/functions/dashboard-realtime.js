@@ -86,14 +86,14 @@ exports.handler = async (event) => {
             .order('created_at', { ascending: false })
             .limit(30),
 
-          // 최근 application 변경 (피드용)
+          // 최근 application 변경 (피드용) — 모든 상태 포함
           region.client
             .from('applications')
-            .select('id, status, campaign_id, user_id, updated_at')
+            .select('id, status, campaign_id, user_id, created_at, updated_at')
             .gte('updated_at', last24h)
-            .in('status', ['sns_uploaded', 'completed', 'approved', 'revision_requested'])
+            .in('status', ['pending', 'selected', 'filming', 'video_submitted', 'approved', 'revision_requested', 'sns_uploaded', 'completed'])
             .order('updated_at', { ascending: false })
-            .limit(30)
+            .limit(50)
         ])
 
         const videos = videoRes.status === 'fulfilled' ? (videoRes.value?.data || []) : []
@@ -370,12 +370,26 @@ exports.handler = async (event) => {
         })
       })
 
-      // 피드 생성 (SNS 업로드)
-      r.recentApps.filter(a => a.status === 'sns_uploaded').forEach(a => {
+      // 피드 생성 (application 상태 변경 — 모든 상태)
+      const appStatusToFeedType = {
+        pending: 'application',
+        selected: 'selection',
+        filming: 'filming_start',
+        video_submitted: 'video_submit',
+        approved: 'approval',
+        revision_requested: 'revision',
+        sns_uploaded: 'sns_upload',
+        completed: 'completion'
+      }
+      r.recentApps.forEach(a => {
+        const feedType = appStatusToFeedType[a.status]
+        if (!feedType) return
         const cInfo = r.campaignMap[a.campaign_id] || globalCampaignMap[a.campaign_id]
+        // pending은 created_at 기준, 나머지는 updated_at 기준
+        const feedTime = a.status === 'pending' ? (a.created_at || a.updated_at) : a.updated_at
         allFeed.push({
-          type: 'sns_upload',
-          time: a.updated_at,
+          type: feedType,
+          time: feedTime,
           userId: a.user_id,
           creator: '',
           campaign: cInfo?.title || '',
@@ -475,13 +489,18 @@ exports.handler = async (event) => {
     }
 
     // 오늘 application 변경 통계
-    const todayApps = { videoSubmitted: 0, snsUploaded: 0, completed: 0, approved: 0, revisionRequested: 0 }
+    const todayApps = { applied: 0, selected: 0, videoSubmitted: 0, approved: 0, revisionRequested: 0, snsUploaded: 0, completed: 0 }
     for (const r of regionResults) {
       r.recentApps.forEach(a => {
-        if (a.status === 'sns_uploaded') todayApps.snsUploaded++
-        else if (a.status === 'completed') todayApps.completed++
-        else if (a.status === 'approved') todayApps.approved++
-        else if (a.status === 'revision_requested') todayApps.revisionRequested++
+        switch (a.status) {
+          case 'pending': todayApps.applied++; break
+          case 'selected': todayApps.selected++; break
+          case 'video_submitted': todayApps.videoSubmitted++; break
+          case 'approved': todayApps.approved++; break
+          case 'revision_requested': todayApps.revisionRequested++; break
+          case 'sns_uploaded': todayApps.snsUploaded++; break
+          case 'completed': todayApps.completed++; break
+        }
       })
     }
 
