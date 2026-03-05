@@ -256,6 +256,18 @@ export default function LiveDashboard() {
         </div>
       </div>
 
+      {/* 리전 연결 상태 */}
+      {data?.regions && (
+        <div className="flex items-center gap-4 mb-4 px-2">
+          <span className="text-xs text-[#606070]">DB 연결:</span>
+          {data.regions.map(r => (
+            <span key={r.code} className="text-xs text-[#A0A0B0] flex items-center gap-1">
+              {COUNTRY_FLAGS[r.code]} {r.videoCount}영상 / {r.appCount}신청 / {r.campaignCount}캠페인
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* 상단 KPI 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
         <KpiCard label="오늘 영상 제출" value={videoStats.total || 0} icon={<Video className="w-5 h-5" />} color="#3B82F6" />
