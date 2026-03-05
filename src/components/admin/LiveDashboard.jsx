@@ -10,6 +10,7 @@ import {
   ChevronRight, UserPlus, DollarSign, X, Building2,
   Mail, Send, AlertTriangle
 } from 'lucide-react'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 const POLL_INTERVAL = 15000
 
@@ -107,6 +108,7 @@ function feedLabel(item) {
 
 export default function LiveDashboard() {
   const navigate = useNavigate()
+  const [authed, setAuthed] = useState(false)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -118,6 +120,22 @@ export default function LiveDashboard() {
   const [alertQueue, setAlertQueue] = useState([])
   const [currentAlert, setCurrentAlert] = useState(null)
   const dismissedAlertsRef = useRef(new Set())
+
+  // 관리자 인증 체크
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) { navigate('/admin/login'); return }
+      const { data: adminData } = await supabaseBiz
+        .from('admin_users')
+        .select('id')
+        .eq('email', user.email)
+        .single()
+      if (!adminData) { navigate('/admin/login'); return }
+      setAuthed(true)
+    }
+    checkAuth()
+  }, [navigate])
 
   const fetchData = useCallback(async () => {
     try {
@@ -159,10 +177,11 @@ export default function LiveDashboard() {
   }, [soundOn])
 
   useEffect(() => {
+    if (!authed) return
     fetchData()
     const iv = setInterval(fetchData, POLL_INTERVAL)
     return () => clearInterval(iv)
-  }, [fetchData])
+  }, [fetchData, authed])
 
   // 팝업 큐 처리: 현재 팝업이 없으면 다음 꺼냄
   useEffect(() => {
@@ -179,7 +198,7 @@ export default function LiveDashboard() {
     }
   }
 
-  if (loading && !data) {
+  if (!authed || (loading && !data)) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-[#C084FC]" />
