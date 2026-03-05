@@ -257,55 +257,52 @@ export default function LiveDashboard() {
                       <span className="text-sm font-bold text-[#C084FC]" style={{ fontFamily: 'Outfit' }}>활성 {s.total}건</span>
                     </div>
                   </div>
-                  {/* 바 차트 + 피드 가로 배치 */}
-                  <div className="flex gap-4">
-                    {/* 캠페인 타입별 바 차트 */}
-                    <div className="w-44 flex-shrink-0 space-y-1">
-                      {Object.entries(TYPE_LABELS).map(([key, label]) => {
-                        const val = s[key] || 0
-                        const max = Math.max(s.total, 1)
-                        return (
-                          <div key={key} className="flex items-center gap-2">
-                            <span className="text-xs text-[#B0B0C0] w-7 text-right">{label}</span>
-                            <div className="flex-1 h-2 bg-[#1A1A2A] rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-700"
-                                style={{ width: `${(val / max) * 100}%`, backgroundColor: '#C084FC' }}
-                              />
-                            </div>
-                            <span className="text-xs font-semibold text-white w-5 text-right" style={{ fontFamily: 'Outfit' }}>{val}</span>
+                  {/* 캠페인 타입별 바 차트 */}
+                  <div className="space-y-1 mb-2">
+                    {Object.entries(TYPE_LABELS).map(([key, label]) => {
+                      const val = s[key] || 0
+                      const max = Math.max(s.total, 1)
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-xs text-[#B0B0C0] w-7 text-right">{label}</span>
+                          <div className="flex-1 h-2 bg-[#1A1A2A] rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${(val / max) * 100}%`, backgroundColor: '#C084FC' }}
+                            />
                           </div>
-                        )
-                      })}
-                    </div>
-                    {/* 나라별 미니 피드 */}
-                    <div className="flex-1 min-w-0 border-l border-[#1E1E2E] pl-3">
-                      {countryFeed.length === 0 ? (
-                        <div className="text-xs text-[#505060] py-2">최근 활동 없음</div>
-                      ) : (
-                        <div className="space-y-0.5">
-                          {countryFeed.map((item, idx) => (
-                            <div key={`${item.time}-${idx}`} className="flex items-center gap-2 py-0.5 text-xs group">
-                              <MiniIcon type={item.type} />
-                              <span className="text-white font-medium truncate max-w-[90px]">
-                                {item.creator ? `@${item.creator}` : ''}
-                              </span>
-                              <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
-                              {item.campaignId && (
-                                <button
-                                  onClick={() => navigate('/admin/campaigns')}
-                                  className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
-                                  title="캠페인 바로가기"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </button>
-                              )}
-                              <span className="text-[#606070] whitespace-nowrap flex-shrink-0">{timeAgo(item.time)}</span>
-                            </div>
-                          ))}
+                          <span className="text-xs font-semibold text-white w-5 text-right" style={{ fontFamily: 'Outfit' }}>{val}</span>
                         </div>
-                      )}
-                    </div>
+                      )
+                    })}
+                  </div>
+                  {/* 나라별 미니 피드 */}
+                  <div className="border-t border-[#1E1E2E] pt-2">
+                    {countryFeed.length === 0 ? (
+                      <div className="text-xs text-[#505060] py-1">최근 활동 없음</div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {countryFeed.map((item, idx) => (
+                          <div key={`${item.time}-${idx}`} className="flex items-center gap-2 py-0.5 text-xs group">
+                            <MiniIcon type={item.type} />
+                            <span className="text-white font-medium truncate max-w-[90px]">
+                              {item.creator ? `@${item.creator}` : ''}
+                            </span>
+                            <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
+                            {item.campaignId && (
+                              <button
+                                onClick={() => navigate('/admin/campaigns')}
+                                className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
+                                title="캠페인 바로가기"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            )}
+                            <span className="text-[#606070] whitespace-nowrap flex-shrink-0">{timeAgo(item.time)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )
