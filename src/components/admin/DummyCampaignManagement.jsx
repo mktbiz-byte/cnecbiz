@@ -377,9 +377,7 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
     try {
       const campaignData = {
         title: form.title || `[${form.brand}] ${form.product_name} 캠페인`,
-        campaign_name: form.title || `[${form.brand}] ${form.product_name} 캠페인`,
         brand: form.brand,
-        brand_name: form.brand,
         product_name: form.product_name,
         campaign_type: form.campaign_type,
         region: form.region,
@@ -465,9 +463,7 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
         .from('campaigns')
         .insert([{
           title: campaign.title + ' (복사)',
-          campaign_name: (campaign.campaign_name || campaign.title) + ' (복사)',
           brand: campaign.brand,
-          brand_name: campaign.brand_name || campaign.brand,
           product_name: campaign.product_name,
           campaign_type: campaign.campaign_type,
           region: campaign.region,
