@@ -395,7 +395,6 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
         image_url: form.image_url || null,
         product_link: form.product_link || null,
         company_email: DUMMY_MARKER,
-        company_name: form.company_name || '더미 기업',
         // 중요 필드들
         description: form.description || null,
         product_description: form.product_description || null,
@@ -477,7 +476,6 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
           video_deadline: campaign.video_deadline,
           image_url: campaign.image_url,
           company_email: DUMMY_MARKER,
-          company_name: campaign.company_name || '더미 기업',
           description: campaign.description,
           product_description: campaign.product_description,
           product_features: campaign.product_features,
