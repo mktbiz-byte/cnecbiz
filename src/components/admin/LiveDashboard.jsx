@@ -240,10 +240,10 @@ export default function LiveDashboard() {
           </div>
         </div>
 
-        {/* 하단: 국가별(세로) + 실시간 피드 */}
+        {/* 하단: 국가별(세로 스택, 넓게) + 실시간 피드(좁게) */}
         <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
-          {/* 국가별 상품 운영 현황 — 세로 스택 (7/12) */}
-          <div className="col-span-7 flex flex-col gap-2 min-h-0 overflow-y-auto">
+          {/* 국가별 상품 운영 현황 — 세로 스택 (8/12) */}
+          <div className="col-span-8 flex flex-col gap-2 min-h-0 overflow-y-auto">
             {['kr', 'jp', 'us'].map(code => {
               const s = cs[code] || { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
               const countryFeed = allFeed.filter(f => f.region === code).slice(0, 8)
@@ -285,7 +285,7 @@ export default function LiveDashboard() {
                         {countryFeed.map((item, idx) => (
                           <div key={`${item.time}-${idx}`} className="flex items-center gap-2 py-0.5 text-xs group">
                             <MiniIcon type={item.type} />
-                            <span className="text-white font-medium truncate max-w-[90px]">
+                            <span className="text-white font-medium truncate max-w-[100px]">
                               {item.creator ? `@${item.creator}` : ''}
                             </span>
                             <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
@@ -309,14 +309,14 @@ export default function LiveDashboard() {
             })}
           </div>
 
-          {/* 실시간 활동 피드 전체 (5/12) */}
-          <div className="col-span-5 bg-[#12121A] rounded-xl border border-[#1E1E2E] flex flex-col min-h-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1E1E2E] flex-shrink-0">
+          {/* 실시간 활동 피드 (4/12) */}
+          <div className="col-span-4 bg-[#12121A] rounded-xl border border-[#1E1E2E] flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1E1E2E] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-[#C084FC]" />
                 <span className="text-sm font-semibold text-[#D0D0E0]">실시간 활동 피드</span>
               </div>
-              <span className="text-xs text-[#606070]">전체 {allFeed.length}건</span>
+              <span className="text-xs text-[#606070]">{allFeed.length}건</span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {allFeed.length === 0 ? (
@@ -327,32 +327,21 @@ export default function LiveDashboard() {
                 allFeed.map((item, idx) => (
                   <div
                     key={`${item.time}-${idx}`}
-                    className={`flex items-start gap-3 px-4 py-2.5 border-b border-[#1A1A2A] ${idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'} transition-colors group`}
+                    className={`flex items-start gap-2 px-3 py-2 border-b border-[#1A1A2A] ${idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'} transition-colors group`}
                   >
                     <FeedIcon type={item.type} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white leading-tight">
+                      <p className="text-xs text-white leading-tight">
                         {item.region && <span className="text-[#808090] mr-1">{FLAGS[item.region]}</span>}
                         <span className="font-medium">{item.creator ? `@${item.creator}` : ''}</span>
                         <span className="text-[#606070]"> — </span>
                         <span className="text-[#C0C0D0]">{feedLabel(item)}</span>
                       </p>
                       {item.campaign && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-xs text-[#808090] truncate">{item.campaign}</p>
-                          {item.campaignId && (
-                            <button
-                              onClick={() => window.open('/admin/campaigns', '_blank')}
-                              className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity flex-shrink-0"
-                              title="캠페인 바로가기"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
+                        <p className="text-[10px] text-[#808090] truncate mt-0.5">{item.campaign}</p>
                       )}
                     </div>
-                    <span className="text-xs text-[#707080] whitespace-nowrap flex-shrink-0 mt-0.5">{timeAgo(item.time)}</span>
+                    <span className="text-[10px] text-[#707080] whitespace-nowrap flex-shrink-0 mt-0.5">{timeAgo(item.time)}</span>
                   </div>
                 ))
               )}
