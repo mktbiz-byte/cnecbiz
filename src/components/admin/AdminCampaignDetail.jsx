@@ -588,6 +588,9 @@ export default function AdminCampaignDetail() {
             creatorName: creatorName,
             campaignTitle: campaign?.title || '',
             companyName: companyDisplayName,
+            companyBizId: campaign?.company_biz_id,
+            companyId: campaign?.company_id,
+            companyEmail: campaign?.company_email,
             isResubmission: false,
             videoFileCount: 1
           })

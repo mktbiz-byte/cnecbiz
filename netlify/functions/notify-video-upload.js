@@ -59,6 +59,9 @@ exports.handler = async (event) => {
       creatorName: hintCreatorName,
       campaignTitle: hintCampaignTitle,
       companyName: hintCompanyName,
+      companyBizId: hintCompanyBizId,
+      companyId: hintCompanyId,
+      companyEmail: hintCompanyEmail,
       isResubmission,
       videoFileCount,
       campaignType: hintCampaignType,
@@ -115,42 +118,47 @@ exports.handler = async (event) => {
     console.log('[notify-video-upload] 캠페인 조회 결과:', { found: !!campaignData, campaignTitle, companyName })
 
     // ===== 2. 기업 정보 조회 (BIZ DB) =====
-    if (campaignData) {
+    // hint 파라미터 우선 사용 (프론트에서 전달, notify-sns-upload-complete와 동일 패턴)
+    const companyBizId = hintCompanyBizId || campaignData?.company_biz_id
+    const companyId = hintCompanyId || campaignData?.company_id
+    const companyEmailFromCampaign = hintCompanyEmail || campaignData?.company_email
+
+    {
       const selectFields = 'company_name, notification_phone, phone, notification_email, email'
       let comp = null
 
       // 1순위: company_biz_id → companies.id
-      if (campaignData.company_biz_id) {
+      if (companyBizId) {
         try {
           const { data } = await supabaseBiz.from('companies')
-            .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
-          if (data) comp = data
+            .select(selectFields).eq('id', companyBizId).maybeSingle()
+          if (data) { comp = data; console.log('[notify-video-upload] company_biz_id 매칭:', data.company_name) }
         } catch (e) { console.log('[notify-video-upload] company_biz_id 조회 실패:', e.message) }
       }
 
       // 2순위: company_email → companies.email
-      if (!comp && campaignData.company_email) {
+      if (!comp && companyEmailFromCampaign) {
         try {
           const { data } = await supabaseBiz.from('companies')
-            .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
-          if (data) comp = data
+            .select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
+          if (data) { comp = data; console.log('[notify-video-upload] company_email 매칭:', data.company_name) }
         } catch (e) { console.log('[notify-video-upload] company_email 조회 실패:', e.message) }
       }
 
       // 3순위: company_id → companies.id
-      if (!comp && campaignData.company_id) {
+      if (!comp && companyId) {
         try {
           const { data } = await supabaseBiz.from('companies')
-            .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
+            .select(selectFields).eq('id', companyId).maybeSingle()
           if (data) comp = data
         } catch (e) { /* ignore */ }
       }
 
       // 4순위: company_id → companies.user_id
-      if (!comp && campaignData.company_id) {
+      if (!comp && companyId) {
         try {
           const { data } = await supabaseBiz.from('companies')
-            .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
+            .select(selectFields).eq('user_id', companyId).maybeSingle()
           if (data) comp = data
         } catch (e) { /* ignore */ }
       }
@@ -161,10 +169,10 @@ exports.handler = async (event) => {
         if (comp.company_name) companyName = comp.company_name
         console.log('[notify-video-upload] 기업 정보:', { companyName, phone: !!companyPhone, email: !!companyEmail })
       } else {
-        // fallback: 캠페인에 직접 저장된 company_phone을 사용하되,
-        // 해당 전화번호로 companies 테이블에서 한번 더 검색하여 notification_phone이 있으면 우선 사용
-        const fallbackPhone = campaignData.company_phone
-        const fallbackEmail = campaignData.company_email
+        // fallback: 캠페인에 직접 저장된 company_phone으로 companies 재검색
+        // ★ 검색 실패 시 campaign.company_phone을 직접 사용하지 않음 (관리자 번호일 수 있음)
+        const fallbackPhone = campaignData?.company_phone
+        const fallbackEmail = campaignData?.company_email
         if (fallbackPhone) {
           try {
             const { data: compByPhone } = await supabaseBiz.from('companies')
@@ -177,10 +185,11 @@ exports.handler = async (event) => {
               if (compByPhone.company_name) companyName = compByPhone.company_name
               console.log('[notify-video-upload] fallback phone → companies 매칭:', compByPhone.company_name)
             } else {
-              companyPhone = fallbackPhone
+              // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
+              console.warn('[notify-video-upload] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
             }
           } catch (e) {
-            companyPhone = fallbackPhone
+            console.warn('[notify-video-upload] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
           }
         }
         if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail

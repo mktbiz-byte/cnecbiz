@@ -304,12 +304,12 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
             if (compByPhone.company_name) companyName = compByPhone.company_name
             console.log('[알림] fallback phone → companies 매칭:', compByPhone.company_name, { notification_phone: !!compByPhone.notification_phone })
           } else {
-            companyPhone = fallbackPhone
-            console.log('[알림] 기업 정보 (캠페인 직접 필드 fallback):', { companyPhone })
+            // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
+            console.warn('[알림] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
           }
         } catch (e) {
-          companyPhone = fallbackPhone
-          console.log('[알림] 기업 정보 (캠페인 직접 필드 fallback):', { companyPhone })
+          // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
+          console.warn('[알림] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
         }
       } else {
         console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_biz_id: campaignData.company_biz_id, company_id: campaignData.company_id, company_email: campaignData.company_email })

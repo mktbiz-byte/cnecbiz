@@ -171,10 +171,11 @@ exports.handler = async (event) => {
             companyName = compByPhone.company_name || companyName
             console.log('[notify-sns-upload-complete] fallback phone → companies 매칭:', compByPhone.company_name)
           } else {
-            companyPhone = fallbackPhone
+            // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
+            console.warn('[notify-sns-upload-complete] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
           }
         } catch (e) {
-          companyPhone = fallbackPhone
+          console.warn('[notify-sns-upload-complete] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
         }
       }
       if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail

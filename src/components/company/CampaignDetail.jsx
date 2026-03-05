@@ -6547,6 +6547,9 @@ Questions? Contact us.
             creatorName: creatorName,
             campaignTitle: campaign?.title || '',
             companyName: campaign?.brand_name || campaign?.brand || '기업',
+            companyBizId: campaign?.company_biz_id,
+            companyId: campaign?.company_id,
+            companyEmail: campaign?.company_email,
             isResubmission: false,
             videoFileCount: 1
           })
