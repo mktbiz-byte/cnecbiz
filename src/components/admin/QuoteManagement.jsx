@@ -12,7 +12,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 const OUR_COMPANY = {
   businessNumber: '575-81-02253',
   companyName: '하우파파 주식회사',
-  ceoName: '박현웅',
+  ceoName: '박현용',
   address: '서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호'
 }
 
