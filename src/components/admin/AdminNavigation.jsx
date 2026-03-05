@@ -5,7 +5,7 @@ import {
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
   Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target,
-  Bot, Send, FileText
+  Bot, Send, FileText, CalendarDays
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -65,6 +65,7 @@ export default function AdminNavigation() {
         { path: '/admin/companies', icon: Building2, label: '기업 관리' },
         { path: '/admin/consultations', icon: MessageCircle, label: '상담 관리' },
         { path: '/admin/quotes', icon: FileText, label: '견적서 관리' },
+        { path: '/admin/billing-schedule', icon: CalendarDays, label: '스케줄 관리' },
         { path: '/admin/campaigns', icon: TrendingUp, label: '캠페인 관리' },
       ]
     },
