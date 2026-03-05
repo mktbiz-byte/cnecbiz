@@ -198,10 +198,26 @@ exports.handler = async (event) => {
         }
       })
 
+      // active 캠페인 ID 세트 (선정대기 필터용)
+      const activeCampaignIds = new Set(r.allCampaigns.filter(c => c.status === 'active').map(c => c.id))
+
+      // 캠페인별로 selected 여부 추적 (선정이 이미 된 캠페인 제외용)
+      const campaignsWithSelected = new Set()
+      r.allApps.forEach(a => {
+        if (a.status !== 'pending' && a.status !== 'rejected' && activeCampaignIds.has(a.campaign_id)) {
+          campaignsWithSelected.add(a.campaign_id)
+        }
+      })
+
       // 프로세스 현황: application 상태별
       r.allApps.forEach(a => {
         switch (a.status) {
-          case 'pending': process.pendingSelection++; break
+          case 'pending':
+            // active 캠페인이고 아직 아무도 선정 안 된 캠페인의 pending만
+            if (activeCampaignIds.has(a.campaign_id) && !campaignsWithSelected.has(a.campaign_id)) {
+              process.pendingSelection++
+            }
+            break
           case 'selected': case 'filming': process.filming++; break
           case 'video_submitted': process.reviewing++; break
           case 'approved': case 'video_approved': process.snsWaiting++; break
@@ -212,16 +228,16 @@ exports.handler = async (event) => {
       // 관리 포인트
       // 승인 대기: 캠페인 status=pending
       actionRequired.approvalPending += r.allCampaigns.filter(c => c.status === 'pending' || c.status === 'draft').length
-      // 선정 지연: active 캠페인인데 pending applications 많은 것
-      const activeCampaignIds = new Set(r.allCampaigns.filter(c => c.status === 'active').map(c => c.id))
-      const pendingApps = r.allApps.filter(a => a.status === 'pending' && activeCampaignIds.has(a.campaign_id))
-      // 캠페인별 pending이 있으면 지연으로 카운트
-      const campaignsWithPending = new Set(pendingApps.map(a => a.campaign_id))
-      actionRequired.selectionDelayed += campaignsWithPending.size
-      // 검수 지연: video_submitted 상태
-      actionRequired.reviewDelayed += r.allApps.filter(a => a.status === 'video_submitted').length
-      // SNS 지연: approved인데 sns_uploaded 아닌
-      actionRequired.snsDelayed += r.allApps.filter(a => a.status === 'approved' || a.status === 'video_approved').length
+      // 선정 지연: active 캠페인인데 아직 아무도 선정 안 한 캠페인 수
+      const campaignsNeedSelection = [...activeCampaignIds].filter(id => !campaignsWithSelected.has(id))
+      const campaignsWithPendingApplicants = new Set(
+        r.allApps.filter(a => a.status === 'pending' && campaignsNeedSelection.includes(a.campaign_id)).map(a => a.campaign_id)
+      )
+      actionRequired.selectionDelayed += campaignsWithPendingApplicants.size
+      // 검수 지연: video_submitted 상태 (active 캠페인만)
+      actionRequired.reviewDelayed += r.allApps.filter(a => a.status === 'video_submitted' && activeCampaignIds.has(a.campaign_id)).length
+      // SNS 지연: approved인데 sns_uploaded 아닌 (active 캠페인만)
+      actionRequired.snsDelayed += r.allApps.filter(a => (a.status === 'approved' || a.status === 'video_approved') && activeCampaignIds.has(a.campaign_id)).length
 
       // 피드 생성 (영상)
       r.recentVideos.forEach(v => {
