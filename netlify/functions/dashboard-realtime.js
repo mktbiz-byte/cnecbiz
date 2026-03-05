@@ -1,12 +1,5 @@
 const { createClient } = require('@supabase/supabase-js')
 
-/**
- * 실시간 현황판 데이터 API
- * GET /.netlify/functions/dashboard-realtime
- *
- * 모든 리전 DB에서 영상 제출, SNS 완료, 캠페인 현황을 실시간으로 제공
- */
-
 const supabaseBiz = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -27,12 +20,20 @@ const supabaseUS = (process.env.VITE_SUPABASE_US_URL && process.env.SUPABASE_US_
   ? createClient(process.env.VITE_SUPABASE_US_URL, process.env.SUPABASE_US_SERVICE_ROLE_KEY)
   : null
 
-// 리전 클라이언트 목록
 const regionalClients = [
   { name: 'korea', code: 'kr', client: supabaseKorea },
   { name: 'japan', code: 'jp', client: supabaseJapan },
   { name: 'us', code: 'us', client: supabaseUS }
 ].filter(r => r.client)
+
+// 캠페인 타입 정규화
+function normalizeType(t) {
+  if (!t || t === 'planned' || t === 'regular') return 'planned'
+  if (t === 'olive_young' || t === 'oliveyoung' || t === 'oliveyoung_sale') return 'oliveyoung'
+  if (t === '4week_challenge' || t === '4week') return '4week'
+  if (t === 'megawari' || t === 'mega-warri') return 'megawari'
+  return t
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -46,18 +47,18 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 한국시간 기준 오늘 00:00 (UTC)
     const now = new Date()
     const kstOffset = 9 * 60 * 60 * 1000
     const kstNow = new Date(now.getTime() + kstOffset)
     const kstTodayStart = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate()) - kstOffset)
     const todayISO = kstTodayStart.toISOString()
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
     // ===== 리전별 병렬 쿼리 =====
     const regionPromises = regionalClients.map(async (region) => {
       try {
-        const [videoRes, appRes, campaignRes, recentVideoRes] = await Promise.allSettled([
-          // 오늘 영상 제출 (존재하는 컬럼만 select)
+        const [videoRes, allAppsRes, allCampaignsRes, recentVideoRes, recentAppsRes] = await Promise.allSettled([
+          // 오늘 영상 제출
           region.client
             .from('video_submissions')
             .select('id, campaign_id, user_id, version, video_number, week_number, status, created_at')
@@ -65,108 +66,162 @@ exports.handler = async (event) => {
             .order('created_at', { ascending: false })
             .limit(200),
 
-          // 오늘 applications 상태 변경
+          // 전체 applications 상태별 (프로세스 현황용)
           region.client
             .from('applications')
-            .select('id, status, campaign_id, user_id, updated_at')
-            .gte('updated_at', todayISO)
-            .in('status', ['video_submitted', 'sns_uploaded', 'completed', 'approved', 'revision_requested'])
-            .order('updated_at', { ascending: false })
-            .limit(200),
+            .select('id, status, campaign_id, user_id')
+            .limit(5000),
 
-          // 활성 캠페인
+          // 전체 캠페인 (상태별 + 타입별)
           region.client
             .from('campaigns')
             .select('id, title, campaign_type, status')
-            .eq('status', 'active')
-            .limit(200),
+            .limit(500),
 
           // 최근 영상 활동 (피드용, 24시간)
           region.client
             .from('video_submissions')
             .select('id, campaign_id, user_id, version, video_number, week_number, status, created_at')
-            .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
+            .gte('created_at', last24h)
             .order('created_at', { ascending: false })
+            .limit(30),
+
+          // 최근 application 변경 (피드용)
+          region.client
+            .from('applications')
+            .select('id, status, campaign_id, user_id, updated_at')
+            .gte('updated_at', last24h)
+            .in('status', ['sns_uploaded', 'completed', 'approved', 'revision_requested'])
+            .order('updated_at', { ascending: false })
             .limit(30)
         ])
 
         const videos = videoRes.status === 'fulfilled' ? (videoRes.value?.data || []) : []
-        const apps = appRes.status === 'fulfilled' ? (appRes.value?.data || []) : []
-        const campaigns = campaignRes.status === 'fulfilled' ? (campaignRes.value?.data || []) : []
+        const allApps = allAppsRes.status === 'fulfilled' ? (allAppsRes.value?.data || []) : []
+        const allCampaigns = allCampaignsRes.status === 'fulfilled' ? (allCampaignsRes.value?.data || []) : []
         const recentVideos = recentVideoRes.status === 'fulfilled' ? (recentVideoRes.value?.data || []) : []
+        const recentApps = recentAppsRes.status === 'fulfilled' ? (recentAppsRes.value?.data || []) : []
 
-        // 캠페인 ID → 타이틀/타입 맵 생성
         const campaignMap = {}
-        campaigns.forEach(c => {
-          campaignMap[c.id] = { title: c.title, type: c.campaign_type }
+        allCampaigns.forEach(c => {
+          campaignMap[c.id] = { title: c.title, type: c.campaign_type, status: c.status }
         })
 
         return {
-          region: region.name,
           code: region.code,
           videos,
-          apps,
-          campaigns,
+          allApps,
+          allCampaigns,
           recentVideos,
+          recentApps,
           campaignMap
         }
       } catch (err) {
         console.error(`[dashboard-realtime] ${region.name} error:`, err.message)
-        return { region: region.name, code: region.code, videos: [], apps: [], campaigns: [], recentVideos: [], campaignMap: {} }
+        return { code: region.code, videos: [], allApps: [], allCampaigns: [], recentVideos: [], recentApps: [], campaignMap: {} }
       }
     })
 
-    // WhatsApp 로그 (BIZ DB에서)
-    const waPromise = supabaseBiz
-      .from('whatsapp_logs')
-      .select('id, template_name, status, creator_name, campaign_name, created_at')
-      .gte('created_at', todayISO)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(res => res.data || [])
-      .catch(() => [])
-
-    const [regionResults, waLogs] = await Promise.all([
-      Promise.all(regionPromises),
-      waPromise
+    // BIZ DB: 기업/상담 현황
+    const bizPromises = Promise.allSettled([
+      supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
+      supabaseBiz.from('whatsapp_logs')
+        .select('id, template_name, status, creator_name, campaign_name, created_at')
+        .gte('created_at', todayISO)
+        .order('created_at', { ascending: false })
+        .limit(50)
     ])
 
+    const [regionResults, bizResults] = await Promise.all([
+      Promise.all(regionPromises),
+      bizPromises
+    ])
+
+    const companyCount = bizResults[0]?.status === 'fulfilled' ? (bizResults[0].value?.count || 0) : 0
+    const waLogs = bizResults[1]?.status === 'fulfilled' ? (bizResults[1].value?.data || []) : []
+
     // ===== 통계 집계 =====
-    let totalVideos = 0
-    let videosByStatus = { submitted: 0, approved: 0, revision: 0 }
-    let videosByRegion = {}
-    let totalApps = { videoSubmitted: 0, snsUploaded: 0, completed: 0, approved: 0, revisionRequested: 0 }
-    let allCampaigns = []
-    let campaignsByType = {}
     const allFeed = []
     const globalCampaignMap = {}
 
+    // 프로세스 현황 (전체)
+    const process = {
+      consulting: companyCount,   // 상담/가입
+      campaignCreated: 0,         // 캠페인생성
+      pendingPayment: 0,          // 결제대기
+      recruiting: 0,              // 모집중
+      pendingSelection: 0,        // 선정대기
+      filming: 0,                 // 촬영중
+      reviewing: 0,               // 수정/검수
+      snsWaiting: 0               // 업로드대기
+    }
+
+    // 국가별 상세
+    const countryStats = {}
+    // 관리 포인트 (Action Required)
+    const actionRequired = {
+      approvalPending: 0,         // 승인 요청 대기
+      selectionDelayed: 0,        // 크리에이터 선정 지연
+      reviewDelayed: 0,           // 영상 검수 지연
+      snsDelayed: 0               // SNS 업로드 지연
+    }
+
+    // 오늘 영상 통계
+    let todayVideoTotal = 0
+    const todayVideoByRegion = {}
+
     for (const r of regionResults) {
-      // 영상 통계
-      videosByRegion[r.code] = r.videos.length
-      totalVideos += r.videos.length
-      r.videos.forEach(v => {
-        if (v.status === 'submitted' || v.status === 'pending') videosByStatus.submitted++
-        else if (v.status === 'approved') videosByStatus.approved++
-        else if (v.status === 'revision_requested') videosByStatus.revision++
+      // 오늘 영상
+      todayVideoByRegion[r.code] = r.videos.length
+      todayVideoTotal += r.videos.length
+
+      // 국가별 캠페인 타입별 상세
+      const cStats = { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
+      r.allCampaigns.forEach(c => {
+        if (c.status === 'active') {
+          cStats.total++
+          const nt = normalizeType(c.campaign_type)
+          if (cStats[nt] !== undefined) cStats[nt]++
+        }
+        globalCampaignMap[c.id] = { title: c.title, type: c.campaign_type, status: c.status }
+      })
+      countryStats[r.code] = cStats
+
+      // 프로세스 현황: 캠페인 상태별
+      r.allCampaigns.forEach(c => {
+        switch (c.status) {
+          case 'draft': process.campaignCreated++; break
+          case 'pending_payment': process.pendingPayment++; break
+          case 'active': process.recruiting++; break
+          case 'paused': break
+          case 'completed': break
+        }
       })
 
-      // Application 통계
-      r.apps.forEach(a => {
-        if (a.status === 'video_submitted') totalApps.videoSubmitted++
-        else if (a.status === 'sns_uploaded') totalApps.snsUploaded++
-        else if (a.status === 'completed') totalApps.completed++
-        else if (a.status === 'approved') totalApps.approved++
-        else if (a.status === 'revision_requested') totalApps.revisionRequested++
+      // 프로세스 현황: application 상태별
+      r.allApps.forEach(a => {
+        switch (a.status) {
+          case 'pending': process.pendingSelection++; break
+          case 'selected': case 'filming': process.filming++; break
+          case 'video_submitted': process.reviewing++; break
+          case 'approved': case 'video_approved': process.snsWaiting++; break
+          case 'revision_requested': process.reviewing++; break
+        }
       })
 
-      // 캠페인
-      allCampaigns = allCampaigns.concat(r.campaigns.map(c => ({ ...c, country: r.code })))
-      r.campaigns.forEach(c => {
-        const type = c.campaign_type || 'planned'
-        campaignsByType[type] = (campaignsByType[type] || 0) + 1
-        globalCampaignMap[c.id] = { title: c.title, type: c.campaign_type }
-      })
+      // 관리 포인트
+      // 승인 대기: 캠페인 status=pending
+      actionRequired.approvalPending += r.allCampaigns.filter(c => c.status === 'pending' || c.status === 'draft').length
+      // 선정 지연: active 캠페인인데 pending applications 많은 것
+      const activeCampaignIds = new Set(r.allCampaigns.filter(c => c.status === 'active').map(c => c.id))
+      const pendingApps = r.allApps.filter(a => a.status === 'pending' && activeCampaignIds.has(a.campaign_id))
+      // 캠페인별 pending이 있으면 지연으로 카운트
+      const campaignsWithPending = new Set(pendingApps.map(a => a.campaign_id))
+      actionRequired.selectionDelayed += campaignsWithPending.size
+      // 검수 지연: video_submitted 상태
+      actionRequired.reviewDelayed += r.allApps.filter(a => a.status === 'video_submitted').length
+      // SNS 지연: approved인데 sns_uploaded 아닌
+      actionRequired.snsDelayed += r.allApps.filter(a => a.status === 'approved' || a.status === 'video_approved').length
 
       // 피드 생성 (영상)
       r.recentVideos.forEach(v => {
@@ -174,7 +229,8 @@ exports.handler = async (event) => {
         allFeed.push({
           type: 'video_upload',
           time: v.created_at,
-          creator: v.user_id?.substring(0, 8) || '?',
+          userId: v.user_id,
+          creator: '',
           campaign: cInfo?.title || '',
           campaignType: cInfo?.type || 'planned',
           version: v.version,
@@ -185,14 +241,14 @@ exports.handler = async (event) => {
       })
 
       // 피드 생성 (SNS 업로드)
-      r.apps.filter(a => a.status === 'sns_uploaded').forEach(a => {
+      r.recentApps.filter(a => a.status === 'sns_uploaded').forEach(a => {
         const cInfo = r.campaignMap[a.campaign_id] || globalCampaignMap[a.campaign_id]
         allFeed.push({
           type: 'sns_upload',
           time: a.updated_at,
-          creator: a.user_id?.substring(0, 8) || '?',
+          userId: a.user_id,
+          creator: '',
           campaign: cInfo?.title || '',
-          campaignId: a.campaign_id,
           region: r.code
         })
       })
@@ -210,80 +266,42 @@ exports.handler = async (event) => {
       })
     })
 
-    // 피드 정렬 (최신순)
     allFeed.sort((a, b) => new Date(b.time) - new Date(a.time))
 
-    // 캠페인 타입 정규화
-    const normalizedTypes = {
-      planned: (campaignsByType['planned'] || 0) + (campaignsByType['regular'] || 0),
-      olive_young: (campaignsByType['olive_young'] || 0) + (campaignsByType['oliveyoung'] || 0) + (campaignsByType['oliveyoung_sale'] || 0),
-      '4week': (campaignsByType['4week_challenge'] || 0) + (campaignsByType['4week'] || 0),
-      megawari: (campaignsByType['megawari'] || 0) + (campaignsByType['mega-warri'] || 0)
-    }
-
-    const stats = {
-      videoSubmissions: {
-        total: totalVideos,
-        korea: videosByRegion['kr'] || 0,
-        japan: videosByRegion['jp'] || 0,
-        us: videosByRegion['us'] || 0,
-        byStatus: videosByStatus
-      },
-      applicationStatus: totalApps,
-      activeCampaigns: {
-        total: allCampaigns.length,
-        byCountry: {
-          kr: allCampaigns.filter(c => c.country === 'kr').length,
-          jp: allCampaigns.filter(c => c.country === 'jp').length,
-          us: allCampaigns.filter(c => c.country === 'us').length
-        },
-        byType: normalizedTypes
-      },
-      whatsapp: {
-        total: waLogs.length,
-        success: waLogs.filter(w => w.status === 'queued' || w.status === 'sent' || w.status === 'delivered').length,
-        failed: waLogs.filter(w => w.status === 'failed').length
-      }
-    }
-
-    // 크리에이터 이름 매핑 (user_id → 이름)
-    // 피드의 user_id들을 수집해서 일괄 조회
-    const userIds = [...new Set(allFeed.filter(f => f.creator?.length === 8).map(f => f.creator))]
-    if (userIds.length > 0) {
-      // user_id 앞 8자로는 정확한 조회 불가 → 그대로 표시
-      // 대신 user_profiles에서 최근 video_submissions의 user_id로 조회
-      const fullUserIds = [...new Set([
-        ...regionResults.flatMap(r => r.recentVideos.map(v => v.user_id)),
-        ...regionResults.flatMap(r => r.apps.filter(a => a.status === 'sns_uploaded').map(a => a.user_id))
-      ].filter(Boolean))]
-
-      if (fullUserIds.length > 0) {
-        // 각 리전에서 user_profiles 또는 creators 조회
-        const nameMap = {}
-        for (const region of regionalClients) {
-          try {
-            const { data } = await region.client
-              .from('user_profiles')
-              .select('id, display_name, full_name')
-              .in('id', fullUserIds)
-              .limit(100)
-            if (data) {
-              data.forEach(u => {
-                nameMap[u.id] = u.display_name || u.full_name || u.id.substring(0, 8)
-              })
-            }
-          } catch (e) { /* skip */ }
-        }
-
-        // 피드에 이름 매핑
-        allFeed.forEach(f => {
-          if (f.creator?.length === 8) {
-            // user_id 앞 8자와 매칭
-            const matched = Object.entries(nameMap).find(([uid]) => uid.startsWith(f.creator))
-            if (matched) f.creator = matched[1]
+    // 크리에이터 이름 매핑
+    const fullUserIds = [...new Set(allFeed.map(f => f.userId).filter(Boolean))]
+    if (fullUserIds.length > 0) {
+      const nameMap = {}
+      for (const region of regionalClients) {
+        try {
+          const { data } = await region.client
+            .from('user_profiles')
+            .select('id, name')
+            .in('id', fullUserIds)
+            .limit(100)
+          if (data) {
+            data.forEach(u => { if (u.name) nameMap[u.id] = u.name })
           }
-        })
+        } catch (e) { /* skip */ }
       }
+      allFeed.forEach(f => {
+        if (f.userId && nameMap[f.userId]) {
+          f.creator = nameMap[f.userId]
+        } else if (f.userId) {
+          f.creator = f.userId.substring(0, 8)
+        }
+      })
+    }
+
+    // 오늘 application 변경 통계
+    const todayApps = { videoSubmitted: 0, snsUploaded: 0, completed: 0, approved: 0, revisionRequested: 0 }
+    for (const r of regionResults) {
+      r.recentApps.forEach(a => {
+        if (a.status === 'sns_uploaded') todayApps.snsUploaded++
+        else if (a.status === 'completed') todayApps.completed++
+        else if (a.status === 'approved') todayApps.approved++
+        else if (a.status === 'revision_requested') todayApps.revisionRequested++
+      })
     }
 
     return {
@@ -292,39 +310,48 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         timestamp: now.toISOString(),
-        todayRange: todayISO,
-        stats,
-        feed: allFeed.slice(0, 50),
-        activeCampaigns: allCampaigns.slice(0, 30).map(c => ({
-          id: c.id,
-          title: c.title,
-          type: c.campaign_type,
-          country: c.country
-        })),
+        // 오늘 KPI
+        today: {
+          videoTotal: todayVideoTotal,
+          videoByRegion: todayVideoByRegion,
+          apps: todayApps,
+          whatsapp: {
+            total: waLogs.length,
+            success: waLogs.filter(w => w.status !== 'failed').length,
+            failed: waLogs.filter(w => w.status === 'failed').length
+          }
+        },
+        // 관리 포인트 (Action Required)
+        actionRequired,
+        // 전체 프로세스 현황
+        process,
+        // 국가별 상세
+        countryStats,
+        // 활동 피드
+        feed: allFeed.slice(0, 60),
+        // 활성 캠페인 목록
+        activeCampaigns: Object.values(globalCampaignMap)
+          .filter(c => c.status === 'active')
+          .slice(0, 30)
+          .map((c, i) => ({ title: c.title, type: c.type })),
+        // 리전 연결
         regions: regionResults.map(r => ({
-          name: r.region,
           code: r.code,
-          videoCount: r.videos.length,
-          appCount: r.apps.length,
-          campaignCount: r.campaigns.length
+          videos: r.videos.length,
+          apps: r.allApps.length,
+          campaigns: r.allCampaigns.filter(c => c.status === 'active').length
         }))
       })
     }
 
   } catch (error) {
     console.error('[dashboard-realtime] Error:', error)
-
-    // 에러 알림
     try {
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'dashboard-realtime',
-          errorMessage: error.message,
-          context: { timestamp: new Date().toISOString() }
-        })
+        body: JSON.stringify({ functionName: 'dashboard-realtime', errorMessage: error.message })
       })
     } catch (e) { console.error('Error alert failed:', e.message) }
 
