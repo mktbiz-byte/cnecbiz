@@ -82,6 +82,7 @@ export default function DummyCampaignManagement() {
   const [form, setForm] = useState({ ...DEFAULT_FORM })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [translating, setTranslating] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // 인라인 날짜 수정용
   const [editingDate, setEditingDate] = useState(null)
@@ -280,31 +281,57 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
       if (!jsonMatch) throw new Error('번역 결과에서 JSON을 찾을 수 없습니다.')
 
       const translated = JSON.parse(jsonMatch[0])
-      const fullTranslation = [
-        translated.description,
-        '',
-        translated.product_features,
-        '',
-        translated.product_key_points,
-        '',
-        translated.requirements,
-        '',
-        '필수 멘트:',
-        ...(translated.required_dialogues || []).map((d, i) => `${i + 1}. ${d}`)
-      ].join('\n')
 
-      if (form.region === 'japan') {
-        setForm(prev => ({ ...prev, description_ja: fullTranslation }))
-      } else {
-        setForm(prev => ({ ...prev, description_en: fullTranslation }))
-      }
+      // 기존 필드를 번역 결과로 직접 덮어쓰기
+      setForm(prev => ({
+        ...prev,
+        description: translated.description || prev.description,
+        product_features: translated.product_features || prev.product_features,
+        product_key_points: translated.product_key_points || prev.product_key_points,
+        requirements: translated.requirements || prev.requirements,
+        required_dialogues: translated.required_dialogues?.length > 0 ? translated.required_dialogues : prev.required_dialogues,
+      }))
 
-      alert('번역 완료!')
+      alert('번역 완료! 각 필드가 번역된 내용으로 업데이트되었습니다.')
     } catch (err) {
       console.error('번역 실패:', err)
       alert('번역 실패: ' + err.message)
     } finally {
       setTranslating(false)
+    }
+  }
+
+  // ===== 썸네일 이미지 업로드 =====
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const filePath = `dummy/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+      const { error: uploadError } = await supabaseBiz.storage
+        .from('campaign-images')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabaseBiz.storage
+        .from('campaign-images')
+        .getPublicUrl(filePath)
+
+      if (!urlData?.publicUrl) throw new Error('Public URL을 가져올 수 없습니다.')
+      setForm(prev => ({ ...prev, image_url: urlData.publicUrl }))
+    } catch (err) {
+      console.error('이미지 업로드 실패:', err)
+      alert('이미지 업로드 실패: ' + err.message)
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -808,7 +835,21 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
 
             {/* 캠페인 상세 내용 (AI 생성 가능) */}
             <div className="border-t pt-4">
-              <h3 className="text-sm font-bold text-gray-900 mb-3">캠페인 상세 내용</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-900">캠페인 상세 내용</h3>
+                {(form.region === 'japan' || form.region === 'us') && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTranslate}
+                    disabled={translating}
+                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    {translating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
+                    {translating ? '번역 중...' : `AI ${form.region === 'japan' ? '일본어' : '영어'} 번역`}
+                  </Button>
+                )}
+              </div>
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 설명</label>
@@ -861,40 +902,45 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
               </div>
             </div>
 
-            {/* 일본어/영어 번역 (JP/US 리전일 때) */}
-            {(form.region === 'japan' || form.region === 'us') && (
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-blue-500" />
-                    {form.region === 'japan' ? '일본어 번역' : '영어 번역'}
-                  </h3>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleTranslate}
-                    disabled={translating}
-                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                  >
-                    {translating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
-                    {translating ? '번역 중...' : 'AI 번역'}
-                  </Button>
+            {/* 썸네일 이미지 업로드 */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
+              <div className="flex items-start gap-4">
+                {/* 미리보기 */}
+                <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border">
+                  {form.image_url ? (
+                    <img src={form.image_url} alt="썸네일" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-8 h-8 text-gray-300" />
+                    </div>
+                  )}
                 </div>
-                <Textarea
-                  value={form.region === 'japan' ? form.description_ja : form.description_en}
-                  onChange={e => {
-                    if (form.region === 'japan') setForm(f => ({ ...f, description_ja: e.target.value }))
-                    else setForm(f => ({ ...f, description_en: e.target.value }))
-                  }}
-                  placeholder={form.region === 'japan' ? '일본어로 번역된 캠페인 내용이 여기에 표시됩니다...' : 'English translated campaign content will appear here...'}
-                  rows={6}
-                />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg text-sm font-medium hover:bg-violet-100 transition-colors">
+                      {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                      {uploadingImage ? '업로드 중...' : '이미지 선택'}
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+                    </label>
+                    {form.image_url && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, image_url: '' }))}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    value={form.image_url}
+                    onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))}
+                    placeholder="또는 URL 직접 입력"
+                    className="text-xs"
+                  />
+                </div>
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이미지 URL</label>
-              <Input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
             </div>
           </div>
           <DialogFooter>
