@@ -66,6 +66,7 @@ import CreatorPointHistory from './components/admin/CreatorPointHistory'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import ConsultationManagement from './components/admin/ConsultationManagement'
+import QuoteManagement from './components/admin/QuoteManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
@@ -244,6 +245,7 @@ function App() {
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/consultations" element={<ConsultationManagement />} />
+        <Route path="/admin/quotes" element={<QuoteManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaigns/deadlines" element={<DeadlineCreatorManagement />} />
         <Route path="/admin/campaigns/unpaid" element={<UnpaidCampaignsManagement />} />
