@@ -6181,6 +6181,35 @@ Questions? Contact us.
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
 
+      // 한국 크리에이터 선정 알림 발송 (알림톡 + 이메일 + 네이버웍스)
+      if (region === 'korea') {
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
+            const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
+            const pName = participant.applicant_name || participant.creator_name || '크리에이터'
+            try {
+              await fetch('/.netlify/functions/dispatch-campaign-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventType: 'creator_selected',
+                  creatorName: pName,
+                  creatorPhone: pPhone,
+                  creatorEmail: pEmail,
+                  campaignTitle: campaign?.title || '캠페인',
+                  campaignId: id
+                })
+              })
+            } catch (notifError) {
+              console.error('[Korea] Selection notification error:', notifError.message)
+            }
+          }
+        }
+      }
+
       // 일본 크리에이터 선정 알림 발송 (LINE + SMS + Email + LINE 초대)
       if (region === 'japan') {
         alert('일본 크리에이터에게 선정 알림을 발송합니다...')
@@ -14128,7 +14157,7 @@ Questions? Contact us.
 
                     if (phone) {
                       try {
-                        await fetch('/.netlify/functions/send-kakao-notification', {
+                        const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
@@ -14146,8 +14175,6 @@ Questions? Contact us.
                         console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
                         if (!kakaoResponse.ok || !kakaoResult.success) {
                           console.error('알림톡 발송 실패 응답:', kakaoResult)
-                          const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
-                          console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
                         }
                       } catch (kakaoError) {
                         console.error('알림톡 발송 실패:', kakaoError)
@@ -14182,6 +14209,21 @@ Questions? Contact us.
                       } catch (emailError) {
                         console.error('영상 승인 이메일 발송 실패:', emailError)
                       }
+                    }
+
+                    // 네이버 웍스 알림 (검수 완료)
+                    try {
+                      await fetch('/.netlify/functions/send-naver-works-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          isAdminNotification: true,
+                          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                          message: `[영상 검수 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n업로드 기한: ${uploadDeadline}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                        })
+                      })
+                    } catch (worksError) {
+                      console.error('네이버 웍스 알림 발송 실패:', worksError)
                     }
 
                     alert('영상이 승인되었습니다!')
@@ -14314,6 +14356,21 @@ Questions? Contact us.
                         } catch (usErr) {
                           console.error('미국 수정 요청 알림 실패:', usErr)
                         }
+                      }
+
+                      // 네이버 웍스 알림 (수정 요청)
+                      try {
+                        await fetch('/.netlify/functions/send-naver-works-message', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            isAdminNotification: true,
+                            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                            message: `[영상 수정 요청]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n수정 내용: ${revisionComment.substring(0, 100)}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                          })
+                        })
+                      } catch (worksError) {
+                        console.error('네이버 웍스 알림 발송 실패:', worksError)
                       }
                     }
 
