@@ -41,6 +41,12 @@ const PLATFORM_OPTIONS = [
   { value: 'tiktok', label: '틱톡' }
 ]
 
+const CATEGORY_OPTIONS = [
+  { value: 'instagram', label: '릴스' },
+  { value: 'youtube', label: '쇼츠' },
+  { value: 'tiktok', label: '틱톡' }
+]
+
 const DEFAULT_FORM = {
   title: '',
   brand: '',
@@ -49,14 +55,18 @@ const DEFAULT_FORM = {
   region: 'korea',
   status: 'active',
   target_platforms: ['instagram'],
+  category: ['instagram'],
   total_slots: 10,
   remaining_slots: 10,
   reward_points: 50000,
   application_deadline: '',
   recruitment_deadline: '',
   video_deadline: '',
+  content_submission_deadline: '',
+  sns_upload_deadline: '',
   image_url: '',
   company_name: '더미 기업',
+  product_link: '',
   // 중요 필드들
   description: '',
   product_description: '',
@@ -132,11 +142,16 @@ export default function DummyCampaignManagement() {
     const fourWeeksLater = new Date(today)
     fourWeeksLater.setDate(today.getDate() + 28)
 
+    const fiveWeeksLater = new Date(today)
+    fiveWeeksLater.setDate(today.getDate() + 35)
+
     setForm({
       ...DEFAULT_FORM,
       application_deadline: twoWeeksLater.toISOString().split('T')[0],
       recruitment_deadline: threeWeeksLater.toISOString().split('T')[0],
       video_deadline: fourWeeksLater.toISOString().split('T')[0],
+      content_submission_deadline: fourWeeksLater.toISOString().split('T')[0],
+      sns_upload_deadline: fiveWeeksLater.toISOString().split('T')[0],
     })
     setShowModal(true)
   }
@@ -151,14 +166,18 @@ export default function DummyCampaignManagement() {
       region: campaign.region || 'korea',
       status: campaign.status || 'active',
       target_platforms: campaign.target_platforms || ['instagram'],
+      category: campaign.category || ['instagram'],
       total_slots: campaign.total_slots || 10,
       remaining_slots: campaign.remaining_slots || 10,
       reward_points: campaign.reward_points || 0,
       application_deadline: campaign.application_deadline?.split('T')[0] || '',
       recruitment_deadline: campaign.recruitment_deadline?.split('T')[0] || '',
       video_deadline: campaign.video_deadline?.split('T')[0] || '',
+      content_submission_deadline: campaign.content_submission_deadline?.split('T')[0] || '',
+      sns_upload_deadline: campaign.sns_upload_deadline?.split('T')[0] || '',
       image_url: campaign.image_url || '',
       company_name: campaign.company_name || '더미 기업',
+      product_link: campaign.product_link || '',
       description: campaign.description || '',
       product_description: campaign.product_description || '',
       product_features: campaign.product_features || '',
@@ -184,25 +203,28 @@ export default function DummyCampaignManagement() {
     setAiGenerating(true)
     try {
       const regionLabel = form.region === 'japan' ? '일본' : form.region === 'us' ? '미국' : '한국'
-      const prompt = `당신은 크리에이터 마케팅 캠페인 전문가입니다. 아래 정보를 바탕으로 캠페인 내용을 생성해주세요.
+      const langNote = form.region === 'japan' ? '\n\n중요: 모든 텍스트를 자연스러운 일본어로 작성해주세요.' : form.region === 'us' ? '\n\n중요: 모든 텍스트를 자연스러운 영어로 작성해주세요.' : ''
+      const prompt = `당신은 크리에이터 마케팅 캠페인 전문가입니다. 아래 정보를 바탕으로 실제 라이브 캠페인에 바로 사용할 수 있도록 상세하고 완성도 높은 캠페인 내용을 생성해주세요.
 
 브랜드: ${form.brand || '(미입력)'}
 제품명: ${form.product_name || '(미입력)'}
 리전: ${regionLabel}
-캠페인 타입: ${form.campaign_type === 'regular' ? '기획형' : form.campaign_type === 'oliveyoung' ? '올리브영' : '4주 챌린지'}
+캠페인 타입: ${form.campaign_type === 'regular' ? '기획형' : form.campaign_type === 'oliveyoung' ? '올리브영' : '4주 챌린지'}${langNote}
 
 아래 JSON 형식으로만 응답해주세요 (다른 텍스트 없이):
 {
   "title": "캠페인 제목 (예: [브랜드명] OO 릴스 캠페인)",
-  "description": "캠페인 설명 (2-3문장, 크리에이터에게 보여지는 설명)",
-  "product_description": "제품 소개 (1-2문장)",
-  "product_features": "제품 특징/장점 (불릿포인트 3-5개, 줄바꿈으로 구분)",
-  "product_key_points": "핵심 소구 포인트 (크리에이터가 영상에서 강조해야 할 점, 3-4개)",
-  "requirements": "참여 조건 및 유의사항 (3-4줄)",
-  "required_dialogues": ["필수 멘트1", "필수 멘트2", "필수 멘트3", "필수 멘트4"],
-  "required_hashtags": ["#해시태그1", "#해시태그2", "#해시태그3"],
-  "video_tone": "영상 분위기 (예: 밝고 자연스러운, 전문적인 등)",
-  "company_name": "기업명 (브랜드 운영사 추정)"
+  "description": "캠페인 설명 (3-4문장, 크리에이터에게 보여지는 매력적인 캠페인 소개. 어떤 제품인지, 왜 참여해야 하는지, 어떤 혜택이 있는지 포함)",
+  "product_description": "제품 소개 (2-3문장, 제품의 핵심 가치와 특장점)",
+  "product_features": "제품 특징/장점 (5-7개, 줄바꿈으로 구분. 각 항목은 구체적인 성분/기능/효과 포함)",
+  "product_key_points": "핵심 소구 포인트 (크리에이터가 영상에서 반드시 강조해야 할 4-5개 포인트, 줄바꿈으로 구분)",
+  "requirements": "참여 조건 및 유의사항 (5-6줄, 구체적인 촬영 가이드라인 포함. 예: 얼굴 노출 필수, 세로형 촬영, 제품 클로즈업 3초 이상 등)",
+  "required_dialogues": ["필수 멘트1 (구체적 대사)", "필수 멘트2", "필수 멘트3", "필수 멘트4"],
+  "required_hashtags": ["#브랜드해시태그", "#제품해시태그", "#광고", "#협찬"],
+  "video_tone": "영상 분위기 (구체적으로, 예: 밝고 자연스러운 일상 브이로그 톤, 전문적인 리뷰 톤 등)",
+  "video_duration": "권장 영상 길이 (예: 30-60초)",
+  "company_name": "기업명 (브랜드 운영사 추정)",
+  "product_link": "제품 공식 사이트 또는 구매 링크 URL (실제 URL을 찾을 수 없으면 빈 문자열)"
 }`
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
@@ -235,7 +257,9 @@ export default function DummyCampaignManagement() {
         required_dialogues: aiResult.required_dialogues || prev.required_dialogues,
         required_hashtags: aiResult.required_hashtags || prev.required_hashtags,
         video_tone: aiResult.video_tone || prev.video_tone,
+        video_duration: aiResult.video_duration || prev.video_duration,
         company_name: aiResult.company_name || prev.company_name,
+        product_link: aiResult.product_link || prev.product_link,
       }))
 
     } catch (err) {
@@ -361,13 +385,17 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
         region: form.region,
         status: form.status,
         target_platforms: form.target_platforms,
+        category: form.category?.length > 0 ? form.category : null,
         total_slots: parseInt(form.total_slots) || 10,
         remaining_slots: parseInt(form.remaining_slots) || 10,
         reward_points: parseInt(form.reward_points) || 0,
         application_deadline: form.application_deadline || null,
         recruitment_deadline: form.recruitment_deadline || null,
         video_deadline: form.video_deadline || null,
+        content_submission_deadline: form.content_submission_deadline || form.video_deadline || null,
+        sns_upload_deadline: form.sns_upload_deadline || null,
         image_url: form.image_url || null,
+        product_link: form.product_link || null,
         company_email: DUMMY_MARKER,
         company_name: form.company_name || '더미 기업',
         // 중요 필드들
@@ -465,6 +493,10 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
           video_tone: campaign.video_tone,
           additional_details_ja: campaign.additional_details_ja,
           additional_details: campaign.additional_details,
+          category: campaign.category,
+          product_link: campaign.product_link,
+          content_submission_deadline: campaign.content_submission_deadline,
+          sns_upload_deadline: campaign.sns_upload_deadline,
         }])
       if (error) throw error
       fetchDummyCampaigns()
@@ -817,6 +849,39 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
+                <div className="flex gap-2 pt-1">
+                  {CATEGORY_OPTIONS.map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => {
+                        setForm(f => ({
+                          ...f,
+                          category: (f.category || []).includes(c.value)
+                            ? f.category.filter(v => v !== c.value)
+                            : [...(f.category || []), c.value]
+                        }))
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        (form.category || []).includes(c.value)
+                          ? 'bg-blue-100 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">제품 링크</label>
+                <Input value={form.product_link} onChange={e => setForm(f => ({ ...f, product_link: e.target.value }))} placeholder="https://..." />
+              </div>
+            </div>
+
             {/* 날짜/슬롯/포인트 */}
             <div className="grid grid-cols-3 gap-3">
               <div>
@@ -830,6 +895,16 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">영상마감</label>
                 <Input type="date" value={form.video_deadline} onChange={e => setForm(f => ({ ...f, video_deadline: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">영상 제출 마감</label>
+                <Input type="date" value={form.content_submission_deadline} onChange={e => setForm(f => ({ ...f, content_submission_deadline: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SNS 업로드 예정일</label>
+                <Input type="date" value={form.sns_upload_deadline} onChange={e => setForm(f => ({ ...f, sns_upload_deadline: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
