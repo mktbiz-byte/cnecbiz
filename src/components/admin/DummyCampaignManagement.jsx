@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  Plus, Edit, Trash2, Loader2, Calendar, Save, Copy, ImageIcon, X
+  Plus, Edit, Trash2, Loader2, Calendar, Save, Copy, ImageIcon, X, Sparkles, Globe
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -19,11 +20,19 @@ const REGION_OPTIONS = [
   { value: 'us', label: '🇺🇸 미국' }
 ]
 
+// BIZ DB CHECK constraint에 맞는 상태값만 사용
 const STATUS_OPTIONS = [
   { value: 'active', label: '진행중' },
   { value: 'completed', label: '완료' },
   { value: 'draft', label: '임시저장' },
-  { value: 'pending', label: '승인대기' }
+  { value: 'in_progress', label: '진행중(상세)' },
+  { value: 'cancelled', label: '취소' }
+]
+
+const CAMPAIGN_TYPE_OPTIONS = [
+  { value: 'regular', label: '기획형' },
+  { value: 'oliveyoung', label: '올리브영' },
+  { value: '4week_challenge', label: '4주 챌린지' }
 ]
 
 const PLATFORM_OPTIONS = [
@@ -48,6 +57,19 @@ const DEFAULT_FORM = {
   video_deadline: '',
   image_url: '',
   company_name: '더미 기업',
+  // 중요 필드들
+  description: '',
+  product_description: '',
+  product_features: '',
+  product_key_points: '',
+  requirements: '',
+  required_dialogues: [],
+  required_hashtags: [],
+  video_duration: '30-60초',
+  video_tone: '',
+  // 일본어/영어 번역
+  description_ja: '',
+  description_en: '',
 }
 
 export default function DummyCampaignManagement() {
@@ -58,9 +80,11 @@ export default function DummyCampaignManagement() {
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ ...DEFAULT_FORM })
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [translating, setTranslating] = useState(false)
 
   // 인라인 날짜 수정용
-  const [editingDate, setEditingDate] = useState(null) // { id, field }
+  const [editingDate, setEditingDate] = useState(null)
   const [editingDateValue, setEditingDateValue] = useState('')
 
   useEffect(() => {
@@ -113,7 +137,7 @@ export default function DummyCampaignManagement() {
   const openEditModal = (campaign) => {
     setEditingId(campaign.id)
     setForm({
-      title: campaign.title || campaign.campaign_name || '',
+      title: campaign.title || '',
       brand: campaign.brand || '',
       product_name: campaign.product_name || '',
       campaign_type: campaign.campaign_type || 'regular',
@@ -128,22 +152,175 @@ export default function DummyCampaignManagement() {
       video_deadline: campaign.video_deadline?.split('T')[0] || '',
       image_url: campaign.image_url || '',
       company_name: campaign.company_name || '더미 기업',
+      description: campaign.description || '',
+      product_description: campaign.product_description || '',
+      product_features: campaign.product_features || '',
+      product_key_points: campaign.product_key_points || '',
+      requirements: campaign.requirements || '',
+      required_dialogues: campaign.required_dialogues || [],
+      required_hashtags: campaign.required_hashtags || [],
+      video_duration: campaign.video_duration || '30-60초',
+      video_tone: campaign.video_tone || '',
+      description_ja: campaign.additional_details_ja || '',
+      description_en: campaign.additional_details || '',
     })
     setShowModal(true)
   }
 
+  // ===== AI 자동 기입 (Gemini) =====
+  const handleAIGenerate = async () => {
+    if (!form.brand && !form.product_name) {
+      alert('브랜드명 또는 제품명을 입력해주세요.')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const regionLabel = form.region === 'japan' ? '일본' : form.region === 'us' ? '미국' : '한국'
+      const prompt = `당신은 크리에이터 마케팅 캠페인 전문가입니다. 아래 정보를 바탕으로 캠페인 내용을 생성해주세요.
+
+브랜드: ${form.brand || '(미입력)'}
+제품명: ${form.product_name || '(미입력)'}
+리전: ${regionLabel}
+캠페인 타입: ${form.campaign_type === 'regular' ? '기획형' : form.campaign_type === 'oliveyoung' ? '올리브영' : '4주 챌린지'}
+
+아래 JSON 형식으로만 응답해주세요 (다른 텍스트 없이):
+{
+  "title": "캠페인 제목 (예: [브랜드명] OO 릴스 캠페인)",
+  "description": "캠페인 설명 (2-3문장, 크리에이터에게 보여지는 설명)",
+  "product_description": "제품 소개 (1-2문장)",
+  "product_features": "제품 특징/장점 (불릿포인트 3-5개, 줄바꿈으로 구분)",
+  "product_key_points": "핵심 소구 포인트 (크리에이터가 영상에서 강조해야 할 점, 3-4개)",
+  "requirements": "참여 조건 및 유의사항 (3-4줄)",
+  "required_dialogues": ["필수 멘트1", "필수 멘트2", "필수 멘트3", "필수 멘트4"],
+  "required_hashtags": ["#해시태그1", "#해시태그2", "#해시태그3"],
+  "video_tone": "영상 분위기 (예: 밝고 자연스러운, 전문적인 등)",
+  "company_name": "기업명 (브랜드 운영사 추정)"
+}`
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      })
+
+      if (!response.ok) throw new Error('Gemini API 호출 실패')
+      const data = await response.json()
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+      // JSON 추출
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error('AI 응답에서 JSON을 찾을 수 없습니다.')
+
+      const aiResult = JSON.parse(jsonMatch[0])
+
+      setForm(prev => ({
+        ...prev,
+        title: aiResult.title || prev.title,
+        description: aiResult.description || prev.description,
+        product_description: aiResult.product_description || prev.product_description,
+        product_features: aiResult.product_features || prev.product_features,
+        product_key_points: aiResult.product_key_points || prev.product_key_points,
+        requirements: aiResult.requirements || prev.requirements,
+        required_dialogues: aiResult.required_dialogues || prev.required_dialogues,
+        required_hashtags: aiResult.required_hashtags || prev.required_hashtags,
+        video_tone: aiResult.video_tone || prev.video_tone,
+        company_name: aiResult.company_name || prev.company_name,
+      }))
+
+    } catch (err) {
+      console.error('AI 생성 실패:', err)
+      alert('AI 생성 실패: ' + err.message)
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // ===== 일본어/영어 번역 (Gemini) =====
+  const handleTranslate = async () => {
+    if (!form.description && !form.product_features) {
+      alert('먼저 캠페인 내용을 입력하거나 AI 생성을 해주세요.')
+      return
+    }
+
+    setTranslating(true)
+    try {
+      const targetLang = form.region === 'japan' ? '일본어 (자연스러운 일본어)' : '영어 (자연스러운 미국식 영어)'
+      const textToTranslate = `캠페인 설명: ${form.description}\n\n제품 특징: ${form.product_features}\n\n핵심 포인트: ${form.product_key_points}\n\n참여 조건: ${form.requirements}\n\n필수 멘트: ${(form.required_dialogues || []).join(' / ')}`
+
+      const prompt = `아래 한국어 텍스트를 ${targetLang}로 번역해주세요. 각 섹션을 구분해서 번역하세요.
+
+${textToTranslate}
+
+JSON 형식으로만 응답 (다른 텍스트 없이):
+{
+  "description": "번역된 캠페인 설명",
+  "product_features": "번역된 제품 특징",
+  "product_key_points": "번역된 핵심 포인트",
+  "requirements": "번역된 참여 조건",
+  "required_dialogues": ["번역된 멘트1", "번역된 멘트2", ...]
+}`
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
+        })
+      })
+
+      if (!response.ok) throw new Error('번역 API 호출 실패')
+      const data = await response.json()
+      const text2 = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      const jsonMatch = text2.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error('번역 결과에서 JSON을 찾을 수 없습니다.')
+
+      const translated = JSON.parse(jsonMatch[0])
+      const fullTranslation = [
+        translated.description,
+        '',
+        translated.product_features,
+        '',
+        translated.product_key_points,
+        '',
+        translated.requirements,
+        '',
+        '필수 멘트:',
+        ...(translated.required_dialogues || []).map((d, i) => `${i + 1}. ${d}`)
+      ].join('\n')
+
+      if (form.region === 'japan') {
+        setForm(prev => ({ ...prev, description_ja: fullTranslation }))
+      } else {
+        setForm(prev => ({ ...prev, description_en: fullTranslation }))
+      }
+
+      alert('번역 완료!')
+    } catch (err) {
+      console.error('번역 실패:', err)
+      alert('번역 실패: ' + err.message)
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   const handleSave = async () => {
-    if (!form.title.trim()) {
-      alert('캠페인 제목을 입력해주세요.')
+    if (!form.title.trim() && !form.brand.trim()) {
+      alert('캠페인 제목 또는 브랜드명을 입력해주세요.')
       return
     }
 
     setSaving(true)
     try {
       const campaignData = {
-        title: form.title,
-        campaign_name: form.title,
+        title: form.title || `[${form.brand}] ${form.product_name} 캠페인`,
+        campaign_name: form.title || `[${form.brand}] ${form.product_name} 캠페인`,
         brand: form.brand,
+        brand_name: form.brand,
         product_name: form.product_name,
         campaign_type: form.campaign_type,
         region: form.region,
@@ -158,6 +335,19 @@ export default function DummyCampaignManagement() {
         image_url: form.image_url || null,
         company_email: DUMMY_MARKER,
         company_name: form.company_name || '더미 기업',
+        // 중요 필드들
+        description: form.description || null,
+        product_description: form.product_description || null,
+        product_features: form.product_features || null,
+        product_key_points: form.product_key_points || null,
+        requirements: form.requirements || null,
+        required_dialogues: form.required_dialogues?.length > 0 ? form.required_dialogues : null,
+        required_hashtags: form.required_hashtags?.length > 0 ? form.required_hashtags : null,
+        video_duration: form.video_duration || null,
+        video_tone: form.video_tone || null,
+        // 번역 필드
+        additional_details_ja: form.description_ja || null,
+        additional_details: form.description_en || null,
       }
 
       if (editingId) {
@@ -176,6 +366,7 @@ export default function DummyCampaignManagement() {
       setShowModal(false)
       fetchDummyCampaigns()
     } catch (err) {
+      console.error('저장 실패:', err)
       alert('저장 실패: ' + err.message)
     } finally {
       setSaving(false)
@@ -209,6 +400,7 @@ export default function DummyCampaignManagement() {
           title: campaign.title + ' (복사)',
           campaign_name: (campaign.campaign_name || campaign.title) + ' (복사)',
           brand: campaign.brand,
+          brand_name: campaign.brand_name || campaign.brand,
           product_name: campaign.product_name,
           campaign_type: campaign.campaign_type,
           region: campaign.region,
@@ -223,6 +415,17 @@ export default function DummyCampaignManagement() {
           image_url: campaign.image_url,
           company_email: DUMMY_MARKER,
           company_name: campaign.company_name || '더미 기업',
+          description: campaign.description,
+          product_description: campaign.product_description,
+          product_features: campaign.product_features,
+          product_key_points: campaign.product_key_points,
+          requirements: campaign.requirements,
+          required_dialogues: campaign.required_dialogues,
+          required_hashtags: campaign.required_hashtags,
+          video_duration: campaign.video_duration,
+          video_tone: campaign.video_tone,
+          additional_details_ja: campaign.additional_details_ja,
+          additional_details: campaign.additional_details,
         }])
       if (error) throw error
       fetchDummyCampaigns()
@@ -293,7 +496,8 @@ export default function DummyCampaignManagement() {
       case 'active': return 'bg-green-100 text-green-700'
       case 'completed': return 'bg-gray-100 text-gray-600'
       case 'draft': return 'bg-yellow-100 text-yellow-700'
-      case 'pending': return 'bg-blue-100 text-blue-700'
+      case 'in_progress': return 'bg-blue-100 text-blue-700'
+      case 'cancelled': return 'bg-red-100 text-red-600'
       default: return 'bg-gray-100 text-gray-600'
     }
   }
@@ -315,43 +519,19 @@ export default function DummyCampaignManagement() {
 
           {/* 서브 탭 */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="whitespace-nowrap"
-              onClick={() => navigate('/admin/campaigns')}
-            >
+            <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
               대시보드
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="whitespace-nowrap"
-              onClick={() => navigate('/admin/campaigns')}
-            >
+            <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns')}>
               📋 전체 캠페인
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="whitespace-nowrap"
-              onClick={() => navigate('/admin/campaigns/deadlines')}
-            >
+            <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns/deadlines')}>
               ⏰ 마감일 관리
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="whitespace-nowrap"
-              onClick={() => navigate('/admin/campaigns/unpaid')}
-            >
+            <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate('/admin/campaigns/unpaid')}>
               💰 포인트 미지급
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="whitespace-nowrap"
-            >
+            <Button variant="default" size="sm" className="whitespace-nowrap">
               🧪 더미 캠페인
             </Button>
           </div>
@@ -395,6 +575,7 @@ export default function DummyCampaignManagement() {
                         <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">영상마감</th>
                         <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">포인트</th>
                         <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">슬롯</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">내용</th>
                         <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">관리</th>
                       </tr>
                     </thead>
@@ -414,7 +595,7 @@ export default function DummyCampaignManagement() {
                               </div>
                               <div className="min-w-0">
                                 <div className="font-medium text-sm text-gray-900 truncate max-w-[220px]">
-                                  {campaign.title || campaign.campaign_name || '제목 없음'}
+                                  {campaign.title || '제목 없음'}
                                 </div>
                                 <div className="text-xs text-gray-400 truncate max-w-[220px]">
                                   {campaign.brand || campaign.product_name || '-'}
@@ -442,6 +623,13 @@ export default function DummyCampaignManagement() {
                           </td>
                           <td className="px-3 py-3 text-center text-sm text-gray-600">
                             {campaign.remaining_slots || 0}/{campaign.total_slots || 0}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {campaign.description ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">입력됨</span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-400">미입력</span>
+                            )}
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex items-center justify-end gap-1">
@@ -481,26 +669,51 @@ export default function DummyCampaignManagement() {
 
       {/* 생성/수정 모달 */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? '더미 캠페인 수정' : '더미 캠페인 생성'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+
+            {/* AI 자동 기입 영역 */}
+            <div className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-bold text-violet-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" />
+                    AI 자동 기입
+                  </h3>
+                  <p className="text-xs text-violet-600">브랜드 + 제품명만 입력하면 나머지를 AI가 자동으로 채웁니다.</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleAIGenerate}
+                  disabled={aiGenerating}
+                  className="bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  {aiGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                  {aiGenerating ? 'AI 생성 중...' : 'AI 자동 기입'}
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-violet-700 mb-1">브랜드명 *</label>
+                  <Input value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} placeholder="예: 바이크롬" className="bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-violet-700 mb-1">제품명 / 상품 설명 *</label>
+                  <Input value={form.product_name} onChange={e => setForm(f => ({ ...f, product_name: e.target.value }))} placeholder="예: 프로바이오틱스 유산균" className="bg-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* 기본 정보 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 제목 *</label>
-              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="예: 바이크롬 유산균 릴스 캠페인" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 제목</label>
+              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="AI가 자동 생성하거나 직접 입력" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
-                <Input value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} placeholder="브랜드명" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
-                <Input value={form.product_name} onChange={e => setForm(f => ({ ...f, product_name: e.target.value }))} placeholder="제품명" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">리전</label>
                 <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
@@ -519,37 +732,51 @@ export default function DummyCampaignManagement() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">기업명</label>
-              <Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder="더미 기업" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">플랫폼</label>
-              <div className="flex gap-2">
-                {PLATFORM_OPTIONS.map(p => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => {
-                      setForm(f => ({
-                        ...f,
-                        target_platforms: f.target_platforms.includes(p.value)
-                          ? f.target_platforms.filter(v => v !== p.value)
-                          : [...f.target_platforms, p.value]
-                      }))
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      form.target_platforms.includes(p.value)
-                        ? 'bg-violet-100 border-violet-300 text-violet-700'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 타입</label>
+                <Select value={form.campaign_type} onValueChange={v => setForm(f => ({ ...f, campaign_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CAMPAIGN_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">기업명</label>
+                <Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder="더미 기업" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">플랫폼</label>
+                <div className="flex gap-2 pt-1">
+                  {PLATFORM_OPTIONS.map(p => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => {
+                        setForm(f => ({
+                          ...f,
+                          target_platforms: f.target_platforms.includes(p.value)
+                            ? f.target_platforms.filter(v => v !== p.value)
+                            : [...f.target_platforms, p.value]
+                        }))
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        form.target_platforms.includes(p.value)
+                          ? 'bg-violet-100 border-violet-300 text-violet-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 날짜/슬롯/포인트 */}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">모집마감</label>
@@ -578,6 +805,93 @@ export default function DummyCampaignManagement() {
                 <Input type="number" value={form.remaining_slots} onChange={e => setForm(f => ({ ...f, remaining_slots: e.target.value }))} />
               </div>
             </div>
+
+            {/* 캠페인 상세 내용 (AI 생성 가능) */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-bold text-gray-900 mb-3">캠페인 상세 내용</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 설명</label>
+                  <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="캠페인에 대한 설명" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제품 소개</label>
+                  <Textarea value={form.product_description} onChange={e => setForm(f => ({ ...f, product_description: e.target.value }))} placeholder="제품에 대한 소개" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제품 특징/장점</label>
+                  <Textarea value={form.product_features} onChange={e => setForm(f => ({ ...f, product_features: e.target.value }))} placeholder="제품의 주요 특징 및 장점" rows={3} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">핵심 소구 포인트</label>
+                  <Textarea value={form.product_key_points} onChange={e => setForm(f => ({ ...f, product_key_points: e.target.value }))} placeholder="크리에이터가 영상에서 강조해야 할 포인트" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">참여 조건/유의사항</label>
+                  <Textarea value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} placeholder="참여 시 지켜야 할 조건" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">필수 멘트 (줄바꿈으로 구분)</label>
+                  <Textarea
+                    value={(form.required_dialogues || []).join('\n')}
+                    onChange={e => setForm(f => ({ ...f, required_dialogues: e.target.value.split('\n').filter(s => s.trim()) }))}
+                    placeholder="영상에서 반드시 포함해야 할 대사/멘트&#10;줄바꿈으로 구분"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">필수 해시태그 (줄바꿈으로 구분)</label>
+                  <Textarea
+                    value={(form.required_hashtags || []).join('\n')}
+                    onChange={e => setForm(f => ({ ...f, required_hashtags: e.target.value.split('\n').filter(s => s.trim()) }))}
+                    placeholder="#해시태그1&#10;#해시태그2"
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">영상 길이</label>
+                    <Input value={form.video_duration} onChange={e => setForm(f => ({ ...f, video_duration: e.target.value }))} placeholder="30-60초" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">영상 분위기</label>
+                    <Input value={form.video_tone} onChange={e => setForm(f => ({ ...f, video_tone: e.target.value }))} placeholder="밝고 자연스러운" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 일본어/영어 번역 (JP/US 리전일 때) */}
+            {(form.region === 'japan' || form.region === 'us') && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    {form.region === 'japan' ? '일본어 번역' : '영어 번역'}
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTranslate}
+                    disabled={translating}
+                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    {translating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
+                    {translating ? '번역 중...' : 'AI 번역'}
+                  </Button>
+                </div>
+                <Textarea
+                  value={form.region === 'japan' ? form.description_ja : form.description_en}
+                  onChange={e => {
+                    if (form.region === 'japan') setForm(f => ({ ...f, description_ja: e.target.value }))
+                    else setForm(f => ({ ...f, description_en: e.target.value }))
+                  }}
+                  placeholder={form.region === 'japan' ? '일본어로 번역된 캠페인 내용이 여기에 표시됩니다...' : 'English translated campaign content will appear here...'}
+                  rows={6}
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">이미지 URL</label>
               <Input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
