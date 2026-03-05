@@ -11,9 +11,9 @@ import {
 
 const POLL_INTERVAL = 15000
 
-const FLAGS = { kr: '\u{1F1F0}\u{1F1F7}', jp: '\u{1F1EF}\u{1F1F5}', us: '\u{1F1FA}\u{1F1F8}' }
-const COUNTRY_NAMES = { kr: '\uD55C\uAD6D (KR)', jp: '\uC77C\uBCF8 (JP)', us: '\uBBF8\uAD6D (US)' }
-const TYPE_LABELS = { planned: '\uAE30\uD68D', oliveyoung: '\uC62C\uC601', '4week': '4\uC8FC', megawari: '\uBA54\uAC00' }
+const FLAGS = { kr: '🇰🇷', jp: '🇯🇵', us: '🇺🇸' }
+const COUNTRY_NAMES = { kr: '한국 (KR)', jp: '일본 (JP)', us: '미국 (US)' }
+const TYPE_LABELS = { planned: '기획', oliveyoung: '올영', '4week': '4주', megawari: '메가' }
 
 function playSound() {
   try {
@@ -34,26 +34,26 @@ function playSound() {
 function timeAgo(t) {
   if (!t) return ''
   const m = Math.floor((Date.now() - new Date(t).getTime()) / 60000)
-  if (m < 1) return '\uBC29\uAE08 \uC804'
-  if (m < 60) return `${m}\uBD84 \uC804`
+  if (m < 1) return '방금 전'
+  if (m < 60) return `${m}분 전`
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}\uC2DC\uAC04 \uC804`
-  return `${Math.floor(h / 24)}\uC77C \uC804`
+  if (h < 24) return `${h}시간 전`
+  return `${Math.floor(h / 24)}일 전`
 }
 
 function feedLabel(item) {
   switch (item.type) {
     case 'video_upload': {
-      const tl = TYPE_LABELS[item.campaignType] || '\uAE30\uD68D'
-      let d = tl + ' \uCEA0\uD398\uC778'
-      if (item.weekNumber) d += ` ${item.weekNumber}\uC8FC\uCC28`
+      const tl = TYPE_LABELS[item.campaignType] || '기획'
+      let d = tl + ' 캠페인'
+      if (item.weekNumber) d += ` ${item.weekNumber}주차`
       if (item.videoNumber) d += ` V${item.videoNumber}`
-      return `\uC601\uC0C1 ${item.version > 1 ? '\uC7AC' : ''}\uC81C\uCD9C (${d})`
+      return `영상 ${item.version > 1 ? '재' : ''}제출 (${d})`
     }
     case 'sns_upload':
-      return 'SNS \uC5C5\uB85C\uB4DC \uC644\uB8CC'
+      return 'SNS 업로드 완료'
     case 'whatsapp':
-      return `WhatsApp ${item.template || ''} ${item.status === 'failed' ? '\uC2E4\uD328' : '\uBC1C\uC1A1'}`
+      return `WhatsApp ${item.template || ''} ${item.status === 'failed' ? '실패' : '발송'}`
     default:
       return item.type
   }
@@ -122,7 +122,7 @@ export default function LiveDashboard() {
     <div className="min-h-screen bg-[#0A0A0F] text-white overflow-hidden">
       <div className="max-w-[1600px] mx-auto p-4 flex flex-col h-screen">
 
-        {/* ===== \uD5E4\uB354 ===== */}
+        {/* 헤더 */}
         <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')} className="text-[#808090] hover:text-white hover:bg-white/5 px-2">
@@ -130,7 +130,7 @@ export default function LiveDashboard() {
             </Button>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: 'Outfit, Pretendard, sans-serif' }}>
               <Activity className="w-5 h-5 text-[#C084FC]" />
-              \uD06C\uB125 \uC2E4\uC2DC\uAC04 \uD604\uD669\uD310
+              크넥 실시간 현황판
             </h1>
             <span className="flex items-center gap-1.5 bg-green-500/10 text-green-400 text-xs font-semibold px-2.5 py-1 rounded-full">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -153,17 +153,17 @@ export default function LiveDashboard() {
           </div>
         </div>
 
-        {/* ===== \uAD00\uB9AC \uD3EC\uC778\uD2B8 (Action Required) ===== */}
+        {/* Action Required */}
         <div className="mb-3 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="w-4 h-4 text-[#C084FC]" />
-            <span className="text-sm font-semibold text-[#D0D0E0]">\uC694\uC8FC\uC758 \uAD00\uB9AC \uD3EC\uC778\uD2B8 (Action Required) — \uCEA0\uD398\uC778 \uC218 \uAE30\uC900</span>
+            <span className="text-sm font-semibold text-[#D0D0E0]">요주의 관리 포인트 (Action Required) — 캠페인 수 기준</span>
           </div>
           <div className="grid grid-cols-5 gap-2">
             <ActionCard
-              label="\uC2B9\uC778 \uC694\uCCAD \uB300\uAE30" value={action.approvalPending || 0}
+              label="승인 요청 대기" value={action.approvalPending || 0}
               icon={<CheckCircle className="w-4 h-4" />}
-              desc="\uCEA0\uD398\uC778 \uC0DD\uC131 \uD6C4 \uC2B9\uC778\uC774 \uC9C0\uC5F0\uB41C \uCEA0\uD398\uC778"
+              desc="캠페인 생성 후 승인이 지연된 캠페인"
               criteria="status = draft / pending"
               expanded={expandedAction === 'approval'}
               onToggle={() => toggleAction('approval')}
@@ -171,19 +171,19 @@ export default function LiveDashboard() {
               navigate={navigate}
             />
             <ActionCard
-              label="\uD06C\uB9AC\uC5D0\uC774\uD130 \uC120\uC815 \uC9C0\uC5F0" value={action.selectionDelayed || 0}
+              label="크리에이터 선정 지연" value={action.selectionDelayed || 0}
               icon={<Users className="w-4 h-4" />}
-              desc="\uBAA8\uC9D1\uC911\uC778\uB370 \uC120\uC815\uC744 \uC548 \uD55C \uCEA0\uD398\uC778"
-              criteria="active & selected 0\uBA85 & pending \uC788\uC74C"
+              desc="모집중인데 선정을 안 한 캠페인"
+              criteria="active & selected 0명 & pending 있음"
               expanded={expandedAction === 'selection'}
               onToggle={() => toggleAction('selection')}
               campaigns={actionCampaigns.selection}
               navigate={navigate}
             />
             <ActionCard
-              label="\uC601\uC0C1 \uAC80\uC218 \uC9C0\uC5F0" value={action.reviewDelayed || 0}
+              label="영상 검수 지연" value={action.reviewDelayed || 0}
               icon={<Film className="w-4 h-4" />}
-              desc="\uC601\uC0C1 \uC81C\uCD9C \uD6C4 \uAE30\uC5C5 \uAC80\uC218 \uB300\uAE30 \uCEA0\uD398\uC778"
+              desc="영상 제출 후 기업 검수 대기 캠페인"
               criteria="status = video_submitted"
               expanded={expandedAction === 'review'}
               onToggle={() => toggleAction('review')}
@@ -191,9 +191,9 @@ export default function LiveDashboard() {
               navigate={navigate}
             />
             <ActionCard
-              label="SNS \uC5C5\uB85C\uB4DC \uC9C0\uC5F0" value={action.snsDelayed || 0}
+              label="SNS 업로드 지연" value={action.snsDelayed || 0}
               icon={<Upload className="w-4 h-4" />}
-              desc="\uC2B9\uC778 \uD6C4 SNS \uBBF8\uC5C5\uB85C\uB4DC \uCEA0\uD398\uC778"
+              desc="승인 후 SNS 미업로드 캠페인"
               criteria="status = approved"
               expanded={expandedAction === 'sns'}
               onToggle={() => toggleAction('sns')}
@@ -201,10 +201,10 @@ export default function LiveDashboard() {
               navigate={navigate}
             />
             <ActionCard
-              label="\uD3EC\uC778\uD2B8 \uC9C0\uAE09 \uC9C0\uC5F0" value={action.pointDelayed || 0}
+              label="포인트 지급 지연" value={action.pointDelayed || 0}
               icon={<Coins className="w-4 h-4" />}
-              desc="SNS \uC5C5\uB85C\uB4DC \uC644\uB8CC \uD6C4 \uBBF8\uC644\uB8CC \uCEA0\uD398\uC778"
-              criteria="status = sns_uploaded (completed \uC544\uB2D8)"
+              desc="SNS 업로드 완료 후 미완료 캠페인"
+              criteria="status = sns_uploaded (completed 아님)"
               expanded={expandedAction === 'point'}
               onToggle={() => toggleAction('point')}
               campaigns={actionCampaigns.point}
@@ -213,52 +213,54 @@ export default function LiveDashboard() {
           </div>
         </div>
 
-        {/* ===== \uC804\uCCB4 \uD504\uB85C\uC138\uC2A4 \uC9C4\uD589 \uD604\uD669 ===== */}
+        {/* 전체 프로세스 진행 현황 */}
         <div className="mb-3 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-[#C084FC]" />
-            <span className="text-sm font-semibold text-[#D0D0E0]">\uC804\uCCB4 \uD504\uB85C\uC138\uC2A4 \uC9C4\uD589 \uD604\uD669 — \uCEA0\uD398\uC778 \uC218 \uAE30\uC900</span>
+            <span className="text-sm font-semibold text-[#D0D0E0]">전체 프로세스 진행 현황 — 캠페인 수 기준</span>
           </div>
           <div className="bg-[#12121A] rounded-xl border border-[#1E1E2E] p-3">
             <div className="flex items-center justify-between">
-              <ProcessNode label="\uC0C1\uB2F4/\uAC00\uC785" value={proc.consulting || 0} />
+              <ProcessNode label="상담/가입" value={proc.consulting || 0} />
               <ProcessArrow />
-              <ProcessNode label="\uCEA0\uD398\uC778\uC0DD\uC131" value={proc.campaignCreated || 0} />
+              <ProcessNode label="캠페인생성" value={proc.campaignCreated || 0} />
               <ProcessArrow />
-              <ProcessNode label="\uACB0\uC81C\uB300\uAE30" value={proc.pendingPayment || 0} />
+              <ProcessNode label="결제대기" value={proc.pendingPayment || 0} />
               <ProcessArrow />
-              <ProcessNode label="\uBAA8\uC9D1\uC911" value={proc.recruiting || 0} highlight />
+              <ProcessNode label="모집중" value={proc.recruiting || 0} highlight />
               <ProcessArrow />
-              <ProcessNode label="\uC120\uC815\uB300\uAE30" value={proc.pendingSelection || 0} />
+              <ProcessNode label="선정대기" value={proc.pendingSelection || 0} />
               <ProcessArrow />
-              <ProcessNode label="\uCD2C\uC601\uC911" value={proc.filming || 0} highlight />
+              <ProcessNode label="촬영중" value={proc.filming || 0} highlight />
               <ProcessArrow />
-              <ProcessNode label="\uC218\uC815/\uAC80\uC218" value={proc.reviewing || 0} />
+              <ProcessNode label="수정/검수" value={proc.reviewing || 0} />
               <ProcessArrow />
-              <ProcessNode label="\uC5C5\uB85C\uB4DC\uB300\uAE30" value={proc.snsWaiting || 0} />
+              <ProcessNode label="업로드대기" value={proc.snsWaiting || 0} />
             </div>
           </div>
         </div>
 
-        {/* ===== \uD558\uB2E8: \uAD6D\uAC00\uBCC4 + \uC2E4\uC2DC\uAC04 \uD53C\uB4DC ===== */}
+        {/* 하단: 국가별(세로) + 실시간 피드 */}
         <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
-          {/* \uAD6D\uAC00\uBCC4 \uC0C1\uD488 \uC6B4\uC601 \uD604\uD669 + \uB098\uB77C\uBCC4 \uD53C\uB4DC (7/12) */}
-          <div className="col-span-7 flex flex-col gap-3 min-h-0 overflow-y-auto">
+          {/* 국가별 상품 운영 현황 — 세로 스택 (7/12) */}
+          <div className="col-span-7 flex flex-col gap-2 min-h-0 overflow-y-auto">
             {['kr', 'jp', 'us'].map(code => {
               const s = cs[code] || { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
-              const countryFeed = allFeed.filter(f => f.region === code).slice(0, 10)
+              const countryFeed = allFeed.filter(f => f.region === code).slice(0, 8)
               return (
                 <div key={code} className="bg-[#12121A] rounded-xl border border-[#1E1E2E] p-3">
+                  {/* 헤더 */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-white">{FLAGS[code]} {COUNTRY_NAMES[code]}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#909098]">\uC624\uB298 \uC601\uC0C1 {today.videoByRegion?.[code] || 0}\uAC74</span>
-                      <span className="text-sm font-bold text-[#C084FC]" style={{ fontFamily: 'Outfit' }}>\uD65C\uC131 {s.total}\uAC74</span>
+                      <span className="text-xs text-[#909098]">오늘 영상 {today.videoByRegion?.[code] || 0}건</span>
+                      <span className="text-sm font-bold text-[#C084FC]" style={{ fontFamily: 'Outfit' }}>활성 {s.total}건</span>
                     </div>
                   </div>
+                  {/* 바 차트 + 피드 가로 배치 */}
                   <div className="flex gap-4">
-                    {/* \uBC14 \uCC28\uD2B8 */}
-                    <div className="w-48 flex-shrink-0 space-y-1.5">
+                    {/* 캠페인 타입별 바 차트 */}
+                    <div className="w-44 flex-shrink-0 space-y-1">
                       {Object.entries(TYPE_LABELS).map(([key, label]) => {
                         const val = s[key] || 0
                         const max = Math.max(s.total, 1)
@@ -276,24 +278,24 @@ export default function LiveDashboard() {
                         )
                       })}
                     </div>
-                    {/* \uB098\uB77C\uBCC4 \uD53C\uB4DC */}
+                    {/* 나라별 미니 피드 */}
                     <div className="flex-1 min-w-0 border-l border-[#1E1E2E] pl-3">
                       {countryFeed.length === 0 ? (
-                        <div className="text-xs text-[#505060] py-2">\uCD5C\uADFC \uD65C\uB3D9 \uC5C6\uC74C</div>
+                        <div className="text-xs text-[#505060] py-2">최근 활동 없음</div>
                       ) : (
-                        <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
+                        <div className="space-y-0.5">
                           {countryFeed.map((item, idx) => (
                             <div key={`${item.time}-${idx}`} className="flex items-center gap-2 py-0.5 text-xs group">
                               <MiniIcon type={item.type} />
-                              <span className="text-white font-medium truncate max-w-[100px]">
+                              <span className="text-white font-medium truncate max-w-[90px]">
                                 {item.creator ? `@${item.creator}` : ''}
                               </span>
                               <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
                               {item.campaignId && (
                                 <button
-                                  onClick={() => navigate(`/admin/campaigns`)}
+                                  onClick={() => navigate('/admin/campaigns')}
                                   className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
-                                  title="\uCEA0\uD398\uC778 \uBC14\uB85C\uAC00\uAE30"
+                                  title="캠페인 바로가기"
                                 >
                                   <ExternalLink className="w-3 h-3" />
                                 </button>
@@ -310,19 +312,19 @@ export default function LiveDashboard() {
             })}
           </div>
 
-          {/* \uC2E4\uC2DC\uAC04 \uD65C\uB3D9 \uD53C\uB4DC \uC804\uCCB4 (5/12) */}
+          {/* 실시간 활동 피드 전체 (5/12) */}
           <div className="col-span-5 bg-[#12121A] rounded-xl border border-[#1E1E2E] flex flex-col min-h-0">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#1E1E2E] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-[#C084FC]" />
-                <span className="text-sm font-semibold text-[#D0D0E0]">\uC2E4\uC2DC\uAC04 \uD65C\uB3D9 \uD53C\uB4DC</span>
+                <span className="text-sm font-semibold text-[#D0D0E0]">실시간 활동 피드</span>
               </div>
-              <span className="text-xs text-[#606070]">\uC804\uCCB4 {allFeed.length}\uAC74</span>
+              <span className="text-xs text-[#606070]">전체 {allFeed.length}건</span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {allFeed.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-[#505060] text-sm">
-                  <Clock className="w-5 h-5 mr-2 opacity-50" /> \uD65C\uB3D9 \uC5C6\uC74C
+                  <Clock className="w-5 h-5 mr-2 opacity-50" /> 활동 없음
                 </div>
               ) : (
                 allFeed.map((item, idx) => (
@@ -343,9 +345,9 @@ export default function LiveDashboard() {
                           <p className="text-xs text-[#808090] truncate">{item.campaign}</p>
                           {item.campaignId && (
                             <button
-                              onClick={() => navigate(`/admin/campaigns`)}
+                              onClick={() => navigate('/admin/campaigns')}
                               className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity flex-shrink-0"
-                              title="\uCEA0\uD398\uC778 \uBC14\uB85C\uAC00\uAE30"
+                              title="캠페인 바로가기"
                             >
                               <ExternalLink className="w-3 h-3" />
                             </button>
@@ -388,7 +390,7 @@ function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, ca
         </div>
         <p className="text-[10px] text-[#909098] leading-relaxed">{desc}</p>
         <p className="text-[9px] text-[#505060] mt-1">
-          <span className="text-[#606070]">\uAE30\uC900:</span> {criteria}
+          <span className="text-[#606070]">기준:</span> {criteria}
         </p>
       </div>
       {expanded && campaigns.length > 0 && (
@@ -396,7 +398,7 @@ function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, ca
           {campaigns.map((c, i) => (
             <div key={i} className="flex items-center gap-1.5 py-1 text-xs group">
               <span className="text-[#808090]">{FLAGS[c.region]}</span>
-              <span className="text-[#C0C0D0] truncate flex-1">{c.title || '(\uC81C\uBAA9\uC5C6\uC74C)'}</span>
+              <span className="text-[#C0C0D0] truncate flex-1">{c.title || '(제목없음)'}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); navigate('/admin/campaigns') }}
                 className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity flex-shrink-0"
