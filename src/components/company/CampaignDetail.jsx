@@ -848,7 +848,7 @@ export default function CampaignDetail() {
 
     // weekN_clean_video_url이 있는 참가자가 있는지 확인
     const hasWeeklyClean = participants.some(p =>
-      p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url
+      p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url
     )
     if (!hasWeeklyClean) return
 
@@ -859,7 +859,7 @@ export default function CampaignDetail() {
       const participant = participants.find(p => p.user_id === sub.user_id)
       if (!participant) return sub
       const weekNum = sub.week_number || sub.video_number || 1
-      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`]
+      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`] || participant[`step${weekNum}_clean_video_url`]
       if (weekCleanUrl) {
         needsMerge = true
         return { ...sub, clean_video_url: weekCleanUrl }
@@ -1151,7 +1151,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, sns_upload_url, partnership_code, status, guide_group')
+            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, step1_clean_video_url, step2_clean_video_url, sns_upload_url, partnership_code, status, guide_group')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -1200,7 +1200,7 @@ export default function CampaignDetail() {
             }
             if (koreaApp) {
               matchedKoreaIds.add(koreaApp.id)
-              const hasWeeklyClean = koreaApp.week1_clean_video_url || koreaApp.week2_clean_video_url || koreaApp.week3_clean_video_url || koreaApp.week4_clean_video_url
+              const hasWeeklyClean = koreaApp.week1_clean_video_url || koreaApp.week2_clean_video_url || koreaApp.week3_clean_video_url || koreaApp.week4_clean_video_url || koreaApp.step1_clean_video_url || koreaApp.step2_clean_video_url
               if (koreaApp.clean_video_url || hasWeeklyClean) {
                 console.log('[fetchParticipants] 클린본 병합:', participant.applicant_name || participant.creator_name, '- clean_video_url:', !!koreaApp.clean_video_url, 'weekly:', !!hasWeeklyClean)
               }
@@ -1211,6 +1211,8 @@ export default function CampaignDetail() {
                 week2_clean_video_url: koreaApp.week2_clean_video_url || participant.week2_clean_video_url,
                 week3_clean_video_url: koreaApp.week3_clean_video_url || participant.week3_clean_video_url,
                 week4_clean_video_url: koreaApp.week4_clean_video_url || participant.week4_clean_video_url,
+                step1_clean_video_url: koreaApp.step1_clean_video_url || participant.step1_clean_video_url,
+                step2_clean_video_url: koreaApp.step2_clean_video_url || participant.step2_clean_video_url,
                 sns_upload_url: koreaApp.sns_upload_url || participant.sns_upload_url,
                 partnership_code: koreaApp.partnership_code || participant.partnership_code,
                 guide_group: koreaApp.guide_group || participant.guide_group
@@ -11090,7 +11092,7 @@ Questions? Contact us.
                     )
                     if (hasCleanVideo) return true
                     // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
-                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url) return true
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
                     return false
                   })
 
@@ -11192,7 +11194,7 @@ Questions? Contact us.
                     )
                     if (hasCleanVideo) return true
                     // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
-                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url) return true
+                    if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
                     return false
                   })
 
@@ -11532,7 +11534,12 @@ Questions? Contact us.
                                     // video_submissions의 클린본 + applications 테이블의 클린본 합산
                                     const submissionCleanVideos = creatorSubmissions.filter(s => s.clean_video_url)
                                     const hasParticipantClean = participant.clean_video_url && !submissionCleanVideos.some(s => s.clean_video_url === participant.clean_video_url)
-                                    const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0)
+                                    // step1/step2 클린본 (올영 캠페인용)
+                                    const stepCleanVideos = [
+                                      participant.step1_clean_video_url && { url: participant.step1_clean_video_url, label: 'Step 1', stepNum: 1 },
+                                      participant.step2_clean_video_url && { url: participant.step2_clean_video_url, label: 'Step 2', stepNum: 2 }
+                                    ].filter(Boolean).filter(s => !submissionCleanVideos.some(sv => sv.clean_video_url === s.url))
+                                    const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0) + stepCleanVideos.length
 
                                     return (
                                       <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
@@ -11629,6 +11636,44 @@ Questions? Contact us.
                                               </div>
                                             </div>
                                           )}
+                                          {/* step 클린본 (올영 캠페인) */}
+                                          {stepCleanVideos.map((stepClean) => (
+                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">{stepClean.label} 클린본</span>
+                                                    <Badge variant="outline" className="text-xs bg-emerald-100">SNS 업로드용</Badge>
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(stepClean.url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}_${stepClean.label}_클린본.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(stepClean.url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  클린본
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ))}
                                           {totalCleanCount === 0 && (
                                             <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
                                           )}
