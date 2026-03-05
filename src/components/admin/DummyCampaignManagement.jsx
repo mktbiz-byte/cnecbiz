@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Plus, Edit, Trash2, Loader2, Calendar, Save, Copy, ImageIcon, X, Sparkles, Globe
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 const DUMMY_MARKER = 'dummy@cnecbiz.com'
@@ -314,19 +314,21 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
     setUploadingImage(true)
     try {
       const ext = file.name.split('.').pop()
-      const filePath = `dummy/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${ext}`
+      const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
-        .from('campaign-guides')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+      const client = getSupabaseClient(form.region)
+      const { error: uploadError } = await client.storage
+        .from('campaign-images')
+        .upload(filePath, file)
       if (uploadError) throw uploadError
 
-      const { data: urlData } = supabaseBiz.storage
-        .from('campaign-guides')
+      const { data: { publicUrl } } = client.storage
+        .from('campaign-images')
         .getPublicUrl(filePath)
 
-      if (!urlData?.publicUrl) throw new Error('Public URL을 가져올 수 없습니다.')
-      setForm(prev => ({ ...prev, image_url: urlData.publicUrl }))
+      if (!publicUrl) throw new Error('Public URL을 가져올 수 없습니다.')
+      setForm(prev => ({ ...prev, image_url: publicUrl }))
     } catch (err) {
       console.error('이미지 업로드 실패:', err)
       alert('이미지 업로드 실패: ' + err.message)
