@@ -859,7 +859,7 @@ export default function CampaignDetail() {
       const participant = participants.find(p => p.user_id === sub.user_id)
       if (!participant) return sub
       const weekNum = sub.week_number || sub.video_number || 1
-      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`] || participant[`step${weekNum}_clean_video_url`]
+      const weekCleanUrl = participant[`week${weekNum}_clean_video_url`]
       if (weekCleanUrl) {
         needsMerge = true
         return { ...sub, clean_video_url: weekCleanUrl }
