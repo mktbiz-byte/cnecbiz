@@ -291,7 +291,7 @@ export default function LiveDashboard() {
                             <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
                             {item.campaignId && (
                               <button
-                                onClick={() => navigate('/admin/campaigns')}
+                                onClick={() => window.open('/admin/campaigns', '_blank')}
                                 className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
                                 title="캠페인 바로가기"
                               >
@@ -342,7 +342,7 @@ export default function LiveDashboard() {
                           <p className="text-xs text-[#808090] truncate">{item.campaign}</p>
                           {item.campaignId && (
                             <button
-                              onClick={() => navigate('/admin/campaigns')}
+                              onClick={() => window.open('/admin/campaigns', '_blank')}
                               className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity flex-shrink-0"
                               title="캠페인 바로가기"
                             >
@@ -397,7 +397,7 @@ function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, ca
               <span className="text-[#808090]">{FLAGS[c.region]}</span>
               <span className="text-[#C0C0D0] truncate flex-1">{c.title || '(제목없음)'}</span>
               <button
-                onClick={(e) => { e.stopPropagation(); navigate('/admin/campaigns') }}
+                onClick={(e) => { e.stopPropagation(); window.open('/admin/campaigns', '_blank') }}
                 className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity flex-shrink-0"
               >
                 <ExternalLink className="w-3 h-3" />
