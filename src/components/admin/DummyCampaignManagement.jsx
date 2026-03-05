@@ -378,11 +378,18 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
 
     setSaving(true)
     try {
+      // 리전별 campaign_type 매핑 (Korea DB: 'regular'→'planned', Japan DB: 'oliveyoung'→'megawari')
+      const resolvedCampaignType = form.campaign_type === 'regular' && form.region === 'korea'
+        ? 'planned'
+        : form.campaign_type === 'oliveyoung' && form.region === 'japan'
+          ? 'megawari'
+          : form.campaign_type
+
       const campaignData = {
         title: form.title || `[${form.brand}] ${form.product_name} 캠페인`,
         brand: form.brand,
         product_name: form.product_name,
-        campaign_type: form.campaign_type,
+        campaign_type: resolvedCampaignType,
         status: form.status,
         target_platforms: form.target_platforms,
         category: form.category?.length > 0 ? form.category : null,
