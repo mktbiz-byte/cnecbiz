@@ -124,22 +124,51 @@ export default function QuoteManagement() {
 
   const fmt = (n) => n.toLocaleString('ko-KR')
 
+  // oklch 색상 제거 (html2canvas 호환용)
+  const stripOklch = (doc) => {
+    const root = doc.documentElement
+    const computedStyle = root.style
+    // CSS 변수에서 oklch 제거 — 안전한 기본값으로 교체
+    const sheets = doc.styleSheets
+    try {
+      for (const sheet of sheets) {
+        try {
+          const rules = sheet.cssRules
+          for (let i = 0; i < rules.length; i++) {
+            const rule = rules[i]
+            if (rule.cssText && rule.cssText.includes('oklch')) {
+              sheet.deleteRule(i)
+              i--
+            }
+          }
+        } catch (e) { /* cross-origin sheets */ }
+      }
+    } catch (e) { /* skip */ }
+    // 루트에 안전한 색상 세팅
+    root.style.setProperty('--background', '#ffffff')
+    root.style.setProperty('--foreground', '#111827')
+    root.style.setProperty('color', '#111827')
+    root.style.setProperty('background-color', '#ffffff')
+  }
+
+  const captureQuote = async () => {
+    const { default: html2canvas } = await import('html2canvas')
+    const el = printRef.current
+    if (!el) throw new Error('견적서 영역을 찾을 수 없습니다.')
+    return html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      onclone: (doc) => stripOklch(doc)
+    })
+  }
+
   // PDF 다운로드
   const handleDownloadPdf = async () => {
     setPdfGenerating(true)
     try {
-      const { default: html2canvas } = await import('html2canvas')
       const { jsPDF } = await import('jspdf')
-
-      const el = printRef.current
-      if (!el) return
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      })
-
+      const canvas = await captureQuote()
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pdfWidth = pdf.internal.pageSize.getWidth()
@@ -165,16 +194,7 @@ export default function QuoteManagement() {
     setEmailSending(true)
     setEmailSent(false)
     try {
-      const { default: html2canvas } = await import('html2canvas')
-
-      const el = printRef.current
-      if (!el) return
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      })
+      const canvas = await captureQuote()
       const imgBase64 = canvas.toDataURL('image/png').split(',')[1]
 
       const res = await fetch('/.netlify/functions/send-email', {
