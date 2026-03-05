@@ -6,14 +6,18 @@ import {
   Volume2, VolumeX, RefreshCw, Loader2, ArrowLeft,
   CheckCircle, AlertCircle, Clock, Users, FileText,
   CreditCard, Eye, Film, Scissors, MonitorPlay, ArrowRight,
-  MessageCircle, ExternalLink, ChevronDown, ChevronUp, Coins
+  MessageCircle, ExternalLink, ChevronDown, ChevronUp, Coins,
+  ChevronRight
 } from 'lucide-react'
 
 const POLL_INTERVAL = 15000
 
 const FLAGS = { kr: '🇰🇷', jp: '🇯🇵', us: '🇺🇸' }
-const COUNTRY_NAMES = { kr: '한국 (KR)', jp: '일본 (JP)', us: '미국 (US)' }
+const COUNTRY_NAMES = { kr: 'KR 한국', jp: 'JP 일본', us: 'US 미국' }
 const TYPE_LABELS = { planned: '기획', oliveyoung: '올영', '4week': '4주', megawari: '메가' }
+const TYPE_LABELS_US = { planned: '기획', other: '기타' }
+const BAR_COLORS = { kr: '#E879A8', jp: '#F87171', us: '#60A5FA' }
+const ACCENT_PINK = '#FF6B8A'
 
 function playSound() {
   try {
@@ -123,26 +127,33 @@ export default function LiveDashboard() {
       <div className="max-w-[1600px] mx-auto p-4 flex flex-col h-screen">
 
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')} className="text-[#808090] hover:text-white hover:bg-white/5 px-2">
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: 'Outfit, Pretendard, sans-serif' }}>
+            <h1 className="text-xl font-bold flex items-center gap-2.5" style={{ fontFamily: 'Outfit, Pretendard, sans-serif' }}>
               <Activity className="w-5 h-5 text-[#C084FC]" />
               크넥 실시간 현황판
             </h1>
-            <span className="flex items-center gap-1.5 bg-green-500/10 text-green-400 text-xs font-semibold px-2.5 py-1 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               LIVE
             </span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            {regions.map(r => (
-              <span key={r.code} className="text-[#808090] text-xs">{FLAGS[r.code]} {r.campaigns}</span>
-            ))}
-            <span className="text-[#404050]">|</span>
-            <span className="text-[#808090]">{lastUpdated?.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-3">
+              {regions.map(r => (
+                <span key={r.code} className="text-[#A0A0B0] text-xs font-medium" style={{ fontFamily: 'Outfit' }}>
+                  <span className="text-[#606070] mr-1">{r.code.toUpperCase()}</span>
+                  <span className="text-white font-bold">{r.campaigns}</span>
+                </span>
+              ))}
+            </div>
+            <span className="text-[#2A2A3A]">|</span>
+            <span className="text-[#808090] text-xs" style={{ fontFamily: 'Outfit' }}>
+              {lastUpdated?.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
             <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={() => setSoundOn(!soundOn)}>
               {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
             </Button>
@@ -154,16 +165,18 @@ export default function LiveDashboard() {
         </div>
 
         {/* Action Required */}
-        <div className="mb-3 flex-shrink-0">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-4 h-4 text-[#C084FC]" />
-            <span className="text-sm font-semibold text-[#D0D0E0]">요주의 관리 포인트 (Action Required) — 캠페인 수 기준</span>
+        <div className="mb-4 flex-shrink-0">
+          <div className="flex items-center gap-2 mb-2.5">
+            <AlertCircle className="w-4 h-4 text-[#FF6B8A]" />
+            <span className="text-sm font-bold text-white">요주의 관리 포인트</span>
+            <span className="text-xs text-[#808090]">(Action Required)</span>
+            <span className="text-xs text-[#505060]">— 캠페인 수 기준</span>
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-3">
             <ActionCard
               label="승인 요청 대기" value={action.approvalPending || 0}
-              icon={<CheckCircle className="w-4 h-4" />}
-              desc="캠페인 생성 후 승인이 지연된 캠페인"
+              icon={<Clock className="w-4 h-4" />}
+              desc="캠페인 생성 후 승인이 지연..."
               criteria="status = draft / pending"
               expanded={expandedAction === 'approval'}
               onToggle={() => toggleAction('approval')}
@@ -172,9 +185,9 @@ export default function LiveDashboard() {
             />
             <ActionCard
               label="크리에이터 선정 지연" value={action.selectionDelayed || 0}
-              icon={<Users className="w-4 h-4" />}
-              desc="모집중인데 선정을 안 한 캠페인"
-              criteria="active & selected 0명 & pending 있음"
+              icon={<AlertCircle className="w-4 h-4" />}
+              desc="모집중인데 선정을 안 한 캠..."
+              criteria="active & selected 0명"
               expanded={expandedAction === 'selection'}
               onToggle={() => toggleAction('selection')}
               campaigns={actionCampaigns.selection}
@@ -183,7 +196,7 @@ export default function LiveDashboard() {
             <ActionCard
               label="영상 검수 지연" value={action.reviewDelayed || 0}
               icon={<Film className="w-4 h-4" />}
-              desc="영상 제출 후 기업 검수 대기 캠페인"
+              desc="영상 제출 후 기업 검수 대기..."
               criteria="status = video_submitted"
               expanded={expandedAction === 'review'}
               onToggle={() => toggleAction('review')}
@@ -203,8 +216,8 @@ export default function LiveDashboard() {
             <ActionCard
               label="포인트 지급 지연" value={action.pointDelayed || 0}
               icon={<Coins className="w-4 h-4" />}
-              desc="SNS 업로드 완료 후 미완료 캠페인"
-              criteria="status = sns_uploaded (completed 아님)"
+              desc="SNS 업로드 완료 후 미완료..."
+              criteria="status = sns_uploaded"
               expanded={expandedAction === 'point'}
               onToggle={() => toggleAction('point')}
               campaigns={actionCampaigns.point}
@@ -214,12 +227,13 @@ export default function LiveDashboard() {
         </div>
 
         {/* 전체 프로세스 진행 현황 */}
-        <div className="mb-3 flex-shrink-0">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="mb-4 flex-shrink-0">
+          <div className="flex items-center gap-2 mb-2.5">
             <TrendingUp className="w-4 h-4 text-[#C084FC]" />
-            <span className="text-sm font-semibold text-[#D0D0E0]">전체 프로세스 진행 현황 — 캠페인 수 기준</span>
+            <span className="text-sm font-bold text-white">전체 프로세스 진행 현황</span>
+            <span className="text-xs text-[#505060]">— 캠페인 수 기준</span>
           </div>
-          <div className="bg-[#12121A] rounded-xl border border-[#1E1E2E] p-3">
+          <div className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] px-6 py-4">
             <div className="flex items-center justify-between">
               <ProcessNode label="상담/가입" value={proc.consulting || 0} />
               <ProcessArrow />
@@ -240,108 +254,132 @@ export default function LiveDashboard() {
           </div>
         </div>
 
-        {/* 하단: 국가별(세로 스택, 넓게) + 실시간 피드(좁게) */}
-        <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
-          {/* 국가별 상품 운영 현황 — 세로 스택 (8/12) */}
-          <div className="col-span-8 flex flex-col gap-2 min-h-0 overflow-y-auto">
-            {['kr', 'jp', 'us'].map(code => {
-              const s = cs[code] || { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
-              const countryFeed = allFeed.filter(f => f.region === code).slice(0, 8)
-              return (
-                <div key={code} className="bg-[#12121A] rounded-xl border border-[#1E1E2E] p-3">
-                  {/* 헤더 */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-white">{FLAGS[code]} {COUNTRY_NAMES[code]}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#909098]">오늘 영상 {today.videoByRegion?.[code] || 0}건</span>
-                      <span className="text-sm font-bold text-[#C084FC]" style={{ fontFamily: 'Outfit' }}>활성 {s.total}건</span>
-                    </div>
-                  </div>
-                  {/* 캠페인 타입별 바 차트 */}
-                  <div className="space-y-1 mb-2">
-                    {Object.entries(TYPE_LABELS).map(([key, label]) => {
-                      const val = s[key] || 0
-                      const max = Math.max(s.total, 1)
-                      return (
-                        <div key={key} className="flex items-center gap-2">
-                          <span className="text-xs text-[#B0B0C0] w-7 text-right">{label}</span>
-                          <div className="flex-1 h-2 bg-[#1A1A2A] rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-700"
-                              style={{ width: `${(val / max) * 100}%`, backgroundColor: '#C084FC' }}
-                            />
-                          </div>
-                          <span className="text-xs font-semibold text-white w-5 text-right" style={{ fontFamily: 'Outfit' }}>{val}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {/* 나라별 미니 피드 */}
-                  <div className="border-t border-[#1E1E2E] pt-2">
-                    {countryFeed.length === 0 ? (
-                      <div className="text-xs text-[#505060] py-1">최근 활동 없음</div>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {countryFeed.map((item, idx) => (
-                          <div key={`${item.time}-${idx}`} className="flex items-center gap-2 py-0.5 text-xs group">
-                            <MiniIcon type={item.type} />
-                            <span className="text-white font-medium truncate max-w-[100px]">
-                              {item.creator ? `@${item.creator}` : ''}
-                            </span>
-                            <span className="text-[#909098] truncate flex-1">{feedLabel(item)}</span>
-                            {item.campaignId && (
-                              <button
-                                onClick={() => window.open('/admin/campaigns', '_blank')}
-                                className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
-                                title="캠페인 바로가기"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </button>
-                            )}
-                            <span className="text-[#606070] whitespace-nowrap flex-shrink-0">{timeAgo(item.time)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        {/* 하단: 국가별 3개 + 실시간 피드 1개 */}
+        <div className="grid grid-cols-4 gap-3 flex-1 min-h-0">
+          {/* 국가별 패널들 */}
+          {['kr', 'jp', 'us'].map(code => {
+            const s = cs[code] || { total: 0, planned: 0, oliveyoung: 0, '4week': 0, megawari: 0 }
+            const countryFeed = allFeed.filter(f => f.region === code).slice(0, 5)
+            const barColor = BAR_COLORS[code]
+            const labels = code === 'us'
+              ? { planned: s.planned || 0, other: (s.total - (s.planned || 0)) || 0 }
+              : { planned: s.planned || 0, oliveyoung: s.oliveyoung || 0, '4week': s['4week'] || 0, megawari: s.megawari || 0 }
+            const labelNames = code === 'us' ? TYPE_LABELS_US : TYPE_LABELS
+            const maxVal = Math.max(s.total, 1)
 
-          {/* 실시간 활동 피드 (4/12) */}
-          <div className="col-span-4 bg-[#12121A] rounded-xl border border-[#1E1E2E] flex flex-col min-h-0">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1E1E2E] flex-shrink-0">
+            return (
+              <div key={code} className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] flex flex-col min-h-0">
+                {/* 헤더 */}
+                <div className="px-4 pt-3 pb-2 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{FLAGS[code]} {COUNTRY_NAMES[code]}</span>
+                    </div>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      style={{ fontFamily: 'Outfit' }}>
+                      활성 {s.total}건
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#606070]">오늘 영상 {today.videoByRegion?.[code] || 0}건</div>
+                </div>
+
+                {/* 바 차트 */}
+                <div className="px-4 pb-3 space-y-2 flex-shrink-0">
+                  {Object.entries(labelNames).map(([key, label]) => {
+                    const val = labels[key] || 0
+                    const pct = (val / maxVal) * 100
+                    return (
+                      <div key={key} className="flex items-center gap-2.5">
+                        <span className="text-xs text-[#A0A0B0] w-7 flex-shrink-0">{label}</span>
+                        <div className="flex-1 h-2.5 bg-[#1A1A28] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${Math.max(pct, val > 0 ? 2 : 0)}%`, backgroundColor: barColor }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-white w-8 text-right flex-shrink-0"
+                          style={{ fontFamily: 'Outfit' }}>
+                          {val}<span className="text-[10px] text-[#606070] font-normal">건</span>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 미니 피드 */}
+                <div className="border-t border-[#1A1A28] px-4 py-2 flex-1 overflow-y-auto min-h-0">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Clock className="w-3 h-3 text-[#505060]" />
+                    <span className="text-[11px] text-[#505060] font-medium">최근 활동</span>
+                  </div>
+                  {countryFeed.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-4 text-[#303040]">
+                      <Activity className="w-5 h-5 mb-1 opacity-40" />
+                      <span className="text-xs">최근 활동 없음</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {countryFeed.map((item, idx) => (
+                        <div key={`${item.time}-${idx}`} className="flex items-center gap-1.5 py-0.5 text-xs group">
+                          <MiniIcon type={item.type} />
+                          <span className="text-white font-semibold truncate max-w-[80px]">
+                            {item.creator ? `@${item.creator}` : ''}
+                          </span>
+                          <span className="text-[#707080] truncate flex-1 text-[11px]">{feedLabel(item)}</span>
+                          {item.campaignId && (
+                            <button
+                              onClick={() => window.open('/admin/campaigns', '_blank')}
+                              className="opacity-0 group-hover:opacity-100 text-[#C084FC] hover:text-white transition-opacity"
+                              title="캠페인 바로가기"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          )}
+                          <span className="text-[#404050] whitespace-nowrap flex-shrink-0 text-[10px]">{timeAgo(item.time)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+
+          {/* 실시간 활동 피드 */}
+          <div className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A1A28] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-[#C084FC]" />
-                <span className="text-sm font-semibold text-[#D0D0E0]">실시간 활동 피드</span>
+                <span className="text-sm font-bold text-white">실시간 활동 피드</span>
               </div>
-              <span className="text-xs text-[#606070]">{allFeed.length}건</span>
+              <span className="text-xs font-bold text-[#808090]" style={{ fontFamily: 'Outfit' }}>{allFeed.length}건</span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {allFeed.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-[#505060] text-sm">
-                  <Clock className="w-5 h-5 mr-2 opacity-50" /> 활동 없음
+                <div className="flex flex-col items-center justify-center h-full text-[#303040]">
+                  <Activity className="w-6 h-6 mb-2 opacity-30" />
+                  <span className="text-xs">활동 없음</span>
                 </div>
               ) : (
                 allFeed.map((item, idx) => (
                   <div
                     key={`${item.time}-${idx}`}
-                    className={`flex items-start gap-2 px-3 py-2 border-b border-[#1A1A2A] ${idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'} transition-colors group`}
+                    className={`flex items-start gap-2.5 px-4 py-2.5 border-b border-[#141420] ${idx === 0 ? 'bg-[#C084FC]/5' : 'hover:bg-[#16161F]'} transition-colors group`}
                   >
                     <FeedIcon type={item.type} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white leading-tight">
-                        {item.region && <span className="text-[#808090] mr-1">{FLAGS[item.region]}</span>}
-                        <span className="font-medium">{item.creator ? `@${item.creator}` : ''}</span>
-                        <span className="text-[#606070]"> — </span>
-                        <span className="text-[#C0C0D0]">{feedLabel(item)}</span>
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-white truncate max-w-[80px]">
+                          {item.creator ? `@${item.creator}` : ''}
+                        </span>
+                        <span className="text-[10px] text-[#505060]">—</span>
+                        <span className="text-[11px] text-[#909098] truncate">{feedLabel(item)}</span>
+                        <span className="text-[10px] text-[#404050] whitespace-nowrap flex-shrink-0 ml-auto">{timeAgo(item.time)}</span>
+                      </div>
                       {item.campaign && (
-                        <p className="text-[10px] text-[#808090] truncate mt-0.5">{item.campaign}</p>
+                        <p className="text-[10px] text-[#606070] truncate mt-0.5">{item.campaign}</p>
                       )}
                     </div>
-                    <span className="text-[10px] text-[#707080] whitespace-nowrap flex-shrink-0 mt-0.5">{timeAgo(item.time)}</span>
                   </div>
                 ))
               )}
@@ -356,31 +394,41 @@ export default function LiveDashboard() {
 // --- Sub components ---
 
 function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, campaigns = [], navigate }) {
+  const hasItems = value > 0
   return (
-    <div className="bg-[#12121A] rounded-xl border border-[#1E1E2E] relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-0.5 bg-[#C084FC]" />
-      <div className="p-3 cursor-pointer" onClick={onToggle}>
-        <div className="flex items-start justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#C084FC]">{icon}</span>
-            <span className="text-xs font-semibold text-white">{label}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xl font-bold text-[#C084FC]" style={{ fontFamily: 'Outfit' }}>{value}</span>
-            {value > 0 && (
-              expanded
-                ? <ChevronUp className="w-3 h-3 text-[#606070]" />
-                : <ChevronDown className="w-3 h-3 text-[#606070]" />
-            )}
-          </div>
+    <div className="bg-[#12121A] rounded-2xl border border-[#1E1E2E] relative overflow-hidden">
+      {/* 상단 핫핑크 라인 */}
+      <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: `linear-gradient(90deg, ${ACCENT_PINK}, #C084FC)` }} />
+      <div className={`p-4 ${hasItems ? 'cursor-pointer' : ''}`} onClick={hasItems ? onToggle : undefined}>
+        {/* 아이콘 */}
+        <div className="w-8 h-8 rounded-lg bg-[#1E1E2E] flex items-center justify-center mb-3">
+          <span className="text-[#A0A0B0]">{icon}</span>
         </div>
-        <p className="text-[10px] text-[#909098] leading-relaxed">{desc}</p>
-        <p className="text-[9px] text-[#505060] mt-1">
-          <span className="text-[#606070]">기준:</span> {criteria}
+        {/* 라벨 */}
+        <div className="text-xs font-semibold text-[#D0D0E0] mb-1">{label}</div>
+        {/* 큰 숫자 */}
+        <div className="flex items-baseline gap-1 mb-2">
+          <span className="text-4xl font-extrabold leading-none" style={{ fontFamily: 'Outfit', color: ACCENT_PINK }}>
+            {value}
+          </span>
+          <span className="text-sm text-[#606070] font-medium">건</span>
+        </div>
+        {/* 설명 */}
+        <p className="text-[11px] text-[#707080] leading-relaxed mb-1">{desc}</p>
+        <p className="text-[10px] text-[#404050]">
+          <span className="text-[#505060]">기준:</span> {criteria}
         </p>
+        {hasItems && (
+          <div className="flex justify-end mt-1">
+            {expanded
+              ? <ChevronUp className="w-3.5 h-3.5 text-[#505060]" />
+              : <ChevronDown className="w-3.5 h-3.5 text-[#505060]" />
+            }
+          </div>
+        )}
       </div>
       {expanded && campaigns.length > 0 && (
-        <div className="border-t border-[#1E1E2E] px-3 py-2 max-h-[140px] overflow-y-auto">
+        <div className="border-t border-[#1A1A28] px-4 py-2 max-h-[140px] overflow-y-auto">
           {campaigns.map((c, i) => (
             <div key={i} className="flex items-center gap-1.5 py-1 text-xs group">
               <span className="text-[#808090]">{FLAGS[c.region]}</span>
@@ -401,28 +449,28 @@ function ActionCard({ label, value, icon, desc, criteria, expanded, onToggle, ca
 
 function ProcessNode({ label, value, highlight }) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-bold border-2 transition-all ${
+    <div className="flex flex-col items-center gap-1.5">
+      <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-extrabold border-2 transition-all ${
         highlight
-          ? 'border-[#C084FC] bg-[#C084FC]/10 text-[#C084FC] shadow-[0_0_16px_rgba(192,132,252,0.2)]'
-          : 'border-[#2A2A3A] bg-[#1A1A2A] text-white'
+          ? 'border-[#C084FC] bg-[#C084FC]/10 text-[#C084FC] shadow-[0_0_20px_rgba(192,132,252,0.25)]'
+          : 'border-[#2A2A3A] bg-[#1A1A2A] text-[#E0E0F0]'
       }`} style={{ fontFamily: 'Outfit' }}>
         {value}
       </div>
-      <span className="text-[10px] text-[#909098]">{label}</span>
+      <span className="text-[10px] text-[#808090] font-medium">{label}</span>
     </div>
   )
 }
 
 function ProcessArrow() {
-  return <ArrowRight className="w-3.5 h-3.5 text-[#2A2A3A] flex-shrink-0 mt-[-12px]" />
+  return <ChevronRight className="w-4 h-4 text-[#2A2A3A] flex-shrink-0 mt-[-14px]" />
 }
 
 function FeedIcon({ type }) {
   const styles = {
-    video_upload: 'text-blue-400 bg-blue-500/10',
-    sns_upload: 'text-emerald-400 bg-emerald-500/10',
-    whatsapp: 'text-green-400 bg-green-500/10'
+    video_upload: 'text-blue-400 bg-blue-500/15',
+    sns_upload: 'text-emerald-400 bg-emerald-500/15',
+    whatsapp: 'text-green-400 bg-green-500/15'
   }
   const icons = {
     video_upload: <Film className="w-3.5 h-3.5" />,
@@ -430,7 +478,7 @@ function FeedIcon({ type }) {
     whatsapp: <MessageCircle className="w-3.5 h-3.5" />
   }
   return (
-    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${styles[type] || 'text-gray-400 bg-gray-500/10'}`}>
+    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${styles[type] || 'text-gray-400 bg-gray-500/15'}`}>
       {icons[type] || <Activity className="w-3.5 h-3.5" />}
     </div>
   )
