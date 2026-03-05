@@ -178,6 +178,17 @@ const normalizeCreatorData = (creator, region) => {
   }
 }
 
+const WA_TEMPLATES = [
+  { name: 'creator_selected_v2', label: '크리에이터 선정', variables: ['이름', '대시보드링크'] },
+  { name: 'selection_guide_delivery_v2', label: '선정 + 가이드 전달', variables: ['이름', '가이드링크'] },
+  { name: 'verification_complete_v2', label: '검증 완료', variables: ['이름', '콘텐츠제목', '날짜', '링크'] },
+  { name: 'modification_request_v2', label: '수정 요청', variables: ['이름', '콘텐츠제목', '수정내용', '마감일', '링크'] },
+  { name: 'points_awarded_v2', label: '포인트 지급', variables: ['이름', '포인트', '이유', '날짜', '총포인트', '링크'] },
+  { name: 'payment_received_v2', label: '결제 확인', variables: ['이름', '금액', '통화', '거래ID', '날짜', '영수증링크'] },
+  { name: 'account_registration_v2', label: '계정 등록 완료', variables: ['이름', '이메일', '날짜', '링크'] },
+  { name: 'account_deactivation_v2', label: '계정 비활성화', variables: ['이름', '날짜', '링크'] }
+]
+
 export default function AllCreatorsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
@@ -262,6 +273,13 @@ export default function AllCreatorsPage() {
 
   // LINE 채팅 모달 상태
   const [showLineChatModal, setShowLineChatModal] = useState(false)
+  // WhatsApp 개인 발송 모달 상태
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+  const [whatsAppTarget, setWhatsAppTarget] = useState(null)
+  const [whatsAppTemplate, setWhatsAppTemplate] = useState('')
+  const [whatsAppVars, setWhatsAppVars] = useState({})
+  const [whatsAppSending, setWhatsAppSending] = useState(false)
+  const [whatsAppResult, setWhatsAppResult] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -2468,6 +2486,19 @@ export default function AllCreatorsPage() {
                 LINE 채팅
               </Button>
             )}
+            {selectedCreator?.dbRegion === 'us' && selectedCreator?.phone && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setWhatsAppTarget(selectedCreator)
+                  setShowWhatsAppModal(true)
+                }}
+                className="text-green-600 border-green-300 hover:bg-green-50"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                WhatsApp
+              </Button>
+            )}
             <Button onClick={() => {
               setShowProfileModal(false)
               openReviewModal(selectedCreator, selectedCreator?.dbRegion)
@@ -3360,6 +3391,110 @@ export default function AllCreatorsPage() {
         creator={selectedCreator}
         region={selectedCreator?.dbRegion || 'japan'}
       />
+
+      {/* WhatsApp 개인 발송 모달 */}
+      <Dialog open={showWhatsAppModal} onOpenChange={(open) => { setShowWhatsAppModal(open); if (!open) { setWhatsAppResult(null); setWhatsAppTemplate(''); setWhatsAppVars({}) } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-green-600" />
+              WhatsApp 발송 — {whatsAppTarget?.name || '크리에이터'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+              <p className="text-green-800">전화번호: {whatsAppTarget?.phone || '없음'}</p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">템플릿 선택</label>
+              <select
+                value={whatsAppTemplate}
+                onChange={(e) => {
+                  const name = e.target.value
+                  setWhatsAppTemplate(name)
+                  setWhatsAppResult(null)
+                  const tmpl = WA_TEMPLATES.find(t => t.name === name)
+                  if (tmpl) {
+                    const defaults = {}
+                    tmpl.variables.forEach((v, i) => {
+                      if (v === '이름') defaults[String(i + 1)] = whatsAppTarget?.name || 'Creator'
+                      else if (v.includes('링크')) defaults[String(i + 1)] = 'https://cnec.us/creator/mypage'
+                      else if (v === '날짜') defaults[String(i + 1)] = new Date().toLocaleDateString('en-US')
+                      else defaults[String(i + 1)] = ''
+                    })
+                    setWhatsAppVars(defaults)
+                  }
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">-- 템플릿 선택 --</option>
+                {WA_TEMPLATES.map(t => (
+                  <option key={t.name} value={t.name}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {whatsAppTemplate && WA_TEMPLATES.find(t => t.name === whatsAppTemplate) && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">변수</label>
+                {WA_TEMPLATES.find(t => t.name === whatsAppTemplate).variables.map((varLabel, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">{`{{${i + 1}}} ${varLabel}`}</span>
+                    <input
+                      className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
+                      value={whatsAppVars[String(i + 1)] || ''}
+                      onChange={(e) => setWhatsAppVars(prev => ({ ...prev, [String(i + 1)]: e.target.value }))}
+                      placeholder={varLabel}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {whatsAppResult && (
+              <div className={`p-3 rounded-lg text-sm ${whatsAppResult.success ? 'bg-blue-50 border border-blue-200 text-blue-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                {whatsAppResult.success ? '발송 성공!' : `실패: ${whatsAppResult.error || '알 수 없는 오류'}`}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowWhatsAppModal(false)}>닫기</Button>
+              <Button
+                disabled={whatsAppSending || !whatsAppTemplate || !whatsAppTarget?.phone}
+                onClick={async () => {
+                  setWhatsAppSending(true)
+                  setWhatsAppResult(null)
+                  try {
+                    const res = await fetch('/.netlify/functions/send-whatsapp', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        mode: 'single',
+                        creatorId: whatsAppTarget?.id,
+                        phoneNumber: whatsAppTarget?.phone,
+                        creatorName: whatsAppTarget?.name,
+                        templateName: whatsAppTemplate,
+                        variables: whatsAppVars,
+                        sentBy: 'admin'
+                      })
+                    })
+                    const data = await res.json()
+                    setWhatsAppResult(data)
+                  } catch (err) {
+                    setWhatsAppResult({ success: false, error: err.message })
+                  } finally {
+                    setWhatsAppSending(false)
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {whatsAppSending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 발송 중...</> : <><Send className="w-4 h-4 mr-2" /> 발송</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

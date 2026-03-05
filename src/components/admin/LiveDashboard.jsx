@@ -21,9 +21,35 @@ const TYPE_LABELS_US = { planned: '기획', other: '기타' }
 const BAR_COLORS = { kr: '#E879A8', jp: '#F87171', us: '#60A5FA' }
 const ACCENT_PINK = '#FF6B8A'
 
+// 싱글 AudioContext 재사용 (브라우저 자동재생 정책: 사용자 인터랙션 후 resume 필요)
+let _audioCtx = null
+function getAudioContext() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  // suspended 상태면 resume (사용자 인터랙션 후에만 성공)
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume()
+  }
+  return _audioCtx
+}
+
+// 페이지 아무 곳이나 클릭/터치하면 AudioContext resume (맥/iOS 필수)
+if (typeof document !== 'undefined') {
+  const resumeAudio = () => {
+    if (_audioCtx && _audioCtx.state === 'suspended') {
+      _audioCtx.resume()
+    }
+  }
+  document.addEventListener('click', resumeAudio, { once: false })
+  document.addEventListener('touchstart', resumeAudio, { once: false })
+  document.addEventListener('keydown', resumeAudio, { once: false })
+}
+
 function playSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') return // 아직 사용자 인터랙션 없으면 스킵
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -34,13 +60,13 @@ function playSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.4)
-  } catch (e) {}
+  } catch (e) { console.warn('[LiveDashboard] playSound error:', e.message) }
 }
 
 function playAlertSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    // 더 눈에 띄는 알림음 (2톤)
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') return
     ;[880, 1100].forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -54,7 +80,7 @@ function playAlertSound() {
       osc.start(start)
       osc.stop(start + 0.3)
     })
-  } catch (e) {}
+  } catch (e) { console.warn('[LiveDashboard] playAlertSound error:', e.message) }
 }
 
 function timeAgo(t) {
@@ -120,6 +146,9 @@ export default function LiveDashboard() {
   const [alertQueue, setAlertQueue] = useState([])
   const [currentAlert, setCurrentAlert] = useState(null)
   const dismissedAlertsRef = useRef(new Set())
+  // 알림 실패 토스트 (우하단 스택)
+  const [failureToasts, setFailureToasts] = useState([])
+  const prevFailureIdsRef = useRef(new Set())
 
   // 관리자 인증 체크
   useEffect(() => {
@@ -169,6 +198,27 @@ export default function LiveDashboard() {
         }
       }
       prevFeedRef.current = newFeed
+
+      // 알림 실패 감지 → 우하단 토스트 스택
+      const failures = result.notificationFailures || []
+      const newToasts = []
+      failures.forEach(f => {
+        const fId = `${f.channel}-${f.time}`
+        if (!prevFailureIdsRef.current.has(fId)) {
+          newToasts.push({ id: fId, ...f })
+          prevFailureIdsRef.current.add(fId)
+        }
+      })
+      if (newToasts.length > 0 && prevFailureIdsRef.current.size > newToasts.length) {
+        // 최초 로딩이 아닌 경우에만 토스트 추가
+        setFailureToasts(prev => [...prev, ...newToasts].slice(-20))
+        if (soundOn) playAlertSound()
+      }
+      // 최초 로딩 시 ID만 등록 (토스트 표시 안함)
+      if (prevFailureIdsRef.current.size === 0 || prevFailureIdsRef.current.size === newToasts.length) {
+        failures.forEach(f => prevFailureIdsRef.current.add(`${f.channel}-${f.time}`))
+      }
+
       setLoading(false)
     } catch (err) {
       setError(err.message)
@@ -229,6 +279,19 @@ export default function LiveDashboard() {
           <AlertModal alert={currentAlert} onDismiss={dismissAlert} remaining={alertQueue.length} />
         )}
 
+        {/* 알림 발송 실패 토스트 (우하단 스택) */}
+        {failureToasts.length > 0 && (
+          <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2 max-h-[70vh] overflow-y-auto pointer-events-none" style={{ width: '360px' }}>
+            {failureToasts.map(toast => (
+              <FailureToast
+                key={toast.id}
+                toast={toast}
+                onDismiss={() => setFailureToasts(prev => prev.filter(t => t.id !== toast.id))}
+              />
+            ))}
+          </div>
+        )}
+
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -280,7 +343,15 @@ export default function LiveDashboard() {
             <span className="text-[#808090] text-xs" style={{ fontFamily: 'Outfit' }}>
               {lastUpdated?.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-            <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={() => setSoundOn(!soundOn)}>
+            <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={() => {
+              const next = !soundOn
+              setSoundOn(next)
+              if (next) {
+                // 사운드 켤 때 AudioContext resume + 테스트 사운드 (사용자 인터랙션 시점)
+                getAudioContext()
+                setTimeout(() => playSound(), 100)
+              }
+            }}>
               {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
             </Button>
             <Button variant="ghost" size="icon" className="w-7 h-7 text-[#808090] hover:text-white hover:bg-white/5" onClick={fetchData}>
@@ -410,10 +481,20 @@ export default function LiveDashboard() {
                 <Send className="w-4 h-4 text-[#C084FC]" />
                 <span className="text-sm font-bold text-white">오늘 알림 발송 현황</span>
                 {Object.values(notifications).some(n => n.failed > 0) && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                  <button
+                    onClick={() => {
+                      // 최근 실패 로그를 토스트로 표시
+                      const toasts = notificationFailures.slice(0, 10).map(f => ({
+                        id: `${f.channel}-${f.time}`,
+                        ...f
+                      }))
+                      setFailureToasts(toasts)
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors cursor-pointer animate-pulse"
+                  >
                     <AlertTriangle className="w-3 h-3" />
-                    실패 있음
-                  </span>
+                    실패 있음 — 클릭하여 상세보기
+                  </button>
                 )}
               </div>
               <div className="grid grid-cols-5 gap-3">
@@ -581,6 +662,52 @@ export default function LiveDashboard() {
 }
 
 // --- Sub components ---
+
+const CHANNEL_LABELS = {
+  naver_works: '네이버웍스',
+  kakao: '카카오 알림톡',
+  email: '이메일',
+  line: 'LINE',
+  sms: 'SMS'
+}
+const CHANNEL_COLORS = {
+  naver_works: { bg: 'bg-green-500/15', text: 'text-green-400', border: 'border-green-500/30' },
+  kakao: { bg: 'bg-yellow-500/15', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+  email: { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' },
+  line: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  sms: { bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30' }
+}
+
+function FailureToast({ toast, onDismiss }) {
+  const chColor = CHANNEL_COLORS[toast.channel] || { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' }
+  return (
+    <div className="pointer-events-auto bg-[#1A1A28] border border-red-500/25 rounded-xl shadow-lg shadow-black/40 overflow-hidden animate-in slide-in-from-right duration-300">
+      <div className="h-0.5 bg-gradient-to-r from-red-500 to-orange-500" />
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${chColor.bg} ${chColor.text}`}>
+                {CHANNEL_LABELS[toast.channel] || toast.channel} 발송 오류
+              </span>
+              <span className="text-[10px] text-[#505060] ml-auto flex-shrink-0">{timeAgo(toast.time)}</span>
+            </div>
+            <div className="text-[11px] text-[#A0A0B0] truncate">{toast.error || '(알 수 없는 오류)'}</div>
+            {toast.function_name && (
+              <div className="text-[10px] text-[#505060] mt-0.5">{toast.function_name}</div>
+            )}
+          </div>
+          <button onClick={onDismiss} className="text-[#505060] hover:text-white transition-colors flex-shrink-0 mt-0.5">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AlertModal({ alert, onDismiss, remaining }) {
   const isSignup = alert.type === 'company_signup'

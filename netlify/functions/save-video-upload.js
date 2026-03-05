@@ -288,15 +288,18 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
       if (comp.company_name) companyName = comp.company_name
       console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail, usedBizId: !!campaignData.company_biz_id })
     } else {
-      // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
-      if (campaignData.company_phone) {
-        companyPhone = campaignData.company_phone
-        console.log('[알림] 기업 정보 (캠페인 직접 필드 fallback):', { companyPhone })
-      } else {
-        console.log('[알림] BIZ DB에 등록된 기업이 아님 - 알림 발송 스킵:', { company_biz_id: campaignData.company_biz_id, company_id: campaignData.company_id, company_email: campaignData.company_email })
-        companyPhone = null
-        companyEmail = null
-      }
+      // ★ company_biz_id/company_email/company_id 모두 매칭 실패 시
+      // campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
+      // (캠페인 생성 시 관리자 번호가 company_phone에 저장되는 경우가 있음)
+      const fallbackEmail = campaignData.company_email
+      console.warn('[알림] BIZ DB 기업 매칭 실패. 카카오 발송 스킵:', {
+        company_biz_id: campaignData.company_biz_id,
+        company_id: campaignData.company_id,
+        company_email: campaignData.company_email,
+        company_phone: campaignData.company_phone
+      })
+      companyPhone = null
+      if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
     }
   })()
 
@@ -368,7 +371,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const results = { naverWorks: null, kakao: null, email: null }
   const notificationPromises = []
 
-  // 네이버 웍스 (영상 제출 알림) — 직접 API 호출 (서버→서버 HTTP 호출 불안정 문제 해결)
+  // 네이버 웍스 (영상 제출 알림) — send-naver-works-message 함수 호출
   {
     let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
@@ -381,11 +384,18 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
 
     notificationPromises.push(
-      sendNaverWorksMessageDirect('75c24874-e370-afd5-9da3-72918ba15a3c', naverWorksMessage)
-        .then(r => {
+      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: naverWorksMessage
+        })
+      }).then(r => r.json()).then(r => {
           results.naverWorks = r
-          console.log('[알림] 네이버 웍스 직접 전송:', r.success ? '성공' : `실패: ${r.error}`, `(${Date.now() - startTime}ms)`)
-        }).catch(e => console.error('[알림] 네이버 웍스 직접 전송 실패:', e.message))
+          console.log('[알림] 네이버 웍스:', r.success ? '성공' : `실패: ${JSON.stringify(r)}`, `(${Date.now() - startTime}ms)`)
+        }).catch(e => console.error('[알림] 네이버 웍스 실패:', e.message))
     )
   }
 
@@ -658,10 +668,16 @@ exports.handler = async (event) => {
             console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })
             // 에러 알림 채널로 통보 (디버깅용)
             try {
-              await sendNaverWorksMessageDirect(
-                '54220a7e-0b14-1138-54ec-a55f62dc8b75',
-                `⚠️ [save-video-upload] 영상 알림 실패\n\nparticipantId: ${participantId}\nregion: ${region}\n원인: participant 조회 실패\n검색한 DB: ${participantClients.length}개\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
-              )
+              const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+              await fetch(`${alertBaseUrl}/.netlify/functions/send-naver-works-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  isAdminNotification: true,
+                  channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
+                  message: `⚠️ [save-video-upload] 영상 알림 실패\n\nparticipantId: ${participantId}\nregion: ${region}\n원인: participant 조회 실패\n검색한 DB: ${participantClients.length}개\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                })
+              })
             } catch (alertErr) {
               console.error('[save-video-upload] 에러 알림 발송도 실패:', alertErr.message)
             }

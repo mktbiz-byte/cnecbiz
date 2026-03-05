@@ -183,10 +183,10 @@ exports.handler = async (event) => {
       applyCompanyResult(data, 'regional_user_id')
     }
 
-    // 최종 fallback: 캠페인에 직접 저장된 company_phone 사용
+    // ★ campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
+    // (캠페인 생성 시 관리자 번호가 company_phone에 저장되는 경우가 있음)
     if (!companyPhone && companyPhoneFromCampaign) {
-      companyPhone = companyPhoneFromCampaign
-      console.log('[INFO] Company phone from campaign field fallback:', { companyPhone })
+      console.warn('[INFO] company_biz_id/email/id 매칭 실패. campaign.company_phone 직접 사용 스킵 (관리자 번호 방지):', companyPhoneFromCampaign)
     }
 
     if (!companyPhone && !companyEmail) {

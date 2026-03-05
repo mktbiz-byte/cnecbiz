@@ -28,7 +28,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { creatorName, creatorPhone, feedbackCount, campaignTitle, submissionId } = JSON.parse(event.body)
+    const { creatorName, creatorPhone, feedbackCount, campaignTitle, submissionId, companyName } = JSON.parse(event.body)
 
     if (!creatorPhone) {
       return {
@@ -54,12 +54,15 @@ exports.handler = async (event) => {
     resubmitDeadline.setDate(resubmitDeadline.getDate() + 2)
     const resubmitDateStr = `${resubmitDeadline.getMonth() + 1}월 ${resubmitDeadline.getDate()}일`
 
-    // send-kakao-notification을 HTTP로 호출
     const baseUrl = process.env.URL || 'https://cnecbiz.com'
+    const results = { kakao: false, naverWorks: false }
 
-    try {
-      console.log('[INFO] Calling send-kakao-notification via HTTP')
-      const kakaoResponse = await axios.post(
+    // ===== 카카오 알림톡 + 네이버웍스 병렬 발송 =====
+    const notificationPromises = []
+
+    // 1. 카카오 알림톡 (크리에이터에게)
+    notificationPromises.push(
+      axios.post(
         `${baseUrl}/.netlify/functions/send-kakao-notification`,
         {
           receiverNum: creatorPhone.replace(/-/g, ''),
@@ -73,59 +76,60 @@ exports.handler = async (event) => {
           }
         },
         { timeout: 15000 }
-      )
+      ).then(r => {
+        results.kakao = !!r.data?.success
+        console.log('[INFO] Kakao:', r.data?.success ? '성공' : JSON.stringify(r.data))
+      }).catch(e => {
+        console.error('[ERROR] Kakao failed:', e.message)
+      })
+    )
 
-      console.log('[INFO] Kakao response:', kakaoResponse.data)
+    // 2. 네이버웍스 관리자 알림 (수정요청 발생 알림)
+    const koreanDate = new Date().toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
+    notificationPromises.push(
+      axios.post(
+        `${baseUrl}/.netlify/functions/send-naver-works-message`,
+        {
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `[영상 수정요청]\n\n📋 캠페인: ${campaignTitle || '캠페인'}\n🏢 기업: ${companyName || '미확인'}\n👤 크리에이터: ${creatorName || '크리에이터'}\n📝 피드백: ${feedbackCount || 0}건\n📅 재제출기한: ${resubmitDateStr}\n⏰ 시간: ${koreanDate}`
+        },
+        { timeout: 15000 }
+      ).then(r => {
+        results.naverWorks = !!r.data?.success
+        console.log('[INFO] NaverWorks:', r.data?.success ? '성공' : JSON.stringify(r.data))
+      }).catch(e => {
+        console.error('[ERROR] NaverWorks failed:', e.message)
+      })
+    )
 
-      if (kakaoResponse.data?.success) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            message: '수정 요청이 크리에이터에게 전달되었습니다 (알림톡)',
-            data: kakaoResponse.data
-          })
-        }
-      } else {
-        // 알림톡 실패 - 상세 에러 정보 포함
-        const errorDetails = {
-          success: false,
-          message: '알림 전송 실패',
-          error: kakaoResponse.data?.error || 'Unknown error',
-          errorDescription: kakaoResponse.data?.errorDescription || null,
-          code: kakaoResponse.data?.code || null,
-          debug: {
-            ...kakaoResponse.data?.debug,
-            creatorPhone: creatorPhone ? creatorPhone.slice(0, 3) + '****' + creatorPhone.slice(-4) : 'N/A',
-            templateCode: '025100001016'
-          }
-        }
-        console.error('[ERROR] Kakao notification failed with details:', errorDetails)
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(errorDetails)
-        }
-      }
-    } catch (kakaoError) {
-      console.error('[ERROR] Kakao notification exception:', kakaoError.message)
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          message: '알림 전송 실패',
-          error: kakaoError.message,
-          debug: {
-            creatorPhone: creatorPhone ? creatorPhone.slice(0, 3) + '****' + creatorPhone.slice(-4) : 'N/A',
-            templateCode: '025100001016'
-          }
-        })
-      }
+    await Promise.allSettled(notificationPromises)
+    console.log('[INFO] 수정요청 알림 완료:', results)
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: results.kakao || results.naverWorks,
+        message: '수정 요청 알림 발송 완료',
+        results
+      })
     }
   } catch (error) {
     console.error('[ERROR] Unexpected error:', error)
+
+    // 에러 알림
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await axios.post(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        functionName: 'send-video-review-notification',
+        errorMessage: error.message,
+        context: { body: event.body?.substring(0, 500) }
+      }, { timeout: 10000 })
+    } catch (e) { console.error('Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,
