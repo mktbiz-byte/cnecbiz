@@ -101,14 +101,20 @@ export default function DummyCampaignManagement() {
   const fetchDummyCampaigns = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabaseBiz
-        .from('campaigns')
-        .select('*')
-        .eq('company_email', DUMMY_MARKER)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setCampaigns(data || [])
+      // 모든 리전 DB에서 더미 캠페인 조회
+      const allCampaigns = []
+      for (const region of ['korea', 'japan', 'us']) {
+        const client = getSupabaseClient(region)
+        const { data } = await client
+          .from('campaigns')
+          .select('*')
+          .eq('company_email', DUMMY_MARKER)
+          .order('created_at', { ascending: false })
+        if (data?.length) allCampaigns.push(...data)
+      }
+      // created_at 내림차순 정렬
+      allCampaigns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      setCampaigns(allCampaigns)
     } catch (err) {
       console.error('더미 캠페인 조회 실패:', err)
     } finally {
@@ -379,14 +385,15 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
         additional_details: form.description_en || null,
       }
 
+      const client = getSupabaseClient(form.region)
       if (editingId) {
-        const { error } = await supabaseBiz
+        const { error } = await client
           .from('campaigns')
           .update(campaignData)
           .eq('id', editingId)
         if (error) throw error
       } else {
-        const { error } = await supabaseBiz
+        const { error } = await client
           .from('campaigns')
           .insert([campaignData])
         if (error) throw error
@@ -404,8 +411,10 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
 
   const handleDelete = async (id) => {
     if (!confirm('이 더미 캠페인을 삭제하시겠습니까?')) return
+    const campaign = campaigns.find(c => c.id === id)
+    const client = getSupabaseClient(campaign?.region || 'korea')
     try {
-      const { error } = await supabaseBiz
+      const { error } = await client
         .from('campaigns')
         .delete()
         .eq('id', id)
@@ -422,8 +431,9 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
     const twoWeeksLater = new Date(today)
     twoWeeksLater.setDate(today.getDate() + 14)
 
+    const client = getSupabaseClient(campaign.region || 'korea')
     try {
-      const { error } = await supabaseBiz
+      const { error } = await client
         .from('campaigns')
         .insert([{
           title: campaign.title + ' (복사)',
@@ -465,8 +475,10 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
 
   // 인라인 날짜 수정
   const handleInlineDateSave = async (campaignId, field) => {
+    const campaign = campaigns.find(c => c.id === campaignId)
+    const client = getSupabaseClient(campaign?.region || 'korea')
     try {
-      const { error } = await supabaseBiz
+      const { error } = await client
         .from('campaigns')
         .update({ [field]: editingDateValue || null })
         .eq('id', campaignId)
