@@ -119,12 +119,26 @@ function sendNaverWorksMsg(accessToken, botId, channelId, message) {
   })
 }
 
+async function logNotificationDirect(channel, status, functionName, recipient, messagePreview, errorMessage) {
+  try {
+    await supabaseBiz.from('notification_send_logs').insert({
+      channel,
+      status,
+      function_name: functionName,
+      recipient: recipient || null,
+      message_preview: (messagePreview || '').substring(0, 200),
+      error_message: status === 'failed' ? (errorMessage || null) : null
+    })
+  } catch (e) { /* skip */ }
+}
+
 async function sendNaverWorksMessageDirect(channelId, message) {
   const clientId = process.env.NAVER_WORKS_CLIENT_ID
   const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
   const botId = process.env.NAVER_WORKS_BOT_ID
   if (!clientId || !clientSecret || !botId) {
     console.error('[알림] 네이버웍스 환경변수 누락:', { clientId: !!clientId, clientSecret: !!clientSecret, botId: !!botId })
+    await logNotificationDirect('naver_works', 'failed', 'save-video-upload', channelId, message, '네이버웍스 환경변수 누락')
     return { success: false, error: '네이버웍스 환경변수 누락' }
   }
   try {
@@ -133,9 +147,11 @@ async function sendNaverWorksMessageDirect(channelId, message) {
     console.log('[알림] 네이버웍스 토큰 발급 완료, 메시지 전송 시작...')
     const result = await sendNaverWorksMsg(accessToken, botId, channelId, message)
     console.log('[알림] 네이버웍스 메시지 전송 완료')
+    await logNotificationDirect('naver_works', 'success', 'save-video-upload', channelId, message)
     return result
   } catch (err) {
     console.error('[알림] 네이버웍스 직접 전송 실패:', err.message)
+    await logNotificationDirect('naver_works', 'failed', 'save-video-upload', channelId, message, err.message)
     return { success: false, error: err.message }
   }
 }
