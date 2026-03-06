@@ -394,9 +394,32 @@ function sendChannelMessage(accessToken, botId, channelId, message) {
 exports.handler = async (event) => {
   const httpMethod = event.httpMethod || 'SCHEDULED';
   const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
+  const queryParams = event.queryStringParameters || {};
   console.log(`[daily-withdrawal-approval] 시작 - ${isManualTest ? '수동' : '자동'}`);
 
   try {
+    // GET ?debug=form → 서식 컴포넌트 조회 모드
+    if (httpMethod === 'GET' && queryParams.debug === 'form') {
+      const clientId = process.env.NAVER_WORKS_CLIENT_ID;
+      const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
+      const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
+      const documentFormId = 'd4cb5007-37a3-4220-9c28-bbaf4778f600';
+
+      const token = await getAccessToken(clientId, clientSecret, serviceAccount, 'businessSupport.approval');
+      const formData = await getFormComponents(token, documentFormId);
+      const matched = matchComponentIds(formData);
+
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formId: documentFormId,
+          matchedComponents: matched,
+          rawForm: formData
+        }, null, 2)
+      };
+    }
+
     // 주말 체크 (수동 테스트 시에는 skip)
     if (!isManualTest) {
       const now = new Date();
