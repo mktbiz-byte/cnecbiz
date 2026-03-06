@@ -363,7 +363,38 @@ export default function SnsUploadManagement() {
                              p.step2_url || p.step3_url
             const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'submitted'].includes(p.status)
 
-            if (!isDuplicate && (hasSnsUrl || hasVideoStatus)) {
+            if (isDuplicate && (hasSnsUrl || hasVideoStatus)) {
+              // 중복인 경우: 기존 BIZ 항목에 Korea DB 데이터 병합 (SNS URL, 광고코드 등)
+              const existingIdx = allVideos.findIndex(v =>
+                v.campaign_id === p.campaign_id && v.user_id === p.user_id
+              )
+              if (existingIdx >= 0) {
+                const existing = allVideos[existingIdx]
+                allVideos[existingIdx] = {
+                  ...existing,
+                  sns_upload_url: p.sns_upload_url || existing.sns_upload_url,
+                  partnership_code: p.partnership_code || existing.partnership_code,
+                  step1_url: p.step1_url || existing.step1_url,
+                  step2_url: p.step2_url || existing.step2_url,
+                  step3_url: p.step3_url || existing.step3_url,
+                  step1_2_partnership_code: p.step1_2_partnership_code || p.partnership_code || existing.step1_2_partnership_code,
+                  step3_partnership_code: p.step3_partnership_code || existing.step3_partnership_code,
+                  week1_url: p.week1_url || existing.week1_url,
+                  week2_url: p.week2_url || existing.week2_url,
+                  week3_url: p.week3_url || existing.week3_url,
+                  week4_url: p.week4_url || existing.week4_url,
+                  week1_partnership_code: p.week1_partnership_code || existing.week1_partnership_code,
+                  week2_partnership_code: p.week2_partnership_code || existing.week2_partnership_code,
+                  week3_partnership_code: p.week3_partnership_code || existing.week3_partnership_code,
+                  week4_partnership_code: p.week4_partnership_code || existing.week4_partnership_code,
+                  // 크리에이터 이름도 Korea 프로필에서 보완
+                  creatorName: existing.creatorName === '-' ? getKoreaCreatorName(p.user_id, p) : existing.creatorName,
+                  creatorInstagram: existing.creatorInstagram || koreaProfileMap.get(p.user_id)?.instagram_url,
+                  creatorYoutube: existing.creatorYoutube || koreaProfileMap.get(p.user_id)?.youtube_url,
+                  creatorTiktok: existing.creatorTiktok || koreaProfileMap.get(p.user_id)?.tiktok_url,
+                }
+              }
+            } else if (!isDuplicate && (hasSnsUrl || hasVideoStatus)) {
               const campaign = koreaCampaignMap.get(p.campaign_id)
 
               // 캠페인 목록에 추가
@@ -407,7 +438,7 @@ export default function SnsUploadManagement() {
                 week2_partnership_code: p.week2_partnership_code,
                 week3_partnership_code: p.week3_partnership_code,
                 week4_partnership_code: p.week4_partnership_code,
-                step1_2_partnership_code: p.step1_2_partnership_code,
+                step1_2_partnership_code: p.step1_2_partnership_code || p.partnership_code,
                 step3_partnership_code: p.step3_partnership_code,
               })
             }
@@ -438,45 +469,74 @@ export default function SnsUploadManagement() {
               const campaign = koreaCampaignMap.get(app.campaign_id)
               const isMultiVideoCampaign = ['4week_challenge', 'megawari', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
 
-              if ((!isDuplicate || isMultiVideoCampaign) && (hasSnsUrl || hasVideoFile || hasVideoStatus)) {
+              if ((hasSnsUrl || hasVideoFile || hasVideoStatus)) {
                 if (campaign) {
                   campaignSet.set(campaign.id, { id: campaign.id, title: campaign.title, type: campaign.campaign_type })
                 }
 
-                const videoEntry = {
-                  id: `korea_app_${app.id}`,
-                  application_id: app.id,
-                  campaign_id: app.campaign_id,
-                  user_id: app.user_id,
-                  sns_upload_url: app.sns_upload_url,
-                  partnership_code: app.partnership_code,
-                  video_file_url: app.video_file_url,
-                  created_at: app.updated_at || app.created_at,
-                  status: app.status,
-                  source: 'korea',
-                  country: campaign?.target_country || 'kr',
-                  campaignTitle: campaign?.title || campaign?.name || app.campaign_name || '-',
-                  campaignType: campaign?.campaign_type,
-                  creatorName: getKoreaCreatorName(app.user_id, app),
-                  creatorEmail: app.email,
-                  creatorInstagram: koreaProfileMap.get(app.user_id)?.instagram_url,
-                  creatorYoutube: koreaProfileMap.get(app.user_id)?.youtube_url,
-                  creatorTiktok: koreaProfileMap.get(app.user_id)?.tiktok_url,
-                  week1_url: app.week1_url, week2_url: app.week2_url,
-                  week3_url: app.week3_url, week4_url: app.week4_url,
-                  step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
-                  week1_partnership_code: app.week1_partnership_code,
-                  week2_partnership_code: app.week2_partnership_code,
-                  week3_partnership_code: app.week3_partnership_code,
-                  week4_partnership_code: app.week4_partnership_code,
-                  step1_2_partnership_code: app.step1_2_partnership_code,
-                  step3_partnership_code: app.step3_partnership_code,
-                }
+                // 중복인 경우: 기존 항목에 Korea applications 데이터 병합
+                if (isDuplicate && !isMultiVideoCampaign) {
+                  const existingIdx = allVideos.findIndex(v =>
+                    v.campaign_id === app.campaign_id && v.user_id === app.user_id
+                  )
+                  if (existingIdx >= 0) {
+                    const existing = allVideos[existingIdx]
+                    allVideos[existingIdx] = {
+                      ...existing,
+                      sns_upload_url: app.sns_upload_url || existing.sns_upload_url,
+                      partnership_code: app.partnership_code || existing.partnership_code,
+                      step1_url: app.step1_url || existing.step1_url,
+                      step2_url: app.step2_url || existing.step2_url,
+                      step3_url: app.step3_url || existing.step3_url,
+                      step1_2_partnership_code: app.step1_2_partnership_code || app.partnership_code || existing.step1_2_partnership_code,
+                      step3_partnership_code: app.step3_partnership_code || existing.step3_partnership_code,
+                      week1_url: app.week1_url || existing.week1_url,
+                      week2_url: app.week2_url || existing.week2_url,
+                      week3_url: app.week3_url || existing.week3_url,
+                      week4_url: app.week4_url || existing.week4_url,
+                      week1_partnership_code: app.week1_partnership_code || existing.week1_partnership_code,
+                      week2_partnership_code: app.week2_partnership_code || existing.week2_partnership_code,
+                      week3_partnership_code: app.week3_partnership_code || existing.week3_partnership_code,
+                      week4_partnership_code: app.week4_partnership_code || existing.week4_partnership_code,
+                      creatorName: existing.creatorName === '-' ? getKoreaCreatorName(app.user_id, app) : existing.creatorName,
+                    }
+                  }
+                } else {
+                  const videoEntry = {
+                    id: `korea_app_${app.id}`,
+                    application_id: app.id,
+                    campaign_id: app.campaign_id,
+                    user_id: app.user_id,
+                    sns_upload_url: app.sns_upload_url,
+                    partnership_code: app.partnership_code,
+                    video_file_url: app.video_file_url,
+                    created_at: app.updated_at || app.created_at,
+                    status: app.status,
+                    source: 'korea',
+                    country: campaign?.target_country || 'kr',
+                    campaignTitle: campaign?.title || campaign?.name || app.campaign_name || '-',
+                    campaignType: campaign?.campaign_type,
+                    creatorName: getKoreaCreatorName(app.user_id, app),
+                    creatorEmail: app.email,
+                    creatorInstagram: koreaProfileMap.get(app.user_id)?.instagram_url,
+                    creatorYoutube: koreaProfileMap.get(app.user_id)?.youtube_url,
+                    creatorTiktok: koreaProfileMap.get(app.user_id)?.tiktok_url,
+                    week1_url: app.week1_url, week2_url: app.week2_url,
+                    week3_url: app.week3_url, week4_url: app.week4_url,
+                    step1_url: app.step1_url, step2_url: app.step2_url, step3_url: app.step3_url,
+                    week1_partnership_code: app.week1_partnership_code,
+                    week2_partnership_code: app.week2_partnership_code,
+                    week3_partnership_code: app.week3_partnership_code,
+                    week4_partnership_code: app.week4_partnership_code,
+                    step1_2_partnership_code: app.step1_2_partnership_code || app.partnership_code,
+                    step3_partnership_code: app.step3_partnership_code,
+                  }
 
-                if (isDuplicate && isMultiVideoCampaign) {
-                  allVideos.push(videoEntry) // 멀티비디오는 중복 허용 (나중에 그룹화)
-                } else if (!isDuplicate) {
-                  allVideos.push(videoEntry)
+                  if (isDuplicate && isMultiVideoCampaign) {
+                    allVideos.push(videoEntry) // 멀티비디오는 중복 허용 (나중에 그룹화)
+                  } else if (!isDuplicate) {
+                    allVideos.push(videoEntry)
+                  }
                 }
               }
             })
