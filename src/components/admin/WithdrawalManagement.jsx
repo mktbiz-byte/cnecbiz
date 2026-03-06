@@ -733,8 +733,6 @@ export default function WithdrawalManagement() {
 
           creatorPhone = profileData?.phone
           creatorEmail = profileData?.email
-
-          }
         }
 
         const baseUrl = import.meta.env.VITE_SITE_URL || 'https://cnecbiz.com'
