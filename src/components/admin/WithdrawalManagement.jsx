@@ -535,6 +535,30 @@ export default function WithdrawalManagement() {
         return acc
       }, [])
 
+      // 5. non-BIZ 항목의 paying_entity를 매핑 테이블에서 불러오기
+      const nonBizWithdrawals = uniqueWithdrawals.filter(w => w.source_db !== 'biz')
+      if (nonBizWithdrawals.length > 0) {
+        try {
+          const nonBizIds = nonBizWithdrawals.map(w => w.id)
+          const { data: entityMaps } = await supabaseBiz
+            .from('withdrawal_entity_map')
+            .select('withdrawal_id, paying_entity')
+            .in('withdrawal_id', nonBizIds)
+
+          if (entityMaps && entityMaps.length > 0) {
+            const entityMap = {}
+            entityMaps.forEach(m => { entityMap[m.withdrawal_id] = m.paying_entity })
+            uniqueWithdrawals.forEach(w => {
+              if (entityMap[w.id]) {
+                w.paying_entity = entityMap[w.id]
+              }
+            })
+          }
+        } catch (mapErr) {
+          console.error('입금처 매핑 조회 오류:', mapErr)
+        }
+      }
+
       setWithdrawals(uniqueWithdrawals)
     } catch (error) {
       console.error('출금 신청 조회 오류:', error)
@@ -1590,7 +1614,7 @@ export default function WithdrawalManagement() {
     }
   }
 
-  // 입금처 분류 (하우랩/하우파파) - BIZ DB면 DB 업데이트, 아니면 로컬 저장
+  // 입금처 분류 (하우랩/하우파파) - BIZ DB의 withdrawal_entity_map 테이블에 저장
   const handleClassifyEntity = async (withdrawalId, entity, sourceDb) => {
     try {
       if (sourceDb === 'biz') {
@@ -1600,8 +1624,16 @@ export default function WithdrawalManagement() {
           .eq('id', withdrawalId)
         if (error) throw error
       } else {
-        // Korea DB 등 non-BIZ 항목은 로컬 상태로 관리
-        setLocalEntityMap(prev => ({ ...prev, [withdrawalId]: entity }))
+        // Korea DB 등 non-BIZ 항목은 BIZ DB의 매핑 테이블에 저장
+        const { error } = await supabaseBiz
+          .from('withdrawal_entity_map')
+          .upsert({
+            withdrawal_id: withdrawalId,
+            source_db: sourceDb,
+            paying_entity: entity,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'withdrawal_id,source_db' })
+        if (error) throw error
       }
 
       // 로컬 상태 업데이트
@@ -1637,13 +1669,21 @@ export default function WithdrawalManagement() {
         if (error) throw error
       }
 
-      // non-BIZ 항목 로컬 저장
+      // non-BIZ 항목 BIZ DB 매핑 테이블에 저장
       if (nonBizIds.length > 0) {
-        setLocalEntityMap(prev => {
-          const updated = { ...prev }
-          nonBizIds.forEach(id => { updated[id] = entity })
-          return updated
+        const mappings = nonBizIds.map(id => {
+          const w = withdrawals.find(w => w.id === id)
+          return {
+            withdrawal_id: id,
+            source_db: w?.source_db || 'korea',
+            paying_entity: entity,
+            updated_at: new Date().toISOString()
+          }
         })
+        const { error } = await supabaseBiz
+          .from('withdrawal_entity_map')
+          .upsert(mappings, { onConflict: 'withdrawal_id,source_db' })
+        if (error) throw error
       }
 
       setWithdrawals(prev => prev.map(w =>
