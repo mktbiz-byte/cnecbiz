@@ -54,6 +54,8 @@ async function handleYouTubeCallback(code, redirectUri) {
   }
 }
 
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID
+
 // Instagram (Facebook) OAuth 토큰 교환
 async function handleInstagramCallback(code, redirectUri) {
   // Step 1: 단기 토큰 교환
@@ -61,7 +63,7 @@ async function handleInstagramCallback(code, redirectUri) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.FACEBOOK_APP_ID,
+      client_id: FACEBOOK_APP_ID,
       client_secret: process.env.FACEBOOK_APP_SECRET,
       code,
       redirect_uri: redirectUri
@@ -76,7 +78,7 @@ async function handleInstagramCallback(code, redirectUri) {
 
   // Step 2: 장기 토큰으로 교환
   const longTokenResponse = await fetch(
-    `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`
+    `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`
   )
   const longTokenData = await longTokenResponse.json()
 

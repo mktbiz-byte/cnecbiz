@@ -16,9 +16,11 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID
+
 // 장기 토큰 교환
 async function exchangeLongLivedToken(shortToken) {
-  const url = `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${shortToken}`
+  const url = `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${shortToken}`
   const res = await fetch(url)
   const data = await res.json()
   if (data.error) throw new Error(data.error.message)
@@ -50,7 +52,7 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' }
       })
 
-      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${process.env.FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${process.env.FACEBOOK_APP_SECRET}&code=${code}`
+      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${process.env.FACEBOOK_APP_SECRET}&code=${code}`
       const shortRes = await fetch(tokenUrl)
       const shortData = await shortRes.json()
 
