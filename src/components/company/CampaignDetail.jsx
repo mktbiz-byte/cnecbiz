@@ -1528,6 +1528,7 @@ export default function CampaignDetail() {
           .select(`
             user_id, partnership_code, sns_upload_url,
             step1_url, step2_url, step3_url,
+            step1_partnership_code, step2_partnership_code,
             step1_2_partnership_code, step3_partnership_code,
             week1_url, week2_url, week3_url, week4_url,
             week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
@@ -1549,6 +1550,7 @@ export default function CampaignDetail() {
             .select(`
               user_id, partnership_code, sns_upload_url,
               step1_url, step2_url, step3_url,
+              step1_partnership_code, step2_partnership_code,
               step1_2_partnership_code, step3_partnership_code,
               week1_url, week2_url, week3_url, week4_url,
               week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
@@ -1596,6 +1598,8 @@ export default function CampaignDetail() {
           step1_url: partnerInfo?.step1_url || app.step1_url,
           step2_url: partnerInfo?.step2_url || app.step2_url,
           step3_url: partnerInfo?.step3_url || app.step3_url,
+          step1_partnership_code: partnerInfo?.step1_partnership_code || app.step1_partnership_code,
+          step2_partnership_code: partnerInfo?.step2_partnership_code || app.step2_partnership_code,
           step1_2_partnership_code: partnerInfo?.step1_2_partnership_code || app.step1_2_partnership_code,
           step3_partnership_code: partnerInfo?.step3_partnership_code || app.step3_partnership_code,
           // 4주 챌린지 필드
@@ -11369,13 +11373,15 @@ Questions? Contact us.
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
                         allVideosHaveAdCode = multiVideoStatus.every(s => s.code)
                       } else if (isOliveyoung) {
-                        // 올리브영: step1_url, step2_url (2개), step1_2_partnership_code (1개)
+                        // 올리브영: step1_url, step2_url (2개), 광고코드는 통합 또는 개별
+                        const step1Code = participant.step1_2_partnership_code || participant.step1_partnership_code
+                        const step2Code = participant.step1_2_partnership_code || participant.step2_partnership_code
                         multiVideoStatus = [
-                          { step: 1, url: participant.step1_url, code: participant.step1_2_partnership_code },
-                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code }
+                          { step: 1, url: participant.step1_url, code: step1Code },
+                          { step: 2, url: participant.step2_url, code: step2Code }
                         ]
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
-                        allVideosHaveAdCode = !!participant.step1_2_partnership_code
+                        allVideosHaveAdCode = !!(step1Code && step2Code)
                       } else if (isMegawari) {
                         // 메가와리: 영상2개 + URL 3개 (video1_url, video2_url, story_url), 광고코드/클린본 2개씩
                         multiVideoStatus = [
@@ -11448,9 +11454,12 @@ Questions? Contact us.
                                         if (is4WeekChallenge && submission.week_number) {
                                           adCode = participant[`week${submission.week_number}_partnership_code`]
                                         } else if (isOliveyoung && submission.video_number) {
-                                          adCode = submission.video_number === 3
-                                            ? participant.step3_partnership_code
-                                            : participant.step1_2_partnership_code
+                                          if (submission.video_number === 3) {
+                                            adCode = participant.step3_partnership_code
+                                          } else {
+                                            adCode = participant.step1_2_partnership_code
+                                              || participant[`step${submission.video_number}_partnership_code`]
+                                          }
                                         }
                                         // participant에 없으면 submission에서 가져오기
                                         if (!adCode) adCode = submission.ad_code || submission.partnership_code
@@ -12082,9 +12091,20 @@ Questions? Contact us.
                                         </div>
                                       ) : (
                                         <div className="space-y-1">
-                                          <p className={participant.step1_2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
-                                            STEP1~2 광고코드: {participant.step1_2_partnership_code || '미등록'}
-                                          </p>
+                                          {participant.step1_partnership_code || participant.step2_partnership_code ? (
+                                            <>
+                                              <p className={participant.step1_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                                STEP1 광고코드: {participant.step1_partnership_code || '미등록'}
+                                              </p>
+                                              <p className={participant.step2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                                STEP2 광고코드: {participant.step2_partnership_code || '미등록'}
+                                              </p>
+                                            </>
+                                          ) : (
+                                            <p className={participant.step1_2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                              STEP1~2 광고코드: {participant.step1_2_partnership_code || '미등록'}
+                                            </p>
+                                          )}
                                           <p className={participant.step3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
                                             STEP3 광고코드: {participant.step3_partnership_code || '미등록'}
                                           </p>
@@ -12146,7 +12166,8 @@ Questions? Contact us.
                                             editData.step1_url = participant.step1_url || ''
                                             editData.step2_url = participant.step2_url || ''
                                             editData.step3_url = participant.step3_url || ''
-                                            editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                            editData.step1_2_partnership_code = participant.step1_2_partnership_code || participant.step1_partnership_code || ''
+                                            editData.step2_partnership_code_value = participant.step2_partnership_code || ''
                                             editData.step3_partnership_code = participant.step3_partnership_code || ''
                                           }
                                           setAdminSnsEditData(editData)
@@ -12197,7 +12218,8 @@ Questions? Contact us.
                                             const url = is4WeekChallenge ? participant[`week${num}_url`] : participant[`step${num}_url`]
                                             const code = is4WeekChallenge
                                               ? participant[`week${num}_partnership_code`]
-                                              : (num <= 2 ? participant.step1_2_partnership_code : participant.step3_partnership_code)
+                                              : (num === 3 ? participant.step3_partnership_code
+                                                : (participant.step1_2_partnership_code || participant[`step${num}_partnership_code`]))
 
                                             // 최신 영상 찾기
                                             const videos = participantVideos
@@ -12336,7 +12358,7 @@ Questions? Contact us.
                                           editData.step1_url = participant.step1_url || ''
                                           editData.step2_url = participant.step2_url || ''
                                           editData.step3_url = participant.step3_url || ''
-                                          editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                          editData.step1_2_partnership_code = participant.step1_2_partnership_code || participant.step1_partnership_code || ''
                                           editData.step3_partnership_code = participant.step3_partnership_code || ''
                                         }
                                         setAdminSnsEditData(editData)
