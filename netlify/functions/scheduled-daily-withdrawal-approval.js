@@ -323,7 +323,7 @@ exports.handler = async (event) => {
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
     const botId = process.env.NAVER_WORKS_BOT_ID;
     const channelId = process.env.NAVER_WORKS_WITHDRAWAL_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID;
-    const documentFormId = process.env.NAVER_WORKS_APPROVAL_TEMPLATE_ID;
+    const documentFormId = process.env.NAVER_WORKS_APPROVAL_TEMPLATE_ID || 'd4cb5007-37a3-4220-9c28-bbaf4778f600';
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 
     // 서식 컴포넌트 ID (서식 생성 후 환경변수로 설정)
