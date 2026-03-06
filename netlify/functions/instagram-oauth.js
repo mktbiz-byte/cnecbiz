@@ -28,7 +28,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) }
   }
-  const appId = process.env.FACEBOOK_APP_ID
+  const appId = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
   try {
     const body = JSON.parse(event.body || '{}')
