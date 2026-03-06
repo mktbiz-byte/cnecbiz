@@ -440,7 +440,10 @@ export default function CampaignsManagement() {
         }
       }
 
-      return matchesCompany && matchesSearch && matchesRegion && matchesStatus
+      // 더미 캠페인 제외 (별도 페이지에서 관리)
+      const isDummy = campaign.company_email === 'dummy@cnecbiz.com'
+
+      return matchesCompany && matchesSearch && matchesRegion && matchesStatus && !isDummy
     })
 
     // 정렬 옵션에 따른 정렬
@@ -467,13 +470,16 @@ export default function CampaignsManagement() {
 
   const totalPages = Math.ceil(filteredCampaigns.length / ITEMS_PER_PAGE)
 
-  // 통계 계산
-  const stats = useMemo(() => ({
-    total: campaigns.length,
-    pending: campaigns.filter(c => c.status === 'pending' || c.status === 'pending_payment').length,
-    active: campaigns.filter(c => c.status === 'active' || c.status === 'approved').length,
-    completed: campaigns.filter(c => c.status === 'completed').length
-  }), [campaigns])
+  // 통계 계산 (더미 캠페인 제외)
+  const stats = useMemo(() => {
+    const real = campaigns.filter(c => c.company_email !== 'dummy@cnecbiz.com')
+    return {
+      total: real.length,
+      pending: real.filter(c => c.status === 'pending' || c.status === 'pending_payment').length,
+      active: real.filter(c => c.status === 'active' || c.status === 'approved').length,
+      completed: real.filter(c => c.status === 'completed').length
+    }
+  }, [campaigns])
 
   // 핸들러들
   const handleApproveCampaign = async (campaign) => {
@@ -1376,7 +1382,7 @@ export default function CampaignsManagement() {
             <div className="mb-8 space-y-6">
               {/* 승인 요청 중인 캠페인 */}
               {(() => {
-                const pendingCampaigns = campaigns.filter(c => c.status === 'pending' || c.status === 'pending_approval')
+                const pendingCampaigns = campaigns.filter(c => (c.status === 'pending' || c.status === 'pending_approval') && c.company_email !== 'dummy@cnecbiz.com')
                 if (pendingCampaigns.length === 0) return null
                 return (
                   <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
@@ -1416,7 +1422,7 @@ export default function CampaignsManagement() {
               {/* 진행중 캠페인 현황 */}
               {(() => {
                 const allActiveCampaigns = campaigns
-                  .filter(c => c.status === 'active' || c.status === 'approved' || c.status === 'in_progress')
+                  .filter(c => (c.status === 'active' || c.status === 'approved' || c.status === 'in_progress') && c.company_email !== 'dummy@cnecbiz.com')
                   .sort((a, b) => {
                     const dA = getDaysUntilDeadline(a.application_deadline)
                     const dB = getDaysUntilDeadline(b.application_deadline)

@@ -24,7 +24,8 @@ import {
   Loader2,
   MessageCircle,
   Send,
-  Phone
+  Phone,
+  Ban
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -801,6 +802,7 @@ export default function AdminCampaignDetail() {
       revision_requested: { label: '수정 요청', color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
       sns_uploaded: { label: 'SNS 업로드', color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
       rejected: { label: '거절됨', color: 'bg-red-100 text-red-700', icon: XCircle },
+      force_cancelled: { label: '강제 취소', color: 'bg-red-200 text-red-800', icon: Ban },
       completed: { label: '완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle }
     }
     const badge = badges[status] || { label: status, color: 'bg-gray-100 text-gray-700', icon: AlertCircle }
@@ -831,7 +833,7 @@ export default function AdminCampaignDetail() {
     ['approved', 'virtual_selected', 'selected', 'video_submitted', 'revision_requested', 'filming', 'guide_confirmation', 'guide_approved', 'sns_uploaded'].includes(app.status)
   )
   const completedApplications = applications.filter(app => app.status === 'completed')
-  const rejectedApplications = applications.filter(app => app.status === 'rejected')
+  const rejectedApplications = applications.filter(app => app.status === 'rejected' || app.status === 'force_cancelled')
 
   if (loading) {
     return (
@@ -1357,10 +1359,12 @@ export default function AdminCampaignDetail() {
 
       {/* 지원서 상세보기 모달 */}
       {selectedApplication && (
-        <ApplicationDetailModal 
+        <ApplicationDetailModal
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
           getStatusBadge={getStatusBadge}
+          campaign={campaign}
+          isSuperAdmin={isSuperAdmin}
         />
       )}
 
@@ -1801,12 +1805,15 @@ function formatJPBankInfo(profile) {
 }
 
 // 지원서 상세보기 모달
-function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
+function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign, isSuperAdmin }) {
   const searchParams = new URLSearchParams(window.location.search)
   const region = searchParams.get('region') || 'korea'
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [fetchingStats, setFetchingStats] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
   const [formData, setFormData] = useState({
     tracking_number: application.tracking_number || '',
     shipping_date: application.shipping_date ? new Date(application.shipping_date).toISOString().split('T')[0] : '',
@@ -1881,6 +1888,50 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
       setSaving(false)
     }
   }
+
+  const handleForceCancel = async () => {
+    if (!cancelReason.trim()) {
+      alert('취소 사유를 입력해주세요.')
+      return
+    }
+    if (!confirm(`⚠️ "${application.display_name || application.applicant_name || '크리에이터'}"를 강제 취소하시겠습니까?\n\n사유: ${cancelReason}`)) return
+
+    setCancelling(true)
+    try {
+      // 현재 관리자 이메일 조회
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+
+      const res = await fetch('/.netlify/functions/force-cancel-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: application.id,
+          campaignId: application.campaign_id,
+          region,
+          reason: cancelReason.trim(),
+          cancelledByEmail: user?.email || null,
+          campaignTitle: campaign?.title || campaign?.campaign_name || null,
+          creatorName: application.display_name || application.applicant_name || application.creator_name || null,
+          creatorEmail: application.email || null,
+          companyName: campaign?.company_name || null
+        })
+      })
+      const result = await res.json()
+      if (!result.success) throw new Error(result.error)
+
+      alert('크리에이터가 강제 취소되었습니다.')
+      setShowCancelDialog(false)
+      setCancelReason('')
+      window.location.reload()
+    } catch (error) {
+      console.error('Force cancel error:', error)
+      alert('강제 취소 실패: ' + error.message)
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const canForceCancel = isSuperAdmin && !['rejected', 'force_cancelled', 'completed'].includes(application.status)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -2497,11 +2548,65 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4">
-          <Button onClick={onClose} className="w-full">
+        <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex gap-3">
+          {canForceCancel && !showCancelDialog && (
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(true)}
+              className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+            >
+              <Ban className="w-4 h-4 mr-1.5" />
+              강제 취소
+            </Button>
+          )}
+          <Button onClick={onClose} className="flex-1">
             닫기
           </Button>
         </div>
+
+        {/* 강제 취소 사유 입력 다이얼로그 */}
+        {showCancelDialog && (
+          <div className="sticky bottom-0 bg-red-50 border-t-2 border-red-300 px-6 py-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Ban className="w-5 h-5 text-red-600" />
+              <h4 className="font-semibold text-red-800">크리에이터 강제 취소</h4>
+            </div>
+            <p className="text-sm text-red-700 mb-3">
+              취소 사유를 반드시 입력해주세요. 이 기록은 내부 관리 로그에 영구 저장됩니다.
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="예: 스케줄 미준수 - 영상 제출 기한 2회 초과"
+              className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowCancelDialog(false); setCancelReason('') }}
+                disabled={cancelling}
+              >
+                돌아가기
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleForceCancel}
+                disabled={cancelling || !cancelReason.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    처리 중...
+                  </>
+                ) : '강제 취소 확인'}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
