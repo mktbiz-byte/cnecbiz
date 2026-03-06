@@ -81,6 +81,7 @@ import SnsUploadManagement from './components/admin/SnsUploadManagement'
 import SnsAutoUploadPage from './components/admin/SnsAutoUploadPage'
 import SnsOAuthCallback from './components/admin/SnsOAuthCallback'
 import MetaAdsManagement from './components/admin/MetaAdsManagement'
+import OAuthTestPage from './components/admin/OAuthTestPage'
 import CreatorMyPage from './components/creator/CreatorMyPage'
 import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
@@ -291,6 +292,7 @@ function App() {
         <Route path="/admin/sns-completed" element={<SnsUploadManagement />} />
         <Route path="/admin/meta-ads" element={<MetaAdsManagement />} />
         <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
+        <Route path="/admin/oauth-test" element={<OAuthTestPage />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
         {/* OpenClo Routes */}

@@ -18,10 +18,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Supabase 클라이언트 (BIZ DB)
 const getSupabase = () => {
-  return createClient(
-    process.env.VITE_SUPABASE_BIZ_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const url = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return createClient(url, key);
 };
 
 // 전화번호를 E.164 포맷으로 변환
@@ -82,7 +81,8 @@ async function sendTwilioWhatsApp(toNumber, message, accountSid, authToken, from
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(`Twilio API error: ${data.message || JSON.stringify(data)}`);
+    console.error('[WhatsApp] Twilio error response:', JSON.stringify(data));
+    throw new Error(`Twilio ${response.status}: ${data.message || data.code || JSON.stringify(data)}`);
   }
 
   return data;
@@ -110,6 +110,7 @@ exports.handler = async (event) => {
   const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+13203078933';
 
   if (!accountSid || !authToken) {
+    console.error('[WhatsApp] Twilio credentials missing. TWILIO_ACCOUNT_SID:', !!accountSid, 'TWILIO_AUTH_TOKEN:', !!authToken);
     return {
       statusCode: 500,
       headers,
@@ -166,21 +167,34 @@ exports.handler = async (event) => {
     // DB에 메시지 저장
     const supabase = getSupabase();
     const { error: dbError } = await supabase
-      .from('whatsapp_messages')
+      .from('whatsapp_logs')
       .insert({
         phone_number: formattedNumber,
-        direction: 'outgoing',
-        content: message.trim(),
+        template_name: 'direct_message',
+        template_sid: null,
+        variables: { message: message.trim() },
         twilio_sid: result.sid,
-        status: result.status,
+        status: result.status || 'queued',
         creator_id: creatorId || null,
-        creator_name: creatorName || null
+        creator_name: creatorName || null,
+        sent_by: null,
+        batch_id: null
       });
 
     if (dbError) {
       console.warn('[WhatsApp] Failed to save message to DB:', dbError.message);
       // DB 저장 실패해도 메시지는 발송됨
     }
+
+    // notification_send_logs에도 성공 기록
+    try {
+      await supabase.from('notification_send_logs').insert({
+        channel: 'whatsapp', status: 'success', function_name: 'send-whatsapp-message',
+        recipient: formattedNumber,
+        message_preview: message.trim().substring(0, 200),
+        metadata: { twilioSid: result.sid, twilioStatus: result.status }
+      });
+    } catch (e) { console.warn('[WhatsApp] notification_send_logs error:', e.message); }
 
     return {
       statusCode: 200,
@@ -194,7 +208,21 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('[WhatsApp] Error:', error);
+    console.error('[WhatsApp] Error:', error.message);
+
+    // notification_send_logs에 실패 기록
+    try {
+      const bizUrl = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
+      const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (bizUrl && bizKey) {
+        const bizDb = createClient(bizUrl, bizKey);
+        await bizDb.from('notification_send_logs').insert({
+          channel: 'whatsapp', status: 'failed', function_name: 'send-whatsapp-message',
+          error_message: error.message,
+          metadata: {}
+        });
+      }
+    } catch (logError) { console.error('[WhatsApp] Log error:', logError.message); }
 
     // 에러 알림 발송
     try {
@@ -205,7 +233,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           functionName: 'send-whatsapp-message',
           errorMessage: error.message,
-          context: { phoneNumber: body?.phoneNumber }
+          context: {}
         })
       });
     } catch (e) { console.error('Error alert failed:', e.message); }

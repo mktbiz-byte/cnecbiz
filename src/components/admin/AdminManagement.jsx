@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Shield, UserPlus, Trash2, ArrowLeft, CheckCircle, XCircle } from 'lucide-react'
+import { Shield, UserPlus, Trash2, ArrowLeft } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function AdminManagement() {
@@ -72,22 +72,7 @@ export default function AdminManagement() {
         .from('admin_users')
         .insert({
           email: newAdmin.email,
-          role: newAdmin.role,
-          permissions: newAdmin.role === 'super_admin' 
-            ? {
-                manage_companies: true,
-                manage_campaigns: true,
-                manage_payments: true,
-                manage_creators: true,
-                manage_admins: true
-              }
-            : {
-                manage_companies: true,
-                manage_campaigns: true,
-                manage_payments: true,
-                manage_creators: true,
-                manage_admins: false
-              }
+          role: newAdmin.role
         })
 
       if (error) throw error
@@ -124,22 +109,6 @@ export default function AdminManagement() {
     } catch (error) {
       console.error('Error deleting admin:', error)
       alert('삭제 실패: ' + error.message)
-    }
-  }
-
-  const handleToggleActive = async (id, currentStatus) => {
-    try {
-      const { error } = await supabaseBiz
-        .from('admin_users')
-        .update({ is_active: !currentStatus })
-        .eq('id', id)
-
-      if (error) throw error
-
-      fetchAdmins()
-    } catch (error) {
-      console.error('Error toggling active status:', error)
-      alert('상태 변경 실패: ' + error.message)
     }
   }
 
@@ -228,17 +197,6 @@ export default function AdminManagement() {
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-medium">{admin.email}</span>
                       {getRoleBadge(admin.role)}
-                      {admin.is_active ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                          <CheckCircle className="w-4 h-4" />
-                          활성
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-600 text-sm">
-                          <XCircle className="w-4 h-4" />
-                          비활성
-                        </span>
-                      )}
                     </div>
                     <div className="text-sm text-gray-500">
                       가입일: {new Date(admin.created_at).toLocaleDateString('ko-KR')}
@@ -246,13 +204,6 @@ export default function AdminManagement() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggleActive(admin.id, admin.is_active)}
-                    >
-                      {admin.is_active ? '비활성화' : '활성화'}
-                    </Button>
                     {admin.email !== 'mkt_biz@cnec.co.kr' && (
                       <Button
                         variant="destructive"

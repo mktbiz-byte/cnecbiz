@@ -73,17 +73,23 @@ async function translateText(text, targetLanguage = 'ja') {
 
 // Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
-  return createClient(
-    process.env.VITE_SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const url = process.env.SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error('[LINE] Japan Supabase env missing. SUPABASE_JAPAN_URL:', !!url, 'KEY:', !!key);
+    throw new Error('Japan Supabase not configured');
+  }
+  return createClient(url, key);
 };
 
 const getBizSupabase = () => {
-  return createClient(
-    process.env.VITE_SUPABASE_BIZ_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const url = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error('[LINE] Biz Supabase env missing');
+    throw new Error('Biz Supabase not configured');
+  }
+  return createClient(url, key);
 };
 
 // 메시지 템플릿
@@ -200,8 +206,8 @@ async function pushMessage(userId, messages, accessToken) {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`LINE API error: ${response.status} - ${error}`);
+    const errorBody = await response.json().catch(() => response.text());
+    throw new Error(`LINE API ${response.status}: ${JSON.stringify(errorBody)}`);
   }
 
   return true;
@@ -224,8 +230,8 @@ async function multicastMessage(userIds, messages, accessToken) {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`LINE multicast error: ${response.status} - ${error}`);
+    const errorBody = await response.json().catch(() => response.text());
+    throw new Error(`LINE multicast ${response.status}: ${JSON.stringify(errorBody)}`);
   }
 
   return { success: true, sent: userIds.length };
@@ -248,10 +254,11 @@ exports.handler = async (event) => {
 
   const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!accessToken) {
+    console.error('[LINE] LINE_CHANNEL_ACCESS_TOKEN not set');
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'LINE access token not configured' })
+      body: JSON.stringify({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' })
     };
   }
 
@@ -425,18 +432,36 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Send LINE message error:', error);
+    console.error('[LINE] Send error:', error.message);
 
     // 실패 로그
     try {
-      const bizDb = getBizSupabase();
-      const { templateType: tt } = JSON.parse(event.body || '{}');
-      await bizDb.from('notification_send_logs').insert({
-        channel: 'line', status: 'failed', function_name: 'send-line-message',
-        error_message: error.message,
-        metadata: { templateType: tt }
+      const bizUrl = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
+      const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (bizUrl && bizKey) {
+        const bizDb = createClient(bizUrl, bizKey);
+        const { templateType: tt } = JSON.parse(event.body || '{}');
+        await bizDb.from('notification_send_logs').insert({
+          channel: 'line', status: 'failed', function_name: 'send-line-message',
+          error_message: error.message,
+          metadata: { templateType: tt }
+        });
+      }
+    } catch (logError) { console.error('[LINE] Log error:', logError.message); }
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-line-message',
+          errorMessage: error.message,
+          context: {}
+        })
       });
-    } catch (e) { /* skip */ }
+    } catch (e) { console.error('Error alert failed:', e.message); }
 
     return {
       statusCode: 500,
