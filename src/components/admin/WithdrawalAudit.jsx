@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   AlertTriangle, CheckCircle, Loader2, RefreshCw,
-  Wallet, Download, Search, User, Eye, X
+  Wallet, Download, Search, User, Eye, X, Clock, FileText
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,12 @@ export default function WithdrawalAudit() {
   const [creatorTransactions, setCreatorTransactions] = useState([])
   const [showDetailModal, setShowDetailModal] = useState(false)
 
+  // 감사 로그 탭
+  const [activeTab, setActiveTab] = useState('audit')
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLogLoading, setAuditLogLoading] = useState(false)
+  const [logActionFilter, setLogActionFilter] = useState('all')
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -61,7 +68,44 @@ export default function WithdrawalAudit() {
     }
 
     runAudit()
+    fetchAuditLogs()
   }
+
+  const fetchAuditLogs = async () => {
+    setAuditLogLoading(true)
+    try {
+      const { data, error } = await supabaseBiz
+        .from('withdrawal_audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200)
+
+      if (error) throw error
+      setAuditLogs(data || [])
+    } catch (error) {
+      console.error('감사 로그 조회 오류:', error)
+    } finally {
+      setAuditLogLoading(false)
+    }
+  }
+
+  const getActionBadge = (action) => {
+    const badges = {
+      CREATED: { color: 'bg-blue-100 text-blue-700', label: '신청' },
+      SUBMITTED: { color: 'bg-amber-100 text-amber-700', label: '상신' },
+      APPROVED: { color: 'bg-green-100 text-green-700', label: '승인' },
+      REJECTED: { color: 'bg-red-100 text-red-700', label: '반려' },
+      PAID: { color: 'bg-purple-100 text-purple-700', label: '송금' },
+      CANCELLED: { color: 'bg-gray-100 text-gray-600', label: '취소' },
+      DUPLICATE_BLOCKED: { color: 'bg-orange-100 text-orange-700', label: '중복차단' }
+    }
+    const badge = badges[action] || { color: 'bg-gray-100 text-gray-700', label: action }
+    return <Badge className={badge.color}>{badge.label}</Badge>
+  }
+
+  const filteredAuditLogs = logActionFilter === 'all'
+    ? auditLogs
+    : auditLogs.filter(log => log.action === logActionFilter)
 
   const runAudit = async () => {
     setLoading(true)
@@ -595,12 +639,12 @@ export default function WithdrawalAudit() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">출금 감사</h1>
-                <p className="text-gray-600">Korea DB + BIZ DB에서 출금 요청을 조회하고, 실제 포인트 잔액과 비교합니다</p>
+                <p className="text-gray-600">출금 요청 감사 및 변경 이력을 확인합니다</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={runAudit} disabled={loading}>
+                <Button variant="outline" onClick={() => { runAudit(); fetchAuditLogs(); }} disabled={loading}>
                   <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  감사 실행
+                  새로고침
                 </Button>
                 <Button
                   variant="outline"
@@ -613,6 +657,84 @@ export default function WithdrawalAudit() {
               </div>
             </div>
           </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="audit">잔액 감사</TabsTrigger>
+              <TabsTrigger value="logs">변경 이력 ({auditLogs.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="logs">
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex gap-2 flex-wrap">
+                    {['all', 'CREATED', 'SUBMITTED', 'APPROVED', 'REJECTED', 'PAID', 'CANCELLED', 'DUPLICATE_BLOCKED'].map(action => (
+                      <Button
+                        key={action}
+                        variant={logActionFilter === action ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setLogActionFilter(action)}
+                      >
+                        {action === 'all' ? '전체' : getActionBadge(action).props.children}
+                        {action !== 'all' && ` (${auditLogs.filter(l => l.action === action).length})`}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    변경 이력 ({filteredAuditLogs.length}건)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {auditLogLoading ? (
+                    <div className="flex items-center justify-center py-12 text-gray-500">
+                      <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                      로딩 중...
+                    </div>
+                  ) : filteredAuditLogs.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">변경 이력이 없습니다.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredAuditLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm"
+                        >
+                          <div className="text-gray-400 text-xs whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+                          </div>
+                          {getActionBadge(log.action)}
+                          <div className="flex-1 text-gray-700">
+                            <span className="font-medium">{log.details?.creator_name || log.actor || '-'}</span>
+                            {log.details?.requested_amount && (
+                              <span className="ml-2 text-gray-500">
+                                {Number(log.details.requested_amount).toLocaleString()}원
+                              </span>
+                            )}
+                            {log.details?.rejection_reason && (
+                              <span className="ml-2 text-red-600">사유: {log.details.rejection_reason}</span>
+                            )}
+                            {log.details?.approval_doc_id && (
+                              <span className="ml-2 text-gray-400 text-xs">결재#{log.details.approval_doc_id}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400 font-mono">
+                            {log.withdrawal_id?.substring(0, 8)}...
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="audit">
 
           {/* 통계 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -838,6 +960,8 @@ export default function WithdrawalAudit() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

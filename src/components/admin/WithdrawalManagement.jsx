@@ -1520,7 +1520,8 @@ export default function WithdrawalManagement() {
       pending: { color: 'bg-yellow-100 text-yellow-700', label: '대기중' },
       approved: { color: 'bg-blue-100 text-blue-700', label: '승인됨' },
       completed: { color: 'bg-green-100 text-green-700', label: '완료' },
-      rejected: { color: 'bg-red-100 text-red-700', label: '거절' }
+      rejected: { color: 'bg-red-100 text-red-700', label: '거절' },
+      cancelled: { color: 'bg-gray-100 text-gray-600', label: '취소됨' }
     }
 
     const badge = badges[status] || badges.pending
@@ -1530,6 +1531,49 @@ export default function WithdrawalManagement() {
         {badge.label}
       </span>
     )
+  }
+
+  const getApprovalBadge = (approvalStatus) => {
+    const badges = {
+      NONE: { color: 'bg-gray-50 text-gray-500 border-gray-200', label: '미상신' },
+      PENDING: { color: 'bg-amber-50 text-amber-700 border-amber-200', label: '결재대기' },
+      APPROVED: { color: 'bg-green-50 text-green-700 border-green-200', label: '결재승인' },
+      REJECTED: { color: 'bg-red-50 text-red-700 border-red-200', label: '결재반려' }
+    }
+    const badge = badges[approvalStatus]
+    if (!badge) return null
+
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badge.color}`}>
+        {badge.label}
+      </span>
+    )
+  }
+
+  const handleMarkPaid = async (withdrawalId) => {
+    if (!confirm('송금 완료 처리하시겠습니까? 포인트가 차감됩니다.')) return
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const response = await fetch('/.netlify/functions/withdrawal-mark-paid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawal_id: withdrawalId,
+          admin_id: user?.id,
+          admin_name: user?.email
+        })
+      })
+
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
+
+      alert('송금 완료 처리되었습니다.')
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('송금 완료 처리 오류:', error)
+      alert(`송금 완료 처리 실패: ${error.message}`)
+    }
   }
 
   const getCountryLabel = (country) => {
@@ -1775,6 +1819,14 @@ export default function WithdrawalManagement() {
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   전체 엑셀
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/admin/withdrawal-audit')}
+                  className="bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  감사 로그
                 </Button>
               </div>
             </div>
@@ -2028,6 +2080,7 @@ export default function WithdrawalManagement() {
                                     {withdrawal.creator_name || 'Unknown'}
                                   </h3>
                                   {getStatusBadge(withdrawal.status)}
+                                  {withdrawal.approval_status && getApprovalBadge(withdrawal.approval_status)}
                                   {withdrawal.priority > 0 && (
                                     <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                                       우선순위: {withdrawal.priority}
@@ -2092,6 +2145,17 @@ export default function WithdrawalManagement() {
                                   )}
                                 </div>
 
+                                {withdrawal.approver_name && (
+                                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg mb-2">
+                                    <span className="font-medium">결재자:</span> {withdrawal.approver_name}
+                                    {withdrawal.approval_completed_at && (
+                                      <span className="ml-2 text-gray-500">
+                                        ({new Date(withdrawal.approval_completed_at).toLocaleDateString('ko-KR')})
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+
                                 {withdrawal.admin_notes && (
                                   <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg mb-2">
                                     <span className="font-medium">관리자 메모:</span> {withdrawal.admin_notes}
@@ -2132,15 +2196,29 @@ export default function WithdrawalManagement() {
                                   </>
                                 )}
                                 {withdrawal.status === 'approved' && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleComplete(withdrawal)}
-                                    className="bg-green-50 text-green-600 hover:bg-green-100"
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    지급완료
-                                  </Button>
+                                  <>
+                                    {withdrawal.source_db === 'biz' && withdrawal.approval_status === 'APPROVED' ? (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleMarkPaid(withdrawal.id)}
+                                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        송금 완료
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleComplete(withdrawal)}
+                                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        지급완료
+                                      </Button>
+                                    )}
+                                  </>
                                 )}
                                 {withdrawal.status === 'rejected' && (
                                   <Badge variant="outline" className="bg-gray-100 text-gray-600">
