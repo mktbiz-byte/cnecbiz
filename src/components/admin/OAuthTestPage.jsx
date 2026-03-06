@@ -122,7 +122,7 @@ export default function OAuthTestPage() {
       return
     }
     const redirectUri = `${window.location.origin}/admin/oauth-test`
-    const scopes = 'ads_management,ads_read,pages_show_list,pages_read_engagement,business_management'
+    const scopes = 'public_profile,email,pages_show_list'
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=meta_ads_test&response_type=code`
     window.location.href = authUrl
   }
