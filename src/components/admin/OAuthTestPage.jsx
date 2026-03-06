@@ -4,7 +4,6 @@
  * - 기업 Meta Ads OAuth 테스트
  * 내부 관리자 전용 (실 서비스 배포 전 테스트 용도)
  */
-
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -20,26 +19,21 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
-
 export default function OAuthTestPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('instagram')
-
   // Instagram OAuth state
   const [igConnectLoading, setIgConnectLoading] = useState(false)
   const [igTestResult, setIgTestResult] = useState(null)
   const [igConnectedAccounts, setIgConnectedAccounts] = useState([])
-
   // Meta Ads OAuth state
   const [metaConnectLoading, setMetaConnectLoading] = useState(false)
   const [metaTestResult, setMetaTestResult] = useState(null)
   const [metaConnectedAccounts, setMetaConnectedAccounts] = useState([])
-
   useEffect(() => {
     checkAuth()
   }, [])
-
   // OAuth 콜백 처리
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -54,7 +48,6 @@ export default function OAuthTestPage() {
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
-
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -67,7 +60,6 @@ export default function OAuthTestPage() {
       setLoading(false)
     }
   }
-
   const fetchConnectedAccounts = async () => {
     try {
       // Meta Ads 연동 계정 조회
@@ -81,7 +73,6 @@ export default function OAuthTestPage() {
       console.error('Fetch accounts error:', err)
     }
   }
-
   // ========== Instagram OAuth ==========
   const handleInstagramConnect = () => {
     const appId = import.meta.env.VITE_FACEBOOK_APP_ID
@@ -90,32 +81,28 @@ export default function OAuthTestPage() {
       return
     }
     const redirectUri = `${window.location.origin}/admin/oauth-test`
-    const scopes = 'instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement'
+    // instagram_basic: 앱 심사 불필요 (개발 모드에서 테스터 계정으로 바로 테스트 가능)
+    // pages_show_list: Facebook 페이지 목록 조회 (Instagram 비즈니스 계정 연결 확인용)
+    const scopes = 'instagram_basic,pages_show_list'
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=instagram_test&response_type=code`
     window.location.href = authUrl
   }
-
   const handleInstagramCallback = async (code) => {
     setIgConnectLoading(true)
     setActiveTab('instagram')
     try {
       const redirectUri = `${window.location.origin}/admin/oauth-test`
-      const res = await fetch('/.netlify/functions/meta-ads-connect', {
+      const res = await fetch('/.netlify/functions/instagram-oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'exchange_token', code, redirectUri })
+        body: JSON.stringify({ action: 'exchange_code', code, redirectUri })
       })
       const result = await res.json()
       if (!result.success) throw new Error(result.error)
-
       setIgTestResult({
         success: true,
-        message: 'Instagram OAuth 성공! 토큰이 정상 발급되었습니다.',
-        data: {
-          tokenPreview: result.data.accessToken?.substring(0, 20) + '...',
-          accountCount: result.data.adAccounts?.length || 0,
-          accounts: result.data.adAccounts || []
-        }
+        message: `Instagram 연동 성공! @${result.data.username || result.data.name} 계정이 확인되었습니다.`,
+        data: result.data
       })
     } catch (err) {
       setIgTestResult({
@@ -127,7 +114,6 @@ export default function OAuthTestPage() {
       setIgConnectLoading(false)
     }
   }
-
   // ========== Meta Ads OAuth ==========
   const handleMetaAdsConnect = () => {
     const appId = import.meta.env.VITE_FACEBOOK_APP_ID
@@ -140,7 +126,6 @@ export default function OAuthTestPage() {
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=meta_ads_test&response_type=code`
     window.location.href = authUrl
   }
-
   const handleMetaAdsCallback = async (code) => {
     setMetaConnectLoading(true)
     setActiveTab('meta-ads')
@@ -153,7 +138,6 @@ export default function OAuthTestPage() {
       })
       const result = await res.json()
       if (!result.success) throw new Error(result.error)
-
       setMetaTestResult({
         success: true,
         message: 'Meta Ads OAuth 성공! 토큰 및 광고 계정 조회 완료.',
@@ -173,7 +157,6 @@ export default function OAuthTestPage() {
       setMetaConnectLoading(false)
     }
   }
-
   // ========== 로딩 ==========
   if (loading) {
     return (
@@ -185,7 +168,6 @@ export default function OAuthTestPage() {
       </div>
     )
   }
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminNavigation />
@@ -201,7 +183,6 @@ export default function OAuthTestPage() {
               Instagram / Meta Ads OAuth 연동을 내부 테스트합니다
             </p>
           </div>
-
           {/* 경고 배너 */}
           <div className="mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
@@ -214,7 +195,6 @@ export default function OAuthTestPage() {
               </p>
             </div>
           </div>
-
           {/* 탭 */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
@@ -227,7 +207,6 @@ export default function OAuthTestPage() {
                 기업 Meta Ads
               </TabsTrigger>
             </TabsList>
-
             {/* ====== 탭 1: 크리에이터 Instagram ====== */}
             <TabsContent value="instagram">
               <div className="space-y-6">
@@ -288,13 +267,12 @@ export default function OAuthTestPage() {
                       <div className="mt-4 p-3 rounded-lg bg-white/70 border border-white">
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Info className="w-3 h-3" />
-                          요청 권한: instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement
+                          요청 권한: instagram_basic, pages_show_list (앱 심사 불필요 — 테스터 계정으로 바로 테스트 가능)
                         </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-
                 {/* 섹션 B: Instagram OAuth 테스트 */}
                 <Card>
                   <CardHeader>
@@ -315,7 +293,6 @@ export default function OAuthTestPage() {
                           <EnvCheck name="VITE_FACEBOOK_APP_ID" value={import.meta.env.VITE_FACEBOOK_APP_ID} />
                         </div>
                       </div>
-
                       {/* 연동 버튼 */}
                       <Button
                         onClick={handleInstagramConnect}
@@ -329,17 +306,15 @@ export default function OAuthTestPage() {
                         }
                         Instagram OAuth 시작
                       </Button>
-
                       {/* 테스트 결과 */}
                       {igTestResult && (
-                        <TestResultCard result={igTestResult} />
+                        <InstagramResultCard result={igTestResult} />
                       )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
-
             {/* ====== 탭 2: 기업 Meta Ads ====== */}
             <TabsContent value="meta-ads">
               <div className="space-y-6">
@@ -397,7 +372,6 @@ export default function OAuthTestPage() {
                     </div>
                   </CardContent>
                 </Card>
-
                 {/* 섹션 B: Meta Ads OAuth 테스트 */}
                 <Card>
                   <CardHeader>
@@ -418,7 +392,6 @@ export default function OAuthTestPage() {
                           <EnvCheck name="VITE_FACEBOOK_APP_ID" value={import.meta.env.VITE_FACEBOOK_APP_ID} />
                         </div>
                       </div>
-
                       {/* 연동 버튼 */}
                       <Button
                         onClick={handleMetaAdsConnect}
@@ -432,12 +405,10 @@ export default function OAuthTestPage() {
                         }
                         Meta Ads OAuth 시작
                       </Button>
-
                       {/* 테스트 결과 */}
                       {metaTestResult && (
                         <TestResultCard result={metaTestResult} />
                       )}
-
                       {/* 기존 연동 계정 */}
                       {metaConnectedAccounts.length > 0 && (
                         <div className="mt-4">
@@ -479,9 +450,7 @@ export default function OAuthTestPage() {
     </div>
   )
 }
-
 // ========== 서브 컴포넌트 ==========
-
 function EnvCheck({ name, value }) {
   const exists = !!value
   return (
@@ -498,7 +467,6 @@ function EnvCheck({ name, value }) {
     </div>
   )
 }
-
 function TestResultCard({ result }) {
   return (
     <div className={`p-4 rounded-xl border ${
@@ -538,6 +506,125 @@ function TestResultCard({ result }) {
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+// ========== Instagram 전용 결과 카드 ==========
+function InstagramResultCard({ result }) {
+  const [showRaw, setShowRaw] = useState(false)
+  const d = result.data
+  if (!result.success) {
+    return (
+      <div className="p-4 rounded-xl border border-red-200 bg-red-50">
+        <div className="flex items-center gap-2 mb-1">
+          <XCircle className="w-5 h-5 text-red-500" />
+          <p className="text-sm font-semibold text-red-800">연동 실패</p>
+        </div>
+        <p className="text-xs text-red-600 mt-1">{result.message}</p>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-4">
+      {/* 성공 헤더 */}
+      <div className="p-4 rounded-xl border border-green-200 bg-green-50 flex items-center gap-3">
+        <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-green-800">{result.message}</p>
+          <p className="text-xs text-green-600 mt-0.5">
+            토큰: <code className="bg-white px-1 rounded font-mono">{d?.tokenPreview}</code>
+            {d?.tokenExpiresIn && <span className="ml-2">(유효기간 ~60일)</span>}
+          </p>
+        </div>
+      </div>
+      {/* Instagram 계정 정보 */}
+      {d?.igConnected && d.igAccounts?.map(acc => (
+        <div key={acc.igId} className="p-4 rounded-xl border border-gray-200 bg-white">
+          <div className="flex items-center gap-3 mb-3">
+            {acc.profilePictureUrl
+              ? <img src={acc.profilePictureUrl} alt={acc.username} className="w-12 h-12 rounded-full object-cover" />
+              : <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-lg">{acc.username?.[0]?.toUpperCase()}</div>
+            }
+            <div>
+              <p className="font-semibold text-gray-900">@{acc.username}</p>
+              <p className="text-xs text-gray-500">Facebook 페이지: {acc.pageName}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-purple-50 text-center">
+              <p className="text-xl font-bold" style={{ color: '#6C5CE7' }}>{(acc.followersCount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-0.5">팔로워</p>
+            </div>
+            <div className="p-3 rounded-lg bg-purple-50 text-center">
+              <p className="text-xl font-bold" style={{ color: '#6C5CE7' }}>{(acc.mediaCount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-0.5">게시물</p>
+            </div>
+          </div>
+        </div>
+      ))}
+      {/* Instagram 미연결 안내 */}
+      {!d?.igConnected && (
+        <div className="p-4 rounded-xl border border-yellow-200 bg-yellow-50">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-yellow-800">Facebook 연동은 성공, Instagram 계정 미연결</p>
+              <p className="text-xs text-yellow-700 mt-1">{d?.igNotConnectedReason}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 최근 게시물 */}
+      {d?.recentMedia?.length > 0 && (
+        <div>
+          <p className="text-sm font-semibold text-gray-700 mb-2">최근 게시물 ({d.recentMedia.length}개)</p>
+          <div className="grid grid-cols-3 gap-2">
+            {d.recentMedia.map(m => (
+              <a key={m.id} href={m.permalink} target="_blank" rel="noopener noreferrer"
+                className="block rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                {m.thumbnail
+                  ? <img src={m.thumbnail} alt="" className="w-full aspect-square object-cover" />
+                  : <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-gray-400 text-xs">{m.type}</div>
+                }
+                <div className="p-2 bg-white">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>❤️ {(m.likes || 0).toLocaleString()}</span>
+                    <span>💬 {(m.comments || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* 수집 가능 데이터 요약 */}
+      <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+        <p className="text-xs font-semibold text-gray-700 mb-2">✅ 실제 서비스 시 수집 가능한 데이터</p>
+        <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
+          <span>• 게시물 조회수 (Insights 심사 후)</span>
+          <span>• 좋아요 / 댓글 수</span>
+          <span>• 도달수 / 노출수 (Insights 심사 후)</span>
+          <span>• 팔로워 수 / 증감</span>
+          <span>• 저장수 / 공유수 (Insights 심사 후)</span>
+          <span>• 팔로워 인구통계</span>
+        </div>
+        <p className="text-xs text-orange-600 mt-2">
+          ⚠️ 조회수/도달수는 <code>instagram_manage_insights</code> 권한 필요 → 앱 심사 후 활성화
+        </p>
+      </div>
+      {/* 원본 JSON 토글 */}
+      <button
+        onClick={() => setShowRaw(v => !v)}
+        className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+      >
+        <Info className="w-3 h-3" />
+        {showRaw ? '원본 데이터 숨기기' : '원본 API 응답 보기'}
+      </button>
+      {showRaw && (
+        <pre className="text-xs bg-gray-900 text-green-400 p-3 rounded-xl overflow-auto max-h-60">
+          {JSON.stringify(d, null, 2)}
+        </pre>
       )}
     </div>
   )
