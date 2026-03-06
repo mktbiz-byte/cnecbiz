@@ -440,7 +440,10 @@ export default function CampaignsManagement() {
         }
       }
 
-      return matchesCompany && matchesSearch && matchesRegion && matchesStatus
+      // 더미 캠페인 제외 (별도 페이지에서 관리)
+      const isDummy = campaign.company_email === 'dummy@cnecbiz.com'
+
+      return matchesCompany && matchesSearch && matchesRegion && matchesStatus && !isDummy
     })
 
     // 정렬 옵션에 따른 정렬
