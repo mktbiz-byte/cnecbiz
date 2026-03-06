@@ -372,6 +372,12 @@ export default function AdminCampaignDetail() {
         { slot: 4, label: '4주차' }
       ]
     }
+    if (type === 'oliveyoung' || type === 'oliveyoung_sale') {
+      return [
+        { slot: 1, label: 'Step 1' },
+        { slot: 2, label: 'Step 2' }
+      ]
+    }
     if (type === 'megawari' || type === 'mega-warri') {
       return [
         { slot: 1, label: '영상 1' },
@@ -485,6 +491,13 @@ export default function AdminCampaignDetail() {
       if (campaignType === '4week_challenge' || campaignType === '4week') {
         if (videoSlot >= 1 && videoSlot <= 4) {
           appUpdateData[`week${videoSlot}_url`] = videoUrl
+        }
+      }
+
+      // 올리브영의 경우 stepN_url도 업데이트 (영상은 Step 1, 2만 — Step 3은 스토리)
+      if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+        if (videoSlot >= 1 && videoSlot <= 2) {
+          appUpdateData[`step${videoSlot}_url`] = videoUrl
         }
       }
 
@@ -1337,11 +1350,198 @@ export default function AdminCampaignDetail() {
                 </TabsContent>
 
                 <TabsContent value="completed" className="mt-6">
-                  <ApplicationList 
-                    applications={completedApplications} 
+                  <ApplicationList
+                    applications={completedApplications}
                     getStatusBadge={getStatusBadge}
                     onViewDetails={setSelectedApplication}
+                    campaign={campaign}
+                    region={region}
+                    setSelectedGuide={setSelectedGuide}
+                    setShowGuideModal={setShowGuideModal}
                   />
+
+                  {/* 완료 크리에이터 산출물 (광고코드 / 클린본 / 편집본) */}
+                  {completedApplications.length > 0 && (
+                    <Card className="mt-6 border-green-200">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-green-900">
+                          <CheckCircle className="w-5 h-5" />
+                          완료 산출물 (광고코드 / 클린본 / 편집본)
+                        </CardTitle>
+                        <p className="text-sm text-gray-600">
+                          완료된 크리에이터의 영상 산출물을 확인합니다.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {completedApplications.map(app => {
+                            const creatorSubs = videoSubmissions.filter(v => v.user_id === app.user_id)
+
+                            return (
+                              <div key={app.id} className="border border-gray-200 rounded-lg p-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                  {app.profile_image && (
+                                    <img src={app.profile_image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                  )}
+                                  <h4 className="font-semibold text-lg">
+                                    {app.display_name || app.applicant_name || '크리에이터'}
+                                  </h4>
+                                  <Badge className="bg-green-100 text-green-700">완료</Badge>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {/* 1. 편집본 */}
+                                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                    <h5 className="font-semibold text-blue-800 mb-2 text-sm flex items-center gap-1">
+                                      <Video className="w-4 h-4" /> 편집본
+                                    </h5>
+                                    {creatorSubs.filter(s => s.video_file_url).length > 0 ? (
+                                      <div className="space-y-2">
+                                        {creatorSubs.filter(s => s.video_file_url).map((sub, idx) => (
+                                          <div key={sub.id} className="bg-white rounded p-2 text-xs border border-blue-100">
+                                            <div className="font-medium text-gray-800 mb-1">
+                                              {sub.week_number ? `${sub.week_number}주차` :
+                                               sub.video_number ? `영상 ${sub.video_number}` :
+                                               `영상 ${idx + 1}`}
+                                              {sub.version > 1 && <span className="ml-1 text-gray-400">v{sub.version}</span>}
+                                            </div>
+                                            <a href={sub.video_file_url} target="_blank" rel="noopener noreferrer"
+                                               className="text-blue-600 hover:underline truncate block">
+                                              {sub.video_file_name || '영상 보기'}
+                                            </a>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : app.video_file_url ? (
+                                      <a href={app.video_file_url} target="_blank" rel="noopener noreferrer"
+                                         className="text-blue-600 hover:underline text-xs">
+                                        영상 보기
+                                      </a>
+                                    ) : (
+                                      <p className="text-xs text-gray-400">없음</p>
+                                    )}
+                                  </div>
+
+                                  {/* 2. 클린본 */}
+                                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                                    <h5 className="font-semibold text-emerald-800 mb-2 text-sm flex items-center gap-1">
+                                      <Video className="w-4 h-4" /> 클린본
+                                    </h5>
+                                    {(() => {
+                                      const cleanUrls = []
+                                      // video_submissions의 clean_video_url
+                                      creatorSubs.forEach(sub => {
+                                        if (sub.clean_video_url) cleanUrls.push({
+                                          url: sub.clean_video_url,
+                                          label: sub.week_number ? `${sub.week_number}주차` : sub.video_number ? `영상 ${sub.video_number}` : '클린본'
+                                        })
+                                      })
+                                      // applications 테이블의 clean_video_url (중복 제외)
+                                      if (app.clean_video_url && !cleanUrls.some(c => c.url === app.clean_video_url)) {
+                                        cleanUrls.push({ url: app.clean_video_url, label: '클린본' })
+                                      }
+                                      // 올리브영 step별 클린본
+                                      if (app.step1_clean_video_url && !cleanUrls.some(c => c.url === app.step1_clean_video_url)) {
+                                        cleanUrls.push({ url: app.step1_clean_video_url, label: 'Step 1' })
+                                      }
+                                      if (app.step2_clean_video_url && !cleanUrls.some(c => c.url === app.step2_clean_video_url)) {
+                                        cleanUrls.push({ url: app.step2_clean_video_url, label: 'Step 2' })
+                                      }
+                                      // 4주 챌린지 주차별 클린본
+                                      if (app.week1_clean_video_url) cleanUrls.push({ url: app.week1_clean_video_url, label: '1주차' })
+                                      if (app.week2_clean_video_url) cleanUrls.push({ url: app.week2_clean_video_url, label: '2주차' })
+                                      if (app.week3_clean_video_url) cleanUrls.push({ url: app.week3_clean_video_url, label: '3주차' })
+                                      if (app.week4_clean_video_url) cleanUrls.push({ url: app.week4_clean_video_url, label: '4주차' })
+                                      // clean_video_file_url (JP/US)
+                                      if (app.clean_video_file_url && !cleanUrls.some(c => c.url === app.clean_video_file_url)) {
+                                        cleanUrls.push({ url: app.clean_video_file_url, label: '클린본' })
+                                      }
+
+                                      return cleanUrls.length > 0 ? (
+                                        <div className="space-y-2">
+                                          {cleanUrls.map((clean, idx) => (
+                                            <div key={idx} className="bg-white rounded p-2 text-xs border border-emerald-100">
+                                              <div className="font-medium text-gray-800 mb-1">{clean.label}</div>
+                                              <a href={clean.url} target="_blank" rel="noopener noreferrer"
+                                                 className="text-emerald-600 hover:underline truncate block">
+                                                다운로드
+                                              </a>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-gray-400">없음</p>
+                                      )
+                                    })()}
+                                  </div>
+
+                                  {/* 3. 광고코드 & SNS URL */}
+                                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                                    <h5 className="font-semibold text-orange-800 mb-2 text-sm flex items-center gap-1">
+                                      <FileText className="w-4 h-4" /> 광고코드 & SNS
+                                    </h5>
+                                    {(() => {
+                                      const codeItems = []
+                                      // 올리브영 step별 광고코드 (우선)
+                                      if (app.step1_2_partnership_code) codeItems.push({ code: app.step1_2_partnership_code, label: 'Step 1-2 광고코드' })
+                                      // 일반 partnership_code (올영 코드와 다를 때만)
+                                      if (app.partnership_code && app.partnership_code !== app.step1_2_partnership_code) {
+                                        codeItems.push({ code: app.partnership_code, label: '광고코드' })
+                                      }
+                                      // 4주 챌린지 주차별
+                                      if (app.week1_partnership_code) codeItems.push({ code: app.week1_partnership_code, label: '1주차 코드' })
+                                      if (app.week2_partnership_code) codeItems.push({ code: app.week2_partnership_code, label: '2주차 코드' })
+                                      if (app.week3_partnership_code) codeItems.push({ code: app.week3_partnership_code, label: '3주차 코드' })
+                                      if (app.week4_partnership_code) codeItems.push({ code: app.week4_partnership_code, label: '4주차 코드' })
+                                      // ad_code (JP/US)
+                                      if (app.ad_code && !codeItems.some(c => c.code === app.ad_code)) {
+                                        codeItems.push({ code: app.ad_code, label: '광고코드' })
+                                      }
+
+                                      // SNS URLs
+                                      const snsItems = []
+                                      if (app.step1_url) snsItems.push({ url: app.step1_url, label: 'Step 1 SNS' })
+                                      if (app.step2_url) snsItems.push({ url: app.step2_url, label: 'Step 2 SNS' })
+                                      if (app.step3_url) snsItems.push({ url: app.step3_url, label: 'Step 3 스토리' })
+                                      if (app.sns_upload_url && !snsItems.length) snsItems.push({ url: app.sns_upload_url, label: 'SNS' })
+                                      if (app.week1_url) snsItems.push({ url: app.week1_url, label: '1주차 SNS' })
+                                      if (app.week2_url) snsItems.push({ url: app.week2_url, label: '2주차 SNS' })
+                                      if (app.week3_url) snsItems.push({ url: app.week3_url, label: '3주차 SNS' })
+                                      if (app.week4_url) snsItems.push({ url: app.week4_url, label: '4주차 SNS' })
+
+                                      return (codeItems.length > 0 || snsItems.length > 0) ? (
+                                        <div className="space-y-2">
+                                          {codeItems.map((item, idx) => (
+                                            <div key={`code-${idx}`} className="bg-white rounded p-2 text-xs border border-orange-100">
+                                              <div className="text-gray-500 mb-0.5">{item.label}</div>
+                                              <code className="text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded font-mono text-xs">
+                                                {item.code}
+                                              </code>
+                                            </div>
+                                          ))}
+                                          {snsItems.map((item, idx) => (
+                                            <div key={`sns-${idx}`} className="bg-white rounded p-2 text-xs border border-blue-100">
+                                              <div className="text-gray-500 mb-0.5">{item.label}</div>
+                                              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                                 className="text-blue-600 hover:underline break-all">
+                                                {item.url}
+                                              </a>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-gray-400">없음</p>
+                                      )
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="rejected" className="mt-6">
@@ -2544,6 +2744,106 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign
                   마지막 업데이트: {new Date(application.stats_updated_at).toLocaleString('ko-KR')}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 산출물 정보 (광고코드 / 클린본 / SNS URL) */}
+          {(application.partnership_code || application.step1_2_partnership_code || application.ad_code ||
+            application.clean_video_url || application.clean_video_file_url || application.step1_clean_video_url || application.step2_clean_video_url ||
+            application.sns_upload_url || application.step1_url || application.step2_url || application.step3_url) && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">산출물 정보</h3>
+              <div className="space-y-3">
+                {/* 광고코드 */}
+                {(application.partnership_code || application.step1_2_partnership_code || application.ad_code) && (
+                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-sm font-medium text-orange-800 mb-2">광고코드</div>
+                    <div className="space-y-1">
+                      {application.step1_2_partnership_code && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 1-2:</span>
+                          <code className="ml-2 bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-mono">{application.step1_2_partnership_code}</code>
+                        </div>
+                      )}
+                      {application.partnership_code && application.partnership_code !== application.step1_2_partnership_code && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">코드:</span>
+                          <code className="ml-2 bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-mono">{application.partnership_code}</code>
+                        </div>
+                      )}
+                      {application.ad_code && application.ad_code !== application.partnership_code && application.ad_code !== application.step1_2_partnership_code && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">코드:</span>
+                          <code className="ml-2 bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-mono">{application.ad_code}</code>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 클린본 */}
+                {(application.clean_video_url || application.clean_video_file_url || application.step1_clean_video_url || application.step2_clean_video_url) && (
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="text-sm font-medium text-emerald-800 mb-2">클린본</div>
+                    <div className="space-y-1">
+                      {application.step1_clean_video_url && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 1:</span>
+                          <a href={application.step1_clean_video_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-emerald-600 hover:underline">다운로드</a>
+                        </div>
+                      )}
+                      {application.step2_clean_video_url && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 2:</span>
+                          <a href={application.step2_clean_video_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-emerald-600 hover:underline">다운로드</a>
+                        </div>
+                      )}
+                      {application.clean_video_url && !application.step1_clean_video_url && (
+                        <div className="text-sm">
+                          <a href={application.clean_video_url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">클린본 다운로드</a>
+                        </div>
+                      )}
+                      {application.clean_video_file_url && application.clean_video_file_url !== application.clean_video_url && (
+                        <div className="text-sm">
+                          <a href={application.clean_video_file_url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">클린본 파일</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* SNS 업로드 URL */}
+                {(application.sns_upload_url || application.step1_url || application.step2_url || application.step3_url) && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-sm font-medium text-blue-800 mb-2">SNS 업로드</div>
+                    <div className="space-y-1">
+                      {application.step1_url && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 1:</span>
+                          <a href={application.step1_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{application.step1_url}</a>
+                        </div>
+                      )}
+                      {application.step2_url && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 2:</span>
+                          <a href={application.step2_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{application.step2_url}</a>
+                        </div>
+                      )}
+                      {application.step3_url && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Step 3 스토리:</span>
+                          <a href={application.step3_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{application.step3_url}</a>
+                        </div>
+                      )}
+                      {application.sns_upload_url && !application.step1_url && (
+                        <div className="text-sm">
+                          <a href={application.sns_upload_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{application.sns_upload_url}</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
