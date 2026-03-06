@@ -169,6 +169,38 @@ cnecbiz/
 | `points` | 포인트 내역 |
 | `payments` | 결제 내역 |
 
+#### 출금/결재 시스템 ★ 중요
+| 테이블 | DB | 용도 |
+|--------|-----|------|
+| `withdrawals` | **Korea DB** | 한국 크리에이터 출금 신청 (실 데이터) |
+| `withdrawal_requests` | **Japan DB** | 일본 크리에이터 출금 신청 |
+| `creator_withdrawal_requests` | BIZ DB | BIZ DB 직접 출금 (현재 비어있음, 한국 데이터 없음) |
+| `withdrawal_entity_map` | BIZ DB | 입금처(하우랩/하우파파) 분류 매핑 + 결재 상태 |
+| `withdrawal_audit_logs` | BIZ DB | 출금 관련 감사 로그 |
+
+**⚠️ 한국 출금 데이터 흐름 (반드시 숙지)**
+- 한국 출금 데이터는 **Korea DB `withdrawals`** 테이블에 저장됨
+- 입금처 분류(하우랩/하우파파)는 **BIZ DB `withdrawal_entity_map`**에 저장
+- 결재 상신 시: Korea DB `withdrawals` + BIZ DB `withdrawal_entity_map` 조인 조회
+- `creator_withdrawal_requests`는 한국 데이터가 **없음** → 이 테이블로 한국 출금 조회 금지
+
+**Korea DB `withdrawals` 컬럼 매핑:**
+| Korea DB 컬럼 | 일반 사용명 |
+|--------------|------------|
+| `amount` | `requested_amount` |
+| `bank_account_number` | `account_number` |
+| `bank_account_holder` | `account_holder` / `creator_name` |
+| `resident_number_encrypted` | `resident_registration_number` |
+
+**`withdrawal_entity_map` 주요 컬럼:**
+| 컬럼 | 용도 |
+|------|------|
+| `withdrawal_id` | Korea DB withdrawals.id 참조 |
+| `source_db` | 'korea' 등 |
+| `paying_entity` | 'howlab' / 'howpapa' |
+| `approval_status` | 'NONE' / 'PENDING' / 'APPROVED' |
+| `approval_doc_id` | 네이버웍스 결재 문서 ID |
+
 #### 이메일/뉴스레터
 | 테이블 | 용도 |
 |--------|------|
@@ -494,7 +526,19 @@ useEffect(() => {
 - 상태 흐름: `pending` → `sent` → `signed` / `expired`
 - 서명 페이지: `/sign-contract/:contractId`
 
-### 4. 빌드 & 배포
+### 4. Korea DB `user_profiles` 스키마 주의
+- Korea DB `user_profiles`에는 **`user_id` 컬럼이 없음** (id = auth user id)
+- `withdrawals.user_id` → `user_profiles.id`로 조회해야 함
+- `.eq('user_id', ...)` 사용 시 400 Bad Request 발생
+- Japan DB `user_profiles`에는 `user_id` 컬럼이 있어 혼동 주의
+
+### 5. 올리브영 캠페인 광고코드 컬럼
+- **통합 코드**: `step1_2_partnership_code` (step1~2 공유)
+- **개별 코드**: `step1_partnership_code`, `step2_partnership_code` (step별 개별)
+- 표시 시 fallback 체인: `step1_2_partnership_code || step1_partnership_code || partnership_code || ad_code`
+- DB에 따라 통합/개별 중 하나만 저장되어 있을 수 있으므로 반드시 fallback 필요
+
+### 6. 빌드 & 배포
 ```bash
 npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드
