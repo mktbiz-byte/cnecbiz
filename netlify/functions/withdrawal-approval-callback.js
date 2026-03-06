@@ -33,11 +33,16 @@ exports.handler = async (event) => {
     console.log('[withdrawal-approval-callback] Received:', JSON.stringify(body));
 
     // 네이버웍스 결재 콜백 형식 파싱
-    // 참고: 실제 네이버웍스 콜백 페이로드 형식에 따라 조정 필요
-    const docId = body.requestId || body.docId || body.approval_doc_id;
-    const callbackStatus = body.status || body.approvalStatus; // approved / rejected
-    const approverName = body.approverName || body.approver?.name || null;
-    const rejectionReason = body.comment || body.reason || body.rejectionReason || null;
+    // 네이버웍스는 data 객체 안에 정보를 포함하여 전송
+    // 형식: { type: "approval", event: "approval.document.statusChange", data: { requestId, documentId, status, ... } }
+    const data = body.data || body;
+    const docId = data.requestId || data.documentId || body.requestId || body.docId || body.approval_doc_id;
+    const callbackStatus = data.status || data.approvalStatus || body.status || body.approvalStatus;
+    const approverName = data.approverName || data.approver?.name || body.approverName || body.approver?.name || null;
+    const rejectionReason = data.comment || data.reason || body.comment || body.reason || body.rejectionReason || null;
+    const eventType = body.event || body.type || null;
+
+    console.log(`[withdrawal-approval-callback] Parsed - docId: ${docId}, status: ${callbackStatus}, event: ${eventType}`);
 
     if (!docId) {
       console.log('[withdrawal-approval-callback] No docId, returning 200 (health check or invalid)');
@@ -78,7 +83,7 @@ exports.handler = async (event) => {
     const clientIp = event.headers['x-forwarded-for'] || event.headers['client-ip'] || null;
     const normalizedStatus = callbackStatus?.toLowerCase();
 
-    if (normalizedStatus === 'approved' || normalizedStatus === 'approve') {
+    if (normalizedStatus === 'approved' || normalizedStatus === 'approve' || normalizedStatus === 'completed') {
       // === 승인 처리 ===
       const { error: updateError } = await supabase
         .from('creator_withdrawal_requests')
@@ -124,7 +129,7 @@ exports.handler = async (event) => {
 
       console.log(`[withdrawal-approval-callback] APPROVED: ${withdrawal.id}`);
 
-    } else if (normalizedStatus === 'rejected' || normalizedStatus === 'reject' || normalizedStatus === 'denied') {
+    } else if (normalizedStatus === 'rejected' || normalizedStatus === 'reject' || normalizedStatus === 'denied' || normalizedStatus === 'returned') {
       // === 반려 처리 ===
       const { error: updateError } = await supabase
         .from('creator_withdrawal_requests')
