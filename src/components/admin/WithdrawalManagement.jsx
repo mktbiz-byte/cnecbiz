@@ -94,6 +94,8 @@ export default function WithdrawalManagement() {
 
   // 입금처 분류 필터 (하우랩/하우파파)
   const [entityFilter, setEntityFilter] = useState('all') // 'all' | 'unclassified' | 'howlab' | 'howpapa'
+  // Korea DB 항목용 로컬 분류 매핑 (BIZ DB가 아닌 항목의 paying_entity를 메모리에 저장)
+  const [localEntityMap, setLocalEntityMap] = useState({})
 
   useEffect(() => {
     checkAuth()
@@ -1588,15 +1590,19 @@ export default function WithdrawalManagement() {
     }
   }
 
-  // 입금처 분류 (하우랩/하우파파)
-  const handleClassifyEntity = async (withdrawalId, entity) => {
+  // 입금처 분류 (하우랩/하우파파) - BIZ DB면 DB 업데이트, 아니면 로컬 저장
+  const handleClassifyEntity = async (withdrawalId, entity, sourceDb) => {
     try {
-      const { error } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .update({ paying_entity: entity })
-        .eq('id', withdrawalId)
-
-      if (error) throw error
+      if (sourceDb === 'biz') {
+        const { error } = await supabaseBiz
+          .from('creator_withdrawal_requests')
+          .update({ paying_entity: entity })
+          .eq('id', withdrawalId)
+        if (error) throw error
+      } else {
+        // Korea DB 등 non-BIZ 항목은 로컬 상태로 관리
+        setLocalEntityMap(prev => ({ ...prev, [withdrawalId]: entity }))
+      }
 
       // 로컬 상태 업데이트
       setWithdrawals(prev => prev.map(w =>
@@ -1619,12 +1625,26 @@ export default function WithdrawalManagement() {
     setBulkProcessing(true)
     try {
       const ids = Array.from(checkedWithdrawals)
-      const { error } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .update({ paying_entity: entity })
-        .in('id', ids)
+      // BIZ DB 항목만 DB 업데이트
+      const bizIds = ids.filter(id => withdrawals.find(w => w.id === id && w.source_db === 'biz'))
+      const nonBizIds = ids.filter(id => !bizIds.includes(id))
 
-      if (error) throw error
+      if (bizIds.length > 0) {
+        const { error } = await supabaseBiz
+          .from('creator_withdrawal_requests')
+          .update({ paying_entity: entity })
+          .in('id', bizIds)
+        if (error) throw error
+      }
+
+      // non-BIZ 항목 로컬 저장
+      if (nonBizIds.length > 0) {
+        setLocalEntityMap(prev => {
+          const updated = { ...prev }
+          nonBizIds.forEach(id => { updated[id] = entity })
+          return updated
+        })
+      }
 
       setWithdrawals(prev => prev.map(w =>
         ids.includes(w.id) ? { ...w, paying_entity: entity } : w
@@ -1706,17 +1726,17 @@ export default function WithdrawalManagement() {
 
   // 수동 결재 상신
   const handleManualApprovalSubmit = async () => {
-    const classifiedCount = withdrawals.filter(w =>
-      w.region === 'korea' && w.status === 'approved' && w.paying_entity && w.source_db === 'biz' &&
+    const classifiedItems = withdrawals.filter(w =>
+      w.region === 'korea' && w.status === 'approved' && w.paying_entity &&
       (!w.approval_status || w.approval_status === 'NONE')
-    ).length
+    )
 
-    if (classifiedCount === 0) {
+    if (classifiedItems.length === 0) {
       alert('상신할 건이 없습니다. 먼저 승인된 출금 건을 하우랩/하우파파로 분류해주세요.')
       return
     }
 
-    if (!confirm(`분류 완료된 ${classifiedCount}건을 결재 상신하시겠습니까?`)) return
+    if (!confirm(`분류 완료된 ${classifiedItems.length}건을 결재 상신하시겠습니까?`)) return
 
     try {
       const response = await fetch('/.netlify/functions/scheduled-daily-withdrawal-approval', {
@@ -2322,7 +2342,7 @@ export default function WithdrawalManagement() {
                                   </h3>
                                   {getStatusBadge(withdrawal.status)}
                                   {withdrawal.approval_status && getApprovalBadge(withdrawal.approval_status)}
-                                  {withdrawal.region === 'korea' && withdrawal.status === 'approved' && withdrawal.source_db === 'biz' && getEntityBadge(withdrawal.paying_entity)}
+                                  {withdrawal.region === 'korea' && withdrawal.status === 'approved' && getEntityBadge(withdrawal.paying_entity)}
                                   {withdrawal.priority > 0 && (
                                     <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                                       우선순위: {withdrawal.priority}
@@ -2439,11 +2459,11 @@ export default function WithdrawalManagement() {
                                 )}
                                 {withdrawal.status === 'approved' && (
                                   <div className="flex flex-col gap-2">
-                                    {/* 입금처 분류 버튼 (한국 BIZ DB 건만) */}
-                                    {withdrawal.source_db === 'biz' && withdrawal.region === 'korea' && (
+                                    {/* 입금처 분류 버튼 (한국 건) */}
+                                    {withdrawal.region === 'korea' && (
                                       <div className="flex gap-1">
                                         <button
-                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howlab')}
+                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howlab', withdrawal.source_db)}
                                           className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                                             withdrawal.paying_entity === 'howlab'
                                               ? 'bg-blue-600 text-white'
@@ -2453,7 +2473,7 @@ export default function WithdrawalManagement() {
                                           하우랩
                                         </button>
                                         <button
-                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howpapa')}
+                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howpapa', withdrawal.source_db)}
                                           className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                                             withdrawal.paying_entity === 'howpapa'
                                               ? 'bg-purple-600 text-white'
