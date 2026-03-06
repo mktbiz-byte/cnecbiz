@@ -85,7 +85,7 @@ function createApprovalDocument(accessToken, templateId, withdrawal) {
 
     const documentData = {
       templateId: templateId,
-      title: `[출금] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} - ${(withdrawal.requested_amount || 0).toLocaleString()}원`,
+      title: `[출금/${withdrawal.paying_entity === 'howlab' ? '하우랩' : '하우파파'}] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} - ${(withdrawal.requested_amount || 0).toLocaleString()}원`,
       content: {
         body: {
           items: [
@@ -98,6 +98,7 @@ function createApprovalDocument(accessToken, templateId, withdrawal) {
             { name: '계좌번호', value: withdrawal.account_number || '-' }, // TEXT - 앞자리 0 보존
             { name: '예금주', value: withdrawal.account_holder || '-' },
             { name: '신청일', value: new Date(withdrawal.created_at).toLocaleDateString('ko-KR') },
+            { name: '입금처', value: withdrawal.paying_entity === 'howlab' ? '하우랩' : '하우파파' },
             { name: '비고', value: `출금ID: ${withdrawal.id}` }
           ]
         }
@@ -189,22 +190,14 @@ exports.handler = async (event) => {
       }
     }
 
-    // 전날 pending + approval_status=NONE 건 조회
-    const { start, end } = getYesterdayRange();
-
-    // 수동 테스트 시에는 전체 NONE건 조회 (날짜 제한 없음)
+    // 분류 완료 + 승인됨 + approval_status=NONE 건 조회 (입금처 분류가 된 건만 상신)
     let query = supabase
       .from('creator_withdrawal_requests')
       .select('*')
-      .eq('status', 'pending')
+      .eq('status', 'approved')
       .eq('approval_status', 'NONE')
-      .eq('region', 'korea');
-
-    if (!isManualTest) {
-      query = query
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
-    }
+      .eq('region', 'korea')
+      .not('paying_entity', 'is', null);
 
     const { data: withdrawals, error } = await query.order('created_at', { ascending: true });
 
@@ -294,6 +287,7 @@ exports.handler = async (event) => {
           id: withdrawal.id,
           name: withdrawal.creator_name || withdrawal.account_holder,
           amount: withdrawal.requested_amount,
+          entity: withdrawal.paying_entity,
           approval_doc_id: approvalDocId
         });
 
@@ -306,11 +300,24 @@ exports.handler = async (event) => {
     // 결과 요약 네이버웍스 메시지
     if (successCount > 0 && botId && channelId) {
       const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-      const detailLines = results.map((r, i) =>
+      const howlabResults = results.filter(r => r.entity === 'howlab');
+      const howpapaResults = results.filter(r => r.entity === 'howpapa');
+
+      const formatList = (list) => list.map((r, i) =>
         `${i + 1}. ${r.name} - ${(r.amount || 0).toLocaleString()}원`
       ).join('\n');
 
-      const summaryMessage = `📋 [결재상신완료] ${koreanDate}\n\n${successCount}건 / 총 ${totalAmount.toLocaleString()}원 상신됨${failCount > 0 ? `\n(실패: ${failCount}건)` : ''}\n\n${detailLines}`;
+      let detailLines = '';
+      if (howlabResults.length > 0) {
+        const howlabTotal = howlabResults.reduce((s, r) => s + (r.amount || 0), 0);
+        detailLines += `\n[하우랩] ${howlabResults.length}건 / ${howlabTotal.toLocaleString()}원\n${formatList(howlabResults)}`;
+      }
+      if (howpapaResults.length > 0) {
+        const howpapaTotal = howpapaResults.reduce((s, r) => s + (r.amount || 0), 0);
+        detailLines += `\n[하우파파] ${howpapaResults.length}건 / ${howpapaTotal.toLocaleString()}원\n${formatList(howpapaResults)}`;
+      }
+
+      const summaryMessage = `📋 [결재상신완료] ${koreanDate}\n\n${successCount}건 / 총 ${totalAmount.toLocaleString()}원 상신됨${failCount > 0 ? `\n(실패: ${failCount}건)` : ''}${detailLines}`;
 
       try {
         await sendChannelMessage(botToken, botId, channelId, summaryMessage);

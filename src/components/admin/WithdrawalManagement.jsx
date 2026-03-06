@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
+import {
   Wallet, CheckCircle, XCircle, Clock, TrendingUp,
-  Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText, AlertCircle
+  Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText, AlertCircle, Building2, Send
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
@@ -91,6 +91,9 @@ export default function WithdrawalManagement() {
   // 체크박스 일괄 선택
   const [checkedWithdrawals, setCheckedWithdrawals] = useState(new Set())
   const [bulkProcessing, setBulkProcessing] = useState(false)
+
+  // 입금처 분류 필터 (하우랩/하우파파)
+  const [entityFilter, setEntityFilter] = useState('all') // 'all' | 'unclassified' | 'howlab' | 'howpapa'
 
   useEffect(() => {
     checkAuth()
@@ -581,6 +584,15 @@ export default function WithdrawalManagement() {
 
   const getFilteredWithdrawals = () => {
     let filtered = withdrawals.filter(w => w.region === selectedCountry && w.status === selectedStatus)
+
+    // 입금처 분류 필터 (한국 + approved 탭에서만 적용)
+    if (selectedCountry === 'korea' && selectedStatus === 'approved' && entityFilter !== 'all') {
+      if (entityFilter === 'unclassified') {
+        filtered = filtered.filter(w => !w.paying_entity)
+      } else {
+        filtered = filtered.filter(w => w.paying_entity === entityFilter)
+      }
+    }
 
     if (searchTerm) {
       filtered = filtered.filter(w => {
@@ -1576,6 +1588,160 @@ export default function WithdrawalManagement() {
     }
   }
 
+  // 입금처 분류 (하우랩/하우파파)
+  const handleClassifyEntity = async (withdrawalId, entity) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .update({ paying_entity: entity })
+        .eq('id', withdrawalId)
+
+      if (error) throw error
+
+      // 로컬 상태 업데이트
+      setWithdrawals(prev => prev.map(w =>
+        w.id === withdrawalId ? { ...w, paying_entity: entity } : w
+      ))
+    } catch (error) {
+      console.error('분류 오류:', error)
+      alert(`분류 실패: ${error.message}`)
+    }
+  }
+
+  // 일괄 분류
+  const handleBulkClassify = async (entity) => {
+    if (checkedWithdrawals.size === 0) {
+      alert('분류할 항목을 선택해주세요.')
+      return
+    }
+    if (!confirm(`선택된 ${checkedWithdrawals.size}건을 ${entity === 'howlab' ? '하우랩' : '하우파파'}으로 분류하시겠습니까?`)) return
+
+    setBulkProcessing(true)
+    try {
+      const ids = Array.from(checkedWithdrawals)
+      const { error } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .update({ paying_entity: entity })
+        .in('id', ids)
+
+      if (error) throw error
+
+      setWithdrawals(prev => prev.map(w =>
+        ids.includes(w.id) ? { ...w, paying_entity: entity } : w
+      ))
+      setCheckedWithdrawals(new Set())
+      alert(`${ids.length}건이 ${entity === 'howlab' ? '하우랩' : '하우파파'}으로 분류되었습니다.`)
+    } catch (error) {
+      console.error('일괄 분류 오류:', error)
+      alert(`일괄 분류 실패: ${error.message}`)
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  // 입금처별 엑셀 다운로드
+  const handleDownloadEntityExcel = async (entity) => {
+    try {
+      const entityLabel = entity === 'howlab' ? '하우랩' : '하우파파'
+      const entityWithdrawals = withdrawals.filter(w =>
+        w.region === 'korea' &&
+        w.status === 'approved' &&
+        w.paying_entity === entity
+      )
+
+      if (entityWithdrawals.length === 0) {
+        alert(`${entityLabel} 분류된 출금 신청이 없습니다.`)
+        return
+      }
+
+      const excelData = await Promise.all(entityWithdrawals.map(async (w) => {
+        const createdAt = new Date(w.created_at)
+        const grossAmount = w.requested_amount || 0
+        const incomeTax = Math.round(grossAmount * 0.03)
+        const residentTax = Math.round(grossAmount * 0.003)
+        const netAmount = grossAmount - incomeTax - residentTax
+
+        let residentNumber = ''
+        if (w.resident_registration_number) {
+          try {
+            residentNumber = await decryptResidentNumber(w.resident_registration_number)
+          } catch (err) {
+            residentNumber = '복호화 실패'
+          }
+        }
+
+        return {
+          '월': createdAt.getMonth() + 1,
+          '일': createdAt.getDate(),
+          '이름': w.creator_name || w.account_holder || 'Unknown',
+          '주민등록번호': residentNumber,
+          '세금공제 전 금액': grossAmount,
+          '소득세': incomeTax,
+          '주민세': residentTax,
+          '실입금액': netAmount,
+          '은행명': w.bank_name || '',
+          '계좌번호': w.account_number || '',
+          '비고': w.admin_notes || ''
+        }
+      }))
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(excelData)
+      ws['!cols'] = [
+        { wch: 5 }, { wch: 5 }, { wch: 15 }, { wch: 18 },
+        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
+        { wch: 12 }, { wch: 20 }, { wch: 20 },
+      ]
+      XLSX.utils.book_append_sheet(wb, ws, '출금신청')
+
+      const today = new Date()
+      const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`
+      XLSX.writeFile(wb, `크리에이터_출금신청_${entityLabel}_${dateStr}.xlsx`)
+      alert(`${entityWithdrawals.length}건의 ${entityLabel} 출금 신청이 다운로드되었습니다.`)
+    } catch (error) {
+      console.error('엑셀 다운로드 오류:', error)
+      alert('엑셀 다운로드 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 수동 결재 상신
+  const handleManualApprovalSubmit = async () => {
+    const classifiedCount = withdrawals.filter(w =>
+      w.region === 'korea' && w.status === 'approved' && w.paying_entity && w.source_db === 'biz' &&
+      (!w.approval_status || w.approval_status === 'NONE')
+    ).length
+
+    if (classifiedCount === 0) {
+      alert('상신할 건이 없습니다. 먼저 승인된 출금 건을 하우랩/하우파파로 분류해주세요.')
+      return
+    }
+
+    if (!confirm(`분류 완료된 ${classifiedCount}건을 결재 상신하시겠습니까?`)) return
+
+    try {
+      const response = await fetch('/.netlify/functions/scheduled-daily-withdrawal-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const result = await response.json()
+      if (result.error) throw new Error(result.error)
+
+      alert(`${result.count || 0}건 결재 상신 완료`)
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('결재 상신 오류:', error)
+      alert(`결재 상신 실패: ${error.message}`)
+    }
+  }
+
+  // 입금처 배지
+  const getEntityBadge = (entity) => {
+    if (!entity) return <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">미분류</span>
+    if (entity === 'howlab') return <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">하우랩</span>
+    if (entity === 'howpapa') return <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">하우파파</span>
+    return null
+  }
+
   const getCountryLabel = (country) => {
     const labels = {
       korea: '🇰🇷 한국',
@@ -1794,8 +1960,8 @@ export default function WithdrawalManagement() {
                 <p className="text-gray-600">국가별, 상태별로 출금 신청을 관리합니다</p>
               </div>
 
-              {/* 한국 크리에이터 엑셀 다운로드 버튼 */}
-              <div className="flex gap-2">
+              {/* 한국 크리에이터 엑셀 다운로드 및 결재 상신 버튼 */}
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   onClick={() => handleDownloadWeeklyExcel('last')}
@@ -1819,6 +1985,30 @@ export default function WithdrawalManagement() {
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   전체 엑셀
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadEntityExcel('howlab')}
+                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  하우랩 엑셀
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadEntityExcel('howpapa')}
+                  className="bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  하우파파 엑셀
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleManualApprovalSubmit}
+                  className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  결재 상신
                 </Button>
                 <Button
                   variant="outline"
@@ -1990,6 +2180,57 @@ export default function WithdrawalManagement() {
                     </CardContent>
                   </Card>
 
+                  {/* 입금처 분류 필터 (한국 + 승인됨 탭에서만) */}
+                  {country === 'korea' && selectedStatus === 'approved' && (
+                    <Card className="mb-6">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between flex-wrap gap-3">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">입금처 분류:</span>
+                            {['all', 'unclassified', 'howlab', 'howpapa'].map(filter => {
+                              const labels = { all: '전체', unclassified: '미분류', howlab: '하우랩', howpapa: '하우파파' }
+                              const colors = {
+                                all: entityFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                                unclassified: entityFilter === 'unclassified' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                                howlab: entityFilter === 'howlab' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+                                howpapa: entityFilter === 'howpapa' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                              }
+                              const count = filter === 'all'
+                                ? withdrawals.filter(w => w.region === 'korea' && w.status === 'approved').length
+                                : filter === 'unclassified'
+                                ? withdrawals.filter(w => w.region === 'korea' && w.status === 'approved' && !w.paying_entity).length
+                                : withdrawals.filter(w => w.region === 'korea' && w.status === 'approved' && w.paying_entity === filter).length
+
+                              return (
+                                <button
+                                  key={filter}
+                                  onClick={() => setEntityFilter(filter)}
+                                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${colors[filter]}`}
+                                >
+                                  {labels[filter]} ({count})
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {checkedWithdrawals.size > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-500">{checkedWithdrawals.size}건 선택:</span>
+                              <Button size="sm" variant="outline" onClick={() => handleBulkClassify('howlab')}
+                                className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" disabled={bulkProcessing}>
+                                하우랩
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleBulkClassify('howpapa')}
+                                className="bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200" disabled={bulkProcessing}>
+                                하우파파
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* 출금 신청 목록 */}
                   <Card>
                     <CardHeader>
@@ -2081,6 +2322,7 @@ export default function WithdrawalManagement() {
                                   </h3>
                                   {getStatusBadge(withdrawal.status)}
                                   {withdrawal.approval_status && getApprovalBadge(withdrawal.approval_status)}
+                                  {withdrawal.region === 'korea' && withdrawal.status === 'approved' && withdrawal.source_db === 'biz' && getEntityBadge(withdrawal.paying_entity)}
                                   {withdrawal.priority > 0 && (
                                     <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                                       우선순위: {withdrawal.priority}
@@ -2196,7 +2438,32 @@ export default function WithdrawalManagement() {
                                   </>
                                 )}
                                 {withdrawal.status === 'approved' && (
-                                  <>
+                                  <div className="flex flex-col gap-2">
+                                    {/* 입금처 분류 버튼 (한국 BIZ DB 건만) */}
+                                    {withdrawal.source_db === 'biz' && withdrawal.region === 'korea' && (
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howlab')}
+                                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                            withdrawal.paying_entity === 'howlab'
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                                          }`}
+                                        >
+                                          하우랩
+                                        </button>
+                                        <button
+                                          onClick={() => handleClassifyEntity(withdrawal.id, 'howpapa')}
+                                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                            withdrawal.paying_entity === 'howpapa'
+                                              ? 'bg-purple-600 text-white'
+                                              : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+                                          }`}
+                                        >
+                                          하우파파
+                                        </button>
+                                      </div>
+                                    )}
                                     {withdrawal.source_db === 'biz' && withdrawal.approval_status === 'APPROVED' ? (
                                       <Button
                                         variant="outline"
@@ -2218,7 +2485,7 @@ export default function WithdrawalManagement() {
                                         지급완료
                                       </Button>
                                     )}
-                                  </>
+                                  </div>
                                 )}
                                 {withdrawal.status === 'rejected' && (
                                   <Badge variant="outline" className="bg-gray-100 text-gray-600">
