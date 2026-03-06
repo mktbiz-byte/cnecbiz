@@ -83,7 +83,7 @@ export default function OAuthTestPage() {
     const redirectUri = `${window.location.origin}/admin/oauth-test`
     // instagram_basic: 앱 심사 불필요 (개발 모드에서 테스터 계정으로 바로 테스트 가능)
     // pages_show_list: Facebook 페이지 목록 조회 (Instagram 비즈니스 계정 연결 확인용)
-    const scopes = 'public_profile,pages_show_list,instagram_basic'
+    const scopes = 'public_profile'
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=instagram_test&response_type=code`
     window.location.href = authUrl
   }
@@ -122,7 +122,7 @@ export default function OAuthTestPage() {
       return
     }
     const redirectUri = `${window.location.origin}/admin/oauth-test`
-    const scopes = 'public_profile,email,pages_show_list'
+    const scopes = 'public_profile'
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=meta_ads_test&response_type=code`
     window.location.href = authUrl
   }
