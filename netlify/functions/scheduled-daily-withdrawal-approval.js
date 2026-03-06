@@ -509,23 +509,23 @@ exports.handler = async (event) => {
       throw new Error('네이버웍스 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 토큰 발급 (결재, 스토리지, 봇 - 병렬)
+    // 토큰 발급 (결재, 파일, 봇 - 병렬)
     let approvalToken = null;
-    let storageToken = null;
+    let fileToken = null;
     let botToken = null;
 
-    const [approvalRes, storageRes, botRes] = await Promise.allSettled([
+    const [approvalRes, fileRes, botRes] = await Promise.allSettled([
       getAccessToken(clientId, clientSecret, serviceAccount, 'businessSupport.approval'),
-      getAccessToken(clientId, clientSecret, serviceAccount, 'storage'),
+      getAccessToken(clientId, clientSecret, serviceAccount, 'file'),
       getAccessToken(clientId, clientSecret, serviceAccount, 'bot')
     ]);
 
     approvalToken = approvalRes.status === 'fulfilled' ? approvalRes.value : null;
-    storageToken = storageRes.status === 'fulfilled' ? storageRes.value : null;
+    fileToken = fileRes.status === 'fulfilled' ? fileRes.value : null;
     botToken = botRes.status === 'fulfilled' ? botRes.value : null;
 
     if (approvalRes.status === 'rejected') console.error('[daily-withdrawal-approval] Approval token error:', approvalRes.reason?.message);
-    if (storageRes.status === 'rejected') console.error('[daily-withdrawal-approval] Storage token error:', storageRes.reason?.message);
+    if (fileRes.status === 'rejected') console.error('[daily-withdrawal-approval] File token error:', fileRes.reason?.message);
     if (!botToken) console.error('[daily-withdrawal-approval] Bot token error:', botRes.reason?.message);
 
     // 서식 컴포넌트 자동 조회 (API로 서식 구조를 읽어서 이름으로 매칭)
@@ -552,13 +552,14 @@ exports.handler = async (event) => {
         let fileId = null;
         let approvalDocId = null;
 
-        // 1. 엑셀 생성 및 업로드
-        if (storageToken) {
+        // 1. 엑셀 생성 및 업로드 (approval 토큰으로 시도, 안 되면 file 토큰)
+        const uploadToken = approvalToken || fileToken;
+        if (uploadToken) {
           try {
             const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }).replace(/\. /g, '').replace('.', '');
             const fileName = `포인트입금_${entityName}_${koreanDate}.xlsx`;
             const excelBuffer = generateExcelBuffer(items, entityName);
-            const uploadResult = await uploadFileToNaverWorks(storageToken, fileName, excelBuffer);
+            const uploadResult = await uploadFileToNaverWorks(uploadToken, fileName, excelBuffer);
             fileId = uploadResult.fileId || uploadResult.id || null;
             console.log(`[daily-withdrawal-approval] ${entityName} 엑셀 업로드 완료: ${fileId}`);
           } catch (uploadErr) {
