@@ -1,12 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
+const XLSX = require('xlsx');
 
 /**
- * 매일 평일 오전 10시 (KST) 전날 출금 신청건을 네이버웍스 결재 문서로 자동 상신
- * - 주말(토/일)이면 skip
- * - approval_status='NONE' AND status='pending' AND region='korea' 건만 대상
- * - 수동 테스트: GET/POST /.netlify/functions/scheduled-daily-withdrawal-approval
+ * 출금 건을 입금처별(하우랩/하우파파)로 묶어 네이버웍스 결재 문서로 상신
+ * - 입금처별 1건씩 (최대 2건) 결재 문서 생성
+ * - 각 결재 문서에 엑셀 파일 첨부
+ * - 수동: POST /.netlify/functions/scheduled-daily-withdrawal-approval
+ * - 자동: 매주 월~금 KST 10:00
  */
 
 const supabase = createClient(
@@ -14,7 +16,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// 네이버웍스 Private Key (기존 함수와 동일)
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
 MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
@@ -77,39 +78,160 @@ function getAccessToken(clientId, clientSecret, serviceAccount, scope) {
   });
 }
 
-// 네이버웍스 결재 문서 생성
-function createApprovalDocument(accessToken, templateId, withdrawal) {
+// 엑셀 파일 생성 (Buffer 반환)
+function generateExcelBuffer(withdrawals, entityName) {
+  const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const rows = withdrawals.map((w, i) => {
+    const createdAt = new Date(w.created_at);
+    const grossAmount = w.requested_amount || 0;
+    const incomeTax = Math.round(grossAmount * 0.03);
+    const residentTax = Math.round(grossAmount * 0.003);
+    const netAmount = grossAmount - incomeTax - residentTax;
+
+    return {
+      'No': i + 1,
+      '월': createdAt.getMonth() + 1,
+      '일': createdAt.getDate(),
+      '이름': w.creator_name || w.account_holder || '-',
+      '주민등록번호': w.resident_registration_number || '-',
+      '세금공제 전 금액': grossAmount,
+      '소득세(3%)': incomeTax,
+      '주민세(0.3%)': residentTax,
+      '실입금액': netAmount,
+      '은행명': w.bank_name || '-',
+      '계좌번호': w.account_number || '-',
+      '비고': w.admin_notes || ''
+    };
+  });
+
+  // 합계 행
+  const totalGross = withdrawals.reduce((s, w) => s + (w.requested_amount || 0), 0);
+  const totalIncomeTax = Math.round(totalGross * 0.03);
+  const totalResidentTax = Math.round(totalGross * 0.003);
+  const totalNet = totalGross - totalIncomeTax - totalResidentTax;
+
+  rows.push({
+    'No': '',
+    '월': '',
+    '일': '',
+    '이름': '합계',
+    '주민등록번호': '',
+    '세금공제 전 금액': totalGross,
+    '소득세(3%)': totalIncomeTax,
+    '주민세(0.3%)': totalResidentTax,
+    '실입금액': totalNet,
+    '은행명': '',
+    '계좌번호': '',
+    '비고': `${entityName} / ${koreanDate} / ${withdrawals.length}건`
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // 열 너비 설정
+  ws['!cols'] = [
+    { wch: 4 }, { wch: 4 }, { wch: 4 }, { wch: 10 }, { wch: 16 },
+    { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 },
+    { wch: 10 }, { wch: 16 }, { wch: 20 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '출금내역');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+// 네이버웍스 파일 업로드
+function uploadFileToNaverWorks(accessToken, fileName, fileBuffer) {
   return new Promise((resolve, reject) => {
-    const taxAmount = Math.round((withdrawal.requested_amount || 0) * 0.033);
-    const finalAmount = (withdrawal.requested_amount || 0) - taxAmount;
+    const boundary = `----FormBoundary${Date.now()}`;
+    const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`;
+    const footer = `\r\n--${boundary}--\r\n`;
+
+    const headerBuf = Buffer.from(header, 'utf8');
+    const footerBuf = Buffer.from(footer, 'utf8');
+    const body = Buffer.concat([headerBuf, fileBuffer, footerBuf]);
+
+    const req = https.request({
+      hostname: 'www.worksapis.com',
+      path: '/v1.0/storage/files',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          try { resolve(JSON.parse(data)); }
+          catch (e) { resolve({ fileId: data }); }
+        } else {
+          reject(new Error(`File upload error: ${res.statusCode} ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// 네이버웍스 결재 문서 생성 (입금처별 묶음)
+function createBatchApprovalDocument(accessToken, userId, documentFormId, entityName, withdrawals, componentIds, fileId) {
+  return new Promise((resolve, reject) => {
+    const totalGross = withdrawals.reduce((s, w) => s + (w.requested_amount || 0), 0);
+    const totalIncomeTax = Math.round(totalGross * 0.03);
+    const totalResidentTax = Math.round(totalGross * 0.003);
+    const totalNet = totalGross - totalIncomeTax - totalResidentTax;
+    const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+    const documentBody = [];
+
+    // 텍스트 컴포넌트들
+    if (componentIds.entity) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.entity, componentValue: { value: entityName } });
+    }
+    if (componentIds.date) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.date, componentValue: { value: koreanDate } });
+    }
+    if (componentIds.count) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.count, componentValue: { value: String(withdrawals.length) } });
+    }
+    if (componentIds.totalAmount) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.totalAmount, componentValue: { value: totalGross.toLocaleString() + '원' } });
+    }
+    if (componentIds.totalTax) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.totalTax, componentValue: { value: (totalIncomeTax + totalResidentTax).toLocaleString() + '원' } });
+    }
+    if (componentIds.totalNet) {
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.totalNet, componentValue: { value: totalNet.toLocaleString() + '원' } });
+    }
+
+    // 크리에이터 목록 (간략)
+    if (componentIds.creatorList) {
+      const listText = withdrawals.map((w, i) =>
+        `${i + 1}. ${w.creator_name || w.account_holder || '-'} / ${(w.requested_amount || 0).toLocaleString()}원`
+      ).join('\n');
+      documentBody.push({ componentType: 'CP_TEXT', componentId: componentIds.creatorList, componentValue: { value: listText } });
+    }
+
+    // 첨부파일 컴포넌트
+    if (componentIds.attachment && fileId) {
+      documentBody.push({ componentType: 'CP_FILE', componentId: componentIds.attachment, componentValue: { fileId: fileId } });
+    }
 
     const documentData = {
-      templateId: templateId,
-      title: `[출금/${withdrawal.paying_entity === 'howlab' ? '하우랩' : '하우파파'}] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} - ${(withdrawal.requested_amount || 0).toLocaleString()}원`,
-      content: {
-        body: {
-          items: [
-            { name: '신청자', value: withdrawal.creator_name || withdrawal.account_holder || 'Unknown' },
-            { name: '신청자ID', value: withdrawal.creator_id || '' },
-            { name: '신청금액', value: String(withdrawal.requested_amount || 0) },
-            { name: '수수료(3.3%)', value: String(taxAmount) },
-            { name: '실수령액', value: String(finalAmount) },
-            { name: '은행명', value: withdrawal.bank_name || '-' },
-            { name: '계좌번호', value: withdrawal.account_number || '-' }, // TEXT - 앞자리 0 보존
-            { name: '예금주', value: withdrawal.account_holder || '-' },
-            { name: '신청일', value: new Date(withdrawal.created_at).toLocaleDateString('ko-KR') },
-            { name: '입금처', value: withdrawal.paying_entity === 'howlab' ? '하우랩' : '하우파파' },
-            { name: '비고', value: `출금ID: ${withdrawal.id}` }
-          ]
-        }
-      }
+      title: `[포인트입금/${entityName}] ${koreanDate} - ${withdrawals.length}건 / ${totalGross.toLocaleString()}원`,
+      documentFormId: documentFormId,
+      documentBody: documentBody
     };
 
     const postData = JSON.stringify(documentData);
 
     const req = https.request({
       hostname: 'www.worksapis.com',
-      path: '/v1.0/approval/requests',
+      path: `/v1.0/business-support/approval/users/${encodeURIComponent(userId)}/documents`,
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -121,12 +243,8 @@ function createApprovalDocument(accessToken, templateId, withdrawal) {
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         if (res.statusCode === 200 || res.statusCode === 201) {
-          try {
-            const result = JSON.parse(data);
-            resolve(result);
-          } catch (e) {
-            resolve({ requestId: data }); // 응답이 ID만 올 수도 있음
-          }
+          try { resolve(JSON.parse(data)); }
+          catch (e) { resolve({ documentId: data }); }
         } else {
           reject(new Error(`Approval API error: ${res.statusCode} ${data}`));
         }
@@ -156,24 +274,6 @@ function sendChannelMessage(accessToken, botId, channelId, message) {
   });
 }
 
-// KST 날짜 계산
-function getKSTDate() {
-  const now = new Date();
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return kst;
-}
-
-function getYesterdayRange() {
-  const kst = getKSTDate();
-  // 어제 00:00 ~ 23:59:59 (KST → UTC 변환)
-  const yesterday = new Date(kst);
-  yesterday.setUTCDate(kst.getUTCDate() - 1);
-  yesterday.setUTCHours(0, 0, 0, 0);
-  const yesterdayStart = new Date(yesterday.getTime() - 9 * 60 * 60 * 1000); // KST 00:00 → UTC
-  const yesterdayEnd = new Date(yesterdayStart.getTime() + 24 * 60 * 60 * 1000 - 1); // KST 23:59:59 → UTC
-  return { start: yesterdayStart, end: yesterdayEnd };
-}
-
 exports.handler = async (event) => {
   const httpMethod = event.httpMethod || 'SCHEDULED';
   const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
@@ -182,24 +282,24 @@ exports.handler = async (event) => {
   try {
     // 주말 체크 (수동 테스트 시에는 skip)
     if (!isManualTest) {
-      const kst = getKSTDate();
-      const dayOfWeek = kst.getUTCDay(); // 0=일, 6=토
+      const now = new Date();
+      const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const dayOfWeek = kst.getUTCDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         console.log('[daily-withdrawal-approval] 주말 - skip');
         return { statusCode: 200, body: JSON.stringify({ message: '주말 - skip' }) };
       }
     }
 
-    // 분류 완료 + 승인됨 + approval_status=NONE 건 조회 (입금처 분류가 된 건만 상신)
-    let query = supabase
+    // 분류 완료 + 승인됨 + approval_status=NONE 건 조회
+    const { data: withdrawals, error } = await supabase
       .from('creator_withdrawal_requests')
       .select('*')
       .eq('status', 'approved')
       .eq('approval_status', 'NONE')
       .eq('region', 'korea')
-      .not('paying_entity', 'is', null);
-
-    const { data: withdrawals, error } = await query.order('created_at', { ascending: true });
+      .not('paying_entity', 'is', null)
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
 
@@ -208,54 +308,102 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify({ message: '처리할 출금 신청 없음', count: 0 }) };
     }
 
-    console.log(`[daily-withdrawal-approval] ${withdrawals.length}건 처리 시작`);
+    // 입금처별 그룹핑
+    const grouped = {};
+    for (const w of withdrawals) {
+      const entity = w.paying_entity; // 'howlab' or 'howpapa'
+      if (!grouped[entity]) grouped[entity] = [];
+      grouped[entity].push(w);
+    }
+
+    console.log(`[daily-withdrawal-approval] 총 ${withdrawals.length}건 - 그룹: ${Object.keys(grouped).join(', ')}`);
 
     // 네이버웍스 인증
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
     const botId = process.env.NAVER_WORKS_BOT_ID;
     const channelId = process.env.NAVER_WORKS_WITHDRAWAL_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID;
-    const templateId = process.env.NAVER_WORKS_APPROVAL_TEMPLATE_ID;
+    const documentFormId = process.env.NAVER_WORKS_APPROVAL_TEMPLATE_ID;
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
+
+    // 서식 컴포넌트 ID (서식 생성 후 환경변수로 설정)
+    const componentIds = {
+      entity: process.env.NW_COMP_ENTITY || null,           // 입금처
+      date: process.env.NW_COMP_DATE || null,               // 신청일
+      count: process.env.NW_COMP_COUNT || null,              // 총 건수
+      totalAmount: process.env.NW_COMP_TOTAL_AMOUNT || null, // 총 신청금액
+      totalTax: process.env.NW_COMP_TOTAL_TAX || null,       // 총 세금
+      totalNet: process.env.NW_COMP_TOTAL_NET || null,       // 총 실입금액
+      creatorList: process.env.NW_COMP_CREATOR_LIST || null,  // 크리에이터 목록
+      attachment: process.env.NW_COMP_ATTACHMENT || null       // 첨부파일
+    };
 
     if (!clientId || !clientSecret) {
       throw new Error('네이버웍스 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 결재 API용 토큰 (scope: approval)
+    // 토큰 발급
     let approvalToken = null;
-    if (templateId) {
+    if (documentFormId) {
       try {
-        approvalToken = await getAccessToken(clientId, clientSecret, serviceAccount, 'approval');
+        approvalToken = await getAccessToken(clientId, clientSecret, serviceAccount, 'businessSupport.approval');
       } catch (e) {
         console.error('[daily-withdrawal-approval] Approval token error:', e.message);
       }
     }
 
-    // 메시지 API용 토큰 (scope: bot)
+    // 파일 업로드용 토큰
+    let storageToken = null;
+    try {
+      storageToken = await getAccessToken(clientId, clientSecret, serviceAccount, 'storage');
+    } catch (e) {
+      console.error('[daily-withdrawal-approval] Storage token error:', e.message);
+    }
+
     const botToken = await getAccessToken(clientId, clientSecret, serviceAccount, 'bot');
 
-    let successCount = 0;
-    let failCount = 0;
-    let totalAmount = 0;
+    const entityNames = { howlab: '하우랩', howpapa: '하우파파' };
     const results = [];
 
-    for (const withdrawal of withdrawals) {
+    // 입금처별로 1건씩 결재 문서 생성 (최대 2건)
+    for (const [entity, items] of Object.entries(grouped)) {
+      const entityName = entityNames[entity] || entity;
+      const totalAmount = items.reduce((s, w) => s + (w.requested_amount || 0), 0);
+
       try {
+        let fileId = null;
         let approvalDocId = null;
 
-        // 결재 문서 생성 (templateId가 있을 때만)
-        if (approvalToken && templateId) {
+        // 1. 엑셀 생성 및 업로드
+        if (storageToken) {
           try {
-            const result = await createApprovalDocument(approvalToken, templateId, withdrawal);
-            approvalDocId = result.requestId || result.id || result.docId || null;
-          } catch (approvalErr) {
-            console.error(`[daily-withdrawal-approval] 결재문서 생성 실패 (${withdrawal.id}):`, approvalErr.message);
-            // 결재 문서 생성 실패해도 상태는 업데이트
+            const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }).replace(/\. /g, '').replace('.', '');
+            const fileName = `포인트입금_${entityName}_${koreanDate}.xlsx`;
+            const excelBuffer = generateExcelBuffer(items, entityName);
+            const uploadResult = await uploadFileToNaverWorks(storageToken, fileName, excelBuffer);
+            fileId = uploadResult.fileId || uploadResult.id || null;
+            console.log(`[daily-withdrawal-approval] ${entityName} 엑셀 업로드 완료: ${fileId}`);
+          } catch (uploadErr) {
+            console.error(`[daily-withdrawal-approval] ${entityName} 엑셀 업로드 실패:`, uploadErr.message);
           }
         }
 
-        // DB 업데이트
+        // 2. 결재 문서 생성
+        if (approvalToken && documentFormId) {
+          try {
+            const result = await createBatchApprovalDocument(
+              approvalToken, serviceAccount, documentFormId,
+              entityName, items, componentIds, fileId
+            );
+            approvalDocId = result.documentId || result.requestId || result.id || null;
+            console.log(`[daily-withdrawal-approval] ${entityName} 결재문서 생성: ${approvalDocId}`);
+          } catch (approvalErr) {
+            console.error(`[daily-withdrawal-approval] ${entityName} 결재문서 생성 실패:`, approvalErr.message);
+          }
+        }
+
+        // 3. DB 업데이트 (해당 입금처의 모든 건)
+        const itemIds = items.map(w => w.id);
         const updateData = {
           approval_status: 'PENDING',
           approval_requested_at: new Date().toISOString()
@@ -267,57 +415,50 @@ exports.handler = async (event) => {
         await supabase
           .from('creator_withdrawal_requests')
           .update(updateData)
-          .eq('id', withdrawal.id);
+          .in('id', itemIds);
 
-        // 감사 로그
-        await supabase.from('withdrawal_audit_logs').insert({
-          withdrawal_id: withdrawal.id,
-          action: 'SUBMITTED',
-          actor: 'system',
-          details: {
-            approval_doc_id: approvalDocId,
-            requested_amount: withdrawal.requested_amount,
-            creator_name: withdrawal.creator_name || withdrawal.account_holder
-          }
-        });
+        // 4. 감사 로그
+        for (const w of items) {
+          await supabase.from('withdrawal_audit_logs').insert({
+            withdrawal_id: w.id,
+            action: 'SUBMITTED',
+            actor: 'system',
+            details: {
+              approval_doc_id: approvalDocId,
+              paying_entity: entity,
+              requested_amount: w.requested_amount,
+              creator_name: w.creator_name || w.account_holder,
+              batch_count: items.length,
+              batch_total: totalAmount
+            }
+          });
+        }
 
-        successCount++;
-        totalAmount += (withdrawal.requested_amount || 0);
         results.push({
-          id: withdrawal.id,
-          name: withdrawal.creator_name || withdrawal.account_holder,
-          amount: withdrawal.requested_amount,
-          entity: withdrawal.paying_entity,
-          approval_doc_id: approvalDocId
+          entity: entityName,
+          count: items.length,
+          totalAmount,
+          approvalDocId,
+          fileUploaded: !!fileId
         });
 
-      } catch (itemErr) {
-        console.error(`[daily-withdrawal-approval] 처리 실패 (${withdrawal.id}):`, itemErr.message);
-        failCount++;
+      } catch (entityErr) {
+        console.error(`[daily-withdrawal-approval] ${entityName} 처리 실패:`, entityErr.message);
+        results.push({ entity: entityName, count: items.length, totalAmount, error: entityErr.message });
       }
     }
 
     // 결과 요약 네이버웍스 메시지
-    if (successCount > 0 && botId && channelId) {
+    const successResults = results.filter(r => !r.error);
+    if (successResults.length > 0 && botId && channelId) {
       const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-      const howlabResults = results.filter(r => r.entity === 'howlab');
-      const howpapaResults = results.filter(r => r.entity === 'howpapa');
-
-      const formatList = (list) => list.map((r, i) =>
-        `${i + 1}. ${r.name} - ${(r.amount || 0).toLocaleString()}원`
+      const detailLines = successResults.map(r =>
+        `[${r.entity}] ${r.count}건 / ${r.totalAmount.toLocaleString()}원${r.fileUploaded ? ' (엑셀첨부)' : ''}`
       ).join('\n');
 
-      let detailLines = '';
-      if (howlabResults.length > 0) {
-        const howlabTotal = howlabResults.reduce((s, r) => s + (r.amount || 0), 0);
-        detailLines += `\n[하우랩] ${howlabResults.length}건 / ${howlabTotal.toLocaleString()}원\n${formatList(howlabResults)}`;
-      }
-      if (howpapaResults.length > 0) {
-        const howpapaTotal = howpapaResults.reduce((s, r) => s + (r.amount || 0), 0);
-        detailLines += `\n[하우파파] ${howpapaResults.length}건 / ${howpapaTotal.toLocaleString()}원\n${formatList(howpapaResults)}`;
-      }
-
-      const summaryMessage = `📋 [결재상신완료] ${koreanDate}\n\n${successCount}건 / 총 ${totalAmount.toLocaleString()}원 상신됨${failCount > 0 ? `\n(실패: ${failCount}건)` : ''}${detailLines}`;
+      const totalAll = successResults.reduce((s, r) => s + r.totalAmount, 0);
+      const countAll = successResults.reduce((s, r) => s + r.count, 0);
+      const summaryMessage = `[결재상신완료] ${koreanDate}\n\n총 ${countAll}건 / ${totalAll.toLocaleString()}원\n${successResults.length}건 결재문서 상신\n\n${detailLines}`;
 
       try {
         await sendChannelMessage(botToken, botId, channelId, summaryMessage);
@@ -326,15 +467,17 @@ exports.handler = async (event) => {
       }
     }
 
-    console.log(`[daily-withdrawal-approval] 완료 - 성공: ${successCount}, 실패: ${failCount}`);
+    const totalSuccess = successResults.reduce((s, r) => s + r.count, 0);
+    const totalFailed = results.filter(r => r.error).reduce((s, r) => s + r.count, 0);
+    console.log(`[daily-withdrawal-approval] 완료 - 성공: ${totalSuccess}건 (${successResults.length}문서), 실패: ${totalFailed}건`);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        count: successCount,
-        failed: failCount,
-        totalAmount,
+        count: totalSuccess,
+        failed: totalFailed,
+        documents: results.length,
         results
       })
     };
