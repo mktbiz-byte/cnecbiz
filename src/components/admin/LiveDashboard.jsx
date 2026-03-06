@@ -183,7 +183,8 @@ export default function LiveDashboard() {
         const prevFirst = prevFeedRef.current[0]?.time
         const newItems = newFeed.filter(f => f.time > prevFirst)
 
-        if (newItems.length > 0 && soundOn) playSound()
+        const soundItems = newItems.filter(f => f.type !== 'application')
+        if (soundItems.length > 0 && soundOn) playSound()
 
         // 중요 이벤트 (가입, 결제)만 팝업
         const importantNew = newItems.filter(f => f.important || f.type === 'company_signup' || f.type === 'payment')
