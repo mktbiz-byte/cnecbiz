@@ -74,9 +74,10 @@ async function translateText(text, targetLanguage = 'ja') {
 // Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
   const url = process.env.SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL;
-  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    console.error('[LINE] Japan Supabase env missing. URL:', !!url, 'KEY:', !!key);
+    console.error('[LINE] Japan Supabase env missing. SUPABASE_JAPAN_URL:', !!url, 'KEY:', !!key);
+    throw new Error('Japan Supabase not configured');
   }
   return createClient(url, key);
 };
@@ -85,7 +86,8 @@ const getBizSupabase = () => {
   const url = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    console.error('[LINE] BIZ Supabase env missing. URL:', !!url, 'KEY:', !!key);
+    console.error('[LINE] Biz Supabase env missing');
+    throw new Error('Biz Supabase not configured');
   }
   return createClient(url, key);
 };

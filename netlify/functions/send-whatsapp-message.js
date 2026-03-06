@@ -20,9 +20,6 @@ const { createClient } = require('@supabase/supabase-js');
 const getSupabase = () => {
   const url = process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_BIZ_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    console.error('[WhatsApp] BIZ Supabase env missing. URL:', !!url, 'KEY:', !!key);
-  }
   return createClient(url, key);
 };
 
@@ -170,15 +167,18 @@ exports.handler = async (event) => {
     // DB에 메시지 저장
     const supabase = getSupabase();
     const { error: dbError } = await supabase
-      .from('whatsapp_messages')
+      .from('whatsapp_logs')
       .insert({
         phone_number: formattedNumber,
-        direction: 'outgoing',
-        content: message.trim(),
+        template_name: 'direct_message',
+        template_sid: null,
+        variables: { message: message.trim() },
         twilio_sid: result.sid,
-        status: result.status,
+        status: result.status || 'queued',
         creator_id: creatorId || null,
-        creator_name: creatorName || null
+        creator_name: creatorName || null,
+        sent_by: null,
+        batch_id: null
       });
 
     if (dbError) {
