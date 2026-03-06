@@ -72,22 +72,7 @@ export default function AdminManagement() {
         .from('admin_users')
         .insert({
           email: newAdmin.email,
-          role: newAdmin.role,
-          permissions: newAdmin.role === 'super_admin' 
-            ? {
-                manage_companies: true,
-                manage_campaigns: true,
-                manage_payments: true,
-                manage_creators: true,
-                manage_admins: true
-              }
-            : {
-                manage_companies: true,
-                manage_campaigns: true,
-                manage_payments: true,
-                manage_creators: true,
-                manage_admins: false
-              }
+          role: newAdmin.role
         })
 
       if (error) throw error
