@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  DollarSign, CreditCard, AlertCircle, CheckCircle, 
-  Clock, XCircle, Wallet, Sparkles 
+import {
+  DollarSign, CreditCard, AlertCircle, CheckCircle,
+  Clock, XCircle, Wallet, Sparkles, Loader2, Ban
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
@@ -23,6 +23,8 @@ export default function WithdrawalRequest() {
   const [withdrawalHistory, setWithdrawalHistory] = useState([])
   const [bonusHistory, setBonusHistory] = useState([])
   const [loading, setLoading] = useState(false)
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [submitThrottled, setSubmitThrottled] = useState(false)
 
   // 출금 신청 폼
   const [formData, setFormData] = useState({
@@ -178,94 +180,50 @@ export default function WithdrawalRequest() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
+    if (submitThrottled) return
 
     setLoading(true)
     setSuccessMessage('')
 
     try {
-      // 실시간 잔액 재확인 (race condition 방지)
-      const { data: latestPoints } = await supabaseBiz
-        .from('creator_points')
-        .select('amount')
-        .eq('creator_id', creator.id)
-
-      const { data: latestPending } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .select('requested_points')
-        .eq('creator_id', creator.id)
-        .in('status', ['pending', 'approved', 'processing'])
-
-      const latestBalance = (latestPoints || []).reduce((sum, p) => sum + (p.amount || 0), 0)
-      const latestPendingTotal = (latestPending || []).reduce((sum, w) => sum + (w.requested_points || 0), 0)
-      const latestAvailable = latestBalance - latestPendingTotal
-
-      if (parseInt(formData.requested_points) > latestAvailable) {
-        alert(`출금 가능 포인트(${latestAvailable.toLocaleString()}P)를 초과합니다.`)
-        await fetchActualBalance(creator.id)
-        setLoading(false)
-        return
-      }
-
-      // 환율 계산 (간단한 예시, 실제로는 API에서 가져와야 함)
-      const exchangeRates = {
-        korea: { rate: 1, currency: 'KRW' },
-        japan: { rate: 9, currency: 'JPY' },
-        us: { rate: 0.00075, currency: 'USD' }
-      }
-
-      const { rate, currency } = exchangeRates[region]
-      const requestedAmount = formData.requested_points * rate
-
-      // 한국의 경우 세금 계산 (3.3%)
-      let taxAmount = 0
-      let finalAmount = requestedAmount
-
+      // 한국 크리에이터 주민번호 처리
+      let encryptedResidentNumber = null
       if (region === 'korea') {
-        taxAmount = requestedAmount * 0.033
-        finalAmount = requestedAmount - taxAmount
-      }
-
-      const withdrawalData = {
-        creator_id: creator.id,
-        creator_name: creator.channel_name || creator.name || 'Unknown',
-        region,
-        requested_points: parseInt(formData.requested_points),
-        requested_amount: requestedAmount,
-        currency,
-        tax_amount: taxAmount,
-        final_amount: finalAmount,
-        status: 'pending'
-      }
-
-      // 지역별 필드 추가
-      if (region === 'korea') {
-        // 주민번호 유효성 검사
         if (!validateResidentNumber(formData.resident_registration_number)) {
           alert('유효하지 않은 주민등록번호입니다.')
           setLoading(false)
           return
         }
-
-        // 주민번호 암호화
-        const encryptedResidentNumber = await encryptResidentNumber(formData.resident_registration_number)
-
-        withdrawalData.bank_name = formData.bank_name
-        withdrawalData.account_number = formData.account_number
-        withdrawalData.account_holder = formData.account_holder
-        withdrawalData.resident_registration_number = encryptedResidentNumber
-      } else {
-        withdrawalData.paypal_email = formData.paypal_email
+        encryptedResidentNumber = await encryptResidentNumber(formData.resident_registration_number)
       }
 
-      const { error } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .insert([withdrawalData])
+      // 서버사이드 API 호출 (5단계 안전장치 적용)
+      const response = await fetch('/.netlify/functions/withdrawal-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idempotency_key: idempotencyKey,
+          creator_id: creator.id,
+          creator_name: creator.channel_name || creator.name || 'Unknown',
+          requested_points: parseInt(formData.requested_points),
+          region,
+          bank_name: region === 'korea' ? formData.bank_name : null,
+          account_number: region === 'korea' ? formData.account_number : null, // TEXT - 앞자리 0 보존
+          account_holder: region === 'korea' ? formData.account_holder : null,
+          resident_registration_number: region === 'korea' ? encryptedResidentNumber : null,
+          paypal_email: region !== 'korea' ? formData.paypal_email : null
+        })
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      setSuccessMessage('출금 신청이 완료되었습니다. 관리자 승인 후 처리됩니다.')
+      if (!result.success) {
+        throw new Error(result.error || '출금 신청에 실패했습니다.')
+      }
+
+      setSuccessMessage(result.message || '출금 신청이 완료되었습니다. 관리자 승인 후 처리됩니다.')
       setFormData({
         requested_points: '',
         bank_name: '',
@@ -275,14 +233,46 @@ export default function WithdrawalRequest() {
         paypal_email: ''
       })
 
+      // 5초 쓰로틀링
+      setSubmitThrottled(true)
+      setTimeout(() => setSubmitThrottled(false), 5000)
+
       // 잔액 및 내역 갱신
       await fetchActualBalance(creator.id)
       fetchWithdrawalHistory(creator.id)
     } catch (error) {
       console.error('출금 신청 오류:', error)
-      alert('출금 신청 중 오류가 발생했습니다.')
+      alert(error.message || '출금 신청 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCancelWithdrawal = async (withdrawalId) => {
+    if (!confirm('출금 신청을 취소하시겠습니까?')) return
+
+    try {
+      const response = await fetch('/.netlify/functions/withdrawal-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawal_id: withdrawalId,
+          actor: creator.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      alert('출금 신청이 취소되었습니다.')
+      fetchWithdrawalHistory(creator.id)
+      await fetchActualBalance(creator.id)
+    } catch (error) {
+      console.error('출금 취소 오류:', error)
+      alert(error.message || '출금 취소 중 오류가 발생했습니다.')
     }
   }
 
@@ -292,7 +282,8 @@ export default function WithdrawalRequest() {
       approved: { color: 'bg-blue-100 text-blue-700', icon: CheckCircle, label: '승인됨' },
       processing: { color: 'bg-purple-100 text-purple-700', icon: CreditCard, label: '처리중' },
       completed: { color: 'bg-green-100 text-green-700', icon: CheckCircle, label: '완료' },
-      rejected: { color: 'bg-red-100 text-red-700', icon: XCircle, label: '거절' }
+      rejected: { color: 'bg-red-100 text-red-700', icon: XCircle, label: '거절' },
+      cancelled: { color: 'bg-gray-100 text-gray-600', icon: Ban, label: '취소됨' }
     }
 
     const badge = badges[status] || badges.pending
@@ -301,6 +292,23 @@ export default function WithdrawalRequest() {
     return (
       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         <Icon className="w-3 h-3" />
+        {badge.label}
+      </span>
+    )
+  }
+
+  const getApprovalBadge = (approvalStatus) => {
+    const badges = {
+      NONE: { color: 'bg-gray-50 text-gray-500', label: '미상신' },
+      PENDING: { color: 'bg-amber-50 text-amber-700', label: '결재대기' },
+      APPROVED: { color: 'bg-green-50 text-green-700', label: '결재승인' },
+      REJECTED: { color: 'bg-red-50 text-red-700', label: '결재반려' }
+    }
+    const badge = badges[approvalStatus]
+    if (!badge) return null
+
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badge.color}`}>
         {badge.label}
       </span>
     )
@@ -482,8 +490,13 @@ export default function WithdrawalRequest() {
                 </>
               )}
 
-              <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
-                {loading ? '처리 중...' : '출금 신청'}
+              <Button type="submit" className="w-full h-12 text-base" disabled={loading || submitThrottled}>
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    처리 중...
+                  </span>
+                ) : submitThrottled ? '잠시 후 다시 시도해주세요...' : '출금 신청'}
               </Button>
             </form>
           </CardContent>
@@ -553,11 +566,12 @@ export default function WithdrawalRequest() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
                           <p className="font-bold text-lg">
                             {withdrawal.requested_points.toLocaleString()}P
                           </p>
                           {getStatusBadge(withdrawal.status)}
+                          {withdrawal.approval_status && withdrawal.approval_status !== 'NONE' && getApprovalBadge(withdrawal.approval_status)}
                         </div>
                         <p className="text-sm text-gray-600">
                           신청일: {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
@@ -583,27 +597,38 @@ export default function WithdrawalRequest() {
                         )}
                       </div>
                       
-                      {withdrawal.status === 'rejected' && (
-                        <Button
-                          onClick={() => {
-                            // 거절된 신청의 정보를 폼에 채워넣기
-                            setFormData({
-                              requested_points: String(withdrawal.requested_points),
-                              bank_name: withdrawal.bank_name || '',
-                              account_number: withdrawal.account_number || '',
-                              account_holder: withdrawal.account_holder || '',
-                              resident_registration_number: '',
-                              paypal_email: withdrawal.paypal_email || ''
-                            })
-                            // 폼으로 스크롤
-                            window.scrollTo({ top: 0, behavior: 'smooth' })
-                            setSuccessMessage('')
-                          }}
-                          className="ml-4 bg-blue-600 hover:bg-blue-700"
-                        >
-                          재신청하기
-                        </Button>
-                      )}
+                      <div className="flex flex-col gap-2 ml-4">
+                        {withdrawal.status === 'pending' && withdrawal.approval_status !== 'PENDING' && (
+                          <Button
+                            onClick={() => handleCancelWithdrawal(withdrawal.id)}
+                            variant="outline"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            size="sm"
+                          >
+                            취소
+                          </Button>
+                        )}
+                        {withdrawal.status === 'rejected' && (
+                          <Button
+                            onClick={() => {
+                              setFormData({
+                                requested_points: String(withdrawal.requested_points),
+                                bank_name: withdrawal.bank_name || '',
+                                account_number: withdrawal.account_number || '',
+                                account_holder: withdrawal.account_holder || '',
+                                resident_registration_number: '',
+                                paypal_email: withdrawal.paypal_email || ''
+                              })
+                              window.scrollTo({ top: 0, behavior: 'smooth' })
+                              setSuccessMessage('')
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            size="sm"
+                          >
+                            재신청하기
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
