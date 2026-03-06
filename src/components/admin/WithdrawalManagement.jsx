@@ -150,31 +150,19 @@ export default function WithdrawalManagement() {
           if (!koreaError && koreaData && koreaData.length > 0) {
             console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
 
-            // user_profiles 별도 조회 (user_id 또는 id로 조회 시도)
+            // user_profiles 별도 조회 (Korea DB에는 user_id 컬럼 없음, id = auth user id)
             const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
             let userProfiles = {}
 
             if (userIds.length > 0) {
-              // 먼저 id로 조회 시도
-              let { data: profiles, error: profileError } = await supabaseKorea
+              const { data: profiles } = await supabaseKorea
                 .from('user_profiles')
-                .select('id, user_id, name, email, channel_name')
+                .select('id, name, email, channel_name')
                 .in('id', userIds)
-
-              // id로 조회 실패시 user_id로 재시도
-              if (profileError || !profiles || profiles.length === 0) {
-                const { data: profiles2 } = await supabaseKorea
-                  .from('user_profiles')
-                  .select('id, user_id, name, email, channel_name')
-                  .in('user_id', userIds)
-                profiles = profiles2
-              }
 
               if (profiles) {
                 profiles.forEach(p => {
-                  // id와 user_id 둘 다로 매핑
                   if (p.id) userProfiles[p.id] = p
-                  if (p.user_id) userProfiles[p.user_id] = p
                 })
               }
             }
@@ -542,15 +530,16 @@ export default function WithdrawalManagement() {
           const nonBizIds = nonBizWithdrawals.map(w => w.id)
           const { data: entityMaps } = await supabaseBiz
             .from('withdrawal_entity_map')
-            .select('withdrawal_id, paying_entity')
+            .select('withdrawal_id, paying_entity, approval_status')
             .in('withdrawal_id', nonBizIds)
 
           if (entityMaps && entityMaps.length > 0) {
             const entityMap = {}
-            entityMaps.forEach(m => { entityMap[m.withdrawal_id] = m.paying_entity })
+            entityMaps.forEach(m => { entityMap[m.withdrawal_id] = m })
             uniqueWithdrawals.forEach(w => {
               if (entityMap[w.id]) {
-                w.paying_entity = entityMap[w.id]
+                w.paying_entity = entityMap[w.id].paying_entity
+                w.approval_status = entityMap[w.id].approval_status || 'NONE'
               }
             })
           }
@@ -745,15 +734,6 @@ export default function WithdrawalManagement() {
           creatorPhone = profileData?.phone
           creatorEmail = profileData?.email
 
-          // id로 못 찾으면 user_id로 재시도
-          if (!creatorPhone && !creatorEmail) {
-            const { data: profileData2 } = await supabaseKorea
-              .from('user_profiles')
-              .select('phone, email')
-              .eq('user_id', withdrawal.user_id)
-              .maybeSingle()
-            creatorPhone = profileData2?.phone
-            creatorEmail = profileData2?.email
           }
         }
 
@@ -957,15 +937,6 @@ export default function WithdrawalManagement() {
                 .eq('id', withdrawal.user_id)
                 .maybeSingle()
               creatorEmail = profileData?.email
-
-              if (!creatorEmail) {
-                const { data: profileData2 } = await supabaseKorea
-                  .from('user_profiles')
-                  .select('email')
-                  .eq('user_id', withdrawal.user_id)
-                  .maybeSingle()
-                creatorEmail = profileData2?.email
-              }
             }
 
             if (creatorEmail) {
@@ -1122,16 +1093,6 @@ export default function WithdrawalManagement() {
 
               creatorPhone = profileData?.phone
               creatorEmail = profileData?.email
-
-              if (!creatorPhone && !creatorEmail) {
-                const { data: profileData2 } = await supabaseKorea
-                  .from('user_profiles')
-                  .select('phone, email')
-                  .eq('user_id', withdrawal.user_id)
-                  .maybeSingle()
-                creatorPhone = profileData2?.phone
-                creatorEmail = profileData2?.email
-              }
             }
 
             // 출금 완료 알림톡 발송 (025100001020)
@@ -1331,16 +1292,6 @@ export default function WithdrawalManagement() {
               .maybeSingle()
 
             creatorEmail = profileData?.email
-
-            // id로 못 찾으면 user_id로 재시도
-            if (!creatorEmail) {
-              const { data: profileData2 } = await supabaseKorea
-                .from('user_profiles')
-                .select('email')
-                .eq('user_id', selectedWithdrawal.user_id)
-                .maybeSingle()
-              creatorEmail = profileData2?.email
-            }
           }
 
           if (creatorEmail) {
@@ -1513,16 +1464,6 @@ export default function WithdrawalManagement() {
               .maybeSingle()
 
             creatorPhone = profileData?.phone
-
-            // id로 못 찾으면 user_id로 재시도
-            if (!creatorPhone) {
-              const { data: profileData2 } = await supabaseKorea
-                .from('user_profiles')
-                .select('phone')
-                .eq('user_id', selectedWithdrawal.user_id)
-                .maybeSingle()
-              creatorPhone = profileData2?.phone
-            }
           }
 
           if (creatorPhone) {

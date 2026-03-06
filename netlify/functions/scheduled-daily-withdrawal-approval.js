@@ -11,9 +11,14 @@ const XLSX = require('xlsx');
  * - 자동: 매주 월~금 KST 10:00
  */
 
-const supabase = createClient(
+const supabaseBiz = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const supabaseKorea = createClient(
+  process.env.VITE_SUPABASE_KOREA_URL,
+  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
 );
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -291,20 +296,59 @@ exports.handler = async (event) => {
       }
     }
 
-    // 분류 완료 + 승인됨 + approval_status=NONE 건 조회
-    const { data: withdrawals, error } = await supabase
-      .from('creator_withdrawal_requests')
+    // 1. BIZ DB의 withdrawal_entity_map에서 분류된 건 조회
+    const { data: entityMaps, error: mapError } = await supabaseBiz
+      .from('withdrawal_entity_map')
+      .select('withdrawal_id, source_db, paying_entity')
+      .eq('source_db', 'korea');
+
+    if (mapError) throw mapError;
+
+    if (!entityMaps || entityMaps.length === 0) {
+      console.log('[daily-withdrawal-approval] 분류된 출금 건 없음');
+      return { statusCode: 200, body: JSON.stringify({ message: '분류된 출금 건 없음', count: 0 }) };
+    }
+
+    // 2. Korea DB에서 승인된 출금 건 조회
+    const mappedIds = entityMaps.map(m => m.withdrawal_id);
+    const { data: koreaWithdrawals, error: koreaError } = await supabaseKorea
+      .from('withdrawals')
       .select('*')
       .eq('status', 'approved')
-      .eq('approval_status', 'NONE')
-      .eq('region', 'korea')
-      .not('paying_entity', 'is', null)
+      .in('id', mappedIds)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (koreaError) throw koreaError;
 
-    if (!withdrawals || withdrawals.length === 0) {
-      console.log('[daily-withdrawal-approval] 처리할 출금 신청 없음');
+    // 3. 이미 결재 상신된 건 제외 (BIZ DB audit_logs 확인)
+    const { data: submittedLogs } = await supabaseBiz
+      .from('withdrawal_audit_logs')
+      .select('withdrawal_id')
+      .eq('action', 'SUBMITTED')
+      .in('withdrawal_id', mappedIds);
+
+    const submittedIds = new Set((submittedLogs || []).map(l => l.withdrawal_id));
+
+    // 4. entity map과 조인하여 paying_entity 추가 + 이미 상신된 건 제외
+    const entityMap = {};
+    entityMaps.forEach(m => { entityMap[m.withdrawal_id] = m.paying_entity; });
+
+    const withdrawals = (koreaWithdrawals || [])
+      .filter(w => !submittedIds.has(w.id))
+      .map(w => ({
+        ...w,
+        paying_entity: entityMap[w.id],
+        // Korea DB 컬럼명을 결재 함수 기대 형식으로 매핑
+        requested_amount: w.amount,
+        account_number: w.bank_account_number,
+        account_holder: w.bank_account_holder,
+        creator_name: w.bank_account_holder,
+        resident_registration_number: w.resident_number_encrypted,
+        region: 'korea'
+      }));
+
+    if (withdrawals.length === 0) {
+      console.log('[daily-withdrawal-approval] 처리할 출금 신청 없음 (이미 상신됨 또는 미승인)');
       return { statusCode: 200, body: JSON.stringify({ message: '처리할 출금 신청 없음', count: 0 }) };
     }
 
@@ -402,24 +446,22 @@ exports.handler = async (event) => {
           }
         }
 
-        // 3. DB 업데이트 (해당 입금처의 모든 건)
+        // 3. DB 업데이트 (해당 입금처의 모든 건 - BIZ withdrawal_entity_map)
         const itemIds = items.map(w => w.id);
-        const updateData = {
-          approval_status: 'PENDING',
-          approval_requested_at: new Date().toISOString()
-        };
-        if (approvalDocId) {
-          updateData.approval_doc_id = approvalDocId;
-        }
 
-        await supabase
-          .from('creator_withdrawal_requests')
-          .update(updateData)
-          .in('id', itemIds);
+        await supabaseBiz
+          .from('withdrawal_entity_map')
+          .update({
+            approval_status: 'PENDING',
+            approval_requested_at: new Date().toISOString(),
+            ...(approvalDocId ? { approval_doc_id: approvalDocId } : {})
+          })
+          .in('withdrawal_id', itemIds)
+          .eq('source_db', 'korea');
 
         // 4. 감사 로그
         for (const w of items) {
-          await supabase.from('withdrawal_audit_logs').insert({
+          await supabaseBiz.from('withdrawal_audit_logs').insert({
             withdrawal_id: w.id,
             action: 'SUBMITTED',
             actor: 'system',
