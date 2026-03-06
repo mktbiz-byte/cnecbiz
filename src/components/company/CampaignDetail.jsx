@@ -11566,11 +11566,14 @@ Questions? Contact us.
                                     // video_submissions의 클린본 + applications 테이블의 클린본 합산
                                     const submissionCleanVideos = creatorSubmissions.filter(s => s.clean_video_url)
                                     const hasParticipantClean = participant.clean_video_url && !submissionCleanVideos.some(s => s.clean_video_url === participant.clean_video_url)
-                                    // step1/step2 클린본 (올영 캠페인용)
-                                    const stepCleanVideos = [
+                                    // step1/step2 클린본 (올영 캠페인용) — video_submissions에 해당 슬롯의 클린본이 이미 있으면 제외
+                                    const stepCleanVideos = isOliveyoung ? [
                                       participant.step1_clean_video_url && { url: participant.step1_clean_video_url, label: 'Step 1', stepNum: 1 },
                                       participant.step2_clean_video_url && { url: participant.step2_clean_video_url, label: 'Step 2', stepNum: 2 }
-                                    ].filter(Boolean).filter(s => !submissionCleanVideos.some(sv => sv.clean_video_url === s.url))
+                                    ].filter(Boolean).filter(s =>
+                                      !submissionCleanVideos.some(sv => sv.clean_video_url === s.url) &&
+                                      !submissionCleanVideos.some(sv => sv.video_number === s.stepNum)
+                                    ) : []
                                     const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0) + stepCleanVideos.length
 
                                     return (
@@ -11590,6 +11593,7 @@ Questions? Contact us.
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium text-gray-800">
                                                       {submission.week_number ? `${submission.week_number}주차` :
+                                                       isOliveyoung && submission.video_number ? `Step ${submission.video_number}` :
                                                        submission.video_number ? `영상 ${submission.video_number}` :
                                                        `영상 ${idx + 1}`}
                                                     </span>
@@ -11637,7 +11641,6 @@ Questions? Contact us.
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium text-gray-800">클린본</span>
-                                                    <Badge variant="outline" className="text-xs bg-emerald-100">SNS 업로드용</Badge>
                                                   </div>
                                                 </div>
                                                 <Button
@@ -11675,7 +11678,6 @@ Questions? Contact us.
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium text-gray-800">{stepClean.label} 클린본</span>
-                                                    <Badge variant="outline" className="text-xs bg-emerald-100">SNS 업로드용</Badge>
                                                   </div>
                                                 </div>
                                                 <Button
