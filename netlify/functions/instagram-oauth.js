@@ -57,7 +57,7 @@ exports.handler = async (event) => {
       // 연결된 Facebook 페이지 + Instagram 계정
       const pagesRes = await fetch(`${FB_API}/me/accounts?fields=id,name,instagram_business_account{id,username,followers_count,media_count,profile_picture_url}&access_token=${token}`)
       const pagesData = await pagesRes.json()
-      const pages = pagesData.data || []
+      const pages = pagesData.error ? [] : (pagesData.data || [])
       const igAccounts = pages
         .filter(p => p.instagram_business_account)
         .map(p => ({
