@@ -721,6 +721,11 @@ export default function CampaignDetail() {
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
 
   // Admin SNS/Ad code edit state
+  // 크리에이터 강제 취소 상태
+  const [forceCancelTarget, setForceCancelTarget] = useState(null) // { id, name }
+  const [forceCancelReason, setForceCancelReason] = useState('')
+  const [forceCancelling, setForceCancelling] = useState(false)
+
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
   const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
   const [deadlineEditData, setDeadlineEditData] = useState({})
@@ -1129,7 +1134,7 @@ export default function CampaignDetail() {
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
-        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
+        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -6762,6 +6767,13 @@ Questions? Contact us.
           bgClass: 'bg-gradient-to-r from-red-500 to-red-600',
           textClass: 'text-white',
           dotClass: 'bg-red-300'
+        },
+        force_cancelled: {
+          label: '강제 취소',
+          icon: XCircle,
+          bgClass: 'bg-gradient-to-r from-red-600 to-red-700',
+          textClass: 'text-white',
+          dotClass: 'bg-red-400'
         }
       }
       return configs[status] || configs.selected
@@ -7643,6 +7655,21 @@ Questions? Contact us.
                           </div>
                         )}
 
+                        {/* 크리에이터 강제 취소 (통합 관리자만) */}
+                        {isSuperAdmin && !['completed', 'rejected', 'force_cancelled'].includes(participant.status) && (
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setForceCancelTarget({ id: participant.id, name: creatorName, email: participant.email })}
+                              className="text-red-600 border-red-300 hover:bg-red-50 text-xs px-3 py-1 h-auto"
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />
+                              강제 취소
+                            </Button>
+                          </div>
+                        )}
+
                       </div>
                     </div>
                   </div>
@@ -7677,6 +7704,49 @@ Questions? Contact us.
     } catch (error) {
       console.error('Error updating creator status:', error)
       alert('상태 업데이트에 실패했습니다.')
+    }
+  }
+
+  // 크리에이터 강제 취소 함수
+  const handleForceCancel = async () => {
+    if (!forceCancelTarget) return
+    if (!forceCancelReason.trim()) {
+      alert('취소 사유를 입력해주세요.')
+      return
+    }
+    if (!confirm(`⚠️ "${forceCancelTarget.name}"를 강제 취소하시겠습니까?\n\n사유: ${forceCancelReason}`)) return
+
+    setForceCancelling(true)
+    try {
+      const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+
+      const res = await fetch('/.netlify/functions/force-cancel-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: forceCancelTarget.id,
+          campaignId: id,
+          region,
+          reason: forceCancelReason.trim(),
+          cancelledByEmail: currentUser?.email || null,
+          campaignTitle: campaign?.title || campaign?.campaign_name || null,
+          creatorName: forceCancelTarget.name,
+          creatorEmail: forceCancelTarget.email || null,
+          companyName: campaign?.company_name || null
+        })
+      })
+      const result = await res.json()
+      if (!result.success) throw new Error(result.error)
+
+      alert('크리에이터가 강제 취소되었습니다.')
+      setForceCancelTarget(null)
+      setForceCancelReason('')
+      fetchParticipants()
+    } catch (error) {
+      console.error('Force cancel error:', error)
+      alert('강제 취소 실패: ' + error.message)
+    } finally {
+      setForceCancelling(false)
     }
   }
 
@@ -13972,6 +14042,47 @@ Questions? Contact us.
                     AI로 수정하기
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 크리에이터 강제 취소 모달 */}
+      {forceCancelTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-red-800 mb-1">크리에이터 강제 취소</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              <span className="font-semibold">{forceCancelTarget.name}</span>님을 이 캠페인에서 강제 취소합니다.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">취소 사유 *</label>
+              <textarea
+                value={forceCancelReason}
+                onChange={(e) => setForceCancelReason(e.target.value)}
+                placeholder="예: 영상 마감일 미준수, 연락 두절 등"
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => { setForceCancelTarget(null); setForceCancelReason('') }}
+                className="flex-1"
+                disabled={forceCancelling}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleForceCancel}
+                disabled={forceCancelling || !forceCancelReason.trim()}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {forceCancelling ? (
+                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> 처리중...</>
+                ) : '강제 취소 확인'}
               </Button>
             </div>
           </div>
