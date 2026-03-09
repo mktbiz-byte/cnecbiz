@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight, FileText, Download, Search, AlertTriangle, DollarSign, Package } from 'lucide-react'
+import { Globe, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Mail, ChevronLeft, ChevronRight, FileText, Download, Search, AlertTriangle, DollarSign, Package } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
@@ -77,7 +77,7 @@ const VideoCard = ({ video, size = 'normal', autoPlay = true }) => {
   return (
     <div
       ref={cardRef}
-      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 shadow-lg cursor-pointer`}
+      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-[#121218] shadow-lg cursor-pointer`}
       onMouseEnter={() => !autoPlay && setIsActive(true)}
       onMouseLeave={() => !autoPlay && setIsActive(false)}
       onClick={() => setIsActive(true)}
@@ -142,7 +142,7 @@ const PortfolioVideoCard = ({ short }) => {
   return (
     <div
       ref={cardRef}
-      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 group"
+      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[#121218] group"
     >
       {/* 썸네일 (iframe 로드 전 또는 뷰포트 밖일 때) */}
       <img
@@ -466,7 +466,7 @@ export default function LandingPage() {
         setFaqs([
           { question: '크리에이터는 어떻게 선발되나요?', answer: '팔로워 수, 콘텐츠 퀄리티, 참여율 등 엄격한 기준으로 선발됩니다. 모든 크리에이터는 실제 영향력을 검증받은 전문가들입니다.' },
           { question: '영상 제작 기간은 얼마나 걸리나요?', answer: '평균 7-14일 내 완성됩니다. 긴급 프로젝트는 별도 협의를 통해 빠른 진행이 가능합니다.' },
-          { question: '수정 요청은 몇 번까지 가능한가요?', answer: '기본 2회의 수정 기회가 제공되며, 패키지에 따라 추가 수정이 포함됩니다.' },
+          { question: '수정 요청은 몇 번까지 가능한가요?', answer: '기본 1회 무료 수정이 제공됩니다. 가이드 범위 내에서 수정 가능하며, 추가 수정이나 기획 변경 시 별도 비용이 발생할 수 있습니다.' },
           { question: '해외 크리에이터도 섭외 가능한가요?', answer: '네, 일본/미국/대만 현지 크리에이터 네트워크를 보유하고 있어 글로벌 캠페인 진행이 가능합니다.' },
         ])
       }
@@ -521,22 +521,22 @@ export default function LandingPage() {
   // 고객 성공 스토리 데이터
   const testimonials = [
     {
-      name: '김민*',
-      role: '뷰티 브랜드 마케팅 팀장',
-      company: 'A사 화장품',
-      content: '처음으로 인플루언서 마케팅을 진행했는데, CNEC 덕분에 어려움 없이 성공적인 캠페인을 진행할 수 있었습니다. 특히 크리에이터 매칭 시스템이 정말 편리했어요.',
+      name: '김 팀장',
+      role: '마케팅 팀장',
+      company: 'MEDIHEAL',
+      content: '처음으로 숏폼 캠페인을 진행했는데, 크리에이터 매칭부터 영상 납품까지 플랫폼에서 한 번에 해결됐습니다. 대시보드에서 진행 상황을 바로 확인할 수 있어 편했어요.',
     },
     {
-      name: '이*호',
-      role: '스타트업 대표',
+      name: '이 대표',
+      role: '대표이사',
       company: 'B사 스킨케어',
-      content: '수출바우처를 활용해 일본 시장 진출을 준비했는데, 현지 크리에이터 섭외부터 콘텐츠 제작까지 원스톱으로 해결됐습니다. ROI가 기대 이상이었습니다.',
+      content: '수출바우처로 일본 시장 진출을 준비했는데, 현지 크리에이터 섭외부터 콘텐츠 제작까지 크넥 하나로 해결. ROI가 기대 이상이었습니다.',
     },
     {
-      name: '박서*',
-      role: '이커머스 운영자',
+      name: '박 매니저',
+      role: '이커머스 매니저',
       company: 'C사 헬스케어',
-      content: '올리브영 세일 기간에 맞춰 집중 캠페인을 진행했는데, 매출이 전월 대비 320% 상승했습니다. 타이밍과 크리에이터 선정이 정말 중요하다는 걸 깨달았어요.',
+      content: '올리브영 세일 기간 집중 캠페인으로 매출 전월 대비 320% 상승. 20만원부터 시작할 수 있어서 부담 없이 테스트했는데 결과가 좋았습니다.',
     }
   ]
 
@@ -631,7 +631,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* [섹션 1] Hero - 공감형 메인 카피 */}
+      {/* [섹션 1] Hero */}
       <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-24 bg-[#0A0A0F] overflow-hidden">
         {/* 배경 장식 */}
         <div className="absolute inset-0 pointer-events-none">
@@ -639,57 +639,115 @@ export default function LandingPage() {
           <div className="absolute bottom-10 right-[10%] w-96 h-96 bg-[rgba(192,132,252,0.04)] rounded-full blur-[120px]" />
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-4 sm:mb-6"
-              style={{ fontFamily: "'Outfit', sans-serif" }}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            {/* 좌측: 텍스트 */}
+            <div>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-4 sm:mb-6"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
+                K-BEAUTY GLOBAL SHORT-FORM PLATFORM
+              </motion.p>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4 sm:mb-5 leading-tight"
+              >
+                <span className="text-white">숏폼 마케팅,</span><br />
+                <span className="text-white">어디서부터 해야 할지 </span>
+                <span className="text-[#C084FC]">막막하셨죠?</span>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-4 sm:mb-5"
+              >
+                제품만 보내주세요. 나머지는 크넥이 다 합니다.
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-xl leading-relaxed"
+              >
+                가입하고 바로 캠페인을 개설하세요.<br />
+                크리에이터 매칭, 기획, 촬영, 편집까지. 한국·미국·일본 글로벌 숏폼 캠페인.
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <button
+                  onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
+                  className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                >
+                  {user ? '캠페인 현황보기' : '지금 시작하기'}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </motion.div>
+              {/* 사회적 증거 */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className="text-[#5A5A6E] text-xs sm:text-sm mt-4 sm:mt-5"
+              >
+                MEDIHEAL · SKINFOOD · CLIO · Dr.G 등 500+ 브랜드가 사용 중
+              </motion.p>
+            </div>
+
+            {/* 우측: 플랫폼 UI 스크린샷 */}
+            <motion.div
+              initial={{ opacity: 0, x: 40, rotateY: -5 }}
+              animate={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="hidden lg:block relative"
             >
-              THE EASIEST SHORT-FORM PLATFORM
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4 sm:mb-5 leading-tight sm:leading-tight lg:leading-tight"
-            >
-              <span className="text-white">숏폼 마케팅,</span><br />
-              <span className="text-white">어디서부터 해야 할지 </span>
-              <span className="text-[#C084FC]">막막하셨죠?</span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-4 sm:mb-5"
-            >
-              제품만 보내주세요. 나머지는 크넥이 다 합니다.
-            </motion.p>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed"
-            >
-              크리에이터 매칭, 기획, 촬영, 편집까지.<br />
-              K-뷰티 글로벌 숏폼 플랫폼, 크넥.
-            </motion.p>
+              <div className="relative">
+                {/* 메인 대시보드 스크린샷 */}
+                <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-[rgba(192,132,252,0.1)]">
+                  <img
+                    src="/dashboard-screenshot.webp"
+                    alt="크넥 대시보드"
+                    className="w-full"
+                  />
+                </div>
+                {/* 캠페인 생성 화면 (겹쳐서 보여주기) */}
+                <div className="absolute -bottom-6 -left-6 w-[60%] rounded-xl overflow-hidden border border-white/10 shadow-xl">
+                  <img
+                    src="/campaign-create-screenshot.webp"
+                    alt="캠페인 개설 화면"
+                    className="w-full"
+                  />
+                </div>
+                {/* 장식: 라이브 뱃지 */}
+                <div className="absolute -top-3 -right-3 px-3 py-1.5 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F] shadow-lg">
+                  ✦ 실제 플랫폼 화면
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 모바일에서는 스크린샷 1장만 */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="lg:hidden"
             >
-              <button
-                onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
-                className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
-              >
-                {user ? '캠페인 현황보기' : '지금 시작하기'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+                <img
+                  src="/dashboard-screenshot.webp"
+                  alt="크넥 대시보드"
+                  className="w-full"
+                />
+              </div>
             </motion.div>
           </div>
         </div>
@@ -723,7 +781,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 3] Problem - 페인포인트 자극 */}
+      {/* [섹션 3] As Seen In - 언론 보도 */}
+      <section className="py-6 sm:py-8 bg-[#0A0A0F] border-b border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-[#5A5A6E] text-xs tracking-wider uppercase mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            As Seen In
+          </p>
+          <div className="flex items-center justify-center gap-6 sm:gap-10 opacity-50">
+            <span className="text-[#A0A0B0] text-xs sm:text-sm font-medium">국민일보</span>
+            <span className="text-[#A0A0B0] text-xs sm:text-sm font-medium">아주경제</span>
+            <span className="text-[#A0A0B0] text-xs sm:text-sm font-medium">이넷뉴스</span>
+            <span className="text-[#A0A0B0] text-xs sm:text-sm font-medium">공감신문</span>
+            <span className="text-[#A0A0B0] text-xs sm:text-sm font-medium">문화뉴스</span>
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 4] Problem - 페인포인트 자극 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -782,7 +856,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 4] Solution - 크넥의 해결책 */}
+      {/* [섹션 5] Solution - 크넥의 해결책 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#121218]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -817,7 +891,7 @@ export default function LandingPage() {
                 num: '03',
                 title: '20만원부터 시작하는 숏폼 캠페인',
                 subtitle: '예산 부담 해결',
-                desc: '20만원부터 숏폼 캠페인을 시작할 수 있습니다. SNS 업로드 + 2차 활용 무료 + AI 가이드 무한 제공까지. 거품 없는 가격으로 최대의 효율을 냅니다.',
+                desc: '20만원부터 숏폼 캠페인을 시작할 수 있습니다. SNS 업로드 포함, 2차 활용 무료, AI 기반 촬영 가이드 제공까지. 거품 없는 가격으로 최대의 효율을 냅니다.',
                 icon: Target
               }
             ].map((item, idx) => (
@@ -850,7 +924,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 5] How it works - 3단계 프로세스 */}
+      {/* [섹션 6] How it works - 3단계 프로세스 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -866,24 +940,27 @@ export default function LandingPage() {
             {[
               {
                 step: '01',
-                title: '제품 정보 등록',
+                title: '캠페인 개설',
                 desc: '회원가입 후 바로 캠페인을 개설할 수 있습니다. 제품 정보와 원하는 방향만 간단히 등록하세요.',
-                badge: '가입 후 바로 · 3분',
-                icon: Package
+                badge: '가입 즉시 개설 가능',
+                icon: Package,
+                screenshot: '/campaign-create-screenshot.webp'
               },
               {
                 step: '02',
-                title: '크리에이터 매칭 & 기획',
-                desc: '크넥이 딱 맞는 국내/해외 크리에이터를 매칭하고 기획합니다.',
-                badge: '크넥이 합니다',
-                icon: Users
+                title: '크리에이터 매칭',
+                desc: 'AI가 브랜드에 맞는 국내/해외 크리에이터를 자동 매칭합니다. 대시보드에서 직접 선택도 가능합니다.',
+                badge: 'AI 자동 매칭',
+                icon: Users,
+                screenshot: '/dashboard-screenshot.webp'
               },
               {
                 step: '03',
-                title: '영상 납품',
-                desc: '촬영 완료 후 고퀄리티 숏폼 영상이 납품됩니다.',
-                badge: '대표님은 컨펌만',
-                icon: Video
+                title: '진행 확인 & 컨펌',
+                desc: '촬영 진행 상황을 대시보드에서 실시간 확인하고, 완성된 영상을 컨펌하세요.',
+                badge: '실시간 대시보드',
+                icon: Video,
+                screenshot: '/campaigns-list-screenshot.webp'
               }
             ].map((item, idx) => (
               <motion.div
@@ -909,6 +986,11 @@ export default function LandingPage() {
                   <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium">
                     {item.badge}
                   </span>
+                  {item.screenshot && (
+                    <div className="mt-4 rounded-lg overflow-hidden border border-white/[0.06]">
+                      <img src={item.screenshot} alt={item.title} className="w-full" loading="lazy" />
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -926,7 +1008,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 5.5] Pricing Section */}
+      {/* [섹션 7] Pricing */}
       <section id="pricing" className="py-12 sm:py-16 lg:py-24 bg-[#121218]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
@@ -934,7 +1016,7 @@ export default function LandingPage() {
               PRICING
             </p>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white"><span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>20만원</span>부터 시작하는 3가지 캠페인</h2>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
+            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">에이전시 평균 300만원, 크넥은 20만원. 2차 활용 무료, AI 가이드 무료.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
@@ -947,10 +1029,16 @@ export default function LandingPage() {
               </div>
               <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
               <button
-                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
-                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
+                onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
+                className="w-full py-3 bg-white/10 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-white/15 transition-all mb-2"
               >
-                가이드 보기
+                이 캠페인으로 시작하기
+              </button>
+              <button
+                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
+                className="w-full py-2 text-[#5A5A6E] text-xs hover:text-white transition-colors mb-4 sm:mb-6"
+              >
+                캠페인 가이드 상세 보기 →
               </button>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 <li className="flex items-center gap-2 text-[#A0A0B0]">
@@ -988,10 +1076,16 @@ export default function LandingPage() {
               </div>
               <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드</p>
               <button
-                onClick={() => window.open('/campaigns/intro/regular', '_blank')}
-                className="w-full py-2.5 sm:py-3 bg-[#C084FC] text-[#0A0A0F] rounded-xl font-medium text-sm sm:text-base hover:brightness-110 transition-all mb-4 sm:mb-6"
+                onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
+                className="w-full py-3 bg-[#C084FC] text-[#0A0A0F] rounded-xl font-semibold text-sm sm:text-base hover:brightness-110 transition-all mb-2"
               >
-                가이드 보기
+                이 캠페인으로 시작하기
+              </button>
+              <button
+                onClick={() => window.open('/campaigns/intro/regular', '_blank')}
+                className="w-full py-2 text-[#5A5A6E] text-xs hover:text-white transition-colors mb-4 sm:mb-6"
+              >
+                캠페인 가이드 상세 보기 →
               </button>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 <li className="flex items-center gap-2 text-[#A0A0B0]">
@@ -1026,10 +1120,16 @@ export default function LandingPage() {
               </div>
               <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">진정성 있는 리뷰와 장기적인 바이럴 효과를 위한 프리미엄 플랜</p>
               <button
-                onClick={() => window.open('/campaigns/intro/4week', '_blank')}
-                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
+                onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
+                className="w-full py-3 bg-white/10 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-white/15 transition-all mb-2"
               >
-                가이드 보기
+                이 캠페인으로 시작하기
+              </button>
+              <button
+                onClick={() => window.open('/campaigns/intro/4week', '_blank')}
+                className="w-full py-2 text-[#5A5A6E] text-xs hover:text-white transition-colors mb-4 sm:mb-6"
+              >
+                캠페인 가이드 상세 보기 →
               </button>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 <li className="flex items-center gap-2 text-[#A0A0B0]">
@@ -1054,7 +1154,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 6] Portfolio Section */}
+      {/* [섹션 8] Portfolio */}
       <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]" id="showcase">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header with tabs */}
@@ -1196,7 +1296,7 @@ export default function LandingPage() {
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-900 animate-pulse">
+                        <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[#121218] animate-pulse">
                           <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-900" />
                         </div>
                       ))}
@@ -1222,104 +1322,7 @@ export default function LandingPage() {
         ))}
       </section>
 
-      {/* Stats Section - 실시간 누적 수치 */}
-      <section className="py-10 sm:py-16 lg:py-20 bg-[#121218]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-[#5A5A6E] text-xs font-medium tracking-[0.15em] uppercase mb-6 sm:mb-8" style={{ fontFamily: "'Outfit', sans-serif" }}>CUMULATIVE RESULTS</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-0.5 sm:mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{pageContent.stats_campaigns}</div>
-              <div className="text-[#A0A0B0] text-xs sm:text-sm">완료된 캠페인</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-0.5 sm:mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{pageContent.stats_creators}</div>
-              <div className="text-[#A0A0B0] text-xs sm:text-sm">파트너 크리에이터</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-0.5 sm:mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{pageContent.stats_countries}</div>
-              <div className="text-[#A0A0B0] text-xs sm:text-sm">진출 국가</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-0.5 sm:mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{pageContent.stats_success}</div>
-              <div className="text-[#A0A0B0] text-xs sm:text-sm">누적 조회수</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Newsletters Section */}
-      {featuredNewsletters.length > 0 && (
-        <section className="py-10 sm:py-16 lg:py-20 bg-[#121218]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-6 sm:mb-8 lg:mb-10">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 text-white">
-                금주의 <span className="text-[#C084FC]">뉴스레터</span>
-              </h2>
-              <p className="text-[#A0A0B0] text-sm sm:text-base">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-              {featuredNewsletters.map((newsletter) => (
-                <div
-                  key={newsletter.id}
-                  onClick={() => navigate(`/newsletter/${newsletter.id}`)}
-                  className="bg-[#1A1A24] rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-white/[0.06]"
-                >
-                  {/* 썸네일 */}
-                  <div className="h-28 sm:h-36 lg:h-40 bg-[#24243A] relative overflow-hidden">
-                    {newsletter.thumbnail_url ? (
-                      <img
-                        src={newsletter.thumbnail_url}
-                        alt={newsletter.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-white/30" />
-                      </div>
-                    )}
-                    {newsletter.is_featured && (
-                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#C084FC] text-[#0A0A0F] text-[10px] sm:text-xs font-medium rounded-full flex items-center gap-0.5 sm:gap-1">
-                        <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> 추천
-                      </span>
-                    )}
-                  </div>
-
-                  {/* 콘텐츠 */}
-                  <div className="p-3 sm:p-4">
-                    <h3 className="font-bold text-white text-xs sm:text-sm lg:text-base mb-1 sm:mb-2 line-clamp-2 group-hover:text-[#C084FC] transition-colors">
-                      {newsletter.title}
-                    </h3>
-                    {newsletter.description && (
-                      <p className="text-[#5A5A6E] text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3 hidden sm:block">
-                        {newsletter.description}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-[#5A5A6E]">
-                      {newsletter.published_at && (
-                        <span>{new Date(newsletter.published_at).toLocaleDateString('ko-KR')}</span>
-                      )}
-                      <span className="text-[#C084FC] font-medium group-hover:underline">읽기 →</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-6 sm:mt-8">
-              <button
-                onClick={() => navigate('/newsletters')}
-                className="w-full sm:w-auto px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-colors inline-flex items-center justify-center gap-2"
-              >
-                모든 뉴스레터 보기
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Partner Brands Section */}
+      {/* [섹션 9] Partner Brands */}
       <section className="py-10 sm:py-16 lg:py-24 bg-[#0A0A0F]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
@@ -1353,7 +1356,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 고객 성공 스토리 섹션 */}
+      {/* [섹션 10] Testimonials */}
       <section id="testimonials" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
@@ -1389,7 +1392,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Voucher Section */}
+      {/* [섹션 11] Voucher */}
       <section id="voucher" className="py-12 sm:py-16 lg:py-24 bg-[#121218]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-[rgba(192,132,252,0.3)] bg-[rgba(192,132,252,0.05)] rounded-full text-white text-xs sm:text-sm mb-4 sm:mb-6">
@@ -1414,7 +1417,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
+      {/* [섹션 12] FAQ */}
       <section id="faq" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
@@ -1435,52 +1438,101 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* 카카오톡 상담 안내 */}
+          {/* 카카오톡 + 시작하기 듀얼 CTA */}
           <div className="mt-8 sm:mt-10 text-center">
             <p className="text-[#A0A0B0] text-sm mb-3">더 궁금한 점이 있으신가요?</p>
-            <a
-              href="https://pf.kakao.com/_xgNdxlG"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm hover:border-white/40 transition-all"
-            >
-              <MessageCircle className="w-4 h-4" />
-              카카오톡으로 상담하기
-            </a>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
+                className="w-full sm:w-auto px-6 py-3 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+              >
+                지금 시작하기
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <a
+                href="https://pf.kakao.com/_xgNdxlG"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm hover:border-white/40 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                카카오톡 상담
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Newsletter Banner */}
-      <section className="py-12 sm:py-16 lg:py-20 bg-[#121218] relative overflow-hidden">
-        {/* 배경 장식 */}
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-48 sm:w-72 h-48 sm:h-72 bg-[rgba(192,132,252,0.06)] rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-64 sm:w-96 h-64 sm:h-96 bg-[rgba(192,132,252,0.04)] rounded-full blur-3xl" />
-        </div>
+      {/* [섹션 13] Featured Newsletters */}
+      {featuredNewsletters.length > 0 && (
+        <section className="py-10 sm:py-16 lg:py-20 bg-[#121218]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-6 sm:mb-8 lg:mb-10">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 text-white">
+                금주의 <span className="text-[#C084FC]">뉴스레터</span>
+              </h2>
+              <p className="text-[#A0A0B0] text-sm sm:text-base">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
+            </div>
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-[rgba(192,132,252,0.15)] rounded-xl sm:rounded-2xl mb-4 sm:mb-6">
-            <Mail className="w-6 h-6 sm:w-8 sm:h-8 text-[#C084FC]" />
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+              {featuredNewsletters.map((newsletter) => (
+                <div
+                  key={newsletter.id}
+                  onClick={() => navigate(`/newsletter/${newsletter.id}`)}
+                  className="bg-[#1A1A24] rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-white/[0.06]"
+                >
+                  <div className="h-28 sm:h-36 lg:h-40 bg-[#24243A] relative overflow-hidden">
+                    {newsletter.thumbnail_url ? (
+                      <img
+                        src={newsletter.thumbnail_url}
+                        alt={newsletter.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-white/30" />
+                      </div>
+                    )}
+                    {newsletter.is_featured && (
+                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#C084FC] text-[#0A0A0F] text-[10px] sm:text-xs font-medium rounded-full flex items-center gap-0.5 sm:gap-1">
+                        <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> 추천
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-3 sm:p-4">
+                    <h3 className="font-bold text-white text-xs sm:text-sm lg:text-base mb-1 sm:mb-2 line-clamp-2 group-hover:text-[#C084FC] transition-colors">
+                      {newsletter.title}
+                    </h3>
+                    {newsletter.description && (
+                      <p className="text-[#5A5A6E] text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3 hidden sm:block">
+                        {newsletter.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-[#5A5A6E]">
+                      {newsletter.published_at && (
+                        <span>{new Date(newsletter.published_at).toLocaleDateString('ko-KR')}</span>
+                      )}
+                      <span className="text-[#C084FC] font-medium group-hover:underline">읽기 →</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-6 sm:mt-8">
+              <button
+                onClick={() => navigate('/newsletters')}
+                className="w-full sm:w-auto px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-colors inline-flex items-center justify-center gap-2"
+              >
+                모든 뉴스레터 보기
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
-            인플루언서 마케팅 인사이트
-          </h2>
-          <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-6 sm:mb-8 max-w-2xl mx-auto">
-            K-뷰티 마케팅 트렌드, 크리에이터 협업 노하우, 성공 사례까지<br className="hidden sm:block" />
-            매주 엄선된 콘텐츠를 무료로 받아보세요.
-          </p>
-          <button
-            onClick={() => navigate('/newsletters')}
-            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-base sm:text-lg hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
-          >
-            뉴스레터 보러가기
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* 크넥 소개서 다운로드 배너 (하단) */}
+      {/* [섹션 14] 크넥 소개서 다운로드 */}
       <section className="py-10 sm:py-14 lg:py-16 bg-[#0A0A0F]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[rgba(192,132,252,0.1)] rounded-full text-[#C084FC] text-xs font-medium mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -1504,7 +1556,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 6] Bottom CTA - 최종 행동 유도 */}
+      {/* [섹션 15] Bottom CTA */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[rgba(192,132,252,0.05)] rounded-full blur-[120px]" />
@@ -1538,7 +1590,7 @@ export default function LandingPage() {
               onClick={() => navigate('/signup')}
               className="w-full py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[rgba(192,132,252,0.3)]"
             >
-              지금 시작하기
+              20만원부터 · 지금 시작하기
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
