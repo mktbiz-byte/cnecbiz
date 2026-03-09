@@ -710,7 +710,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {[
               { num: '500+', label: '협업 브랜드' },
-              { num: '3,000+', label: '캠페인 진행' },
+              { num: '5,000+', label: '캠페인 진행' },
               { num: '1,000+', label: '미국 캠페인 돌파' },
               { num: '14일', label: '평균 완성 기간' }
             ].map((item, idx) => (
