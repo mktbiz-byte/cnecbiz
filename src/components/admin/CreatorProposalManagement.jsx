@@ -271,6 +271,55 @@ export default function CreatorProposalManagement() {
   }), [creators, sentCreators, selectedCreators])
 
   // 개별 알림톡 발송
+  // 소속 제안 이메일 HTML 생성
+  const buildProposalEmailHtml = (creatorName, benefits) => {
+    return `
+      <div style="max-width:560px;margin:0 auto;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#222;">
+        <div style="padding:32px 24px;background:#f8f7ff;border-radius:16px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <img src="https://cnecbiz.com/cnec-logo.png" alt="CNEC" style="height:28px;" />
+          </div>
+          <h2 style="font-size:18px;font-weight:700;margin:0 0 8px;color:#333;">소속 크리에이터 제안</h2>
+          <p style="font-size:14px;line-height:1.7;color:#555;margin:0 0 20px;">
+            <strong>${creatorName}</strong>님 안녕하세요.<br/>크넥에서 연락 드립니다.<br/><br/>
+            활동하시는 채널을 확인하고, 소속 크리에이터로 제안 드립니다.
+          </p>
+          <div style="background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #e8e5f0;">
+            <p style="font-size:13px;font-weight:700;color:#6C5CE7;margin:0 0 8px;">▶ 지원 혜택</p>
+            <p style="font-size:14px;line-height:1.8;color:#444;margin:0;white-space:pre-line;">${benefits}</p>
+          </div>
+          <p style="font-size:14px;line-height:1.7;color:#555;margin:0 0 24px;">
+            크넥과 함께 더 많은 캠페인 기회를 만들어 보세요!
+          </p>
+          <div style="text-align:center;margin-bottom:16px;">
+            <a href="https://cnec.co.kr/creator-application" style="display:inline-block;padding:12px 32px;background:#6C5CE7;color:#fff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;">지원하기</a>
+          </div>
+          <p style="font-size:11px;color:#999;text-align:center;margin:0;">
+            ※ 소속 등록은 자율이며, 언제든지 해제할 수 있습니다.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  // 이메일 발송 (실패해도 알림톡 성공에 영향 없음)
+  const sendProposalEmail = async (creator, benefits) => {
+    if (!creator.email) return
+    try {
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: creator.email,
+          subject: `[크넥] ${creator.name}님, 소속 크리에이터로 제안 드립니다`,
+          html: buildProposalEmailHtml(creator.name, benefits)
+        })
+      })
+    } catch (e) {
+      console.error('제안 이메일 발송 오류:', e)
+    }
+  }
+
   const sendProposal = async (creator) => {
     if (!supportBenefits.trim()) {
       alert('지원혜택을 먼저 입력해주세요.')
@@ -304,6 +353,9 @@ export default function CreatorProposalManagement() {
       if (!result.success) {
         throw new Error(result.error || '발송 실패')
       }
+
+      // 알림톡 성공 후 이메일도 발송
+      sendProposalEmail(creator, supportBenefits.trim())
 
       setSentCreators(prev => new Set([...prev, creator.key]))
       setShowSendModal(false)
@@ -358,6 +410,8 @@ export default function CreatorProposalManagement() {
         if (result.success) {
           results.success++
           setSentCreators(prev => new Set([...prev, creator.key]))
+          // 알림톡 성공 후 이메일도 발송
+          sendProposalEmail(creator, supportBenefits.trim())
         } else {
           results.fail++
           results.errors.push(`${creator.name}: ${result.error}`)
