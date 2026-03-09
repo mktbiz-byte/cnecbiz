@@ -174,8 +174,12 @@ const TaxInvoiceHaulabTab = () => {
       return;
     }
     const amount = parseInt(manualForm.amount.replace(/,/g, ''));
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(amount)) {
       alert('금액을 입력해주세요.');
+      return;
+    }
+    if (amount < 0) {
+      alert('하우랩은 마이너스(음수) 세금계산서 발행이 불가능합니다.\n마이너스 발행은 하우파파 탭에서만 가능합니다.');
       return;
     }
 
@@ -598,6 +602,7 @@ const TaxInvoiceHaulabTab = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       금액 (VAT 포함) <span className="text-red-500">*</span>
+                      <span className="ml-2 text-xs text-gray-400 font-normal">마이너스 발행 불가</span>
                     </label>
                     <div className="relative">
                       <input

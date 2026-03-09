@@ -79,12 +79,22 @@ exports.handler = async (event) => {
       };
     }
 
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(amount) || amount === 0) {
       return {
         statusCode: 400,
         body: JSON.stringify({
           success: false,
           error: '금액을 입력해주세요.'
+        })
+      };
+    }
+
+    if (amount < 0) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          success: false,
+          error: '하우랩은 마이너스(음수) 세금계산서 발행이 불가능합니다.'
         })
       };
     }
