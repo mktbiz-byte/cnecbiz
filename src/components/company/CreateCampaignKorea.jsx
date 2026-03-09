@@ -1734,12 +1734,23 @@ const CampaignCreationKorea = () => {
                       </div>
 
                       <div>
-                        <Label htmlFor="requirements" className="text-sm font-medium text-gray-700 mb-2 block">참여 조건</Label>
+                        <Label htmlFor="product_name_brand" className="text-sm font-medium text-gray-700 mb-2 block">제품명</Label>
+                        <Input
+                          id="product_name_brand"
+                          value={campaignForm.product_name}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                          className="h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="requirements" className="text-sm font-medium text-gray-700 mb-2 block">원하는 크리에이터 조건</Label>
                         <Textarea
                           id="requirements"
                           value={campaignForm.requirements}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                          placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                          placeholder="예: 뷰티 전문 크리에이터, 팔로워 1만 이상, 피부 트러블 경험자 등 원하는 크리에이터 선정 조건을 입력하세요"
                           rows={3}
                           className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 resize-none"
                         />
@@ -2796,12 +2807,23 @@ const CampaignCreationKorea = () => {
                       </div>
 
                       <div>
-                        <Label htmlFor="requirements_oly" className="text-sm font-medium text-gray-700 mb-2 block">참여 조건</Label>
+                        <Label htmlFor="product_name_oly_brand" className="text-sm font-medium text-gray-700 mb-2 block">제품명</Label>
+                        <Input
+                          id="product_name_oly_brand"
+                          value={campaignForm.product_name}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                          className="h-12 border-gray-200 focus:border-pink-500 focus:ring-pink-500"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="requirements_oly" className="text-sm font-medium text-gray-700 mb-2 block">원하는 크리에이터 조건</Label>
                         <Textarea
                           id="requirements_oly"
                           value={campaignForm.requirements}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                          placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                          placeholder="예: 뷰티 전문 크리에이터, 팔로워 1만 이상, 피부 트러블 경험자 등 원하는 크리에이터 선정 조건을 입력하세요"
                           rows={3}
                           className="border-gray-200 focus:border-pink-500 focus:ring-pink-500 resize-none"
                         />
@@ -3367,12 +3389,22 @@ const CampaignCreationKorea = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="requirements">참여 조건</Label>
+                        <Label htmlFor="product_name_4week_brand">제품명</Label>
+                        <Input
+                          id="product_name_4week_brand"
+                          value={campaignForm.product_name}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                          placeholder="예: 4주 스킨케어 세트"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="requirements">원하는 크리에이터 조건</Label>
                         <Textarea
                           id="requirements"
                           value={campaignForm.requirements}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                          placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분"
+                          placeholder="예: 뷰티 전문 크리에이터, 팔로워 1만 이상 등 원하는 크리에이터 선정 조건을 입력하세요"
                           className="mt-1"
                           rows={2}
                         />

@@ -253,7 +253,7 @@ const PortfolioSlider = ({ shorts, page, setPage, totalPages, totalPagesMobile, 
               key={i}
               onClick={() => setPage(i)}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                page === i ? 'w-6 bg-white' : 'w-1.5 bg-gray-700'
+                page === i ? 'w-6 bg-white' : 'w-1.5 bg-[#24243A]'
               }`}
             />
           ))}
@@ -297,14 +297,6 @@ export default function LandingPage() {
   const [portfolioShorts, setPortfolioShorts] = useState({ korea: [], japan: [], usa: [] })
   const [selectedRegion, setSelectedRegion] = useState('korea')
   const [portfolioPage, setPortfolioPage] = useState(0)
-  const [pageContent, setPageContent] = useState({
-    hero_title: 'K-뷰티를 세계로,',
-    hero_subtitle: '14일 만에 완성하는 숏폼',
-    stats_campaigns: '4,562+',
-    stats_creators: '21,580+',
-    stats_countries: '4개국',
-    stats_success: '5억회'
-  })
   const [brochureUrl, setBrochureUrl] = useState('')
 
   // 비디오 카테고리 정의 (DB 영상을 분배해서 사용) - 3개 카테고리 x 5개 = 15개
@@ -338,7 +330,6 @@ export default function LandingPage() {
     fetchVideos()
     checkAuth()
     fetchFaqs()
-    fetchPageContent()
     fetchFeaturedNewsletters()
     fetchPortfolioShorts()
     loadBrochureUrl()
@@ -372,7 +363,7 @@ export default function LandingPage() {
         }
       }
     } catch (error) {
-      console.error('뉴스레터 조회 오류:', error)
+      if (import.meta.env.DEV) console.error('뉴스레터 조회 오류:', error)
     }
   }
 
@@ -384,7 +375,7 @@ export default function LandingPage() {
         setPortfolioShorts(result.data)
       }
     } catch (error) {
-      console.error('포트폴리오 숏폼 조회 오류:', error)
+      if (import.meta.env.DEV) console.error('포트폴리오 숏폼 조회 오류:', error)
     }
   }
 
@@ -403,7 +394,7 @@ export default function LandingPage() {
         setBrochureUrl(publicUrl)
       }
     } catch (error) {
-      console.error('브로슈어 URL 로드 오류:', error)
+      if (import.meta.env.DEV) console.error('브로슈어 URL 로드 오류:', error)
     }
   }
 
@@ -471,30 +462,7 @@ export default function LandingPage() {
         ])
       }
     } catch (error) {
-      console.error('Error fetching FAQs:', error)
-    }
-  }
-
-  const fetchPageContent = async () => {
-    try {
-      const { data, error } = await supabaseBiz
-        .from('page_contents')
-        .select('*')
-        .limit(1)
-        .maybeSingle()
-
-      if (!error && data) {
-        setPageContent({
-          hero_title: data.hero_title || 'K-뷰티를 세계로,',
-          hero_subtitle: data.hero_subtitle || '14일 만에 완성하는 숏폼',
-          stats_campaigns: data.stats_campaigns || '4,562+',
-          stats_creators: data.stats_creators || '21,580+',
-          stats_countries: data.stats_countries || '4개국',
-          stats_success: data.stats_success || '5억회'
-        })
-      }
-    } catch (error) {
-      console.error('페이지 콘텐츠 조회 오류:', error)
+      if (import.meta.env.DEV) console.error('Error fetching FAQs:', error)
     }
   }
 
@@ -514,7 +482,7 @@ export default function LandingPage() {
         setVideos(data)
       }
     } catch (error) {
-      console.error('Error fetching videos:', error)
+      if (import.meta.env.DEV) console.error('Error fetching videos:', error)
     }
   }
 
@@ -759,7 +727,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {[
               { num: '500+', label: '협업 브랜드' },
-              { num: '3,000+', label: '캠페인 진행' },
+              { num: '5,000+', label: '캠페인 진행' },
               { num: '1,000+', label: '미국 캠페인 돌파' },
               { num: '14일', label: '평균 완성 기간' }
             ].map((item, idx) => (
@@ -1238,7 +1206,7 @@ export default function LandingPage() {
                             </div>
                           ))}
                           {shorts.length > 3 && (
-                            <div className="w-7 h-7 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-full border-2 border-[#121218] bg-[#1A1A24] flex items-center justify-center">
                               <span className="text-gray-400 text-[9px] font-medium">+{shorts.length - 3}</span>
                             </div>
                           )}

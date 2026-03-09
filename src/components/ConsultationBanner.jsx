@@ -193,7 +193,7 @@ export default function ConsultationBanner() {
   return (
     <>
       {/* 플로팅 상담 버튼 - 우측 하단 (하단 바 위로 위치) - 관리자 페이지에서는 숨김 */}
-      <div className={`fixed bottom-20 right-4 sm:right-6 lg:bottom-6 z-50 ${
+      <div className={`fixed bottom-20 right-4 sm:right-6 lg:bottom-20 z-50 ${
         isAdminPage ? 'hidden' : isMainPage ? '' : 'hidden md:block'
       }`}>
         {isLoggedIn ? (
