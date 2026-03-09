@@ -600,7 +600,7 @@ export default function LandingPage() {
       </header>
 
       {/* [섹션 1] Hero */}
-      <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-24 bg-[#0A0A0F] overflow-hidden">
+      <section className="relative pt-20 sm:pt-32 pb-10 sm:pb-24 bg-[#0A0A0F] overflow-hidden">
         {/* 배경 장식 */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-20 left-[10%] w-72 h-72 bg-[rgba(192,132,252,0.06)] rounded-full blur-[100px]" />
@@ -624,7 +624,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4 sm:mb-5 leading-tight"
+                className="text-[22px] sm:text-4xl lg:text-5xl font-bold tracking-tight mb-3 sm:mb-5 leading-tight"
               >
                 <span className="text-white">숏폼 마케팅,</span><br />
                 <span className="text-white">어디서부터 해야 할지 </span>
@@ -634,7 +634,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-4 sm:mb-5"
+                className="text-lg sm:text-2xl lg:text-3xl font-bold text-white mb-3 sm:mb-5"
               >
                 제품만 보내주세요. 나머지는 크넥이 다 합니다.
               </motion.p>
@@ -642,7 +642,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-xl leading-relaxed"
+                className="text-[#A0A0B0] text-[13px] sm:text-base lg:text-lg mb-6 sm:mb-10 max-w-xl leading-relaxed"
               >
                 가입하고 바로 캠페인을 개설하세요.<br />
                 크리에이터 매칭, 기획, 촬영, 편집까지. 한국·미국·일본 글로벌 숏폼 캠페인.
@@ -707,15 +707,24 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="lg:hidden"
+              className="lg:hidden relative"
             >
-              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+              {/* 뱃지 */}
+              <div className="flex items-center gap-1.5 mb-3">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-[#A0A0B0] text-[11px]">실제 플랫폼 화면</span>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-white/10 shadow-xl">
                 <img
-                  src="/dashboard-screenshot.webp"
-                  alt="크넥 대시보드"
+                  src="/campaign-create-screenshot.webp"
+                  alt="크넥 캠페인 개설 화면"
                   className="w-full"
+                  loading="lazy"
                 />
               </div>
+              <p className="text-[#5A5A6E] text-[11px] text-center mt-2">
+                가입 후 바로 이 화면에서 캠페인을 개설할 수 있습니다
+              </p>
             </motion.div>
           </div>
         </div>
@@ -724,7 +733,7 @@ export default function LandingPage() {
       {/* [섹션 2] Trust Bar - 실적 수치 */}
       <section className="py-10 sm:py-14 bg-[#121218] border-y border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-4 gap-3 sm:gap-8">
             {[
               { num: '500+', label: '협업 브랜드' },
               { num: '5,000+', label: '캠페인 진행' },
@@ -739,10 +748,10 @@ export default function LandingPage() {
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
                 className="text-center"
               >
-                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#C084FC] mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <p className="text-lg sm:text-3xl lg:text-4xl font-bold text-[#C084FC] mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   {item.num}
                 </p>
-                <p className="text-[#A0A0B0] text-xs sm:text-sm">{item.label}</p>
+                <p className="text-[#A0A0B0] text-[10px] sm:text-sm">{item.label}</p>
               </motion.div>
             ))}
           </div>
@@ -766,15 +775,15 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 4] Problem - 페인포인트 자극 */}
-      <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
+      <section className="py-10 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
             <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
               PAIN POINTS
             </p>
-            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 leading-tight">
+            <h2 className="text-lg sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 leading-tight">
               "숏폼 해야 하는 건 아는데..."<br />
-              <span className="text-[#A0A0B0] text-lg sm:text-2xl lg:text-3xl font-medium">지금 이런 고민 때문에 시작을 미루고 계신가요?</span>
+              <span className="text-[#A0A0B0] text-[15px] sm:text-2xl lg:text-3xl font-medium">이런 고민 때문에 미루고 계신가요?</span>
             </h2>
           </div>
 
@@ -825,7 +834,7 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 5] Solution - 크넥의 해결책 */}
-      <section className="py-16 sm:py-20 lg:py-28 bg-[#121218]">
+      <section className="py-10 sm:py-20 lg:py-28 bg-[#121218]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
             <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -893,7 +902,7 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 6] How it works - 3단계 프로세스 */}
-      <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
+      <section className="py-10 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
             <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -955,7 +964,7 @@ export default function LandingPage() {
                     {item.badge}
                   </span>
                   {item.screenshot && (
-                    <div className="mt-4 rounded-lg overflow-hidden border border-white/[0.06]">
+                    <div className={`mt-4 rounded-lg overflow-hidden border border-white/[0.06] ${idx === 0 ? '' : 'hidden sm:block'}`}>
                       <img src={item.screenshot} alt={item.title} className="w-full" loading="lazy" />
                     </div>
                   )}
@@ -987,9 +996,9 @@ export default function LandingPage() {
             <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">에이전시 평균 300만원, 크넥은 20만원. 2차 활용 무료, AI 가이드 무료.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 max-w-5xl mx-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {/* 올영세일 패키지 - 왼쪽 */}
-            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
               <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">올영세일 패키지</h3>
               <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩400,000</span>
@@ -1033,7 +1042,7 @@ export default function LandingPage() {
             </div>
 
             {/* 기획형 캠페인 - 가운데 인기 */}
-            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-[#C084FC] relative" style={{ boxShadow: '0 0 30px rgba(192,132,252,0.1)' }}>
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-[#C084FC] relative snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink" style={{ boxShadow: '0 0 30px rgba(192,132,252,0.1)' }}>
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F]">
                 인기
               </div>
@@ -1080,7 +1089,7 @@ export default function LandingPage() {
             </div>
 
             {/* 4주 챌린지 - 오른쪽 */}
-            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
               <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">4주 챌린지</h3>
               <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩600,000</span>
@@ -1118,6 +1127,10 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
+          </div>
+          {/* 스와이프 힌트 - 모바일만 */}
+          <div className="flex justify-center gap-1.5 mt-3 md:hidden">
+            <span className="text-[#5A5A6E] text-[10px]">← 스와이프하여 모든 요금제 보기 →</span>
           </div>
         </div>
       </section>
@@ -1301,7 +1314,7 @@ export default function LandingPage() {
           </div>
 
           <div className="bg-[#121218] rounded-[20px] sm:rounded-[24px] p-4 sm:p-8 lg:p-12 border border-white/[0.06]">
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-10 gap-2 sm:gap-4 lg:gap-6">
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2 sm:gap-4 lg:gap-6">
               {[
                 'MEDIHEAL', 'SKINFOOD', 'REJURAN', 'Dr.G', 'CLIO',
                 '동아제약', 'SNP', 'ESTHER', 'lemiu', 'TONYMOLY',
@@ -1314,7 +1327,7 @@ export default function LandingPage() {
               ].map((brand, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-center h-10 sm:h-14 lg:h-16 px-1 sm:px-2 border border-white/[0.06] rounded-md sm:rounded-lg hover:border-white/15 transition-colors"
+                  className={`flex items-center justify-center h-10 sm:h-14 lg:h-16 px-1 sm:px-2 border border-white/[0.06] rounded-md sm:rounded-lg hover:border-white/15 transition-colors ${index >= 21 ? 'hidden sm:flex' : ''}`}
                 >
                   <span className="text-[10px] sm:text-xs lg:text-sm text-[#A0A0B0] font-medium text-center truncate">{brand}</span>
                 </div>
@@ -1336,9 +1349,9 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06]">
+              <div key={index} className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
                 <div className="flex items-center gap-1 mb-3 sm:mb-4">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-[#C084FC] fill-current" />
@@ -1395,7 +1408,7 @@ export default function LandingPage() {
           <div className="space-y-3 sm:space-y-4">
             {faqs.map((faq, index) => (
               <details key={index} className="group bg-[#121218] rounded-xl sm:rounded-2xl border border-white/[0.06]">
-                <summary className="flex items-center justify-between cursor-pointer p-4 sm:p-6">
+                <summary className="flex items-center justify-between cursor-pointer p-4 sm:p-6 min-h-[48px]">
                   <span className="font-medium pr-3 sm:pr-4 text-white text-sm sm:text-base">{faq.question || faq.q}</span>
                   <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-[#5A5A6E] group-open:rotate-180 transition-transform flex-shrink-0" />
                 </summary>
@@ -1548,7 +1561,9 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <Footer />
+      <div className={!user ? 'pb-16 sm:pb-0' : ''}>
+        <Footer />
+      </div>
 
       {/* Sticky Bottom CTA Button */}
       {!user && (
