@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight, FileText, Download } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag, ExternalLink, ChevronLeft, ChevronRight, FileText, Download, Search, AlertTriangle, DollarSign, Package } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
@@ -631,40 +631,283 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Compact Hero Section */}
-      <section className="relative pt-20 sm:pt-28 pb-6 sm:pb-12 bg-[#0A0A0F]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* [섹션 1] Hero - 공감형 메인 카피 */}
+      <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-24 bg-[#0A0A0F] overflow-hidden">
+        {/* 배경 장식 */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-[10%] w-72 h-72 bg-[rgba(192,132,252,0.06)] rounded-full blur-[100px]" />
+          <div className="absolute bottom-10 right-[10%] w-96 h-96 bg-[rgba(192,132,252,0.04)] rounded-full blur-[120px]" />
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
-            <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold tracking-tight mb-3 sm:mb-4">
-              <span className="text-white">뷰티 숏폼은 </span>
-              <span className="text-[#C084FC]">역시 크넥</span>
-            </h1>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-5 sm:mb-6 px-2 sm:px-0">
-              AI 데이터 기반 크리에이터 추천 | 평균 제작기간 7일 | 2차 활용 무료
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 px-2 sm:px-0">
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-4 sm:mb-6"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              THE EASIEST SHORT-FORM PLATFORM
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4 sm:mb-5 leading-tight sm:leading-tight lg:leading-tight"
+            >
+              <span className="text-white">숏폼 마케팅,</span><br />
+              <span className="text-white">어디서부터 해야 할지 </span>
+              <span className="text-[#C084FC]">막막하셨죠?</span>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-4 sm:mb-5"
+            >
+              제품만 보내주세요. 나머지는 크넥이 다 합니다.
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed"
+            >
+              크리에이터 찾고, 기획하고, 촬영 관리까지...<br className="hidden sm:block" />
+              혼자서 에너지 낭비하지 마세요. 가장 쉬운 숏폼 영상 외주 플랫폼, 크넥.
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
+            >
               <button
                 onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
-                className="w-full sm:w-auto px-6 py-3 border border-white/20 text-white rounded-full font-semibold text-sm sm:text-base hover:border-white/40 transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
-                {user ? '캠페인 현황보기' : '캠페인 생성하기'}
+                {user ? '캠페인 현황보기' : '무료로 캠페인 시작하기'}
                 <ArrowRight className="w-4 h-4" />
               </button>
               <a
                 href="https://pf.kakao.com/_xgNdxlG"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-6 py-3 border border-white/10 text-[#A0A0B0] rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-7 py-3.5 border border-white/20 text-white rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-4 h-4" />
                 카카오톡 상담
               </a>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Portfolio Section */}
+      {/* [섹션 2] Problem - 페인포인트 자극 */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 sm:mb-14">
+            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              PAIN POINTS
+            </p>
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 leading-tight">
+              "숏폼 해야 하는 건 아는데..."<br />
+              <span className="text-[#A0A0B0] text-lg sm:text-2xl lg:text-3xl font-medium">지금 이런 고민 때문에 시작을 미루고 계신가요?</span>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            {[
+              {
+                icon: Search,
+                title: '크리에이터 섭외',
+                desc: '"우리 제품에 딱 맞는 크리에이터, 대체 어디서 어떻게 찾지?"',
+                color: '#C084FC'
+              },
+              {
+                icon: AlertTriangle,
+                title: '퀄리티 불안',
+                desc: '"예산 썼는데 영상 퀄리티가 안 좋아서 돈만 날리면 어떡하지?"',
+                color: '#C084FC'
+              },
+              {
+                icon: Globe,
+                title: '글로벌 마케팅',
+                desc: '"미국이나 일본 틱톡에도 올리고 싶은데, 현지인은 어떻게 구하지?"',
+                color: '#C084FC'
+              },
+              {
+                icon: DollarSign,
+                title: '한정된 예산',
+                desc: '"마케팅 예산이 넉넉하지 않은데, 숏폼 제작이 가능할까?"',
+                color: '#C084FC'
+              }
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
+                  <item.icon className="w-5 h-5 text-[#C084FC]" />
+                </div>
+                <h3 className="text-white font-semibold text-base sm:text-lg mb-2">{item.title}</h3>
+                <p className="text-[#A0A0B0] text-sm leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 3] Solution - 크넥의 해결책 */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-[#121218]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 sm:mb-14">
+            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              OUR SOLUTION
+            </p>
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">
+              복잡한 과정은 모두 지웠습니다.
+            </h2>
+            <p className="text-[#A0A0B0] text-sm sm:text-lg">
+              오직 <span className="text-white font-semibold">'제품'</span>에만 집중하세요.
+            </p>
+          </div>
+
+          <div className="space-y-4 sm:space-y-5">
+            {[
+              {
+                num: '01',
+                title: '검증된 크리에이터 큐레이션',
+                subtitle: '섭외 & 퀄리티 해결',
+                desc: '수많은 크리에이터 중 우리 브랜드와 결이 맞는 사람을 크넥이 직접 찾아 매칭합니다. 레퍼런스 검증을 통해 돈 낭비 없는 확실한 퀄리티를 보장합니다.',
+                icon: Users
+              },
+              {
+                num: '02',
+                title: '클릭 몇 번으로 진출하는 해외 숏폼',
+                subtitle: '글로벌 진출 해결',
+                desc: '언어 장벽? 현지 네트워크? 걱정 마세요. 미국, 일본 등 타겟 국가의 현지 크리에이터를 국내에서 의뢰하듯 쉽고 빠르게 연결해 드립니다.',
+                icon: Globe
+              },
+              {
+                num: '03',
+                title: '거품을 뺀 합리적인 맞춤 예산',
+                subtitle: '예산 부담 해결',
+                desc: '에이전시에 맡기는 비싼 비용 대신, 정해진 예산 안에서 최대의 효율을 낼 수 있는 최적의 캠페인을 제안합니다.',
+                icon: Target
+              }
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="bg-[#0A0A0F] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] hover:border-[rgba(192,132,252,0.2)] transition-all group"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
+                  <div className="flex items-center gap-4 sm:block">
+                    <div className="w-12 h-12 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-5 h-5 text-[#C084FC]" />
+                    </div>
+                    <span className="text-[#5A5A6E] text-xs font-medium tracking-wider uppercase sm:block sm:mt-3" style={{ fontFamily: "'Outfit', sans-serif" }}>{item.num}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium mb-2">
+                      {item.subtitle}
+                    </div>
+                    <h3 className="text-white font-bold text-lg sm:text-xl mb-2">{item.title}</h3>
+                    <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 4] How it works - 3단계 프로세스 */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 sm:mb-14">
+            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              HOW IT WORKS
+            </p>
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white">
+              크넥에서는 이 모든 과정이<br className="sm:hidden" /> <span className="text-[#C084FC]">단 3단계</span>로 끝납니다.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {[
+              {
+                step: '01',
+                title: '제품 정보 등록',
+                desc: '제품 정보 및 원하는 방향을 간단히 등록하세요.',
+                badge: '소요시간 3분',
+                icon: Package
+              },
+              {
+                step: '02',
+                title: '크리에이터 매칭 & 기획',
+                desc: '크넥이 딱 맞는 국내/해외 크리에이터를 매칭하고 기획합니다.',
+                badge: '크넥이 합니다',
+                icon: Users
+              },
+              {
+                step: '03',
+                title: '영상 납품',
+                desc: '촬영 완료 후 고퀄리티 숏폼 영상이 납품됩니다.',
+                badge: '대표님은 컨펌만',
+                icon: Video
+              }
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5, delay: idx * 0.15 }}
+                className="bg-[#121218] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] text-center relative overflow-hidden group hover:border-white/15 transition-all"
+              >
+                <div className="absolute top-4 right-4 text-[#1A1A24] text-6xl font-black" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {item.step}
+                </div>
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mx-auto mb-5">
+                    <item.icon className="w-6 h-6 text-[#C084FC]" />
+                  </div>
+                  <span className="text-[#C084FC] text-[11px] font-semibold tracking-wider uppercase" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    STEP {item.step}
+                  </span>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mt-1.5 mb-2.5">{item.title}</h3>
+                  <p className="text-[#A0A0B0] text-sm leading-relaxed mb-4">{item.desc}</p>
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium">
+                    {item.badge}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10 sm:mt-12">
+            <button
+              onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
+              className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+            >
+              {user ? '캠페인 현황보기' : '1분 만에 제품 등록하기'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 5] Portfolio Section */}
       <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]" id="showcase">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header with tabs */}
@@ -1118,8 +1361,12 @@ export default function LandingPage() {
       <section id="testimonials" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">고객 성공 스토리</h2>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">CNEC과 함께 성장한 브랜드들의 이야기</p>
+            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              SOCIAL PROOF
+            </p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
+              이미 수많은 브랜드가 크넥을 통해<br className="hidden sm:block" /> 성공적인 숏폼을 만들고 있습니다.
+            </h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
@@ -1247,32 +1494,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6 text-white">
-            지금 바로 시작하세요
+      {/* [섹션 6] Bottom CTA - 최종 행동 유도 */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[rgba(192,132,252,0.05)] rounded-full blur-[120px]" />
+        </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 text-white leading-tight">
+            크리에이터 찾고, 기획하고, 촬영 관리하고...<br />
+            <span className="text-[#C084FC]">이거 다 하실 필요 없습니다.</span>
           </h2>
-          <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-6 sm:mb-8">
-            첫 캠페인 등록 시 전담 매니저가 1:1로 안내해드립니다
+          <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto">
+            지금 바로 제품만 등록하세요. 나머지는 크넥이 알아서 하겠습니다.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <button
-              onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-white/20 text-white rounded-full font-semibold text-base sm:text-lg hover:border-white/40 transition-all"
-            >
-              {user ? '캠페인 현황보기' : '캠페인 생성하기'}
-            </button>
-            <a
-              href="https://pf.kakao.com/_xgNdxlG"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-white/10 text-[#A0A0B0] rounded-full font-medium text-base sm:text-lg hover:border-white/40 transition-all flex items-center justify-center gap-2"
-            >
-              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              카카오톡 상담
-            </a>
-          </div>
+          <button
+            onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
+            className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-base sm:text-lg hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+          >
+            {user ? '캠페인 현황보기' : '지금 바로 제품 등록하기'}
+            <ArrowRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
 
