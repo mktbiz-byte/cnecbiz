@@ -151,6 +151,48 @@ exports.handler = async (event) => {
 
     if (updateErr) throw updateErr
 
+    // 미팅 확정 시 네이버웍스 알림 발송
+    if (action === 'confirm' && confirmed_slot_id) {
+      try {
+        const { data: confirmedSlot } = await supabase
+          .from('meeting_slots')
+          .select('slot_date, slot_time, duration_minutes')
+          .eq('id', confirmed_slot_id)
+          .single()
+
+        if (confirmedSlot) {
+          const slotDate = confirmedSlot.slot_date // YYYY-MM-DD
+          const slotTime = confirmedSlot.slot_time?.substring(0, 5) // HH:MM
+          const duration = confirmedSlot.duration_minutes || 30
+
+          const message = [
+            '📅 미팅 스케줄 확정',
+            '',
+            `• 크리에이터: ${updated.creator_name || '(이름 없음)'}`,
+            updated.creator_email ? `• 이메일: ${updated.creator_email}` : null,
+            updated.creator_phone ? `• 연락처: ${updated.creator_phone}` : null,
+            `• 일시: ${slotDate} ${slotTime} (${duration}분)`,
+            updated.youtube_url ? `• YouTube: ${updated.youtube_url}` : null,
+            updated.instagram_url ? `• Instagram: ${updated.instagram_url}` : null,
+            updated.admin_memo ? `• 메모: ${updated.admin_memo}` : null
+          ].filter(Boolean).join('\n')
+
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
+          await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              message,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+            })
+          })
+        }
+      } catch (notifyErr) {
+        console.error('[update-meeting-booking] Naver Works notification failed:', notifyErr.message)
+      }
+    }
+
     return {
       statusCode: 200,
       headers,
