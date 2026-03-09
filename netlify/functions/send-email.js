@@ -7,7 +7,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 exports.handler = async (event) => {
   try {
-    const { to, subject, html, text, attachments } = JSON.parse(event.body);
+    // body 파싱 안전 처리 (null, base64 인코딩 대응)
+    let rawBody = event.body;
+    if (!rawBody) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ success: false, error: '요청 본문이 비어있습니다.' })
+      };
+    }
+    if (event.isBase64Encoded) {
+      rawBody = Buffer.from(rawBody, 'base64').toString('utf-8');
+    }
+    const { to, subject, html, text, attachments } = JSON.parse(rawBody);
 
     if (!to || !subject || (!html && !text)) {
       return {
