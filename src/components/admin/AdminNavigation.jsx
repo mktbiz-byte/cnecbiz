@@ -5,7 +5,7 @@ import {
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
   Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target,
-  Bot, Send, FileText, CalendarDays, FlaskConical
+  Bot, Send, FileText, CalendarDays, FlaskConical, Calendar
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -79,6 +79,7 @@ export default function AdminNavigation() {
         { path: '/admin/creators', icon: Users, label: '소속 크리에이터' },
         { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
         { path: '/admin/creator-proposals', icon: Send, label: '소속 제안 관리' },
+        { path: '/admin/meeting-schedule', icon: Calendar, label: '미팅 스케줄' },
         { path: '/admin/youtuber-search', icon: Youtube, label: '유튜버 검색 & 섭외' },
       ]
     },
