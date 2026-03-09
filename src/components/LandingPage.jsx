@@ -264,7 +264,7 @@ const PortfolioSlider = ({ shorts, page, setPage, totalPages, totalPagesMobile, 
 }
 
 // 비디오 카테고리 섹션 컴포넌트
-const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-gray-900' }) => {
+const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-[#121218]' }) => {
   if (!videos || videos.length === 0) return null
 
   return (
@@ -272,7 +272,7 @@ const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-gray-900'
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-4 sm:mb-6 lg:mb-8">
           <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">{title}</h3>
-          <p className="text-gray-400 text-xs sm:text-sm lg:text-base">{subtitle}</p>
+          <p className="text-[#A0A0B0] text-xs sm:text-sm lg:text-base">{subtitle}</p>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4 sm:overflow-visible sm:pb-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
           {videos.map((video, index) => (
@@ -868,7 +868,7 @@ export default function LandingPage() {
                 step: '01',
                 title: '제품 정보 등록',
                 desc: '회원가입 후 바로 캠페인을 개설할 수 있습니다. 제품 정보와 원하는 방향만 간단히 등록하세요.',
-                badge: '가입 즉시 개설 가능',
+                badge: '가입 후 바로 · 3분',
                 icon: Package
               },
               {
@@ -926,7 +926,135 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 5] Portfolio Section */}
+      {/* [섹션 5.5] Pricing Section */}
+      <section id="pricing" className="py-12 sm:py-16 lg:py-24 bg-[#121218]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              PRICING
+            </p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white"><span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>20만원</span>부터 시작하는 3가지 캠페인</h2>
+            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+            {/* 올영세일 패키지 - 왼쪽 */}
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
+              <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">올영세일 패키지</h3>
+              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩400,000</span>
+                <span className="text-[#5A5A6E] text-sm">/건</span>
+              </div>
+              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
+              <button
+                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
+                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
+              >
+                가이드 보기
+              </button>
+              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  3단계 콘텐츠 (리뷰→홍보→당일)
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  구매 전환 유도형 기획
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  SNS 업로드 URL 3개
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  원본 영상 파일 제공
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  2차 활용 및 파트너코드
+                </li>
+              </ul>
+            </div>
+
+            {/* 기획형 캠페인 - 가운데 인기 */}
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-[#C084FC] relative" style={{ boxShadow: '0 0 30px rgba(192,132,252,0.1)' }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F]">
+                인기
+              </div>
+              <h3 className="text-base sm:text-lg font-medium text-[#C084FC] mb-1.5 sm:mb-2">기획형 캠페인</h3>
+              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩200,000</span>
+                <span className="text-[#5A5A6E] text-sm">/건</span>
+              </div>
+              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드</p>
+              <button
+                onClick={() => window.open('/campaigns/intro/regular', '_blank')}
+                className="w-full py-2.5 sm:py-3 bg-[#C084FC] text-[#0A0A0F] rounded-xl font-medium text-sm sm:text-base hover:brightness-110 transition-all mb-4 sm:mb-6"
+              >
+                가이드 보기
+              </button>
+              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  브랜드 맞춤 시나리오 기획
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  촬영 가이드라인 제공
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  AI 크리에이터 매칭
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  SNS 업로드 URL 1개
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  2차 활용 및 파트너코드
+                </li>
+              </ul>
+            </div>
+
+            {/* 4주 챌린지 - 오른쪽 */}
+            <div className="bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
+              <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">4주 챌린지</h3>
+              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩600,000</span>
+                <span className="text-[#5A5A6E] text-sm">/건</span>
+              </div>
+              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">진정성 있는 리뷰와 장기적인 바이럴 효과를 위한 프리미엄 플랜</p>
+              <button
+                onClick={() => window.open('/campaigns/intro/4week', '_blank')}
+                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
+              >
+                가이드 보기
+              </button>
+              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  주차별 미션 (총 4편 제작)
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  Before & After 변화 기록
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  SNS 업로드 URL 4개
+                </li>
+                <li className="flex items-center gap-2 text-[#A0A0B0]">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  2차 활용 및 파트너코드
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 6] Portfolio Section */}
       <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]" id="showcase">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header with tabs */}
@@ -1089,14 +1217,15 @@ export default function LandingPage() {
             title={category.title}
             subtitle={category.subtitle}
             videos={getVideosForCategory(index)}
-            bgColor={index % 2 === 0 ? 'bg-gray-900' : 'bg-gray-950'}
+            bgColor={index % 2 === 0 ? 'bg-[#121218]' : 'bg-[#0A0A0F]'}
           />
         ))}
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section - 실시간 누적 수치 */}
       <section className="py-10 sm:py-16 lg:py-20 bg-[#121218]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-[#5A5A6E] text-xs font-medium tracking-[0.15em] uppercase mb-6 sm:mb-8" style={{ fontFamily: "'Outfit', sans-serif" }}>CUMULATIVE RESULTS</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             <div className="text-center">
               <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-0.5 sm:mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{pageContent.stats_campaigns}</div>
@@ -1115,33 +1244,6 @@ export default function LandingPage() {
               <div className="text-[#A0A0B0] text-xs sm:text-sm">누적 조회수</div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 크넥 소개서 다운로드 배너 (상단) */}
-      <section className="py-0 bg-[#0A0A0F]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <a
-            href={brochureUrl || "https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"}
-            className="group block relative overflow-hidden rounded-[20px] border border-[rgba(192,132,252,0.3)] bg-[#121218] hover:border-[rgba(192,132,252,0.5)] transition-all duration-300"
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(192,132,252,0.08),transparent_70%)]" />
-            <div className="relative flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[rgba(192,132,252,0.15)] border border-[rgba(192,132,252,0.2)] flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5 text-[#C084FC]" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm sm:text-base">CNEC 서비스 소개서</p>
-                  <p className="text-[#A0A0B0] text-xs sm:text-sm">크넥의 크리에이터 마케팅 서비스를 한눈에 확인하세요</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[#C084FC] group-hover:text-white transition-colors shrink-0">
-                <span className="hidden sm:inline text-sm font-medium">PDF 다운로드</span>
-                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-              </div>
-            </div>
-          </a>
         </div>
       </section>
 
@@ -1246,131 +1348,6 @@ export default function LandingPage() {
                   <span className="text-[10px] sm:text-xs lg:text-sm text-[#A0A0B0] font-medium text-center truncate">{brand}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">뷰티 브랜드를 위한 3가지 캠페인</h2>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            {/* 올영세일 패키지 - 왼쪽 */}
-            <div className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
-              <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">올영세일 패키지</h3>
-              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩400,000</span>
-                <span className="text-[#5A5A6E] text-sm">/건</span>
-              </div>
-              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
-              <button
-                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
-                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
-              >
-                가이드 보기
-              </button>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  3단계 콘텐츠 (리뷰→홍보→당일)
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  구매 전환 유도형 기획
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  SNS 업로드 URL 3개
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  원본 영상 파일 제공
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  2차 활용 및 파트너코드
-                </li>
-              </ul>
-            </div>
-
-            {/* 기획형 캠페인 - 가운데 인기 */}
-            <div className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-[#C084FC] relative" style={{ boxShadow: '0 0 30px rgba(192,132,252,0.1)' }}>
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F]">
-                인기
-              </div>
-              <h3 className="text-base sm:text-lg font-medium text-[#C084FC] mb-1.5 sm:mb-2">기획형 캠페인</h3>
-              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩200,000</span>
-                <span className="text-[#5A5A6E] text-sm">/건</span>
-              </div>
-              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드</p>
-              <button
-                onClick={() => window.open('/campaigns/intro/regular', '_blank')}
-                className="w-full py-2.5 sm:py-3 bg-[#C084FC] text-[#0A0A0F] rounded-xl font-medium text-sm sm:text-base hover:brightness-110 transition-all mb-4 sm:mb-6"
-              >
-                가이드 보기
-              </button>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  브랜드 맞춤 시나리오 기획
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  촬영 가이드라인 제공
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  AI 크리에이터 매칭
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  SNS 업로드 URL 1개
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  2차 활용 및 파트너코드
-                </li>
-              </ul>
-            </div>
-
-            {/* 4주 챌린지 - 오른쪽 */}
-            <div className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] hover:border-white/15 transition-colors">
-              <h3 className="text-base sm:text-lg font-medium text-[#A0A0B0] mb-1.5 sm:mb-2">4주 챌린지</h3>
-              <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>₩600,000</span>
-                <span className="text-[#5A5A6E] text-sm">/건</span>
-              </div>
-              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">진정성 있는 리뷰와 장기적인 바이럴 효과를 위한 프리미엄 플랜</p>
-              <button
-                onClick={() => window.open('/campaigns/intro/4week', '_blank')}
-                className="w-full py-2.5 sm:py-3 border border-white/20 text-white rounded-xl font-medium text-sm sm:text-base hover:border-white/40 transition-colors mb-4 sm:mb-6"
-              >
-                가이드 보기
-              </button>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  주차별 미션 (총 4편 제작)
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  Before & After 변화 기록
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  SNS 업로드 URL 4개
-                </li>
-                <li className="flex items-center gap-2 text-[#A0A0B0]">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
-                  2차 활용 및 파트너코드
-                </li>
-              </ul>
             </div>
           </div>
         </div>
