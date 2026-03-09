@@ -89,16 +89,6 @@ exports.handler = async (event) => {
       };
     }
 
-    if (amount < 0) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          success: false,
-          error: '하우랩은 마이너스(음수) 세금계산서 발행이 불가능합니다.'
-        })
-      };
-    }
-
     console.log('🔍 [STEP 1] 입력 데이터 확인...');
     console.log('   - 공급자: 하우랩주식회사 (' + HAULAB_CORP_NUM + ')');
     console.log('   - 공급받는자:', invoiceData.companyName);
