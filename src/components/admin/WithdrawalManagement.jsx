@@ -177,7 +177,7 @@ export default function WithdrawalManagement() {
               return {
                 ...w,
                 // 필드 매핑
-                creator_name: profile?.channel_name || profile?.name || w.bank_account_holder || 'Unknown',
+                creator_name: w.bank_account_holder || profile?.name || profile?.channel_name || 'Unknown',
                 region: 'korea',
                 requested_points: w.amount,
                 requested_amount: w.amount,
@@ -370,7 +370,7 @@ export default function WithdrawalManagement() {
               const profile = jpUserProfiles[w.user_id]
               return {
                 ...w,
-                creator_name: profile?.nickname || profile?.name || w.account_holder || w.creator_name || 'Unknown',
+                creator_name: w.account_holder || profile?.account_holder || profile?.name || profile?.nickname || w.creator_name || 'Unknown',
                 creator_email: profile?.email || w.creator_email || '',
                 creator_phone: profile?.phone || '',
                 region: 'japan',
@@ -498,7 +498,7 @@ export default function WithdrawalManagement() {
               const profile = jpProfileMap[w.user_id]
               if (profile) {
                 if (!w.creator_name || w.creator_name === 'Unknown') {
-                  w.creator_name = profile.nickname || profile.name || w.creator_name
+                  w.creator_name = profile.account_holder || profile.name || profile.nickname || w.creator_name
                 }
                 if (!w.bank_name) w.bank_name = profile.bank_name
                 if (!w.branch_code) w.branch_code = profile.branch_code
