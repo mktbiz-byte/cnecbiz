@@ -788,47 +788,131 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-            {[
-              {
-                icon: Search,
-                title: '크리에이터 섭외',
-                desc: '"우리 제품에 딱 맞는 크리에이터, 대체 어디서 어떻게 찾지?"',
-                color: '#C084FC'
-              },
-              {
-                icon: AlertTriangle,
-                title: '퀄리티 불안',
-                desc: '"예산 썼는데 영상 퀄리티가 안 좋아서 돈만 날리면 어떡하지?"',
-                color: '#C084FC'
-              },
-              {
-                icon: Globe,
-                title: '글로벌 마케팅',
-                desc: '"미국이나 일본 틱톡에도 올리고 싶은데, 현지인은 어떻게 구하지?"',
-                color: '#C084FC'
-              },
-              {
-                icon: DollarSign,
-                title: '한정된 예산',
-                desc: '"마케팅 예산이 넉넉하지 않은데, 숏폼 제작이 가능할까?"',
-                color: '#C084FC'
-              }
-            ].map((item, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
-              >
-                <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-[#C084FC]" />
+            {/* 크리에이터 섭외 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0 }}
+              className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
+                <Search className="w-5 h-5 text-[#C084FC]" />
+              </div>
+              <h3 className="text-white font-semibold text-base sm:text-lg mb-2">크리에이터 섭외</h3>
+              <p className="text-[#A0A0B0] text-sm leading-relaxed mb-4">"우리 제품에 딱 맞는 크리에이터, 대체 어디서 어떻게 찾지?"</p>
+              {/* 미니 일러스트: 검색 UI */}
+              <div className="bg-[#0A0A0F] rounded-lg p-2.5 border border-white/[0.04]">
+                <div className="flex items-center gap-2 bg-[#1A1A24] rounded-md px-2.5 py-1.5 mb-2">
+                  <Search className="w-3 h-3 text-[#5A5A6E]" />
+                  <span className="text-[10px] text-[#5A5A6E]">뷰티 크리에이터 검색...</span>
                 </div>
-                <h3 className="text-white font-semibold text-base sm:text-lg mb-2">{item.title}</h3>
-                <p className="text-[#A0A0B0] text-sm leading-relaxed">{item.desc}</p>
-              </motion.div>
-            ))}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-full bg-[#24243A] animate-pulse" />
+                  <div className="w-6 h-6 rounded-full bg-[#24243A] animate-pulse delay-75" />
+                  <div className="w-6 h-6 rounded-full bg-[#24243A] animate-pulse delay-150" />
+                  <span className="text-[9px] text-[#5A5A6E] ml-1">?</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 퀄리티 불안 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
+                <AlertTriangle className="w-5 h-5 text-[#C084FC]" />
+              </div>
+              <h3 className="text-white font-semibold text-base sm:text-lg mb-2">퀄리티 불안</h3>
+              <p className="text-[#A0A0B0] text-sm leading-relaxed mb-4">"예산 썼는데 영상 퀄리티가 안 좋아서 돈만 날리면 어떡하지?"</p>
+              {/* 미니 일러스트: 영상 퀄리티 비교 */}
+              <div className="bg-[#0A0A0F] rounded-lg p-2.5 border border-white/[0.04]">
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-[#1A1A24] rounded-md p-2 text-center">
+                    <div className="w-full aspect-video bg-[#24243A] rounded mb-1 flex items-center justify-center">
+                      <AlertTriangle className="w-3 h-3 text-red-400/60" />
+                    </div>
+                    <span className="text-[8px] text-red-400/60">Low Quality</span>
+                  </div>
+                  <div className="flex-1 bg-[#1A1A24] rounded-md p-2 text-center border border-[rgba(192,132,252,0.15)]">
+                    <div className="w-full aspect-video bg-[#24243A] rounded mb-1 flex items-center justify-center">
+                      <CheckCircle2 className="w-3 h-3 text-[#C084FC]" />
+                    </div>
+                    <span className="text-[8px] text-[#C084FC]">Verified</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 글로벌 마케팅 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
+                <Globe className="w-5 h-5 text-[#C084FC]" />
+              </div>
+              <h3 className="text-white font-semibold text-base sm:text-lg mb-2">글로벌 마케팅</h3>
+              <p className="text-[#A0A0B0] text-sm leading-relaxed mb-4">"미국이나 일본 틱톡에도 올리고 싶은데, 현지인은 어떻게 구하지?"</p>
+              {/* 미니 일러스트: 국기들 */}
+              <div className="bg-[#0A0A0F] rounded-lg p-2.5 border border-white/[0.04]">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex flex-col items-center gap-1">
+                    <FlagKR className="w-6 h-4 rounded-[2px]" />
+                    <span className="text-[8px] text-[#A0A0B0]">KR</span>
+                  </div>
+                  <div className="text-[#5A5A6E] text-xs">→</div>
+                  <div className="flex flex-col items-center gap-1 opacity-50">
+                    <FlagJP className="w-6 h-4 rounded-[2px]" />
+                    <span className="text-[8px] text-[#5A5A6E]">JP</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 opacity-50">
+                    <FlagUS className="w-6 h-4 rounded-[2px]" />
+                    <span className="text-[8px] text-[#5A5A6E]">US</span>
+                  </div>
+                  <span className="text-[9px] text-[#5A5A6E]">?</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 한정된 예산 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="bg-[#121218] rounded-[20px] p-6 sm:p-7 border border-white/[0.06] hover:border-white/15 transition-all group"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center mb-4">
+                <DollarSign className="w-5 h-5 text-[#C084FC]" />
+              </div>
+              <h3 className="text-white font-semibold text-base sm:text-lg mb-2">한정된 예산</h3>
+              <p className="text-[#A0A0B0] text-sm leading-relaxed mb-4">"마케팅 예산이 넉넉하지 않은데, 숏폼 제작이 가능할까?"</p>
+              {/* 미니 일러스트: 비용 그래프 */}
+              <div className="bg-[#0A0A0F] rounded-lg p-2.5 border border-white/[0.04]">
+                <div className="flex items-end justify-center gap-3 h-10">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <div className="w-8 bg-[#5A5A6E]/30 rounded-t" style={{ height: '32px' }} />
+                    <span className="text-[7px] text-[#5A5A6E]">300만~</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <div className="w-8 bg-[rgba(192,132,252,0.3)] rounded-t border border-[rgba(192,132,252,0.2)]" style={{ height: '8px' }} />
+                    <span className="text-[7px] text-[#C084FC]">20만~</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-4 mt-1">
+                  <span className="text-[8px] text-[#5A5A6E]">에이전시</span>
+                  <span className="text-[8px] text-[#C084FC]">크넥</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -849,54 +933,265 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-4 sm:space-y-5">
-            {[
-              {
-                num: '01',
-                title: 'AI CleanScore 크리에이터 검증',
-                subtitle: '섭외 & 퀄리티 해결',
-                desc: 'AI가 크리에이터의 콘텐츠 퀄리티, 브랜드 적합도, 과거 성과를 분석하여 CleanScore로 검증합니다. 데이터 기반 매칭으로 돈 낭비 없는 확실한 퀄리티를 보장합니다.',
-                icon: Shield
-              },
-              {
-                num: '02',
-                title: '클릭 몇 번으로 진출하는 해외 숏폼',
-                subtitle: '글로벌 진출 해결',
-                desc: '언어 장벽? 현지 네트워크? 걱정 마세요. 미국, 일본 등 타겟 국가의 현지 크리에이터를 국내에서 의뢰하듯 쉽고 빠르게 연결해 드립니다.',
-                icon: Globe
-              },
-              {
-                num: '03',
-                title: '20만원부터 시작하는 숏폼 캠페인',
-                subtitle: '예산 부담 해결',
-                desc: '20만원부터 숏폼 캠페인을 시작할 수 있습니다. SNS 업로드 포함, 2차 활용 무료, AI 기반 촬영 가이드 제공까지. 거품 없는 가격으로 최대의 효율을 냅니다.',
-                icon: Target
-              }
-            ].map((item, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="bg-[#0A0A0F] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] hover:border-[rgba(192,132,252,0.2)] transition-all group"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
-                  <div className="flex items-center gap-4 sm:block">
+            {/* Solution 01: AI CleanScore */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0 }}
+              className="bg-[#0A0A0F] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] hover:border-[rgba(192,132,252,0.2)] transition-all group"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-8">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 sm:gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-5 h-5 text-[#C084FC]" />
+                      <Shield className="w-5 h-5 text-[#C084FC]" />
                     </div>
-                    <span className="text-[#5A5A6E] text-xs font-medium tracking-wider uppercase sm:block sm:mt-3" style={{ fontFamily: "'Outfit', sans-serif" }}>{item.num}</span>
+                    <span className="text-[#5A5A6E] text-xs font-medium tracking-wider uppercase" style={{ fontFamily: "'Outfit', sans-serif" }}>01</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium mb-2">
-                      {item.subtitle}
+                  <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium mb-2">
+                    섭외 & 퀄리티 해결
+                  </div>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-2">AI CleanScore 크리에이터 검증</h3>
+                  <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed">AI가 크리에이터의 콘텐츠 퀄리티, 브랜드 적합도, 과거 성과를 분석하여 CleanScore로 검증합니다. 데이터 기반 매칭으로 돈 낭비 없는 확실한 퀄리티를 보장합니다.</p>
+                </div>
+
+                {/* 크리에이터 프로필 카드 목업 */}
+                <div className="lg:w-[340px] flex-shrink-0 mt-2 lg:mt-0">
+                  <div className="bg-[#121218] rounded-2xl border border-white/[0.06] p-4 space-y-3">
+                    {/* 크리에이터 카드 1 - 높은 점수 */}
+                    <div className="flex items-center gap-3 bg-[#0A0A0F] rounded-xl p-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">MJ</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium truncate">미진 Mijin</span>
+                          <FlagKR className="w-4 h-3" />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-[#A0A0B0]">뷰티 · 스킨케어</span>
+                          <span className="text-[10px] text-[#5A5A6E]">·</span>
+                          <span className="text-[10px] text-[#A0A0B0]">12.5K</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[#C084FC] text-lg font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>92</div>
+                        <div className="text-[9px] text-[#5A5A6E]">CleanScore</div>
+                      </div>
                     </div>
-                    <h3 className="text-white font-bold text-lg sm:text-xl mb-2">{item.title}</h3>
-                    <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed">{item.desc}</p>
+                    {/* 크리에이터 카드 2 */}
+                    <div className="flex items-center gap-3 bg-[#0A0A0F] rounded-xl p-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">YK</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium truncate">Yuki ゆき</span>
+                          <FlagJP className="w-4 h-3" />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-[#A0A0B0]">코스메 · 리뷰</span>
+                          <span className="text-[10px] text-[#5A5A6E]">·</span>
+                          <span className="text-[10px] text-[#A0A0B0]">8.2K</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[#C084FC] text-lg font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>87</div>
+                        <div className="text-[9px] text-[#5A5A6E]">CleanScore</div>
+                      </div>
+                    </div>
+                    {/* 크리에이터 카드 3 */}
+                    <div className="flex items-center gap-3 bg-[#0A0A0F] rounded-xl p-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">EL</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium truncate">Emily L.</span>
+                          <FlagUS className="w-4 h-3" />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-[#A0A0B0]">Beauty · Skincare</span>
+                          <span className="text-[10px] text-[#5A5A6E]">·</span>
+                          <span className="text-[10px] text-[#A0A0B0]">23.1K</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[#C084FC] text-lg font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>95</div>
+                        <div className="text-[9px] text-[#5A5A6E]">CleanScore</div>
+                      </div>
+                    </div>
+                    {/* 스코어 분석 바 */}
+                    <div className="pt-2 border-t border-white/[0.06]">
+                      <div className="flex items-center justify-between text-[10px] text-[#5A5A6E] mb-2">
+                        <span>AI 분석 항목</span>
+                        <span>Score</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {[
+                          { label: '콘텐츠 퀄리티', score: 94, color: '#C084FC' },
+                          { label: '브랜드 적합도', score: 88, color: '#818CF8' },
+                          { label: '참여율 (Engagement)', score: 91, color: '#67E8F9' }
+                        ].map((bar, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[10px] text-[#A0A0B0] w-24 sm:w-28 truncate">{bar.label}</span>
+                            <div className="flex-1 h-1.5 bg-[#1A1A24] rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${bar.score}%`, backgroundColor: bar.color }} />
+                            </div>
+                            <span className="text-[10px] font-medium w-6 text-right" style={{ color: bar.color, fontFamily: "'Outfit', sans-serif" }}>{bar.score}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              </div>
+            </motion.div>
+
+            {/* Solution 02: 글로벌 매칭 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-[#0A0A0F] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] hover:border-[rgba(192,132,252,0.2)] transition-all group"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-8">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 sm:gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-5 h-5 text-[#C084FC]" />
+                    </div>
+                    <span className="text-[#5A5A6E] text-xs font-medium tracking-wider uppercase" style={{ fontFamily: "'Outfit', sans-serif" }}>02</span>
+                  </div>
+                  <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium mb-2">
+                    글로벌 진출 해결
+                  </div>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-2">클릭 몇 번으로 진출하는 해외 숏폼</h3>
+                  <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed">언어 장벽? 현지 네트워크? 걱정 마세요. 미국, 일본 등 타겟 국가의 현지 크리에이터를 국내에서 의뢰하듯 쉽고 빠르게 연결해 드립니다.</p>
+                </div>
+
+                {/* 글로벌 크리에이터 매칭 목업 */}
+                <div className="lg:w-[340px] flex-shrink-0 mt-2 lg:mt-0">
+                  <div className="bg-[#121218] rounded-2xl border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Globe className="w-3.5 h-3.5 text-[#C084FC]" />
+                      <span className="text-[11px] text-[#A0A0B0] font-medium">글로벌 크리에이터 매칭</span>
+                    </div>
+                    {/* 국가별 크리에이터 리스트 */}
+                    <div className="space-y-2.5">
+                      {/* 한국 */}
+                      <div className="bg-[#0A0A0F] rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FlagKR className="w-5 h-3.5" />
+                          <span className="text-white text-xs font-semibold">한국</span>
+                          <span className="text-[9px] text-[#5A5A6E] ml-auto" style={{ fontFamily: "'Outfit', sans-serif" }}>320+ creators</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-[8px] text-white font-bold">SY</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-[8px] text-white font-bold">JH</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-[8px] text-white font-bold">YJ</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-[8px] text-white font-bold">HA</div>
+                          <div className="w-7 h-7 rounded-full bg-[#1A1A24] border border-white/[0.08] flex items-center justify-center text-[8px] text-[#5A5A6E]">+316</div>
+                        </div>
+                      </div>
+                      {/* 일본 */}
+                      <div className="bg-[#0A0A0F] rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FlagJP className="w-5 h-3.5" />
+                          <span className="text-white text-xs font-semibold">일본</span>
+                          <span className="text-[9px] text-[#5A5A6E] ml-auto" style={{ fontFamily: "'Outfit', sans-serif" }}>180+ creators</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-[8px] text-white font-bold">YK</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-[8px] text-white font-bold">MS</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-[8px] text-white font-bold">AK</div>
+                          <div className="w-7 h-7 rounded-full bg-[#1A1A24] border border-white/[0.08] flex items-center justify-center text-[8px] text-[#5A5A6E]">+177</div>
+                        </div>
+                      </div>
+                      {/* 미국 */}
+                      <div className="bg-[#0A0A0F] rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FlagUS className="w-5 h-3.5" />
+                          <span className="text-white text-xs font-semibold">미국</span>
+                          <span className="text-[9px] text-[#5A5A6E] ml-auto" style={{ fontFamily: "'Outfit', sans-serif" }}>250+ creators</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-[8px] text-white font-bold">EL</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-fuchsia-400 to-pink-500 flex items-center justify-center text-[8px] text-white font-bold">JS</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center text-[8px] text-white font-bold">AT</div>
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-[8px] text-white font-bold">KW</div>
+                          <div className="w-7 h-7 rounded-full bg-[#1A1A24] border border-white/[0.08] flex items-center justify-center text-[8px] text-[#5A5A6E]">+246</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Solution 03: 가격 */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-[#0A0A0F] rounded-[20px] p-6 sm:p-8 border border-white/[0.06] hover:border-[rgba(192,132,252,0.2)] transition-all group"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-8">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 sm:gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.15)] flex items-center justify-center flex-shrink-0">
+                      <Target className="w-5 h-5 text-[#C084FC]" />
+                    </div>
+                    <span className="text-[#5A5A6E] text-xs font-medium tracking-wider uppercase" style={{ fontFamily: "'Outfit', sans-serif" }}>03</span>
+                  </div>
+                  <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-[rgba(192,132,252,0.08)] text-[#C084FC] text-xs font-medium mb-2">
+                    예산 부담 해결
+                  </div>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-2">20만원부터 시작하는 숏폼 캠페인</h3>
+                  <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed">20만원부터 숏폼 캠페인을 시작할 수 있습니다. SNS 업로드 포함, 2차 활용 무료, AI 기반 촬영 가이드 제공까지. 거품 없는 가격으로 최대의 효율을 냅니다.</p>
+                </div>
+
+                {/* 가격 비교 + 포함 내역 목업 */}
+                <div className="lg:w-[340px] flex-shrink-0 mt-2 lg:mt-0">
+                  <div className="bg-[#121218] rounded-2xl border border-white/[0.06] p-4">
+                    {/* 가격 비교 */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="w-3.5 h-3.5 text-[#C084FC]" />
+                      <span className="text-[11px] text-[#A0A0B0] font-medium">에이전시 vs 크넥 비교</span>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <div className="bg-[#0A0A0F] rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] text-[#5A5A6E]">일반 에이전시</span>
+                          <span className="text-[#5A5A6E] text-xs line-through" style={{ fontFamily: "'Outfit', sans-serif" }}>₩3,000,000~</span>
+                        </div>
+                        <div className="h-2 bg-[#1A1A24] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-[#5A5A6E] w-full" />
+                        </div>
+                      </div>
+                      <div className="bg-[#0A0A0F] rounded-xl p-3 border border-[rgba(192,132,252,0.15)]">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] text-[#C084FC] font-medium">크넥 CNEC</span>
+                          <span className="text-[#C084FC] text-xs font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>₩200,000~</span>
+                        </div>
+                        <div className="h-2 bg-[#1A1A24] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-[#C084FC] to-[#818CF8]" style={{ width: '7%' }} />
+                        </div>
+                      </div>
+                    </div>
+                    {/* 포함 내역 */}
+                    <div className="pt-3 border-t border-white/[0.06]">
+                      <p className="text-[10px] text-[#5A5A6E] mb-2">20만원에 모두 포함</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {['크리에이터 매칭', 'SNS 업로드', '촬영 가이드', '2차 활용 무료', '원본 파일 제공', 'AI 기획 지원'].map((item, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3 h-3 text-[#C084FC] flex-shrink-0" />
+                            <span className="text-[10px] text-[#A0A0B0]">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -966,6 +1261,52 @@ export default function LandingPage() {
                   {item.screenshot && (
                     <div className={`mt-4 rounded-lg overflow-hidden border border-white/[0.06] ${idx === 0 ? '' : 'hidden sm:block'}`}>
                       <img src={item.screenshot} alt={item.title} className="w-full" loading="lazy" />
+                    </div>
+                  )}
+                  {/* 모바일 전용 미니 프리뷰 (스크린샷이 숨겨진 Step 2, 3) */}
+                  {idx === 1 && (
+                    <div className="mt-4 sm:hidden bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.04] text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="w-3 h-3 text-[#C084FC]" />
+                        <span className="text-[10px] text-[#5A5A6E]">AI 추천 크리에이터</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {[
+                          { init: 'MJ', name: '미진', tag: 'K-Beauty', score: 92 },
+                          { init: 'YK', name: 'Yuki', tag: 'コスメ', score: 87 },
+                          { init: 'EL', name: 'Emily', tag: 'Skincare', score: 95 }
+                        ].map((c, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[7px] text-white font-bold ${i === 0 ? 'bg-gradient-to-br from-pink-400 to-purple-500' : i === 1 ? 'bg-gradient-to-br from-blue-400 to-cyan-400' : 'bg-gradient-to-br from-amber-400 to-orange-400'}`}>{c.init}</div>
+                            <span className="text-[10px] text-white flex-1">{c.name}</span>
+                            <span className="text-[8px] text-[#5A5A6E]">{c.tag}</span>
+                            <span className="text-[9px] text-[#C084FC] font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>{c.score}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {idx === 2 && (
+                    <div className="mt-4 sm:hidden bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.04] text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Video className="w-3 h-3 text-[#C084FC]" />
+                        <span className="text-[10px] text-[#5A5A6E]">캠페인 진행 현황</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {[
+                          { label: '촬영 완료', status: '3/3', color: '#C084FC' },
+                          { label: '편집 진행', status: '2/3', color: '#818CF8' },
+                          { label: '컨펌 대기', status: '1/3', color: '#67E8F9' }
+                        ].map((s, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[10px] text-[#A0A0B0] w-14">{s.label}</span>
+                            <div className="flex-1 h-1.5 bg-[#1A1A24] rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${parseInt(s.status) / 3 * 100}%`, backgroundColor: s.color }} />
+                            </div>
+                            <span className="text-[9px] font-medium" style={{ color: s.color, fontFamily: "'Outfit', sans-serif" }}>{s.status}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
