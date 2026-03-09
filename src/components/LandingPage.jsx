@@ -492,7 +492,7 @@ export default function LandingPage() {
       name: '김 팀장',
       role: '마케팅 팀장',
       company: 'MEDIHEAL',
-      content: '처음으로 숏폼 캠페인을 진행했는데, 크리에이터 매칭부터 영상 납품까지 플랫폼에서 한 번에 해결됐습니다. 대시보드에서 진행 상황을 바로 확인할 수 있어 편했어요.',
+      content: '처음으로 숏폼 캠페인을 진행했는데, 크리에이터 매칭부터 SNS 업로드까지 플랫폼에서 한 번에 해결됐습니다. 대시보드에서 진행 상황을 바로 확인할 수 있어 편했어요.',
     },
     {
       name: '이 대표',
@@ -645,7 +645,7 @@ export default function LandingPage() {
                 className="text-[#A0A0B0] text-[13px] sm:text-base lg:text-lg mb-6 sm:mb-10 max-w-xl leading-relaxed"
               >
                 가입하고 바로 캠페인을 개설하세요.<br />
-                크리에이터 매칭, 기획, 촬영, 편집까지. 한국·미국·일본 글로벌 숏폼 캠페인.
+                크리에이터 매칭, 기획, 촬영, 편집, SNS 업로드까지. 한국·미국·일본 글로벌 숏폼 캠페인.
               </motion.p>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1237,9 +1237,9 @@ export default function LandingPage() {
               },
               {
                 step: '03',
-                title: '진행 확인 & 컨펌',
-                desc: '촬영 진행 상황을 대시보드에서 실시간 확인하고, 완성된 영상을 컨펌하세요.',
-                badge: '실시간 대시보드',
+                title: '컨펌 & SNS 업로드',
+                desc: '촬영 진행 상황을 실시간 확인하고, 완성된 영상을 컨펌하면 크리에이터가 직접 SNS에 업로드합니다.',
+                badge: 'SNS 업로드까지 완료',
                 icon: Video,
                 screenshot: '/campaigns-list-screenshot.webp'
               }
@@ -1304,8 +1304,8 @@ export default function LandingPage() {
                       <div className="space-y-2">
                         {[
                           { label: '촬영 완료', status: '3/3', color: '#C084FC' },
-                          { label: '편집 진행', status: '2/3', color: '#818CF8' },
-                          { label: '컨펌 대기', status: '1/3', color: '#67E8F9' }
+                          { label: '편집 완료', status: '2/3', color: '#818CF8' },
+                          { label: 'SNS 업로드', status: '1/3', color: '#67E8F9' }
                         ].map((s, i) => (
                           <div key={i} className="flex items-center gap-2.5">
                             <span className="text-[11px] text-[#B0B0C0] w-16 font-medium">{s.label}</span>
