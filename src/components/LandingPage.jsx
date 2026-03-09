@@ -674,8 +674,8 @@ export default function LandingPage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed"
             >
-              크리에이터 찾고, 기획하고, 촬영 관리까지...<br className="hidden sm:block" />
-              혼자서 에너지 낭비하지 마세요. 가장 쉬운 숏폼 영상 외주 플랫폼, 크넥.
+              크리에이터 매칭, 기획, 촬영, 편집까지.<br className="hidden sm:block" />
+              한국·미국·일본 글로벌 숏폼 캠페인. K-뷰티 글로벌 숏폼 플랫폼, 크넥.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -687,7 +687,7 @@ export default function LandingPage() {
                 onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
                 className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
-                {user ? '캠페인 현황보기' : '무료로 캠페인 시작하기'}
+                {user ? '캠페인 현황보기' : '지금 시작하기'}
                 <ArrowRight className="w-4 h-4" />
               </button>
               <a
@@ -704,7 +704,35 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 2] Problem - 페인포인트 자극 */}
+      {/* [섹션 2] Trust Bar - 실적 수치 */}
+      <section className="py-10 sm:py-14 bg-[#121218] border-y border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            {[
+              { num: '500+', label: '협업 브랜드' },
+              { num: '3,000+', label: '캠페인 진행' },
+              { num: '1,000+', label: '미국 캠페인 돌파' },
+              { num: '14일', label: '평균 완성 기간' }
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-30px' }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="text-center"
+              >
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#C084FC] mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {item.num}
+                </p>
+                <p className="text-[#A0A0B0] text-xs sm:text-sm">{item.label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* [섹션 3] Problem - 페인포인트 자극 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -763,7 +791,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 3] Solution - 크넥의 해결책 */}
+      {/* [섹션 4] Solution - 크넥의 해결책 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#121218]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -782,10 +810,10 @@ export default function LandingPage() {
             {[
               {
                 num: '01',
-                title: '검증된 크리에이터 큐레이션',
+                title: 'AI CleanScore 크리에이터 검증',
                 subtitle: '섭외 & 퀄리티 해결',
-                desc: '수많은 크리에이터 중 우리 브랜드와 결이 맞는 사람을 크넥이 직접 찾아 매칭합니다. 레퍼런스 검증을 통해 돈 낭비 없는 확실한 퀄리티를 보장합니다.',
-                icon: Users
+                desc: 'AI가 크리에이터의 콘텐츠 퀄리티, 브랜드 적합도, 과거 성과를 분석하여 CleanScore로 검증합니다. 데이터 기반 매칭으로 돈 낭비 없는 확실한 퀄리티를 보장합니다.',
+                icon: Shield
               },
               {
                 num: '02',
@@ -796,9 +824,9 @@ export default function LandingPage() {
               },
               {
                 num: '03',
-                title: '거품을 뺀 합리적인 맞춤 예산',
+                title: '20만원부터 시작하는 숏폼 캠페인',
                 subtitle: '예산 부담 해결',
-                desc: '에이전시에 맡기는 비싼 비용 대신, 정해진 예산 안에서 최대의 효율을 낼 수 있는 최적의 캠페인을 제안합니다.',
+                desc: '20만원부터 숏폼 캠페인을 시작할 수 있습니다. SNS 업로드 + 2차 활용 무료 + AI 가이드 무한 제공까지. 거품 없는 가격으로 최대의 효율을 냅니다.',
                 icon: Target
               }
             ].map((item, idx) => (
@@ -831,7 +859,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 4] How it works - 3단계 프로세스 */}
+      {/* [섹션 5] How it works - 3단계 프로세스 */}
       <section className="py-16 sm:py-20 lg:py-28 bg-[#0A0A0F]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-14">
@@ -900,7 +928,7 @@ export default function LandingPage() {
               onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
               className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
             >
-              {user ? '캠페인 현황보기' : '1분 만에 제품 등록하기'}
+              {user ? '캠페인 현황보기' : '지금 시작하기'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -1511,7 +1539,7 @@ export default function LandingPage() {
             onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
             className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-base sm:text-lg hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
           >
-            {user ? '캠페인 현황보기' : '지금 바로 제품 등록하기'}
+            {user ? '캠페인 현황보기' : '지금 시작하기'}
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
@@ -1519,6 +1547,21 @@ export default function LandingPage() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Sticky Bottom CTA Button */}
+      {!user && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/95 to-transparent pointer-events-none">
+          <div className="max-w-lg mx-auto pointer-events-auto">
+            <button
+              onClick={() => navigate('/signup')}
+              className="w-full py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[rgba(192,132,252,0.3)]"
+            >
+              지금 시작하기
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
