@@ -143,6 +143,7 @@ import ChatbotDashboard from './components/admin/chatbot/ChatbotDashboard'
 import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagement'
 import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
 import ChatbotPromptManagement from './components/admin/chatbot/ChatbotPromptManagement'
+import MeetingSchedulePage from './components/admin/meeting/MeetingSchedulePage'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -312,6 +313,7 @@ function App() {
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
         <Route path="/admin/creator-mapping" element={<CreatorMappingManagement />} />
         <Route path="/admin/creator-proposals" element={<CreatorProposalManagement />} />
+        <Route path="/admin/meeting-schedule" element={<MeetingSchedulePage />} />
 
         {/* Creator Routes */}
         <Route path="/creator/mypage" element={<CreatorMyPage />} />
