@@ -313,19 +313,17 @@ SNS 업로드 기한: #{업로드기한}
 ※ 이 초대는 #{만료일}까지 유효합니다.`,
 
     // 소속 크리에이터 제안 알림톡 (지원 2)
-    '026020001350': `[크넥] 소속 크리에이터 제안
+    '026020001350': `[크넥(CNEC)] 가입 감사 안내
 
-#{크리에이터명}님 안녕하세요.
-크넥에서 연락 드립니다.
+안녕하세요, #{크리에이터명}님.
 
-활동하시는 채널을 확인하고, 소속 크리에이터로 제안 드립니다.
+크넥에 가입해 주셔서 진심으로 감사 드립니다.
 
-▶ 지원 혜택
 #{지원혜택}
 
-크넥과 함께 더 많은 캠페인 기회를 만들어 보세요!
+회원님께 제공되는 혜택과 지원 정보를 안내드리오니, 편하실 때 아래 내용을 확인해 보세요.
 
-※ 소속 등록은 자율이며, 언제든지 해제할 수 있습니다.`,
+*본 메시지는 크넥 플랫폼 가입 시 발송되는 안내 메시지입니다.`,
 
     // 기업용: 추천 크리에이터 지원 완료 알림
     '025110000797': `[CNEC]: # "초대한 크리에이터가 지원했어요!"
@@ -426,6 +424,14 @@ exports.handler = async (event) => {
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
     console.log('[INFO] Using plusFriendID:', plusFriendID);
 
+    // 템플릿별 버튼 설정
+    const templateButtons = {
+      '026020001350': [
+        { n: '지원 혜택', t: 'WL', u1: 'https://cnec.co.kr/creator-application', u2: 'https://cnec.co.kr/creator-application' }
+      ]
+    };
+    const btns = templateButtons[templateCode] || null;
+
     // 팝빌 API 호출 - sendATS_one으로 단일 수신자 발송
     const result = await new Promise((resolve, reject) => {
       kakaoService.sendATS_one(
@@ -440,7 +446,7 @@ exports.handler = async (event) => {
         receiverName || '',
         POPBILL_USER_ID,
         '', // reserveDT (예약시간, 빈값=즉시발송)
-        null, // btns
+        btns, // 템플릿 버튼
         (receiptNum) => {
           console.log('[SUCCESS] Popbill API result:', receiptNum);
           resolve({ receiptNum });
