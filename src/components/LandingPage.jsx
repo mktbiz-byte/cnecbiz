@@ -674,8 +674,8 @@ export default function LandingPage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed"
             >
-              크리에이터 매칭, 기획, 촬영, 편집까지.<br className="hidden sm:block" />
-              한국·미국·일본 글로벌 숏폼 캠페인. K-뷰티 글로벌 숏폼 플랫폼, 크넥.
+              크리에이터 매칭, 기획, 촬영, 편집까지.<br />
+              K-뷰티 글로벌 숏폼 플랫폼, 크넥.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -685,20 +685,11 @@ export default function LandingPage() {
             >
               <button
                 onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
-                className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
                 {user ? '캠페인 현황보기' : '지금 시작하기'}
                 <ArrowRight className="w-4 h-4" />
               </button>
-              <a
-                href="https://pf.kakao.com/_xgNdxlG"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto px-7 py-3.5 border border-white/20 text-white rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-all flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                카카오톡 상담
-              </a>
             </motion.div>
           </div>
         </div>
@@ -710,7 +701,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {[
               { num: '500+', label: '협업 브랜드' },
-              { num: '5,000+', label: '캠페인 진행' },
+              { num: '3,000+', label: '캠페인 진행' },
               { num: '1,000+', label: '미국 캠페인 돌파' },
               { num: '14일', label: '평균 완성 기간' }
             ].map((item, idx) => (
@@ -876,8 +867,8 @@ export default function LandingPage() {
               {
                 step: '01',
                 title: '제품 정보 등록',
-                desc: '제품 정보 및 원하는 방향을 간단히 등록하세요.',
-                badge: '소요시간 3분',
+                desc: '회원가입 후 바로 캠페인을 개설할 수 있습니다. 제품 정보와 원하는 방향만 간단히 등록하세요.',
+                badge: '가입 즉시 개설 가능',
                 icon: Package
               },
               {
@@ -1465,6 +1456,20 @@ export default function LandingPage() {
                 </div>
               </details>
             ))}
+          </div>
+
+          {/* 카카오톡 상담 안내 */}
+          <div className="mt-8 sm:mt-10 text-center">
+            <p className="text-[#A0A0B0] text-sm mb-3">더 궁금한 점이 있으신가요?</p>
+            <a
+              href="https://pf.kakao.com/_xgNdxlG"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm hover:border-white/40 transition-all"
+            >
+              <MessageCircle className="w-4 h-4" />
+              카카오톡으로 상담하기
+            </a>
           </div>
         </div>
       </section>
