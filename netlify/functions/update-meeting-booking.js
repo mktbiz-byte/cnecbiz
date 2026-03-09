@@ -191,6 +191,63 @@ exports.handler = async (event) => {
       } catch (notifyErr) {
         console.error('[update-meeting-booking] Naver Works notification failed:', notifyErr.message)
       }
+
+      // 크리에이터에게 미팅 확정 이메일 발송
+      if (updated.creator_email) {
+        try {
+          const { data: confirmedSlotForEmail } = await supabase
+            .from('meeting_slots')
+            .select('slot_date, slot_time, duration_minutes')
+            .eq('id', confirmed_slot_id)
+            .single()
+
+          if (confirmedSlotForEmail) {
+            const emailDate = confirmedSlotForEmail.slot_date
+            const emailTime = confirmedSlotForEmail.slot_time?.substring(0, 5)
+            const emailDuration = confirmedSlotForEmail.duration_minutes || 30
+
+            const emailHtml = `
+              <div style="font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                <div style="text-align: center; margin-bottom: 32px;">
+                  <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0;">미팅 스케줄이 확정되었습니다</h1>
+                </div>
+                <div style="background: #F8F7FF; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <p style="font-size: 15px; color: #333; margin: 0 0 8px;">
+                    <strong>일시:</strong> ${emailDate} ${emailTime} (${emailDuration}분)
+                  </p>
+                  <p style="font-size: 15px; color: #333; margin: 0;">
+                    <strong>이름:</strong> ${updated.creator_name || ''}
+                  </p>
+                </div>
+                <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <p style="font-size: 15px; color: #333; line-height: 1.7; margin: 0;">
+                    안녕하세요, <strong>${updated.creator_name || ''}</strong>님!<br><br>
+                    미팅 스케줄이 확정되었습니다.<br>
+                    담당자가 카카오 알림톡을 통해 최종 미팅 일정을 공유드릴 예정입니다.<br><br>
+                    알림톡을 확인해 주세요. 감사합니다!
+                  </p>
+                </div>
+                <div style="text-align: center; padding-top: 16px; border-top: 1px solid #F0F0F0;">
+                  <p style="font-size: 13px; color: #999; margin: 0;">© CNEC (크넥) | 주식회사 하우파파</p>
+                </div>
+              </div>
+            `
+
+            const baseUrlForEmail = process.env.URL || 'https://cnecbiz.com'
+            await fetch(`${baseUrlForEmail}/.netlify/functions/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: updated.creator_email,
+                subject: '[크넥] 미팅 스케줄이 확정되었습니다',
+                html: emailHtml
+              })
+            })
+          }
+        } catch (emailErr) {
+          console.error('[update-meeting-booking] Email notification failed:', emailErr.message)
+        }
+      }
     }
 
     return {
