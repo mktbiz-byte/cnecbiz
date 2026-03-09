@@ -81,10 +81,13 @@ const TaxInvoiceHaulabTab = () => {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
   };
 
-  // 금액 포맷팅 (콤마 추가)
+  // 금액 포맷팅 (콤마 추가, 마이너스 허용)
   const formatAmount = (value) => {
+    const isNegative = value.includes('-');
     const numbers = value.replace(/[^0-9]/g, '');
-    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (isNegative && !numbers) return '-';
+    const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return isNegative ? `-${formatted}` : formatted;
   };
 
   // 수동 발행 모달 열기
@@ -178,16 +181,13 @@ const TaxInvoiceHaulabTab = () => {
       alert('금액을 입력해주세요.');
       return;
     }
-    if (amount < 0) {
-      alert('하우랩은 마이너스(음수) 세금계산서 발행이 불가능합니다.\n마이너스 발행은 하우파파 탭에서만 가능합니다.');
-      return;
-    }
 
-    const confirmMessage = `[하우랩] 세금계산서를 발행하시겠습니까?\n\n` +
+    const isNegative = amount < 0;
+    const confirmMessage = `${isNegative ? '⚠️ [마이너스] ' : ''}[하우랩] 세금계산서를 발행하시겠습니까?\n\n` +
       `공급자: 하우랩주식회사 (376-81-00944)\n` +
       `공급받는자: ${manualForm.companyName}\n` +
       `사업자번호: ${manualForm.businessNumber}\n` +
-      `금액: ${amount.toLocaleString()}원 (VAT 포함)\n` +
+      `금액: ${amount.toLocaleString()}원 (VAT 포함)${isNegative ? ' [마이너스 발행]' : ''}\n` +
       `품목: ${manualForm.itemName || '크리에이터 마케팅 서비스'}`;
 
     if (!confirm(confirmMessage)) {
@@ -602,23 +602,33 @@ const TaxInvoiceHaulabTab = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       금액 (VAT 포함) <span className="text-red-500">*</span>
-                      <span className="ml-2 text-xs text-gray-400 font-normal">마이너스 발행 불가</span>
+                      <span className="ml-2 text-xs text-blue-500 font-normal">마이너스(-) 입력 가능</span>
                     </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={manualForm.amount}
                         onChange={(e) => setManualForm(prev => ({ ...prev, amount: formatAmount(e.target.value) }))}
-                        placeholder="110,000"
+                        placeholder="110,000 또는 -110,000"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent pr-8"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">원</span>
                     </div>
-                    {manualForm.amount && (
+                    {manualForm.amount && manualForm.amount !== '-' && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <span>공급가액: {Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1).toLocaleString()}원</span>
-                        <span className="mx-2">|</span>
-                        <span>세액: {(parseInt(manualForm.amount.replace(/,/g, '') || 0) - Math.round(parseInt(manualForm.amount.replace(/,/g, '') || 0) / 1.1)).toLocaleString()}원</span>
+                        {(() => {
+                          const parsed = parseInt(manualForm.amount.replace(/,/g, '') || 0);
+                          const supply = Math.round(parsed / 1.1);
+                          const tax = parsed - supply;
+                          return (
+                            <>
+                              <span>공급가액: {supply.toLocaleString()}원</span>
+                              <span className="mx-2">|</span>
+                              <span>세액: {tax.toLocaleString()}원</span>
+                              {parsed < 0 && <span className="ml-2 text-red-500 font-medium">[마이너스]</span>}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
