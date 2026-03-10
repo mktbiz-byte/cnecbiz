@@ -192,6 +192,33 @@ exports.handler = async (event) => {
         console.error('[update-meeting-booking] Naver Works notification failed:', notifyErr.message)
       }
 
+      // 빌링 스케줄에 미팅 자동 등록
+      try {
+        const { data: slotForSchedule } = await supabase
+          .from('meeting_slots')
+          .select('slot_date, slot_time, duration_minutes')
+          .eq('id', confirmed_slot_id)
+          .single()
+
+        if (slotForSchedule) {
+          const scheduleTime = slotForSchedule.slot_time?.substring(0, 5) || ''
+          const scheduleDuration = slotForSchedule.duration_minutes || 30
+          const creatorLabel = updated.creator_name || '(이름 없음)'
+
+          await supabase.from('billing_schedules').insert({
+            schedule_type: 'reminder',
+            title: `[미팅] ${creatorLabel}`,
+            description: `${scheduleTime} (${scheduleDuration}분)${updated.creator_phone ? ' / ' + updated.creator_phone : ''}${updated.admin_memo ? ' / ' + updated.admin_memo : ''}`,
+            scheduled_date: slotForSchedule.slot_date,
+            company_name: creatorLabel,
+            status: 'pending'
+          })
+          console.log('[update-meeting-booking] 빌링 스케줄 등록 완료:', slotForSchedule.slot_date)
+        }
+      } catch (scheduleErr) {
+        console.error('[update-meeting-booking] 빌링 스케줄 등록 실패:', scheduleErr.message)
+      }
+
       // 크리에이터에게 미팅 확정 이메일 발송
       if (updated.creator_email) {
         try {

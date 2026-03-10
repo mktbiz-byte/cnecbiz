@@ -293,7 +293,44 @@ export default function ConsultationManagement() {
 
       if (error) throw error
 
-      alert('계약 정보가 저장되었습니다.')
+      // 다음 연락 예정일이 있으면 billing_schedules에 자동 등록
+      if (nextContactDate) {
+        const companyName = selectedConsultation.company_name || '미지정'
+        const scheduleTitle = `[상담] ${companyName} 후속 연락`
+
+        // 기존 상담 스케줄이 있으면 업데이트, 없으면 신규 생성
+        const { data: existing } = await supabaseBiz
+          .from('billing_schedules')
+          .select('id')
+          .eq('title', scheduleTitle)
+          .eq('status', 'pending')
+          .maybeSingle()
+
+        if (existing) {
+          await supabaseBiz
+            .from('billing_schedules')
+            .update({
+              scheduled_date: nextContactDate,
+              description: `계약상태: ${contractStatus || 'pending'} / 예상매출: ${expectedRevenue ? Number(expectedRevenue).toLocaleString() + '원' : '미정'}`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+        } else {
+          await supabaseBiz
+            .from('billing_schedules')
+            .insert({
+              schedule_type: 'reminder',
+              title: scheduleTitle,
+              description: `계약상태: ${contractStatus || 'pending'} / 예상매출: ${expectedRevenue ? Number(expectedRevenue).toLocaleString() + '원' : '미정'}`,
+              scheduled_date: nextContactDate,
+              amount: expectedRevenue ? parseInt(expectedRevenue) : null,
+              company_name: companyName,
+              status: 'pending'
+            })
+        }
+      }
+
+      alert('계약 정보가 저장되었습니다.' + (nextContactDate ? '\n빌링 스케줄에 자동 등록되었습니다.' : ''))
       fetchConsultations()
     } catch (error) {
       console.error('계약 정보 저장 오류:', error)
@@ -904,7 +941,29 @@ export default function ConsultationManagement() {
                               <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded">
                                 <Paperclip className="w-5 h-5" />
                               </button>
-                              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded">
+                              <button
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                title="빌링 스케줄에 등록"
+                                onClick={async () => {
+                                  if (!selectedConsultation) return
+                                  const dateInput = prompt('스케줄 날짜를 입력하세요 (YYYY-MM-DD):', nextContactDate || new Date().toISOString().split('T')[0])
+                                  if (!dateInput) return
+                                  const companyName = selectedConsultation.company_name || '미지정'
+                                  try {
+                                    await supabaseBiz.from('billing_schedules').insert({
+                                      schedule_type: 'reminder',
+                                      title: `[상담] ${companyName} 후속 연락`,
+                                      description: newRecord.trim() || `상담 관리에서 등록`,
+                                      scheduled_date: dateInput,
+                                      company_name: companyName,
+                                      status: 'pending'
+                                    })
+                                    alert('빌링 스케줄에 등록되었습니다.')
+                                  } catch (e) {
+                                    alert('스케줄 등록 실패: ' + e.message)
+                                  }
+                                }}
+                              >
                                 <Calendar className="w-5 h-5" />
                               </button>
                               <select
