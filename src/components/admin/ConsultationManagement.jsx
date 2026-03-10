@@ -756,6 +756,9 @@ export default function ConsultationManagement() {
                       </div>
                       {getStatusBadge(consultation)}
                     </div>
+                    {consultation.message && (
+                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">{consultation.message}</p>
+                    )}
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -835,6 +838,17 @@ export default function ConsultationManagement() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* 상담 신청 내용 (폼에서 작성된 message) */}
+                  {selectedConsultation.message && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5" />
+                        상담 신청 내용
+                      </p>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">{selectedConsultation.message}</p>
+                    </div>
+                  )}
 
                   {/* 진행 단계 */}
                   <div className="mt-6">
