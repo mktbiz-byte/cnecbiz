@@ -11389,6 +11389,92 @@ Questions? Contact us.
                       const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung || isMegawari
                       const requiredVideoCount = is4WeekChallenge ? 4 : (isOliveyoung || isMegawari) ? 2 : 1
 
+                      // 멀티비디오 캠페인: participant에 등록된 step/week URL이 있지만 대응하는 video_submission이 없는 경우 synthetic 엔트리 생성
+                      if (isMultiVideoCampaign) {
+                        const existingVideoNumbers = new Set(creatorSubmissions.map(s => s.video_number || s.week_number))
+
+                        if (is4WeekChallenge) {
+                          for (let w = 1; w <= 4; w++) {
+                            if (!existingVideoNumbers.has(w) && (participant[`week${w}_url`] || participant[`week${w}_clean_video_url`])) {
+                              creatorSubmissions.push({
+                                id: `synthetic_week_${participant.id}_${w}`,
+                                user_id: participant.user_id,
+                                campaign_id: campaign.id,
+                                week_number: w,
+                                video_number: w,
+                                version: 1,
+                                video_file_url: null,
+                                clean_video_url: participant[`week${w}_clean_video_url`] || null,
+                                sns_upload_url: participant[`week${w}_url`] || null,
+                                ad_code: participant[`week${w}_partnership_code`] || null,
+                                status: 'completed',
+                                submitted_at: new Date().toISOString(),
+                                _synthetic: true
+                              })
+                            }
+                          }
+                        } else if (isOliveyoung) {
+                          for (let s = 1; s <= 3; s++) {
+                            if (!existingVideoNumbers.has(s) && (participant[`step${s}_url`] || participant[`step${s}_clean_video_url`])) {
+                              creatorSubmissions.push({
+                                id: `synthetic_step_${participant.id}_${s}`,
+                                user_id: participant.user_id,
+                                campaign_id: campaign.id,
+                                video_number: s,
+                                version: 1,
+                                video_file_url: null,
+                                clean_video_url: participant[`step${s}_clean_video_url`] || null,
+                                sns_upload_url: participant[`step${s}_url`] || null,
+                                ad_code: participant.step1_2_partnership_code || participant[`step${s}_partnership_code`] || participant.partnership_code || null,
+                                status: 'completed',
+                                submitted_at: new Date().toISOString(),
+                                _synthetic: true
+                              })
+                            }
+                          }
+                        } else if (isMegawari) {
+                          for (let v = 1; v <= 2; v++) {
+                            if (!existingVideoNumbers.has(v) && (participant[`video${v}_url`] || participant[`step${v}_url`] || participant[`step${v}_clean_video_url`])) {
+                              creatorSubmissions.push({
+                                id: `synthetic_mega_${participant.id}_${v}`,
+                                user_id: participant.user_id,
+                                campaign_id: campaign.id,
+                                video_number: v,
+                                version: 1,
+                                video_file_url: null,
+                                clean_video_url: participant[`step${v}_clean_video_url`] || null,
+                                sns_upload_url: participant[`video${v}_url`] || participant[`step${v}_url`] || null,
+                                ad_code: participant[`video${v}_partnership_code`] || participant.step1_2_partnership_code || null,
+                                status: 'completed',
+                                submitted_at: new Date().toISOString(),
+                                _synthetic: true
+                              })
+                            }
+                          }
+                        }
+
+                        // 재정렬
+                        creatorSubmissions.sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+                      }
+
+                      // 일반 캠페인도: participant에 sns_upload_url이 있지만 video_submission이 없는 경우
+                      if (!isMultiVideoCampaign && creatorSubmissions.length === 0 && (participant.sns_upload_url || participant.clean_video_url)) {
+                        creatorSubmissions.push({
+                          id: `synthetic_single_${participant.id}`,
+                          user_id: participant.user_id,
+                          campaign_id: campaign.id,
+                          video_number: 1,
+                          version: 1,
+                          video_file_url: null,
+                          clean_video_url: participant.clean_video_url || null,
+                          sns_upload_url: participant.sns_upload_url || null,
+                          ad_code: participant.partnership_code || participant.ad_code || null,
+                          status: 'completed',
+                          submitted_at: new Date().toISOString(),
+                          _synthetic: true
+                        })
+                      }
+
                       // 멀티비디오 캠페인의 SNS URL/광고코드 체크 (campaign_participants 테이블 컬럼 사용)
                       let allVideosHaveSnsUrl = false
                       let allVideosHaveAdCode = false
@@ -11459,17 +11545,29 @@ Questions? Contact us.
                               {/* 기획형 캠페인 (4주/올영): 편집본과 클린본 섹션 분리 */}
                               {isMultiVideoCampaign ? (
                                 <>
-                                  {/* 편집본 섹션 */}
+                                  {/* 편집본 섹션 - video_file_url 또는 SNS URL이 있는 모든 submission 표시 */}
+                                  {(() => {
+                                    // 편집본에 표시할 항목: video_file_url이 있거나, SNS URL이 participant에 등록된 step/week
+                                    const editedSubmissions = creatorSubmissions.filter(s => {
+                                      if (s.video_file_url) return true
+                                      // video_file_url이 없어도 해당 step/week의 SNS URL이 있으면 표시
+                                      if (is4WeekChallenge && s.week_number && participant[`week${s.week_number}_url`]) return true
+                                      if (isOliveyoung && s.video_number && participant[`step${s.video_number}_url`]) return true
+                                      if (isMegawari && s.video_number && (participant[`video${s.video_number}_url`] || participant[`step${s.video_number}_url`])) return true
+                                      if (s.sns_upload_url) return true
+                                      return false
+                                    })
+                                    return editedSubmissions.length > 0 ? (
                                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                                     <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                                       <Video className="w-4 h-4" />
                                       편집본
                                       <Badge className="bg-blue-600 text-white text-xs">
-                                        {creatorSubmissions.filter(s => s.video_file_url).length}개
+                                        {editedSubmissions.length}개
                                       </Badge>
                                     </h5>
                                     <div className="space-y-3">
-                                      {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
+                                      {editedSubmissions.map((submission, idx) => {
                                         // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
                                         let snsUrl = null
                                         if (is4WeekChallenge && submission.week_number) {
@@ -11543,6 +11641,7 @@ Questions? Contact us.
                                                 </div>
                                               </div>
                                               <div className="flex flex-col gap-1">
+                                                {submission.video_file_url && (
                                                 <Button
                                                   size="sm"
                                                   className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -11569,6 +11668,7 @@ Questions? Contact us.
                                                   <Download className="w-4 h-4 mr-1" />
                                                   편집본
                                                 </Button>
+                                                )}
                                                 {snsUrl && (
                                                   <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
                                                     <ExternalLink className="w-4 h-4 mr-1" />
@@ -11667,11 +11767,13 @@ Questions? Contact us.
                                           </div>
                                         )
                                       })}
-                                      {creatorSubmissions.filter(s => s.video_file_url).length === 0 && (
+                                      {editedSubmissions.length === 0 && (
                                         <p className="text-sm text-gray-500 text-center py-2">아직 제출된 편집본이 없습니다.</p>
                                       )}
                                     </div>
                                   </div>
+                                    ) : null
+                                  })()}
 
                                   {/* 클린본 섹션 */}
                                   {(() => {
@@ -11831,18 +11933,18 @@ Questions? Contact us.
                               ) : (
                                 /* 일반 캠페인: 편집본과 클린본 섹션 분리 */
                                 <>
-                                  {/* 편집본 섹션 */}
-                                  {creatorSubmissions.filter(s => s.video_file_url).length > 0 && (
+                                  {/* 편집본 섹션 - video_file_url 또는 SNS URL이 있는 항목 표시 */}
+                                  {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length > 0 && (
                                     <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                                       <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                                         <Video className="w-4 h-4" />
                                         편집본
                                         <Badge className="bg-blue-600 text-white text-xs">
-                                          {creatorSubmissions.filter(s => s.video_file_url).length}개
+                                          {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length}개
                                         </Badge>
                                       </h5>
                                       <div className="space-y-3">
-                                        {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
+                                        {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).map((submission, idx) => {
                                           // SNS URL 가져오기 (participant 데이터 우선 - 최신 업데이트된 데이터)
                                           const snsUrl = participant.sns_upload_url || submission.sns_upload_url
                                           // 광고코드 가져오기 (participant 데이터 우선)
@@ -11891,6 +11993,7 @@ Questions? Contact us.
                                                   </div>
                                                 </div>
                                                 <div className="flex flex-col gap-1">
+                                                  {submission.video_file_url && (
                                                   <Button
                                                     size="sm"
                                                     className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -11917,6 +12020,7 @@ Questions? Contact us.
                                                     <Download className="w-4 h-4 mr-1" />
                                                     편집본
                                                   </Button>
+                                                  )}
                                                   {snsUrl && (
                                                     <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
                                                       <ExternalLink className="w-4 h-4 mr-1" />
