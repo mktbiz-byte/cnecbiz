@@ -5250,6 +5250,12 @@ Questions? Contact us.
   // skipPointPayment: 멀티비디오 캠페인에서 마지막 영상이 아닌 경우 true
   const handleFinalConfirmation = async (submission, skipPointPayment = false) => {
     try {
+      // synthetic entry는 실제 DB 레코드가 아니므로 스킵
+      if (submission.id && String(submission.id).startsWith('synthetic_')) {
+        console.log('synthetic entry 스킵:', submission.id)
+        return
+      }
+
       // 중복 처리 방지: 이미 최종확정된 경우 무시
       if (submission.final_confirmed_at) {
         console.log('이미 최종확정된 영상입니다:', submission.id)
@@ -12265,10 +12271,11 @@ Questions? Contact us.
                                         const videoCount = is4WeekChallenge ? 4 : isOliveyoung ? 3 : creatorSubmissions.length
                                         if (!confirm(`전체 최종 확정하시겠습니까?\n\n크리에이터에게 포인트가 지급됩니다.`)) return
 
-                                        // 모든 영상 한 번에 최종 확정 (마지막 영상에서만 포인트 지급)
-                                        for (let i = 0; i < creatorSubmissions.length; i++) {
-                                          const isLastVideo = i === creatorSubmissions.length - 1
-                                          await handleFinalConfirmation(creatorSubmissions[i], !isLastVideo)
+                                        // synthetic entry 제외 후 실제 DB 레코드만 최종 확정
+                                        const realSubmissions = creatorSubmissions.filter(s => !String(s.id).startsWith('synthetic_'))
+                                        for (let i = 0; i < realSubmissions.length; i++) {
+                                          const isLastVideo = i === realSubmissions.length - 1
+                                          await handleFinalConfirmation(realSubmissions[i], !isLastVideo)
                                         }
                                       }}
                                     >
