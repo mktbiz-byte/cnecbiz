@@ -1638,6 +1638,22 @@ export default function WithdrawalManagement() {
     }
   }
 
+  // 엑셀 시트에서 주민등록번호(D열)와 계좌번호(J열)의 앞자리 0이 사라지지 않도록 텍스트 형식 강제
+  const forceTextFormatOnSheet = (ws) => {
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+    const textCols = [3, 9] // D(주민등록번호), J(계좌번호) - 0-indexed
+    for (let R = range.s.r + 1; R <= range.e.r; R++) { // skip header row
+      for (const C of textCols) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C })
+        if (ws[addr] && ws[addr].v != null) {
+          ws[addr].t = 's'
+          ws[addr].v = String(ws[addr].v)
+          ws[addr].z = '@'
+        }
+      }
+    }
+  }
+
   // 입금처별 엑셀 다운로드
   const handleDownloadEntityExcel = async (entity) => {
     try {
@@ -1686,6 +1702,7 @@ export default function WithdrawalManagement() {
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.json_to_sheet(excelData)
+      forceTextFormatOnSheet(ws)
       ws['!cols'] = [
         { wch: 5 }, { wch: 5 }, { wch: 15 }, { wch: 18 },
         { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
@@ -1842,6 +1859,7 @@ export default function WithdrawalManagement() {
       // 엑셀 워크북 생성
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.json_to_sheet(excelData)
+      forceTextFormatOnSheet(ws)
 
       // 컬럼 너비 설정
       ws['!cols'] = [
@@ -1924,6 +1942,7 @@ export default function WithdrawalManagement() {
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.json_to_sheet(excelData)
+      forceTextFormatOnSheet(ws)
 
       ws['!cols'] = [
         { wch: 5 }, { wch: 5 }, { wch: 15 }, { wch: 18 },
@@ -1992,6 +2011,7 @@ export default function WithdrawalManagement() {
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.json_to_sheet(excelData)
+      forceTextFormatOnSheet(ws)
 
       ws['!cols'] = [
         { wch: 5 }, { wch: 5 }, { wch: 15 }, { wch: 18 },
