@@ -129,7 +129,7 @@ exports.handler = async (event) => {
         .select('id, template_name, status, creator_name, campaign_name, created_at')
         .gte('created_at', todayISO)
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(500),
       // 오늘 기업 가입
       supabaseBiz.from('companies')
         .select('id, company_name, contact_person, created_at')
@@ -142,13 +142,30 @@ exports.handler = async (event) => {
         .gte('created_at', last24h)
         .order('created_at', { ascending: false })
         .limit(30),
-      // 오늘 알림 발송 로그
+      // 오늘 알림 발송 실패 로그 (토스트 표시용)
       supabaseBiz.from('notification_send_logs')
         .select('id, channel, status, function_name, error_message, created_at')
         .gte('created_at', todayISO)
+        .eq('status', 'failed')
         .order('created_at', { ascending: false })
-        .limit(200)
+        .limit(30)
     ])
+
+    // 채널별 알림 발송 건수 카운트 (정확한 집계를 위해 채널별 개별 count 쿼리)
+    const notifChannels = ['naver_works', 'kakao', 'email', 'line', 'whatsapp', 'sms']
+    const notifCountPromises = notifChannels.flatMap(ch => [
+      supabaseBiz.from('notification_send_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('channel', ch)
+        .eq('status', 'success')
+        .gte('created_at', todayISO),
+      supabaseBiz.from('notification_send_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('channel', ch)
+        .neq('status', 'success')
+        .gte('created_at', todayISO)
+    ])
+    const notifCountResults = Promise.allSettled(notifCountPromises)
 
     // 리전별 크리에이터 가입자 조회 (오늘)
     const creatorSignupPromises = regionalClients.map(async (region) => {
@@ -165,42 +182,47 @@ exports.handler = async (event) => {
       }
     })
 
-    const [regionResults, bizResults, creatorSignupResults] = await Promise.all([
+    const [regionResults, bizResults, creatorSignupResults, notifCounts] = await Promise.all([
       Promise.all(regionPromises),
       bizPromises,
-      Promise.all(creatorSignupPromises)
+      Promise.all(creatorSignupPromises),
+      notifCountResults
     ])
 
     const companyCount = bizResults[0]?.status === 'fulfilled' ? (bizResults[0].value?.count || 0) : 0
     const waLogs = bizResults[1]?.status === 'fulfilled' ? (bizResults[1].value?.data || []) : []
     const todaySignups = bizResults[2]?.status === 'fulfilled' ? (bizResults[2].value?.data || []) : []
     const recentPayments = bizResults[3]?.status === 'fulfilled' ? (bizResults[3].value?.data || []) : []
-    const notificationLogs = bizResults[4]?.status === 'fulfilled' ? (bizResults[4].value?.data || []) : []
+    const failureLogs = bizResults[4]?.status === 'fulfilled' ? (bizResults[4].value?.data || []) : []
 
-    // 알림 통계 집계
-    const notificationStats = {
-      naver_works: { success: 0, failed: 0 },
-      kakao: { success: 0, failed: 0 },
-      email: { success: 0, failed: 0 },
-      line: { success: 0, failed: 0 },
-      sms: { success: 0, failed: 0 }
-    }
-    const recentFailures = []
-    notificationLogs.forEach(log => {
-      const ch = notificationStats[log.channel]
-      if (ch) {
-        if (log.status === 'success') ch.success++
-        else ch.failed++
-      }
-      if (log.status === 'failed') {
-        recentFailures.push({
-          channel: log.channel,
-          function_name: log.function_name,
-          error: log.error_message,
-          time: log.created_at
-        })
+    // 채널별 알림 통계 집계 (count 쿼리 결과)
+    const notificationStats = {}
+    notifChannels.forEach((ch, i) => {
+      const successResult = notifCounts[i * 2]
+      const failedResult = notifCounts[i * 2 + 1]
+      notificationStats[ch] = {
+        success: successResult?.status === 'fulfilled' ? (successResult.value?.count || 0) : 0,
+        failed: failedResult?.status === 'fulfilled' ? (failedResult.value?.count || 0) : 0
       }
     })
+
+    // WhatsApp: whatsapp_logs 테이블의 건수도 반영 (send-whatsapp.js 대량발송은 notification_send_logs에 기록하지 않음)
+    const waSuccess = waLogs.filter(w => w.status !== 'failed').length
+    const waFailed = waLogs.filter(w => w.status === 'failed').length
+    if (waSuccess > notificationStats.whatsapp.success) {
+      notificationStats.whatsapp.success = waSuccess
+    }
+    if (waFailed > notificationStats.whatsapp.failed) {
+      notificationStats.whatsapp.failed = waFailed
+    }
+
+    // 실패 로그 (토스트 표시용)
+    const recentFailures = failureLogs.map(log => ({
+      channel: log.channel,
+      function_name: log.function_name,
+      error: log.error_message,
+      time: log.created_at
+    }))
 
     // 크리에이터 가입자 통계
     const creatorSignups = {}

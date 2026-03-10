@@ -503,7 +503,7 @@ export default function LiveDashboard() {
                 <NotifChannel label="카카오" stats={notifications.kakao} />
                 <NotifChannel label="이메일" stats={notifications.email} />
                 <NotifChannel label="LINE" stats={notifications.line} />
-                <NotifChannel label="WhatsApp" stats={{ success: today.whatsapp?.success || 0, failed: today.whatsapp?.failed || 0 }} />
+                <NotifChannel label="WhatsApp" stats={notifications.whatsapp} />
               </div>
               {notificationFailures.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-[#1A1A28]">

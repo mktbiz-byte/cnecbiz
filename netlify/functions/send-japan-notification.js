@@ -31,6 +31,29 @@ const getSupabaseJapan = () => {
   return createClient(url, key);
 };
 
+// BIZ DB (알림 로그 기록용)
+const getBizSupabase = () => {
+  const url = process.env.VITE_SUPABASE_BIZ_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+};
+
+async function logNotificationSend(channel, status, recipient, messagePreview, errorMessage) {
+  try {
+    const biz = getBizSupabase();
+    if (!biz) return;
+    await biz.from('notification_send_logs').insert({
+      channel,
+      status,
+      function_name: 'send-japan-notification',
+      recipient: recipient || null,
+      message_preview: messagePreview ? messagePreview.substring(0, 200) : null,
+      error_message: errorMessage || null
+    });
+  } catch (e) { /* skip */ }
+}
+
 // Gemini 번역
 async function translateToJapanese(text) {
   const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -605,6 +628,7 @@ exports.handler = async (event) => {
       results.line.error = lineResult.error;
 
       console.log(`[Japan Notification] LINE result:`, lineResult);
+      await logNotificationSend('line', lineResult.success ? 'success' : 'failed', creator.line_user_id, translatedLineMessage, lineResult.error);
     }
 
     // 2. LINE 실패 또는 친구 아님 → SMS 발송
@@ -616,6 +640,7 @@ exports.handler = async (event) => {
       results.sms.error = smsResult.error;
 
       console.log(`[Japan Notification] SMS result:`, smsResult);
+      await logNotificationSend('sms', smsResult.success ? 'success' : 'failed', creator.phone, translatedSmsMessage, smsResult.error);
     }
 
     // 2-1. LINE 미등록 시 LINE 초대장 발송 (SMS + Email)
