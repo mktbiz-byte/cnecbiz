@@ -118,7 +118,8 @@ exports.handler = async (event) => {
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
-    // 1순위: company_biz_id → companies.id
+    // ★ lookup 순서: AdminCampaignsManagement.jsx의 getCompanyData와 동일
+    // 1순위: company_biz_id → companies.id (백필된 정확한 매칭 — 가장 신뢰)
     if (companyBizId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyBizId).maybeSingle()
@@ -126,7 +127,15 @@ exports.handler = async (event) => {
       } catch (e) { console.log('[notify-sns-upload-complete] company_biz_id 조회 실패:', e.message) }
     }
 
-    // 2순위: company_email → companies.email
+    // 2순위: company_id → companies.user_id (auth user 매칭 — 대부분의 캠페인이 이걸로 매칭)
+    if (!comp && companyId) {
+      try {
+        const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
+        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_id→user_id 매칭:', data.company_name) }
+      } catch (e) { /* skip */ }
+    }
+
+    // 3순위: company_email → companies.email
     if (!comp && companyEmailFromCampaign) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
@@ -134,19 +143,11 @@ exports.handler = async (event) => {
       } catch (e) { /* skip */ }
     }
 
-    // 3순위: company_id → companies.id
+    // 4순위: company_id → companies.id (legacy/이관 케이스)
     if (!comp && companyId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
-        if (data) { comp = data }
-      } catch (e) { /* skip */ }
-    }
-
-    // 4순위: company_id → companies.user_id
-    if (!comp && companyId) {
-      try {
-        const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
-        if (data) { comp = data }
+        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_id→id 매칭:', data.company_name) }
       } catch (e) { /* skip */ }
     }
 
@@ -155,29 +156,17 @@ exports.handler = async (event) => {
       companyEmail = comp.notification_email || comp.email
       companyName = comp.company_name || companyName
     } else {
-      // 최종 fallback: 캠페인에 직접 저장된 값을 사용하되,
-      // 해당 전화번호로 companies 테이블에서 한번 더 검색하여 notification_phone이 있으면 우선 사용
-      const fallbackPhone = campaignData?.company_phone
+      // ★ company_biz_id/company_email/company_id 모두 매칭 실패 시
+      // campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
+      // (캠페인 생성 시 관리자 번호가 company_phone에 저장되는 경우가 있음)
       const fallbackEmail = campaignData?.company_email
-      if (fallbackPhone) {
-        try {
-          const { data: compByPhone } = await supabaseBiz.from('companies')
-            .select(selectFields)
-            .eq('phone', fallbackPhone.replace(/-/g, ''))
-            .maybeSingle()
-          if (compByPhone) {
-            companyPhone = compByPhone.notification_phone || compByPhone.phone
-            companyEmail = compByPhone.notification_email || compByPhone.email || fallbackEmail
-            companyName = compByPhone.company_name || companyName
-            console.log('[notify-sns-upload-complete] fallback phone → companies 매칭:', compByPhone.company_name)
-          } else {
-            // ★ campaign.company_phone을 직접 사용하지 않음 — 관리자 번호 발송 방지
-            console.warn('[notify-sns-upload-complete] fallback phone으로 companies 매칭 실패. 카카오 발송 스킵:', fallbackPhone)
-          }
-        } catch (e) {
-          console.warn('[notify-sns-upload-complete] fallback phone 조회 에러. 카카오 발송 스킵:', e.message)
-        }
-      }
+      console.warn('[notify-sns-upload-complete] BIZ DB 기업 매칭 실패. 카카오 발송 스킵:', {
+        company_biz_id: companyBizId,
+        company_id: companyId,
+        company_email: companyEmailFromCampaign,
+        company_phone: campaignData?.company_phone
+      })
+      companyPhone = null
       if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
     }
 
