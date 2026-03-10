@@ -1944,6 +1944,74 @@ export default function WithdrawalManagement() {
     }
   }
 
+  // 완료 건 엑셀 다운로드 (주민번호 포함)
+  const handleDownloadCompletedKoreaExcel = async () => {
+    try {
+      const completedWithdrawals = withdrawals.filter(w =>
+        w.region === 'korea' && w.status === 'completed'
+      )
+
+      if (completedWithdrawals.length === 0) {
+        alert('다운로드할 완료 건이 없습니다.')
+        return
+      }
+
+      const excelData = await Promise.all(completedWithdrawals.map(async (w) => {
+        const createdAt = new Date(w.created_at)
+        const month = createdAt.getMonth() + 1
+        const day = createdAt.getDate()
+
+        const grossAmount = w.requested_amount || 0
+        const incomeTax = Math.round(grossAmount * 0.03)
+        const residentTax = Math.round(grossAmount * 0.003)
+        const netAmount = grossAmount - incomeTax - residentTax
+
+        let residentNumber = ''
+        if (w.resident_registration_number) {
+          try {
+            residentNumber = await decryptResidentNumber(w.resident_registration_number)
+          } catch (err) {
+            residentNumber = '복호화 실패'
+          }
+        }
+
+        return {
+          '월': month,
+          '일': day,
+          '이름': w.creator_name || w.account_holder || 'Unknown',
+          '주민등록번호': residentNumber,
+          '세금공제 전 금액': grossAmount,
+          '소득세': incomeTax,
+          '주민세': residentTax,
+          '실입금액': netAmount,
+          '은행명': w.bank_name || '',
+          '계좌번호': w.account_number || '',
+          '비고': w.admin_notes || ''
+        }
+      }))
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(excelData)
+
+      ws['!cols'] = [
+        { wch: 5 }, { wch: 5 }, { wch: 15 }, { wch: 18 },
+        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
+        { wch: 12 }, { wch: 20 }, { wch: 20 },
+      ]
+
+      XLSX.utils.book_append_sheet(wb, ws, '완료건')
+
+      const today = new Date()
+      const fileName = `크리에이터_출금완료_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`
+
+      XLSX.writeFile(wb, fileName)
+      alert(`${completedWithdrawals.length}건의 완료 건이 다운로드되었습니다.`)
+    } catch (error) {
+      console.error('완료 건 엑셀 다운로드 오류:', error)
+      alert('엑셀 다운로드 중 오류가 발생했습니다.')
+    }
+  }
+
   const filteredWithdrawals = getFilteredWithdrawals()
 
   return (
@@ -2000,6 +2068,14 @@ export default function WithdrawalManagement() {
                 >
                   <Building2 className="w-4 h-4 mr-2" />
                   하우파파 엑셀
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadCompletedKoreaExcel}
+                  className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-teal-200"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  완료 건 엑셀
                 </Button>
                 <Button
                   variant="outline"
