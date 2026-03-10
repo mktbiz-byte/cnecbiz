@@ -103,7 +103,7 @@ const MESSAGE_TEMPLATES = {
   // 가입 완료 알림
   signup_complete: (data) => ({
     type: 'text',
-    text: `✅ 가입 완료!\n\n${data.creatorName}님, CNEC BIZ 크리에이터 가입이 완료되었습니다.\n\n이제 다양한 캠페인에 참여하실 수 있습니다.\n캠페인 선정, 정산 등 중요한 알림을 LINE으로 보내드릴게요!\n\n마이페이지: https://cnecbiz.com/creator/mypage`
+    text: `✅ 가입 완료!\n\n${data.creatorName}님, CNEC BIZ 크리에이터 가입이 완료되었습니다.\n\n이제 다양한 캠페인에 참여하실 수 있습니다.\n캠페인 선정, 정산 등 중요한 알림을 LINE으로 보내드릴게요!\n\n마이페이지: https://cnec.jp/creator/mypage`
   }),
 
   // 정산 완료 알림
@@ -115,7 +115,7 @@ const MESSAGE_TEMPLATES = {
   // 영상 검토 요청
   video_review_request: (data) => ({
     type: 'text',
-    text: `📹 영상 검토 요청\n\n${data.creatorName}님, 제출하신 영상에 수정 요청이 있습니다.\n\n캠페인: ${data.campaignName}\n피드백: ${data.feedback || '상세 내용을 확인해주세요.'}\n\n수정 후 다시 제출해주세요.\n${data.reviewUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `📹 영상 검토 요청\n\n${data.creatorName}님, 제출하신 영상에 수정 요청이 있습니다.\n\n캠페인: ${data.campaignName}\n피드백: ${data.feedback || '상세 내용을 확인해주세요.'}\n\n수정 후 다시 제출해주세요.\n${data.reviewUrl || 'https://cnec.jp/creator/mypage'}`
   }),
 
   // 영상 승인 완료
@@ -127,19 +127,19 @@ const MESSAGE_TEMPLATES = {
   // 영상 제출 마감 임박 알림 (일본어)
   video_deadline_reminder: (data) => ({
     type: 'text',
-    text: `⏰ 동영상 제출 마감 알림\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 영상 제출 마감일이 다가왔습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `⏰ 동영상 제출 마감 알림\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 영상 제출 마감일이 다가왔습니다.\n\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnec.jp/creator/mypage'}`
   }),
 
   // 가이드 확인 요청 (일본어)
   guide_confirm_request: (data) => ({
     type: 'text',
-    text: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName}\n\n가이드를 확인하시고 촬영을 시작해주세요.\n${data.guideUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName}\n\n마이페이지에서 가이드를 확인하시고 촬영을 시작해주세요.`
   }),
 
   // SNS 업로드 완료 요청 (일본어)
   sns_upload_request: (data) => ({
     type: 'text',
-    text: `📤 SNS 업로드 요청\n\n${data.creatorName}님, "${data.campaignName}" 영상이 승인되었습니다!\n\n이제 SNS에 업로드하시고 URL을 등록해주세요.\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n✅ 광고 코드 입력\n✅ 클린 영상 (자막 없는 버전) 제출\n\n마감일: ${data.deadline || '캠페인 종료일까지'}\n${data.uploadUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `📤 SNS 업로드 요청\n\n${data.creatorName}님, "${data.campaignName}" 영상이 승인되었습니다!\n\n이제 SNS에 업로드하시고 URL을 등록해주세요.\n${data.stepInfo ? `📌 ${data.stepInfo}\n` : ''}\n✅ 광고 코드 입력\n✅ 클린 영상 (자막 없는 버전) 제출\n\n마감일: ${data.deadline || '캠페인 종료일까지'}\n${data.uploadUrl || 'https://cnec.jp/creator/mypage'}`
   }),
 
   // 포인트 지급 완료 (일본어)
@@ -151,13 +151,13 @@ const MESSAGE_TEMPLATES = {
   // 4주 챌린지 주차별 알림 (일본어)
   weekly_challenge_reminder: (data) => ({
     type: 'text',
-    text: `🗓️ ${data.weekNumber}주차 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.weekNumber}주차 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n이번 주 영상을 잊지 말고 제출해주세요!\n${data.submitUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `🗓️ ${data.weekNumber}주차 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.weekNumber}주차 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n이번 주 영상을 잊지 말고 제출해주세요!\n${data.submitUrl || 'https://cnec.jp/creator/mypage'}`
   }),
 
   // 메가와리 스텝별 알림 (일본어)
   megawari_step_reminder: (data) => ({
     type: 'text',
-    text: `🎯 ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnecbiz.com/creator/mypage'}`
+    text: `🎯 ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 알림\n\n${data.creatorName}님, "${data.campaignName}" ${data.stepNumber === 1 ? '1차' : '2차'} 영상 제출 마감일이 다가왔습니다.\n\n마감일: ${data.deadline}\n\n기한 내에 영상을 제출해주세요!\n${data.submitUrl || 'https://cnec.jp/creator/mypage'}`
   }),
 
   // 선정 취소 알림

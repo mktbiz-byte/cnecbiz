@@ -510,27 +510,40 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-white">
+      {/* Hero Float Animations */}
+      <style>{`
+        @keyframes hero-float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        @keyframes hero-float-delayed {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .hero-float { animation: hero-float 6s ease-in-out infinite; }
+        .hero-float-delayed { animation: hero-float-delayed 6s ease-in-out 3s infinite; }
+      `}</style>
+
       {/* Header - Dark Style */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0F]/85 backdrop-blur-xl border-b border-white/5">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0F]/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
+            <div className="flex items-center gap-12">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tighter text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
+              <nav className="hidden lg:flex items-center gap-8">
+                <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">포트폴리오</a>
+                <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">요금제</a>
+                <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">글로벌 캠페인</a>
+                <button onClick={() => navigate('/newsletters')} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">인사이트</button>
+                <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">FAQ</a>
+              </nav>
             </div>
-
-            <nav className="hidden lg:flex items-center space-x-8">
-              <a href="#showcase" className="text-[#A0A0B0] hover:text-white transition-colors text-sm">포트폴리오</a>
-              <a href="#pricing" className="text-[#A0A0B0] hover:text-white transition-colors text-sm">요금제</a>
-              <a href="#voucher" className="text-[#A0A0B0] hover:text-white transition-colors text-sm">글로벌 캠페인</a>
-              <button onClick={() => navigate('/newsletters')} className="text-[#A0A0B0] hover:text-white transition-colors text-sm">인사이트</button>
-              <a href="#faq" className="text-[#A0A0B0] hover:text-white transition-colors text-sm">FAQ</a>
-            </nav>
 
             <div className="hidden sm:flex items-center space-x-3">
               {user ? (
                 <button
                   onClick={handleDashboardClick}
-                  className="px-5 py-2.5 border border-white/20 text-white rounded-full text-sm font-medium hover:border-white/40 transition-all"
+                  className="px-6 py-2.5 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all"
                 >
                   대시보드
                 </button>
@@ -538,13 +551,13 @@ export default function LandingPage() {
                 <>
                   <button
                     onClick={() => navigate('/login')}
-                    className="px-4 py-2 text-[#A0A0B0] hover:text-white transition-colors text-sm"
+                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
                   >
                     로그인
                   </button>
                   <button
                     onClick={() => navigate('/signup')}
-                    className="px-5 py-2.5 bg-[#C084FC] text-[#0A0A0F] rounded-full text-sm font-semibold hover:brightness-110 transition-all"
+                    className="px-6 py-2.5 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all"
                   >
                     무료로 시작하기
                   </button>
@@ -563,11 +576,11 @@ export default function LandingPage() {
           {mobileMenuOpen && (
             <div className="sm:hidden py-4 border-t border-white/5">
               <nav className="flex flex-col space-y-3">
-                <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-[#A0A0B0] py-2">포트폴리오</a>
-                <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-[#A0A0B0] py-2">요금제</a>
-                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-[#A0A0B0] py-2">글로벌 캠페인</a>
-                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-[#A0A0B0] py-2 text-left">인사이트</button>
-                <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-[#A0A0B0] py-2">FAQ</a>
+                <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
+                <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
+                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">글로벌 캠페인</a>
+                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-400 py-2 text-left">인사이트</button>
+                <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
               </nav>
               <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-white/5">
                 {user ? (
@@ -600,132 +613,176 @@ export default function LandingPage() {
       </header>
 
       {/* [섹션 1] Hero */}
-      <section className="relative pt-20 sm:pt-32 pb-10 sm:pb-24 bg-[#0A0A0F] overflow-hidden">
-        {/* 배경 장식 */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-[10%] w-72 h-72 bg-[rgba(192,132,252,0.06)] rounded-full blur-[100px]" />
-          <div className="absolute bottom-10 right-[10%] w-96 h-96 bg-[rgba(192,132,252,0.04)] rounded-full blur-[120px]" />
-        </div>
+      <section className="relative min-h-screen flex items-center pt-20 bg-[#0A0A0F] overflow-hidden">
+        {/* 배경 효과 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-[#C084FC]/20 rounded-full blur-[120px] pointer-events-none opacity-50 animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute top-1/4 right-0 w-[400px] sm:w-[500px] h-[400px] sm:h-[500px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none opacity-50" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            {/* 좌측: 텍스트 */}
-            <div>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-4 sm:mb-6"
-                style={{ fontFamily: "'Outfit', sans-serif" }}
-              >
-                K-BEAUTY GLOBAL SHORT-FORM PLATFORM
-              </motion.p>
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-[22px] sm:text-4xl lg:text-5xl font-bold tracking-tight mb-3 sm:mb-5 leading-tight"
-              >
-                <span className="text-white">상담 대기 없이, </span>
-                <span className="text-[#C084FC]">지금 당장</span><br />
-                <span className="text-white">글로벌 숏폼 캠페인을 시작하세요.</span>
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg sm:text-2xl lg:text-3xl font-bold text-white mb-3 sm:mb-5"
-              >
-                AI가 최적의 크리에이터를 매칭합니다. 가입부터 캠페인 오픈까지 단 5분.
-              </motion.p>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-[#A0A0B0] text-[13px] sm:text-base lg:text-lg mb-6 sm:mb-10 max-w-xl leading-relaxed"
-              >
-                한국·미국·일본 2,700+ 검증된 뷰티 크리에이터 네트워크
-              </motion.p>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <button
-                  onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
-                  className="w-full sm:w-auto px-8 py-4 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2"
-                >
-                  무료로 캠페인 시작하기
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </motion.div>
-              {/* 사회적 증거 */}
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-                className="text-[#5A5A6E] text-xs sm:text-sm mt-4 sm:mt-5"
-              >
-                MEDIHEAL · SKINFOOD · CLIO · Dr.G 등 520+ 브랜드가 직접 운영 중
-              </motion.p>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full grid lg:grid-cols-2 gap-16 lg:gap-8 relative z-10">
 
-            {/* 우측: 플랫폼 UI 스크린샷 */}
-            <motion.div
-              initial={{ opacity: 0, x: 40, rotateY: -5 }}
-              animate={{ opacity: 1, x: 0, rotateY: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="hidden lg:block relative"
-            >
-              <div className="relative">
-                {/* 메인 대시보드 스크린샷 */}
-                <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-[rgba(192,132,252,0.1)]">
-                  <img
-                    src="/dashboard-screenshot.webp"
-                    alt="크넥 대시보드"
-                    className="w-full"
-                  />
-                </div>
-                {/* 캠페인 생성 화면 (겹쳐서 보여주기) */}
-                <div className="absolute -bottom-6 -left-6 w-[60%] rounded-xl overflow-hidden border border-white/10 shadow-xl">
-                  <img
-                    src="/campaign-create-screenshot.webp"
-                    alt="캠페인 개설 화면"
-                    className="w-full"
-                  />
-                </div>
-                {/* 장식: 라이브 뱃지 */}
-                <div className="absolute -top-3 -right-3 px-3 py-1.5 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F] shadow-lg">
-                  ✦ 실제 플랫폼 화면
-                </div>
-              </div>
-            </motion.div>
-
-            {/* 모바일에서는 스크린샷 1장만 */}
+          {/* 좌측: 콘텐츠 */}
+          <div className="flex flex-col justify-center max-w-2xl pt-10 lg:pt-0">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="lg:hidden relative"
+              transition={{ duration: 0.5 }}
+              className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#C084FC]/30 bg-[#C084FC]/10 text-[#E0AAFF] text-xs font-semibold tracking-wider w-fit"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              {/* 뱃지 */}
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-[#A0A0B0] text-[11px]">실제 플랫폼 화면</span>
+              <Sparkles className="w-3 h-3" />
+              K-BEAUTY GLOBAL SHORT-FORM PLATFORM
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.2] tracking-tight mb-6"
+            >
+              상담 대기 없이,<br />
+              <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent">글로벌 숏폼 캠페인</span>을<br />
+              시작하세요.
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-base sm:text-lg text-gray-400 mb-8 sm:mb-10 leading-relaxed max-w-xl"
+            >
+              AI가 최적의 크리에이터를 매칭합니다. 가입부터 캠페인 오픈까지 단 5분.<br />
+              한국·미국·일본 <span className="text-white font-semibold">2,700+</span> 검증된 뷰티 크리에이터 네트워크.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 mb-12 sm:mb-16"
+            >
+              <button
+                onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
+                className="inline-flex justify-center items-center gap-2 px-8 py-4 rounded-xl bg-[#C084FC] text-white font-bold hover:brightness-110 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(192,132,252,0.3)]"
+              >
+                무료로 캠페인 시작하기
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <a
+                href="https://pf.kakao.com/_xgNdxlG"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex justify-center items-center gap-2 px-8 py-4 rounded-xl bg-white/[0.03] backdrop-blur-[16px] border border-white/[0.08] text-white font-medium hover:bg-white/10 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                도입 문의하기
+              </a>
+            </motion.div>
+
+            {/* Trusted By */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+              className="border-t border-white/10 pt-6 sm:pt-8"
+            >
+              <p className="text-xs text-gray-500 font-medium mb-4">520+ 글로벌 뷰티 브랜드가 직접 운영 중</p>
+              <div className="flex items-center gap-6 sm:gap-8 opacity-60 grayscale">
+                <span className="text-lg sm:text-xl font-bold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>MEDIHEAL</span>
+                <span className="text-lg sm:text-xl font-serif italic">SKINFOOD</span>
+                <span className="text-lg sm:text-xl font-black uppercase" style={{ fontFamily: "'Outfit', sans-serif" }}>Clio</span>
+                <span className="text-lg sm:text-xl font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>Dr.G</span>
               </div>
-              <div className="rounded-xl overflow-hidden border border-white/10 shadow-xl">
-                <img
-                  src="/campaign-create-screenshot.webp"
-                  alt="크넥 캠페인 개설 화면"
-                  className="w-full"
-                  loading="lazy"
-                />
-              </div>
-              <p className="text-[#5A5A6E] text-[11px] text-center mt-2">
-                가입 후 바로 이 화면에서 캠페인을 개설할 수 있습니다
-              </p>
             </motion.div>
           </div>
+
+          {/* 우측: 모의 대시보드 UI */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="relative h-[600px] hidden lg:block"
+          >
+            {/* 메인 대시보드 카드 */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[520px] bg-white/[0.03] backdrop-blur-[16px] border border-white/[0.08] shadow-2xl rounded-2xl p-6 hero-float z-10">
+              <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#C084FC] to-blue-500 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm">캠페인 대시보드</h3>
+                    <p className="text-xs text-gray-400">실시간 현황</p>
+                  </div>
+                </div>
+                <div className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  Live
+                </div>
+              </div>
+
+              {/* 통계 카드 */}
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                  <p className="text-xs text-gray-400 mb-1">진행중 캠페인</p>
+                  <p className="text-2xl font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>5<span className="text-sm text-gray-500 font-normal ml-1">건</span></p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                  <p className="text-xs text-gray-400 mb-1">확정 크리에이터</p>
+                  <p className="text-2xl font-bold text-[#E0AAFF]" style={{ fontFamily: "'Outfit', sans-serif" }}>24<span className="text-sm text-gray-500 font-normal ml-1">명</span></p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                  <p className="text-xs text-gray-400 mb-1">예상 도달 수</p>
+                  <p className="text-2xl font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>1.2<span className="text-sm text-gray-500 font-normal ml-1">M</span></p>
+                </div>
+              </div>
+
+              {/* 매칭 리스트 */}
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-gray-400 mb-2">최근 매칭 현황</p>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-orange-400" />
+                    <div>
+                      <p className="text-sm font-medium">글로우 립스틱 리뷰</p>
+                      <p className="text-xs text-gray-500">미국 타겟 · 틱톡</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[#E0AAFF]">12명 지원</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-400" />
+                    <div>
+                      <p className="text-sm font-medium">수분크림 챌린지</p>
+                      <p className="text-xs text-gray-500">일본 타겟 · 릴스</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[#E0AAFF]">8명 매칭 완료</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 플로팅 AI 매칭 카드 */}
+            <div className="absolute -left-12 top-1/4 bg-white/[0.03] backdrop-blur-[16px] border border-white/[0.08] shadow-2xl rounded-2xl p-4 flex items-center gap-4 hero-float-delayed z-20 w-64 border-l-4 border-l-[#E0AAFF]">
+              <div className="w-12 h-12 rounded-full bg-[#C084FC]/20 flex items-center justify-center border border-[#C084FC]/50">
+                <Sparkles className="w-6 h-6 text-[#E0AAFF]" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#E0AAFF] mb-0.5">AI 매칭 완료</p>
+                <p className="text-sm font-bold text-white">최적의 크리에이터 발견</p>
+                <p className="text-xs text-gray-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>적합도 98.5%</p>
+              </div>
+            </div>
+
+            {/* 플로팅 Quick Action 알약 */}
+            <div className="absolute right-12 -bottom-4 bg-white/[0.03] backdrop-blur-[16px] border border-white/[0.08] rounded-full px-6 py-3 flex items-center gap-3 hero-float z-20 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+              <div className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C084FC] opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0AAFF]" />
+              </div>
+              <p className="text-sm font-medium text-white">가입부터 세팅까지 단 5분</p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
