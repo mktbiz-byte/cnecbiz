@@ -648,7 +648,14 @@ exports.handler = async (event) => {
       const translatedGreeting = await translateToJapanese(`안녕하세요, ${data.creatorName}님!`);
       const translatedBody = await translateToJapanese(messages.line.split('\n').slice(2, -2).join('\n'));
 
-      const emailHtml = messages.emailHtml({
+      // 브랜드명 번역 (한국어 → 일본어)
+      if (data.brandName) {
+        data.brandName = await translateToJapanese(data.brandName);
+      }
+
+      // 번역 후 템플릿 재생성 (brandName이 data에서 직접 참조되므로)
+      const translatedMessages = template(data);
+      const emailHtml = translatedMessages.emailHtml({
         greeting: translatedGreeting,
         body: translatedBody
       });
