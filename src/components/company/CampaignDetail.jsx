@@ -8247,7 +8247,9 @@ Questions? Contact us.
                   if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                   if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                   if (p.step1_url || p.step2_url || p.step3_url) return true
-                  return videoSubmissions.some(v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                  if (p.sns_upload_url) return true
+                  if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
+                  return videoSubmissions.some(v => v.user_id === p.user_id && (['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status) || v.video_file_url || v.clean_video_url || v.sns_upload_url))
                 }).length}명</span>
               </TabsTrigger>
             </TabsList>
@@ -11209,13 +11211,15 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
-                    // clean_video_url이 있는 영상이 있으면 표시 (클린본 제출 시 status와 무관하게)
-                    const hasCleanVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.clean_video_url
+                    // clean_video_url 또는 video_file_url이 있는 영상이 있으면 표시 (status와 무관하게)
+                    const hasVideoContent = videoSubmissions.some(
+                      v => v.user_id === p.user_id && (v.clean_video_url || v.video_file_url || v.sns_upload_url)
                     )
-                    if (hasCleanVideo) return true
+                    if (hasVideoContent) return true
                     // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
                     if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
+                    // sns_upload_url이 participant에 직접 있으면 표시
+                    if (p.sns_upload_url) return true
                     return false
                   })
 
@@ -11235,9 +11239,13 @@ Questions? Contact us.
                       size="sm"
                       className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md shadow-teal-200 rounded-xl"
                       onClick={async () => {
-                        const completedParticipants = participants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status))
+                        const completedParticipants = completedSectionParticipants
                         const completedSubmissions = videoSubmissions.filter(sub =>
-                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) &&
+                          (
+                            ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) ||
+                            sub.video_file_url ||
+                            sub.clean_video_url
+                          ) &&
                           completedParticipants.some(p => p.user_id === sub.user_id)
                         )
 
@@ -11311,13 +11319,15 @@ Questions? Contact us.
                       v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
-                    // clean_video_url이 있는 영상이 있으면 표시 (클린본 제출 시 status와 무관하게)
-                    const hasCleanVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.clean_video_url
+                    // clean_video_url 또는 video_file_url이 있는 영상이 있으면 표시 (status와 무관하게)
+                    const hasVideoContent = videoSubmissions.some(
+                      v => v.user_id === p.user_id && (v.clean_video_url || v.video_file_url || v.sns_upload_url)
                     )
-                    if (hasCleanVideo) return true
+                    if (hasVideoContent) return true
                     // applications 테이블에 직접 저장된 clean_video_url도 체크 (weekN 포함)
                     if (p.clean_video_url || p.week1_clean_video_url || p.week2_clean_video_url || p.week3_clean_video_url || p.week4_clean_video_url || p.step1_clean_video_url || p.step2_clean_video_url) return true
+                    // sns_upload_url이 participant에 직접 있으면 표시
+                    if (p.sns_upload_url) return true
                     return false
                   })
 
@@ -11333,10 +11343,15 @@ Questions? Contact us.
                   return (
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
-                      // 해당 크리에이터의 승인된 영상들 또는 클린본이 있는 영상들 (video_number별 최신 버전만)
+                      // 해당 크리에이터의 영상들: 승인된 상태, 편집본/클린본이 있거나, SNS URL이 등록된 경우 모두 포함
                       const allSubmissions = videoSubmissions.filter(
                         sub => sub.user_id === participant.user_id &&
-                        (['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) || sub.clean_video_url)
+                        (
+                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) ||
+                          sub.clean_video_url ||
+                          sub.video_file_url ||
+                          sub.sns_upload_url
+                        )
                       )
 
                       // video_number별로 그룹화하여 최신 버전만 유지 (클린본 병합)
