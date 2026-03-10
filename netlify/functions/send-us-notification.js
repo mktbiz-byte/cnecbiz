@@ -93,7 +93,7 @@ const MESSAGE_TEMPLATES = {
 
   // 가이드 확인 요청
   guide_confirm_request: (data) => ({
-    line: `📋 Guide Ready\n\n${data.creatorName}, the shooting guide for "${data.campaignName}" is now available.\n\nBrand: ${data.brandName || '-'}\n\nPlease check the guide and start filming.\n${data.guideUrl || 'https://cnec.us/creator/mypage'}`,
+    line: `📋 Guide Ready\n\n${data.creatorName}, the shooting guide for "${data.campaignName}" is now available.\n\nBrand: ${data.brandName || '-'}\n\nPlease check your My Page to view the guide and start filming.`,
     emailSubject: `[CNEC] 📋 Shooting Guide Ready - ${data.campaignName}`,
     emailHtml: () => `
 <!DOCTYPE html>
@@ -111,9 +111,7 @@ const MESSAGE_TEMPLATES = {
 <p style="font-size:18px;font-weight:bold;color:#059669;margin:0 0 15px;">${data.campaignName}</p>
 <p style="color:#047857;margin:0;">Brand: ${data.brandName || '-'}</p>
 </div>
-<div style="text-align:center;margin:30px 0;">
-<a href="${data.guideUrl || 'https://cnec.us/creator/mypage'}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:15px 40px;border-radius:8px;text-decoration:none;font-weight:bold;">View Guide</a>
-</div>
+<p style="font-size:16px;color:#333;text-align:center;margin:30px 0;font-weight:bold;">Please check your My Page for details.</p>
 </td></tr>
 <tr><td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #eee;">
 <p style="font-size:12px;color:#999;margin:0;">CNEC BIZ | support@cnecbiz.com</p>

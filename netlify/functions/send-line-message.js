@@ -133,7 +133,7 @@ const MESSAGE_TEMPLATES = {
   // 가이드 확인 요청 (일본어)
   guide_confirm_request: (data) => ({
     type: 'text',
-    text: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName}\n\n가이드를 확인하시고 촬영을 시작해주세요.\n${data.guideUrl || 'https://cnec.jp/creator/mypage'}`
+    text: `📋 가이드 확인 요청\n\n${data.creatorName}님, "${data.campaignName}" 캠페인의 가이드가 등록되었습니다.\n\n브랜드: ${data.brandName}\n\n마이페이지에서 가이드를 확인하시고 촬영을 시작해주세요.`
   }),
 
   // SNS 업로드 완료 요청 (일본어)

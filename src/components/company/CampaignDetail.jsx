@@ -3101,8 +3101,7 @@ JSON만 출력.`
                   data: {
                     creatorName,
                     campaignName: campaign?.title || 'キャンペーン',
-                    brandName: campaign?.brand_name || campaign?.brand,
-                    guideUrl: campaign?.guide_pdf_url || 'https://cnec.jp/creator/mypage'
+                    brandName: campaign?.brand_name || campaign?.brand
                   }
                 })
               })
@@ -3123,8 +3122,7 @@ JSON만 출력.`
                   data: {
                     creatorName,
                     campaignName: campaign?.title || 'Campaign',
-                    brandName: campaign?.brand_name || campaign?.brand,
-                    guideUrl: campaign?.guide_pdf_url || 'https://cnec.us/creator/mypage'
+                    brandName: campaign?.brand_name || campaign?.brand
                   }
                 })
               })
@@ -4087,8 +4085,7 @@ Questions? Contact us.
             data: {
               creatorName,
               campaignName: campaignTitle,
-              brandName: campaign?.brand_name || campaign?.brand,
-              guideUrl: campaign?.guide_pdf_url || 'https://cnec.jp/creator/mypage'
+              brandName: campaign?.brand_name || campaign?.brand
             }
           })
         })
@@ -4109,8 +4106,7 @@ Questions? Contact us.
             data: {
               creatorName,
               campaignName: campaignTitle,
-              brandName: campaign?.brand_name || campaign?.brand,
-              guideUrl: campaign?.guide_pdf_url || 'https://cnec.us/creator/mypage'
+              brandName: campaign?.brand_name || campaign?.brand
             }
           })
         })
@@ -6149,8 +6145,7 @@ Questions? Contact us.
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'キャンペーン',
-                brandName: campaign?.brand_name || campaign?.brand,
-                guideUrl: campaign?.guide_pdf_url || 'https://cnec.jp/creator/mypage'
+                brandName: campaign?.brand_name || campaign?.brand
               }
             })
           })
@@ -6164,8 +6159,7 @@ Questions? Contact us.
               data: {
                 creatorName,
                 campaignName: campaign?.title || 'Campaign',
-                brandName: campaign?.brand_name || campaign?.brand,
-                guideUrl: campaign?.guide_pdf_url || 'https://cnec.us/creator/mypage'
+                brandName: campaign?.brand_name || campaign?.brand
               }
             })
           })
@@ -15727,7 +15721,6 @@ Questions? Contact us.
                                   creatorName,
                                   campaignName: campaign?.title || 'キャンペーン',
                                   brandName: campaign?.brand_name || campaign?.brand,
-                                  guideUrl: campaign?.guide_pdf_url || 'https://cnec.jp/creator/mypage',
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('ja-JP')
                                     : '確認してください'
@@ -15746,7 +15739,6 @@ Questions? Contact us.
                                   creatorName,
                                   campaignName: campaign?.title || 'Campaign',
                                   brandName: campaign?.brand_name || campaign?.brand,
-                                  guideUrl: campaign?.guide_pdf_url || 'https://cnec.us/creator/mypage',
                                   deadline: campaign?.content_deadline
                                     ? new Date(campaign.content_deadline).toLocaleDateString('en-US')
                                     : 'Check your dashboard'
