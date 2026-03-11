@@ -894,56 +894,24 @@ export default function CampaignDetail() {
     }
   }, [campaign])
 
-  // MUSE 등급 크리에이터 조회 (한국 캠페인 전용)
+  // MUSE 등급 크리에이터 조회 (Korea DB featured_creators)
   const fetchMuseCreators = async () => {
     if (region !== 'korea') return
 
     setLoadingMuseCreators(true)
     try {
-      // 한국 DB에서 MUSE 등급 (cnec_grade_level = 5) 크리에이터 조회
       const { data, error } = await supabaseKorea
-        .from('user_profiles')
+        .from('featured_creators')
         .select('*')
         .eq('cnec_grade_level', 5)
-        .order('created_at', { ascending: false })
+        .eq('is_active', true)
+        .order('rating', { ascending: false, nullsFirst: false })
         .limit(20)
 
       if (error) throw error
 
-      console.log('[MUSE] Found creators:', data?.length || 0)
-
-      // BIZ DB에서 admin_bio, representative_videos 조회 (source_user_id로 매칭)
-      const userIds = (data || []).map(c => c.id)
-      let featuredMap = {}
-      if (userIds.length > 0) {
-        const { data: featuredData } = await supabaseBiz
-          .from('featured_creators')
-          .select('source_user_id, admin_bio, representative_videos')
-          .in('source_user_id', userIds)
-          .eq('cnec_grade_level', 5)
-
-        if (featuredData) {
-          featuredData.forEach(fc => {
-            featuredMap[fc.source_user_id] = {
-              admin_bio: fc.admin_bio,
-              representative_videos: fc.representative_videos || []
-            }
-          })
-        }
-      }
-
-      // 이미 이 캠페인에 지원한 크리에이터는 제외
-      const applicationEmails = applications.map(app => app.email?.toLowerCase())
-      const filteredCreators = (data || []).filter(creator =>
-        !applicationEmails.includes(creator.email?.toLowerCase())
-      ).map(creator => ({
-        ...creator,
-        admin_bio: featuredMap[creator.id]?.admin_bio || null,
-        representative_videos: featuredMap[creator.id]?.representative_videos || []
-      }))
-
-      console.log('[MUSE] After filtering:', filteredCreators.length)
-      setMuseCreators(filteredCreators)
+      console.log('[MUSE] Found creators from featured_creators:', data?.length || 0)
+      setMuseCreators(data || [])
     } catch (error) {
       console.error('Error fetching MUSE creators:', error)
     } finally {
@@ -961,14 +929,14 @@ export default function CampaignDetail() {
     return shuffled
   }
 
-  // AI 추천 크리에이터 조회 (확정 5명 + 랜덤 5명 = 최대 10명)
+  // AI 추천 크리에이터 조회 (Korea DB featured_creators: 확정 5명 + 랜덤 5명)
   const fetchAiCreatorRecs = async () => {
     if (region !== 'korea') return
 
     setLoadingAiCreatorRecs(true)
     try {
       // Step 1: 확정 5명 조회 (is_ai_pick = true, ai_pick_order 순)
-      const { data: fixedPicks, error: fixedError } = await supabaseBiz
+      const { data: fixedPicks, error: fixedError } = await supabaseKorea
         .from('featured_creators')
         .select('*')
         .eq('is_ai_pick', true)
@@ -979,12 +947,10 @@ export default function CampaignDetail() {
       if (fixedError) throw fixedError
 
       const fixedIds = (fixedPicks || []).map(c => c.id)
+      const museIds = museCreators.map(c => c.id)
 
-      // MUSE 크리에이터 ID도 제외 (source_user_id로 매칭)
-      const museSourceIds = museCreators.map(c => c.id)
-
-      // Step 2: 나머지 BLOOM + GLOW 크리에이터에서 랜덤 5명
-      const { data: pool, error: poolError } = await supabaseBiz
+      // Step 2: BLOOM + GLOW 크리에이터 풀 (Korea DB featured_creators)
+      const { data: pool, error: poolError } = await supabaseKorea
         .from('featured_creators')
         .select('*')
         .in('cnec_grade_level', [2, 3])
@@ -992,27 +958,21 @@ export default function CampaignDetail() {
 
       if (poolError) throw poolError
 
-      // 확정 5명과 MUSE 중복 제외
+      // 확정 5명 및 MUSE와 중복 제외
       const filteredPool = (pool || []).filter(c =>
-        !fixedIds.includes(c.id) &&
-        !museSourceIds.includes(c.source_user_id)
+        !fixedIds.includes(c.id) && !museIds.includes(c.id)
       )
 
       const randomPicks = shuffleArray(filteredPool).slice(0, 5)
 
       // Step 3: 확정 5명(is_fixed_pick 마크) + 랜덤 5명 합치기
       const combined = [
-        ...(fixedPicks || []).map(c => ({ ...c, is_fixed_pick: true })),
+        ...(fixedPicks || []).filter(c => !museIds.includes(c.id)).map(c => ({ ...c, is_fixed_pick: true })),
         ...randomPicks.map(c => ({ ...c, is_fixed_pick: false }))
       ]
 
-      // MUSE와 중복 제거
-      const finalRecs = combined.filter(c =>
-        !museSourceIds.includes(c.source_user_id)
-      )
-
-      console.log('[AI Creator Rec] Fixed:', fixedPicks?.length || 0, 'Random:', randomPicks.length, 'Total:', finalRecs.length)
-      setAiCreatorRecs(finalRecs)
+      console.log('[AI Creator Rec] Fixed:', fixedPicks?.length || 0, 'Random:', randomPicks.length, 'Total:', combined.length)
+      setAiCreatorRecs(combined)
     } catch (error) {
       console.error('Error fetching AI creator recommendations:', error)
       setAiCreatorRecs([])
@@ -8415,180 +8375,184 @@ Questions? Contact us.
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {museCreators.map((creator, index) => (
-                      <div key={creator.id || index} className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border border-amber-200">
-                        <div className="flex flex-col items-center text-center">
-                          {/* 프로필 사진 + MUSE 뱃지 */}
-                          <div className="relative mb-2">
-                            <img
-                              src={creator.profile_photo_url || creator.profile_image || '/default-avatar.png'}
-                              alt={creator.name}
-                              className="w-16 h-16 rounded-full object-cover border-2 border-amber-400"
-                            />
-                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
-                              MUSE
-                            </div>
-                          </div>
-                          <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name || creator.channel_name}</h4>
-                          <p className="text-xs text-gray-500 mb-1 truncate w-full">
-                            {creator.main_platform || creator.primary_interest || '크리에이터'}
-                          </p>
-                          {creator.followers_count && (
-                            <p className="text-xs text-amber-600 font-medium mb-1">
-                              팔로워 {creator.followers_count?.toLocaleString()}
-                            </p>
-                          )}
+                    {museCreators.map((creator, index) => {
+                      // YouTube URL에서 썸네일 추출 유틸
+                      const getYtThumb = (url) => {
+                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
+                      }
 
-                          {/* 관리자 소개글 */}
-                          {creator.admin_bio && (
-                            <div className="w-full mt-1 pt-2 border-t border-amber-100">
-                              <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2 text-left" title={creator.admin_bio}>
-                                {creator.admin_bio}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* 대표영상 썸네일 */}
-                          {creator.representative_videos?.length > 0 && (
-                            <div className="w-full mt-2 pt-2 border-t border-amber-100">
-                              <p className="text-[10px] text-gray-400 mb-1 text-left font-medium">대표영상</p>
-                              <div className="flex gap-1.5 overflow-x-auto">
-                                {creator.representative_videos.map((video, vi) => (
-                                  <a
-                                    key={vi}
-                                    href={video.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-shrink-0 group relative"
-                                  >
-                                    <img
-                                      src={video.thumbnail}
-                                      alt={video.title || '대표영상'}
-                                      className="w-20 h-12 rounded object-cover border border-gray-200 group-hover:border-amber-400 transition-colors"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <div className="w-5 h-5 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
-                                        <svg className="w-2.5 h-2.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                      </div>
-                                    </div>
-                                  </a>
-                                ))}
+                      return (
+                        <div key={creator.id || index} className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border-2 border-amber-200">
+                          <div className="flex flex-col items-center text-center">
+                            {/* 프로필 사진 + MUSE 뱃지 */}
+                            <div className="relative mb-2">
+                              <img
+                                src={creator.profile_photo_url || creator.profile_image_url || '/default-avatar.png'}
+                                alt={creator.name}
+                                className="w-16 h-16 rounded-full object-cover border-2 border-amber-400"
+                              />
+                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                                MUSE
                               </div>
                             </div>
-                          )}
+                            <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name}</h4>
+                            <p className="text-xs text-gray-500 mb-1">크리에이터</p>
 
-                          {/* 버튼 영역 */}
-                          <div className="flex flex-col gap-1.5 w-full mt-2 pt-2 border-t border-amber-100">
-                            <Button
-                              size="sm"
-                              className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                              disabled={campaign.approval_status !== 'approved'}
-                              title={campaign.approval_status !== 'approved' ? '캠페인이 활성화되면 초대장을 발송할 수 있습니다' : ''}
-                              onClick={async () => {
-                                if (campaign.approval_status !== 'approved') {
-                                  alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
-                                  return
-                                }
-                                try {
-                                  const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
-                                  if (!currentUser) {
-                                    alert('로그인이 필요합니다.')
+                            {/* 관리자 소개글 (bio) */}
+                            {creator.bio && (
+                              <div className="w-full mt-1 pt-2 border-t border-amber-100">
+                                <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2 text-left" title={creator.bio}>
+                                  {creator.bio}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* 평점 */}
+                            {parseFloat(creator.rating) > 0 && (
+                              <div className="w-full mt-1 flex items-center gap-1">
+                                <Star className="w-3 h-3 text-amber-400 fill-current" />
+                                <span className="text-xs font-medium text-amber-600">{parseFloat(creator.rating).toFixed(1)}</span>
+                              </div>
+                            )}
+
+                            {/* 대표영상 썸네일 */}
+                            {creator.representative_videos?.length > 0 && (
+                              <div className="w-full mt-2 pt-2 border-t border-amber-100">
+                                <p className="text-[10px] text-red-400 mb-1 text-left font-medium">▶ 대표영상 ({creator.representative_videos.length})</p>
+                                <div className="flex gap-1.5 overflow-x-auto">
+                                  {creator.representative_videos.slice(0, 3).map((url, vi) => {
+                                    const thumb = getYtThumb(url)
+                                    return thumb ? (
+                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
+                                        <img src={thumb} alt="대표영상" className="w-16 h-24 rounded object-cover border border-gray-200 group-hover:border-amber-400 transition-colors" />
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                                            <svg className="w-2.5 h-2.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                          </div>
+                                        </div>
+                                      </a>
+                                    ) : null
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 크넥협업 썸네일 */}
+                            {creator.cnec_collab_videos?.length > 0 && (
+                              <div className="w-full mt-2 pt-2 border-t border-amber-100">
+                                <p className="text-[10px] text-blue-400 mb-1 text-left font-medium">★ 크넥협업 ({creator.cnec_collab_videos.length})</p>
+                                <div className="flex gap-1.5 overflow-x-auto">
+                                  {creator.cnec_collab_videos.slice(0, 3).map((url, vi) => {
+                                    const thumb = getYtThumb(url)
+                                    return thumb ? (
+                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
+                                        <img src={thumb} alt="크넥협업" className="w-16 h-24 rounded object-cover border border-gray-200 group-hover:border-blue-400 transition-colors" />
+                                        <div className="absolute bottom-0.5 left-0.5 bg-blue-500 text-white text-[7px] px-1 py-0.5 rounded font-bold">CNEC</div>
+                                      </a>
+                                    ) : null
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 버튼 영역 */}
+                            <div className="flex flex-col gap-1.5 w-full mt-2 pt-2 border-t border-amber-100">
+                              <Button
+                                size="sm"
+                                className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                disabled={campaign.approval_status !== 'approved'}
+                                onClick={async () => {
+                                  if (campaign.approval_status !== 'approved') {
+                                    alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
                                     return
                                   }
+                                  try {
+                                    const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+                                    if (!currentUser) { alert('로그인이 필요합니다.'); return }
 
-                                  const channelInfo = creator.main_platform || creator.primary_interest || '채널 미등록'
-                                  const creatorDisplayName = creator.name || creator.channel_name || '크리에이터'
-                                  const followersText = creator.followers_count ? ` (팔로워 ${creator.followers_count.toLocaleString()})` : ''
+                                    const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
+                                      `크리에이터: ${creator.name}\n` +
+                                      `캠페인: ${campaign?.title || ''}\n\n` +
+                                      `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
 
-                                  const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
-                                    `크리에이터: ${creatorDisplayName}\n` +
-                                    `채널: ${channelInfo}${followersText}\n` +
-                                    `캠페인: ${campaign?.title || ''}\n\n` +
-                                    `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
+                                    if (!confirm(warningMsg)) return
 
-                                  if (!confirm(warningMsg)) return
-
-                                  const response = await fetch('/.netlify/functions/send-creator-invitation', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      campaignId: id,
-                                      creatorId: creator.id,
-                                      invitedBy: currentUser.id,
-                                      companyEmail: currentUser.email
+                                    const response = await fetch('/.netlify/functions/send-creator-invitation', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        campaignId: id,
+                                        creatorId: creator.user_id || creator.id,
+                                        invitedBy: currentUser.id,
+                                        companyEmail: currentUser.email
+                                      })
                                     })
-                                  })
-
-                                  const result = await response.json()
-
-                                  if (result.success) {
-                                    alert('초대장을 성공적으로 발송했습니다!\n카카오톡과 이메일로 전송되었습니다.')
-                                    setMuseCreators(prev => prev.filter(c => c.id !== creator.id))
-                                  } else {
-                                    alert(result.error || '초대장 발송에 실패했습니다.')
+                                    const result = await response.json()
+                                    if (result.success) {
+                                      alert('초대장을 성공적으로 발송했습니다!')
+                                      setMuseCreators(prev => prev.filter(c => c.id !== creator.id))
+                                    } else {
+                                      alert(result.error || '초대장 발송에 실패했습니다.')
+                                    }
+                                  } catch (error) {
+                                    console.error('Error sending invitation:', error)
+                                    alert('초대장 발송 중 오류가 발생했습니다.')
                                   }
-                                } catch (error) {
-                                  console.error('Error sending invitation:', error)
-                                  alert('초대장 발송 중 오류가 발생했습니다.')
-                                }
-                              }}
-                            >
-                              <Send className="w-3 h-3 mr-1" />
-                              초대장 발송
-                            </Button>
-                            {/* SNS 링크 아이콘들 */}
-                            <div className="flex items-center justify-center gap-2 mb-1">
-                              {creator.instagram_url && (
-                                <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-600 transition-colors" title={`Instagram${creator.instagram_followers ? ` ${creator.instagram_followers.toLocaleString()}` : ''}`}>
-                                  <Instagram className="w-4 h-4" />
-                                </a>
-                              )}
-                              {creator.youtube_url && (
-                                <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-600 transition-colors" title={`YouTube${creator.youtube_subscribers ? ` ${creator.youtube_subscribers.toLocaleString()}` : ''}`}>
-                                  <Youtube className="w-4 h-4" />
-                                </a>
-                              )}
-                              {creator.tiktok_url && (
-                                <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-black transition-colors" title="TikTok">
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                                  </svg>
-                                </a>
-                              )}
-                              {!creator.instagram_url && !creator.youtube_url && !creator.tiktok_url && (
-                                <span className="text-xs text-gray-400">SNS 없음</span>
-                              )}
+                                }}
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                초대장 발송
+                              </Button>
+                              {/* SNS 팔로워 수 */}
+                              <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                                {creator.instagram_followers > 0 && (
+                                  <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-pink-500">
+                                    <Instagram className="w-3 h-3" />
+                                    <span>{creator.instagram_followers.toLocaleString()}</span>
+                                  </a>
+                                )}
+                                {creator.youtube_subscribers > 0 && (
+                                  <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-red-500">
+                                    <Youtube className="w-3 h-3" />
+                                    <span>{creator.youtube_subscribers.toLocaleString()}</span>
+                                  </a>
+                                )}
+                                {creator.tiktok_followers > 0 && (
+                                  <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-black">
+                                    <span>TikTok {creator.tiktok_followers.toLocaleString()}</span>
+                                  </a>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-full text-[10px] h-6"
+                                onClick={async () => {
+                                  try {
+                                    let profile = null
+                                    const userId = creator.user_id
+                                    if (userId) {
+                                      const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', userId).maybeSingle()
+                                      if (p1) profile = p1
+                                    }
+                                    const photoUrl = creator.profile_photo_url || creator.profile_image_url || profile?.profile_photo_url
+                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
+                                    setShowProfileModal(true)
+                                  } catch (error) {
+                                    console.error('Error fetching profile:', error)
+                                    setSelectedParticipant(creator)
+                                    setShowProfileModal(true)
+                                  }
+                                }}
+                              >
+                                프로필 보기
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full text-[10px] h-6"
-                              onClick={async () => {
-                                try {
-                                  let profile = null
-                                  const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', creator.id).maybeSingle()
-                                  if (p1) {
-                                    profile = p1
-                                  } else if (creator.user_id) {
-                                    const { data: p2 } = await supabaseKorea.from('user_profiles').select('*').eq('user_id', creator.user_id).maybeSingle()
-                                    profile = p2
-                                  }
-                                  const photoUrl = creator.profile_photo_url || profile?.profile_photo_url
-                                  setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
-                                  setShowProfileModal(true)
-                                } catch (error) {
-                                  console.error('Error fetching profile:', error)
-                                  setSelectedParticipant(creator)
-                                  setShowProfileModal(true)
-                                }
-                              }}
-                            >
-                              프로필 보기
-                            </Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -8687,10 +8651,15 @@ Questions? Contact us.
                     {aiCreatorRecs.map((creator, index) => {
                       const gradeLevel = creator.cnec_grade_level
                       const gradeName = creator.cnec_grade_name || (gradeLevel === 3 ? 'BLOOM' : gradeLevel === 2 ? 'GLOW' : '')
-                      const gradeColor = gradeLevel === 3 ? 'violet' : 'blue'
                       const isFixedPick = creator.is_fixed_pick
                       const totalFollowers = (creator.instagram_followers || 0) + (creator.youtube_subscribers || 0) + (creator.tiktok_followers || 0)
-                      const isTopPerformer = (creator.successful_campaigns || 0) >= 5
+                      const isTopPerformer = (creator.total_campaigns || 0) >= 5
+
+                      // YouTube URL에서 썸네일 추출
+                      const getYtThumb = (url) => {
+                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
+                      }
 
                       return (
                         <div key={creator.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border border-indigo-200 relative">
@@ -8715,7 +8684,7 @@ Questions? Contact us.
                           <div className="flex flex-col items-center text-center">
                             <div className="relative mb-2">
                               <img
-                                src={creator.profile_image_url || '/default-avatar.png'}
+                                src={creator.profile_photo_url || creator.profile_image_url || '/default-avatar.png'}
                                 alt={creator.name}
                                 className={`w-16 h-16 rounded-full object-cover border-2 ${gradeLevel === 3 ? 'border-violet-400' : 'border-blue-400'}`}
                               />
@@ -8726,13 +8695,10 @@ Questions? Contact us.
                               )}
                             </div>
                             <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name || '크리에이터'}</h4>
-                            <p className="text-xs text-gray-500 mb-0.5 truncate w-full">
-                              {creator.bio || '크리에이터'}
-                            </p>
-                            {/* 캠페인 진행 건수 */}
-                            {(creator.successful_campaigns || 0) > 0 && (
-                              <p className="text-[10px] text-indigo-600 font-medium mb-0.5">
-                                캠페인 {creator.successful_campaigns}건 진행
+                            {/* 소개글 */}
+                            {creator.bio && (
+                              <p className="text-[10px] text-gray-500 mb-0.5 line-clamp-2 w-full text-left">
+                                {creator.bio}
                               </p>
                             )}
                             {totalFollowers > 0 && (
@@ -8740,38 +8706,25 @@ Questions? Contact us.
                                 팔로워 {totalFollowers.toLocaleString()}
                               </p>
                             )}
-                            {/* admin_bio 또는 기존 소개글 */}
-                            {creator.admin_bio && (
-                              <p className="text-[10px] text-gray-500 mb-1.5 line-clamp-2 w-full text-left" title={creator.admin_bio}>
-                                {creator.admin_bio}
-                              </p>
-                            )}
                             {/* 확정 크리에이터 대표영상 썸네일 (1개) */}
-                            {isFixedPick && creator.representative_videos?.length > 0 && (
-                              <a
-                                href={creator.representative_videos[0].url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full mb-1.5 block group relative"
-                              >
-                                <img
-                                  src={creator.representative_videos[0].thumbnail}
-                                  alt={creator.representative_videos[0].title || '대표영상'}
-                                  className="w-full h-16 rounded object-cover border border-gray-200 group-hover:border-indigo-400 transition-colors"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div className="w-6 h-6 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            {isFixedPick && creator.representative_videos?.length > 0 && (() => {
+                              const thumb = getYtThumb(creator.representative_videos[0])
+                              return thumb ? (
+                                <a href={creator.representative_videos[0]} target="_blank" rel="noopener noreferrer" className="w-full mb-1.5 block group relative">
+                                  <img src={thumb} alt="대표영상" className="w-full h-16 rounded object-cover border border-gray-200 group-hover:border-indigo-400 transition-colors" />
+                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="w-6 h-6 bg-black/60 rounded-full flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    </div>
                                   </div>
-                                </div>
-                              </a>
-                            )}
+                                </a>
+                              ) : null
+                            })()}
                             <div className="flex flex-col gap-1.5 w-full">
                               <Button
                                 size="sm"
                                 className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                                 disabled={campaign.approval_status !== 'approved'}
-                                title={campaign.approval_status !== 'approved' ? '캠페인이 활성화되면 초대장을 발송할 수 있습니다' : ''}
                                 onClick={async () => {
                                   if (campaign.approval_status !== 'approved') {
                                     alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
@@ -8779,17 +8732,11 @@ Questions? Contact us.
                                   }
                                   try {
                                     const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
-                                    if (!currentUser) {
-                                      alert('로그인이 필요합니다.')
-                                      return
-                                    }
-
-                                    const creatorDisplayName = creator.name || '크리에이터'
-                                    const followersText = totalFollowers ? ` (팔로워 ${totalFollowers.toLocaleString()})` : ''
+                                    if (!currentUser) { alert('로그인이 필요합니다.'); return }
 
                                     const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
-                                      `크리에이터: ${creatorDisplayName}\n` +
-                                      `등급: ${gradeName || 'N/A'}${followersText}\n` +
+                                      `크리에이터: ${creator.name}\n` +
+                                      `등급: ${gradeName || 'N/A'}\n` +
                                       `캠페인: ${campaign?.title || ''}\n\n` +
                                       `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
 
@@ -8800,16 +8747,14 @@ Questions? Contact us.
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
                                         campaignId: id,
-                                        creatorId: creator.source_user_id || creator.id,
+                                        creatorId: creator.user_id || creator.id,
                                         invitedBy: currentUser.id,
                                         companyEmail: currentUser.email
                                       })
                                     })
-
                                     const result = await response.json()
-
                                     if (result.success) {
-                                      alert('초대장을 성공적으로 발송했습니다!\n카카오톡과 이메일로 전송되었습니다.')
+                                      alert('초대장을 성공적으로 발송했습니다!')
                                       setAiCreatorRecs(prev => prev.filter(r => r.id !== creator.id))
                                     } else {
                                       alert(result.error || '초대장 발송에 실패했습니다.')
@@ -8823,27 +8768,24 @@ Questions? Contact us.
                                 <Send className="w-3 h-3 mr-1" />
                                 초대장 발송
                               </Button>
-                              {/* SNS 링크 아이콘들 */}
-                              <div className="flex items-center justify-center gap-2 mb-1">
-                                {creator.instagram_handle && (
-                                  <a href={`https://instagram.com/${creator.instagram_handle}`} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-600 transition-colors" title={`Instagram${creator.instagram_followers ? ` ${creator.instagram_followers.toLocaleString()}` : ''}`}>
-                                    <Instagram className="w-4 h-4" />
+                              {/* SNS 팔로워 수 */}
+                              <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                                {creator.instagram_followers > 0 && (
+                                  <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-pink-500">
+                                    <Instagram className="w-3 h-3" />
+                                    <span>{creator.instagram_followers.toLocaleString()}</span>
                                   </a>
                                 )}
-                                {creator.youtube_handle && (
-                                  <a href={`https://youtube.com/${creator.youtube_handle}`} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-600 transition-colors" title={`YouTube${creator.youtube_subscribers ? ` ${creator.youtube_subscribers.toLocaleString()}` : ''}`}>
-                                    <Youtube className="w-4 h-4" />
+                                {creator.youtube_subscribers > 0 && (
+                                  <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-red-500">
+                                    <Youtube className="w-3 h-3" />
+                                    <span>{creator.youtube_subscribers.toLocaleString()}</span>
                                   </a>
                                 )}
-                                {creator.tiktok_handle && (
-                                  <a href={`https://tiktok.com/@${creator.tiktok_handle}`} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-black transition-colors" title={`TikTok${creator.tiktok_followers ? ` ${creator.tiktok_followers.toLocaleString()}` : ''}`}>
-                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                                    </svg>
+                                {creator.tiktok_followers > 0 && (
+                                  <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-black">
+                                    <span>TT {creator.tiktok_followers.toLocaleString()}</span>
                                   </a>
-                                )}
-                                {!creator.instagram_handle && !creator.youtube_handle && !creator.tiktok_handle && (
-                                  <span className="text-xs text-gray-400">SNS 없음</span>
                                 )}
                               </div>
                               <Button
@@ -8853,12 +8795,12 @@ Questions? Contact us.
                                 onClick={async () => {
                                   try {
                                     let profile = null
-                                    const creatorId = creator.source_user_id
-                                    if (creatorId) {
-                                      const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', creatorId).maybeSingle()
+                                    const userId = creator.user_id
+                                    if (userId) {
+                                      const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', userId).maybeSingle()
                                       if (p1) profile = p1
                                     }
-                                    const photoUrl = creator.profile_image_url || profile?.profile_photo_url
+                                    const photoUrl = creator.profile_photo_url || creator.profile_image_url || profile?.profile_photo_url
                                     setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
                                     setShowProfileModal(true)
                                   } catch (error) {
