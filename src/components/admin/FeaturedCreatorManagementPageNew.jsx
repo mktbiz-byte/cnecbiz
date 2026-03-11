@@ -91,7 +91,8 @@ export default function FeaturedCreatorManagementPageNew() {
     categories: [],
     rating: 0,
     representative_videos: [], // 대표 영상 URLs
-    cnec_collab_videos: [] // 크넥 협업 영상 URLs
+    cnec_collab_videos: [], // 크넥 협업 영상 URLs
+    company_reviews: [] // 기업 후기 [{company_name, rating, review_text, created_at}]
   })
   const [savingProfile, setSavingProfile] = useState(false)
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
@@ -99,6 +100,9 @@ export default function FeaturedCreatorManagementPageNew() {
   // AI 추천 확정 크리에이터 관리
   const [aiPickSlots, setAiPickSlots] = useState([null, null, null, null, null])
   const [savingAiPicks, setSavingAiPicks] = useState(false)
+  const [aiPickSearchQuery, setAiPickSearchQuery] = useState(['', '', '', '', ''])
+  const [aiPickSearchResults, setAiPickSearchResults] = useState([[], [], [], [], []])
+  const [aiPickActiveSlot, setAiPickActiveSlot] = useState(null)
 
   // 크리에이터 카테고리 목록
   const CREATOR_CATEGORIES = [
@@ -266,12 +270,17 @@ export default function FeaturedCreatorManagementPageNew() {
   // 프로필 편집 모달 열기
   const openProfileEditModal = (creator) => {
     setEditingCreator(creator)
+    const reviews = creator.company_reviews || []
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + (parseFloat(r.rating) || 0), 0) / reviews.length
+      : (creator.rating || 0)
     setProfileFormData({
       bio: creator.bio || '',
       categories: creator.categories || [],
-      rating: creator.rating || 0,
+      rating: avgRating,
       representative_videos: creator.representative_videos || [],
-      cnec_collab_videos: creator.cnec_collab_videos || []
+      cnec_collab_videos: creator.cnec_collab_videos || [],
+      company_reviews: reviews
     })
     setPreviewVideoUrl(null)
     setShowProfileEditModal(true)
@@ -334,14 +343,20 @@ export default function FeaturedCreatorManagementPageNew() {
 
     setSavingProfile(true)
     try {
+      const reviews = profileFormData.company_reviews || []
+      const avgRating = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + (parseFloat(r.rating) || 0), 0) / reviews.length
+        : 0
+
       const { error } = await supabaseKorea
         .from('featured_creators')
         .update({
           bio: profileFormData.bio,
           categories: profileFormData.categories,
-          rating: parseFloat(profileFormData.rating) || 0,
+          rating: Math.round(avgRating * 10) / 10,
           representative_videos: profileFormData.representative_videos,
           cnec_collab_videos: profileFormData.cnec_collab_videos,
+          company_reviews: reviews,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingCreator.id)
@@ -1367,48 +1382,126 @@ export default function FeaturedCreatorManagementPageNew() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {aiPickSlots.map((slotId, index) => {
-                      const eligibleCreators = gradedCreators.filter(c =>
-                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
-                        c.is_active !== false &&
-                        (!aiPickSlots.includes(c.id) || c.id === slotId)
-                      )
+                      const selectedCreator = slotId ? gradedCreators.find(c => c.id === slotId) : null
 
                       return (
-                        <div key={index} className="flex items-center gap-2 bg-white p-2 rounded-lg border">
-                          <span className="text-xs font-bold text-indigo-600 w-6">#{index + 1}</span>
-                          <Select
-                            value={slotId || 'none'}
-                            onValueChange={(value) => {
-                              const newSlots = [...aiPickSlots]
-                              newSlots[index] = value === 'none' ? null : value
-                              setAiPickSlots(newSlots)
-                            }}
-                          >
-                            <SelectTrigger className="flex-1 h-8 text-xs">
-                              <SelectValue placeholder="크리에이터 선택..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">선택 안 함</SelectItem>
-                              {eligibleCreators.map(c => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.name} ({c.cnec_grade_name}) — {c.instagram_followers ? `IG ${c.instagram_followers.toLocaleString()}` : c.youtube_subscribers ? `YT ${c.youtube_subscribers.toLocaleString()}` : 'SNS 없음'}
-                                </SelectItem>
+                        <div key={index} className="relative">
+                          <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+                            <span className="text-xs font-bold text-indigo-600 w-6">#{index + 1}</span>
+                            {selectedCreator ? (
+                              <div className="flex-1 flex items-center gap-2 h-8">
+                                {(selectedCreator.profile_photo_url || selectedCreator.profile_image_url) && (
+                                  <img src={selectedCreator.profile_photo_url || selectedCreator.profile_image_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                )}
+                                <span className="text-xs font-medium">{selectedCreator.name}</span>
+                                <Badge variant="outline" className="text-[10px] h-4">{selectedCreator.cnec_grade_name}</Badge>
+                                {selectedCreator.instagram_followers && (
+                                  <span className="text-[10px] text-gray-400">IG {selectedCreator.instagram_followers.toLocaleString()}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex-1 relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                                <Input
+                                  placeholder="크리에이터 이름 검색..."
+                                  className="h-8 text-xs pl-7"
+                                  value={aiPickSearchQuery[index]}
+                                  onChange={(e) => {
+                                    const q = e.target.value
+                                    const newQueries = [...aiPickSearchQuery]
+                                    newQueries[index] = q
+                                    setAiPickSearchQuery(newQueries)
+                                    setAiPickActiveSlot(index)
+
+                                    if (q.trim().length >= 1) {
+                                      const results = gradedCreators.filter(c =>
+                                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                                        c.is_active !== false &&
+                                        !aiPickSlots.includes(c.id) &&
+                                        c.name?.toLowerCase().includes(q.trim().toLowerCase())
+                                      ).slice(0, 8)
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = results
+                                      setAiPickSearchResults(newResults)
+                                    } else {
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = []
+                                      setAiPickSearchResults(newResults)
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    setAiPickActiveSlot(index)
+                                    if (aiPickSearchQuery[index]?.trim().length >= 1) {
+                                      const results = gradedCreators.filter(c =>
+                                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                                        c.is_active !== false &&
+                                        !aiPickSlots.includes(c.id) &&
+                                        c.name?.toLowerCase().includes(aiPickSearchQuery[index].trim().toLowerCase())
+                                      ).slice(0, 8)
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = results
+                                      setAiPickSearchResults(newResults)
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    setTimeout(() => setAiPickActiveSlot(null), 200)
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                const newSlots = [...aiPickSlots]
+                                newSlots[index] = null
+                                setAiPickSlots(newSlots)
+                                const newQueries = [...aiPickSearchQuery]
+                                newQueries[index] = ''
+                                setAiPickSearchQuery(newQueries)
+                                const newResults = [...aiPickSearchResults]
+                                newResults[index] = []
+                                setAiPickSearchResults(newResults)
+                              }}
+                              disabled={!slotId}
+                            >
+                              <XIcon className="w-3 h-3 text-gray-400" />
+                            </Button>
+                          </div>
+                          {/* 검색 결과 드롭다운 */}
+                          {aiPickActiveSlot === index && aiPickSearchResults[index]?.length > 0 && !slotId && (
+                            <div className="absolute left-6 right-10 top-full z-50 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                              {aiPickSearchResults[index].map(c => (
+                                <button
+                                  key={c.id}
+                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left transition-colors"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault()
+                                    const newSlots = [...aiPickSlots]
+                                    newSlots[index] = c.id
+                                    setAiPickSlots(newSlots)
+                                    const newQueries = [...aiPickSearchQuery]
+                                    newQueries[index] = ''
+                                    setAiPickSearchQuery(newQueries)
+                                    const newResults = [...aiPickSearchResults]
+                                    newResults[index] = []
+                                    setAiPickSearchResults(newResults)
+                                    setAiPickActiveSlot(null)
+                                  }}
+                                >
+                                  {(c.profile_photo_url || c.profile_image_url) && (
+                                    <img src={c.profile_photo_url || c.profile_image_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                  )}
+                                  <span className="text-xs font-medium truncate">{c.name}</span>
+                                  <Badge variant="outline" className="text-[10px] h-4 flex-shrink-0">{c.cnec_grade_name}</Badge>
+                                  <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">
+                                    {c.instagram_followers ? `IG ${c.instagram_followers.toLocaleString()}` : c.youtube_subscribers ? `YT ${c.youtube_subscribers.toLocaleString()}` : ''}
+                                  </span>
+                                </button>
                               ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => {
-                              const newSlots = [...aiPickSlots]
-                              newSlots[index] = null
-                              setAiPickSlots(newSlots)
-                            }}
-                            disabled={!slotId}
-                          >
-                            <XIcon className="w-3 h-3 text-gray-400" />
-                          </Button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -2320,34 +2413,116 @@ export default function FeaturedCreatorManagementPageNew() {
                 </div>
               </div>
 
-              {/* 평점 */}
+              {/* 평점 (후기 평균 자동 계산) */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">평점</Label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={profileFormData.rating}
-                    onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
-                    className="w-20 h-8"
-                  />
+                  <span className="text-lg font-bold text-yellow-600">
+                    {profileFormData.company_reviews?.length > 0
+                      ? (profileFormData.company_reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / profileFormData.company_reviews.length).toFixed(1)
+                      : '0.0'}
+                  </span>
                   <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Star
-                        key={star}
-                        className={`w-5 h-5 cursor-pointer ${
-                          star <= Math.round(profileFormData.rating)
-                            ? 'text-yellow-500 fill-yellow-500'
-                            : 'text-gray-300'
-                        }`}
-                        onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
-                      />
-                    ))}
+                    {[1, 2, 3, 4, 5].map(star => {
+                      const avg = profileFormData.company_reviews?.length > 0
+                        ? profileFormData.company_reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / profileFormData.company_reviews.length
+                        : 0
+                      return (
+                        <Star
+                          key={star}
+                          className={`w-5 h-5 ${star <= Math.round(avg) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                        />
+                      )
+                    })}
                   </div>
+                  <span className="text-xs text-gray-400">({profileFormData.company_reviews?.length || 0}건)</span>
                 </div>
               </div>
+            </div>
+
+            {/* 기업 후기 관리 */}
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold flex items-center gap-1">
+                  <span className="text-yellow-500">★</span> 기업 후기
+                  <span className="text-gray-400 font-normal">({profileFormData.company_reviews?.length || 0}건)</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setProfileFormData(prev => ({
+                      ...prev,
+                      company_reviews: [
+                        ...(prev.company_reviews || []),
+                        { company_name: '', rating: 5, review_text: '', created_at: new Date().toISOString() }
+                      ]
+                    }))
+                  }}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  후기 추가
+                </Button>
+              </div>
+              {(profileFormData.company_reviews || []).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-3">등록된 후기가 없습니다. '후기 추가' 버튼으로 추가하세요.</p>
+              )}
+              {(profileFormData.company_reviews || []).map((review, ri) => (
+                <div key={ri} className="bg-gray-50 rounded-lg p-3 space-y-2 relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileFormData(prev => ({
+                        ...prev,
+                        company_reviews: prev.company_reviews.filter((_, i) => i !== ri)
+                      }))
+                    }}
+                    className="absolute top-2 right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                  >
+                    ×
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="기업명"
+                      value={review.company_name}
+                      onChange={(e) => {
+                        const updated = [...profileFormData.company_reviews]
+                        updated[ri] = { ...updated[ri], company_name: e.target.value }
+                        setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                      }}
+                      className="h-7 text-xs flex-1"
+                    />
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 cursor-pointer ${
+                            star <= (review.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'
+                          }`}
+                          onClick={() => {
+                            const updated = [...profileFormData.company_reviews]
+                            updated[ri] = { ...updated[ri], rating: star }
+                            setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <Textarea
+                    placeholder="후기 내용을 입력하세요..."
+                    value={review.review_text}
+                    onChange={(e) => {
+                      const updated = [...profileFormData.company_reviews]
+                      updated[ri] = { ...updated[ri], review_text: e.target.value }
+                      setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                    }}
+                    rows={2}
+                    className="resize-none text-xs"
+                  />
+                </div>
+              ))}
             </div>
 
             {/* 영상 섹션 (가로 스크롤) */}
