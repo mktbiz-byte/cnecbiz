@@ -590,9 +590,9 @@ exports.handler = async (event, context) => {
   console.log('🕐 실행 시간:', new Date().toISOString());
 
   try {
-    // 최근 30일 거래 내역 수집
+    // 최근 25일 거래 내역 수집 (팝빌 API 최대 조회기간 1개월 제한 - 2월(28일) 고려하여 25일로 설정)
     const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const startDate = new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
 
