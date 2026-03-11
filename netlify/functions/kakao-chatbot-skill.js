@@ -471,14 +471,19 @@ ${faqContext}`
     systemInstruction: fullPrompt
   })
 
-  // 대화 이력 구성
-  const historyForAI = (conversationHistory || [])
+  // 대화 이력 구성 (첫 메시지가 반드시 user여야 함)
+  let filteredHistory = (conversationHistory || [])
     .filter(m => m.role && m.content)
     .slice(-10)
     .map(m => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }]
     }))
+  // Gemini는 첫 메시지가 user여야 함 - model로 시작하는 메시지 제거
+  while (filteredHistory.length > 0 && filteredHistory[0].role !== 'user') {
+    filteredHistory.shift()
+  }
+  const historyForAI = filteredHistory
 
   try {
     const chat = model.startChat({ history: historyForAI })
