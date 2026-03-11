@@ -1571,7 +1571,28 @@ export default function CampaignDetail() {
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
-          tiktok_url: profile?.tiktok_url || app.tiktok_url
+          tiktok_url: profile?.tiktok_url || app.tiktok_url,
+          // US 프로필 확장 필드 (참가자용)
+          ethnicity: profile?.ethnicity || app.ethnicity || null,
+          collaboration_preferences: profile?.collaboration_preferences || app.collaboration_preferences || [],
+          experience_level: profile?.experience_level || app.experience_level || null,
+          content_formats: profile?.content_formats || app.content_formats || [],
+          profile_completed: profile?.profile_completed ?? app.profile_completed ?? null,
+          skin_type: profile?.skin_type || app.skin_type || null,
+          skin_shade: profile?.skin_shade || app.skin_shade || null,
+          personal_color: profile?.personal_color || app.personal_color || null,
+          hair_type: profile?.hair_type || app.hair_type || null,
+          // 배송 정보 (application 우선 → profile fallback)
+          shipping_country: app.shipping_country || profile?.shipping_country || null,
+          shipping_state: app.shipping_state || profile?.shipping_state || null,
+          shipping_city: app.shipping_city || profile?.shipping_city || null,
+          shipping_zip: app.shipping_zip || profile?.shipping_zip || null,
+          shipping_phone: app.shipping_phone || profile?.shipping_phone || null,
+          shipping_recipient_name: app.shipping_recipient_name || profile?.shipping_recipient_name || null,
+          shipping_address_line1: app.shipping_address_line1 || profile?.shipping_address_line1 || null,
+          shipping_address_line2: app.shipping_address_line2 || profile?.shipping_address_line2 || null,
+          shipping_address_confirmed: app.shipping_address_confirmed ?? false,
+          shipping_address_confirmed_at: app.shipping_address_confirmed_at || null
         }
       })
 
