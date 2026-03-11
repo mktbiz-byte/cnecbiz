@@ -12,7 +12,8 @@ import { Badge } from '../ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import {
   Star, Plus, Edit, Trash2, Loader2, Mail, Send,
-  TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown
+  TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown,
+  Save, X as XIcon
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
@@ -95,6 +96,10 @@ export default function FeaturedCreatorManagementPageNew() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
 
+  // AI 추천 확정 크리에이터 관리
+  const [aiPickSlots, setAiPickSlots] = useState([null, null, null, null, null])
+  const [savingAiPicks, setSavingAiPicks] = useState(false)
+
   // 크리에이터 카테고리 목록
   const CREATOR_CATEGORIES = [
     { id: 'skincare', name: '스킨케어', emoji: '🧴' },
@@ -153,6 +158,51 @@ export default function FeaturedCreatorManagementPageNew() {
       }
     } finally {
       setLoadingGraded(false)
+    }
+  }
+
+  // AI 추천 확정 크리에이터 로드
+  useEffect(() => {
+    if (gradedCreators.length > 0) {
+      const picks = gradedCreators
+        .filter(c => c.is_ai_pick)
+        .sort((a, b) => (a.ai_pick_order || 99) - (b.ai_pick_order || 99))
+      const slots = [null, null, null, null, null]
+      picks.forEach((p, i) => { if (i < 5) slots[i] = p.id })
+      setAiPickSlots(slots)
+    }
+  }, [gradedCreators])
+
+  // AI 추천 확정 저장
+  const handleSaveAiPicks = async () => {
+    setSavingAiPicks(true)
+    try {
+      // 기존 AI pick 리셋
+      const { error: resetError } = await supabaseKorea
+        .from('featured_creators')
+        .update({ is_ai_pick: false, ai_pick_order: null })
+        .eq('is_ai_pick', true)
+
+      if (resetError) throw resetError
+
+      // 새 AI pick 설정
+      for (let i = 0; i < aiPickSlots.length; i++) {
+        if (aiPickSlots[i]) {
+          const { error } = await supabaseKorea
+            .from('featured_creators')
+            .update({ is_ai_pick: true, ai_pick_order: i + 1 })
+            .eq('id', aiPickSlots[i])
+          if (error) throw error
+        }
+      }
+
+      alert('AI 추천 확정 크리에이터가 저장되었습니다.')
+      await loadGradedCreators()
+    } catch (err) {
+      console.error('Error saving AI picks:', err)
+      alert('저장 중 오류가 발생했습니다: ' + err.message)
+    } finally {
+      setSavingAiPicks(false)
     }
   }
 
@@ -1303,6 +1353,79 @@ export default function FeaturedCreatorManagementPageNew() {
                     )
                   })}
                 </div>
+
+                {/* AI 추천 확정 크리에이터 관리 */}
+                <Card className="mb-6 border-2 border-indigo-200 bg-indigo-50/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Star className="w-4 h-4 text-indigo-500 fill-current" />
+                      AI 추천 확정 크리에이터 (5명)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      캠페인 AI 추천에 항상 포함되는 크리에이터를 설정합니다 · BLOOM, GLOW 등급만 선택 가능
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {aiPickSlots.map((slotId, index) => {
+                      const eligibleCreators = gradedCreators.filter(c =>
+                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                        c.is_active !== false &&
+                        (!aiPickSlots.includes(c.id) || c.id === slotId)
+                      )
+
+                      return (
+                        <div key={index} className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+                          <span className="text-xs font-bold text-indigo-600 w-6">#{index + 1}</span>
+                          <Select
+                            value={slotId || 'none'}
+                            onValueChange={(value) => {
+                              const newSlots = [...aiPickSlots]
+                              newSlots[index] = value === 'none' ? null : value
+                              setAiPickSlots(newSlots)
+                            }}
+                          >
+                            <SelectTrigger className="flex-1 h-8 text-xs">
+                              <SelectValue placeholder="크리에이터 선택..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">선택 안 함</SelectItem>
+                              {eligibleCreators.map(c => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  {c.name} ({c.cnec_grade_name}) — {c.instagram_followers ? `IG ${c.instagram_followers.toLocaleString()}` : c.youtube_subscribers ? `YT ${c.youtube_subscribers.toLocaleString()}` : 'SNS 없음'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                              const newSlots = [...aiPickSlots]
+                              newSlots[index] = null
+                              setAiPickSlots(newSlots)
+                            }}
+                            disabled={!slotId}
+                          >
+                            <XIcon className="w-3 h-3 text-gray-400" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    <Button
+                      onClick={handleSaveAiPicks}
+                      disabled={savingAiPicks}
+                      size="sm"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      {savingAiPicks ? (
+                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" />저장 중...</>
+                      ) : (
+                        <><Save className="w-3 h-3 mr-1" />AI 추천 확정 저장</>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
 
                 {/* 등급제 크리에이터 목록 */}
                 {loadingGraded ? (
