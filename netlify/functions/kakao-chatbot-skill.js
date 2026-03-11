@@ -213,13 +213,14 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Method not allowed' }) }
   }
 
-  // 전체 처리를 4.5초 이내로 제한 (카카오 5초 타임아웃 대비)
+  // 전체 처리를 3초 이내로 제한 (카카오 5초 타임아웃 - 네트워크 지연 고려)
   const timeoutPromise = new Promise((resolve) =>
-    setTimeout(() => resolve(makeResponse('잠시 후 다시 질문해 주세요. 😊', [
+    setTimeout(() => resolve(makeResponse('궁금하신 내용을 아래에서 선택해 주세요!', [
       { label: '캠페인 만들기', action: 'message', messageText: '캠페인 어떻게 만들어요?' },
       { label: '요금/결제', action: 'message', messageText: '요금이 얼마인가요?' },
+      { label: '크리에이터 찾기', action: 'message', messageText: '크리에이터는 어떻게 찾나요?' },
       { label: '담당자 연결', action: 'message', messageText: '담당자 연결해 주세요' }
-    ])), 4500)
+    ])), 3000)
   )
 
   const mainProcess = (async () => {
@@ -240,14 +241,23 @@ exports.handler = async (event) => {
       return makeResponse('죄송합니다. 해당 질문에는 답변할 수 없습니다.')
     }
 
-    // ─── 2. 대화 세션 조회/생성 ───
-    const conversation = await getOrCreateConversation(userKey)
-    const convId = conversation?.id
-    const messages = conversation?.messages || []
+    // ─── 2. 대화 세션 조회/생성 (타임아웃 1초) ───
+    let convId = null
+    let messages = []
+    try {
+      const conversation = await Promise.race([
+        getOrCreateConversation(userKey),
+        new Promise((resolve) => setTimeout(() => resolve(null), 1000))
+      ])
+      convId = conversation?.id
+      messages = conversation?.messages || []
+    } catch (e) {
+      console.log('[kakao-chatbot-skill] Session load skipped:', e.message)
+    }
 
-    // 사용자 메시지 저장
+    // 사용자 메시지 저장 (비차단 - 응답 속도 우선)
     if (convId) {
-      await appendMessage(convId, messages, 'user', utterance)
+      appendMessage(convId, messages, 'user', utterance).catch(() => {})
     }
 
     // ─── 3. 반복 질문 감지 (2회 이상 유사 → 에스컬레이션) ───
@@ -294,7 +304,7 @@ exports.handler = async (event) => {
     try {
       const aiResponse = await Promise.race([
         generateGeminiResponse(utterance, messages),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
       ])
       if (convId) await appendMessage(convId, messages, 'assistant', aiResponse)
       return makeResponse(aiResponse, [
