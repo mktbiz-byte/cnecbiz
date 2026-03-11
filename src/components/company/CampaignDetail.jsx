@@ -92,6 +92,25 @@ const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
   return result
 }
 
+// 국가 코드 → 국기 이모지 변환
+const countryCodeToFlag = (code) => {
+  if (!code || code.length !== 2) return '🌍'
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65))
+}
+
+// 배송 주소 포맷팅 (국가별)
+const formatShippingAddress = (p) => {
+  const lines = [
+    p.shipping_recipient_name || p.applicant_name,
+    p.shipping_address_line1,
+    p.shipping_address_line2,
+    [p.shipping_city, p.shipping_state, p.shipping_zip].filter(Boolean).join(', '),
+    p.shipping_country,
+    p.shipping_phone
+  ].filter(Boolean)
+  return lines.join('\n')
+}
+
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
@@ -1593,7 +1612,28 @@ export default function CampaignDetail() {
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
-          tiktok_url: profile?.tiktok_url || app.tiktok_url
+          tiktok_url: profile?.tiktok_url || app.tiktok_url,
+          // US 프로필 확장 필드 (참가자용)
+          ethnicity: profile?.ethnicity || app.ethnicity || null,
+          collaboration_preferences: profile?.collaboration_preferences || app.collaboration_preferences || [],
+          experience_level: profile?.experience_level || app.experience_level || null,
+          content_formats: profile?.content_formats || app.content_formats || [],
+          profile_completed: profile?.profile_completed ?? app.profile_completed ?? null,
+          skin_type: profile?.skin_type || app.skin_type || null,
+          skin_shade: profile?.skin_shade || app.skin_shade || null,
+          personal_color: profile?.personal_color || app.personal_color || null,
+          hair_type: profile?.hair_type || app.hair_type || null,
+          // 배송 정보 (application 우선 → profile fallback)
+          shipping_country: app.shipping_country || profile?.shipping_country || null,
+          shipping_state: app.shipping_state || profile?.shipping_state || null,
+          shipping_city: app.shipping_city || profile?.shipping_city || null,
+          shipping_zip: app.shipping_zip || profile?.shipping_zip || null,
+          shipping_phone: app.shipping_phone || profile?.shipping_phone || null,
+          shipping_recipient_name: app.shipping_recipient_name || profile?.shipping_recipient_name || null,
+          shipping_address_line1: app.shipping_address_line1 || profile?.shipping_address_line1 || null,
+          shipping_address_line2: app.shipping_address_line2 || profile?.shipping_address_line2 || null,
+          shipping_address_confirmed: app.shipping_address_confirmed ?? false,
+          shipping_address_confirmed_at: app.shipping_address_confirmed_at || null
         }
       })
 
@@ -1968,7 +2008,27 @@ export default function CampaignDetail() {
             bio: profile.bio || null,
             job: profile.job || null,
             channel_name: profile.channel_name || null,
-            avg_views: profile.avg_views || null
+            avg_views: profile.avg_views || null,
+            // US 크리에이터 프로필 확장 필드
+            ethnicity: profile.ethnicity || app.ethnicity || null,
+            collaboration_preferences: profile.collaboration_preferences || app.collaboration_preferences || [],
+            experience_level: profile.experience_level || app.experience_level || null,
+            content_formats: profile.content_formats || app.content_formats || [],
+            video_styles: profile.video_styles || app.video_styles || [],
+            profile_completed: profile.profile_completed ?? app.profile_completed ?? null,
+            profile_completion_step: profile.profile_completion_step || app.profile_completion_step || null,
+            // US 배송 정보 (user_profiles → applications fallback)
+            shipping_country: app.shipping_country || profile.shipping_country || null,
+            shipping_state: app.shipping_state || profile.shipping_state || null,
+            shipping_city: app.shipping_city || profile.shipping_city || null,
+            shipping_zip: app.shipping_zip || profile.shipping_zip || null,
+            shipping_phone: app.shipping_phone || profile.shipping_phone || null,
+            shipping_recipient_name: app.shipping_recipient_name || profile.shipping_recipient_name || null,
+            shipping_address_line1: app.shipping_address_line1 || profile.shipping_address_line1 || null,
+            shipping_address_line2: app.shipping_address_line2 || profile.shipping_address_line2 || null,
+            shipping_address_confirmed: app.shipping_address_confirmed ?? false,
+            shipping_address_confirmed_at: app.shipping_address_confirmed_at || null,
+            shipping_address_verified: profile.shipping_address_verified ?? false
           }
           return enriched
         }
@@ -3336,16 +3396,23 @@ JSON만 출력.`
       us: {
         name: '크리에이터명',
         email: '이메일',
+        instagram: 'Instagram',
+        country: 'Country',
+        recipient: 'Recipient',
+        addressLine1: 'Address Line 1',
+        addressLine2: 'Address Line 2',
+        city: 'City',
+        state: 'State',
+        zip: 'ZIP',
+        shippingPhone: 'Phone',
+        confirmed: 'Confirmed',
         platform: '플랫폼',
-        phone: '연락처',
-        postal: '우편번호',
-        address: '주소',
-        detail: '상세주소',
-        notes: '배송시 요청사항',
         courier: '택배사',
         tracking: '송장번호',
         status: '상태',
-        deadline: '마감일'
+        skinType: 'Skin Type',
+        skinShade: 'Skin Shade',
+        ethnicity: 'Ethnicity'
       }
     }
 
@@ -3353,8 +3420,31 @@ JSON만 출력.`
 
     // 지역별 데이터 매핑
     let data
-    if (region === 'japan' || region === 'us') {
-      // 일본/미국: 이메일 컬럼 포함
+    if (region === 'us') {
+      // 미국: 확장된 배송 + 프로필 컬럼
+      data = participants.map(p => ({
+        [h.name]: getCreatorName(p),
+        [h.email]: p.email || p.applicant_email || '',
+        [h.instagram]: p.instagram_handle || p.instagram_url || '',
+        [h.country]: p.shipping_country || '',
+        [h.recipient]: p.shipping_recipient_name || getCreatorName(p),
+        [h.addressLine1]: p.shipping_address_line1 || p.address || '',
+        [h.addressLine2]: p.shipping_address_line2 || p.detail_address || '',
+        [h.city]: p.shipping_city || '',
+        [h.state]: p.shipping_state || '',
+        [h.zip]: p.shipping_zip || p.postal_code || '',
+        [h.shippingPhone]: p.shipping_phone || p.phone_number || p.creator_phone || p.phone || '',
+        [h.confirmed]: p.shipping_address_confirmed ? 'Yes' : 'No',
+        [h.platform]: p.creator_platform || p.main_channel || p.platform || '',
+        [h.courier]: p.shipping_company || '',
+        [h.tracking]: p.tracking_number || '',
+        [h.status]: getStatusLabel(p.status || 'selected'),
+        [h.skinType]: p.skin_type || '',
+        [h.skinShade]: p.skin_shade || '',
+        [h.ethnicity]: p.ethnicity || ''
+      }))
+    } else if (region === 'japan') {
+      // 일본: 이메일 컬럼 포함
       data = participants.map(p => ({
         [h.name]: getCreatorName(p),
         [h.email]: p.email || p.applicant_email || '',
@@ -3388,8 +3478,30 @@ JSON만 출력.`
 
     const ws = XLSX.utils.json_to_sheet(data)
 
-    // 컬럼 너비 설정 (일본/미국은 이메일 컬럼 추가)
-    if (region === 'japan' || region === 'us') {
+    // 컬럼 너비 설정
+    if (region === 'us') {
+      ws['!cols'] = [
+        { wch: 18 }, // 크리에이터명
+        { wch: 25 }, // 이메일
+        { wch: 18 }, // Instagram
+        { wch: 8 },  // Country
+        { wch: 18 }, // Recipient
+        { wch: 35 }, // Address Line 1
+        { wch: 20 }, // Address Line 2
+        { wch: 18 }, // City
+        { wch: 8 },  // State
+        { wch: 10 }, // ZIP
+        { wch: 18 }, // Phone
+        { wch: 10 }, // Confirmed
+        { wch: 12 }, // 플랫폼
+        { wch: 15 }, // 택배사
+        { wch: 20 }, // 송장번호
+        { wch: 12 }, // 상태
+        { wch: 15 }, // Skin Type
+        { wch: 12 }, // Skin Shade
+        { wch: 15 }  // Ethnicity
+      ]
+    } else if (region === 'japan') {
       ws['!cols'] = [
         { wch: 18 }, // 크리에이터명
         { wch: 25 }, // 이메일
@@ -3420,10 +3532,13 @@ JSON만 출력.`
       ]
     }
 
-    // 파일명 및 시트명 (한국어로 통일)
-    const sheetName = '크리에이터_배송정보'
+    // 파일명 및 시트명
+    const sheetName = region === 'us' ? 'Selected_Creators' : '크리에이터_배송정보'
+    const today = new Date().toISOString().split('T')[0]
     const regionLabel = region === 'japan' ? '_일본' : region === 'us' ? '_미국' : ''
-    const fileName = `${campaign.title}${regionLabel}_크리에이터_배송정보.xlsx`
+    const fileName = region === 'us'
+      ? `${campaign.title}_selected_creators_${today}.xlsx`
+      : `${campaign.title}${regionLabel}_크리에이터_배송정보.xlsx`
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, sheetName)
@@ -9627,6 +9742,30 @@ Questions? Contact us.
                             )
                           })()}
 
+                          {/* US 크리에이터: 국가 + 프로필 완성도 배지 */}
+                          {region === 'us' && (
+                            <div className="mb-2 space-y-1">
+                              {app.shipping_country && (
+                                <div className="flex items-center justify-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">
+                                  <span>{countryCodeToFlag(app.shipping_country)}</span>
+                                  <span className="font-medium">{app.shipping_country}</span>
+                                </div>
+                              )}
+                              <div className={`flex items-center justify-center gap-1 text-xs px-2 py-1 rounded ${
+                                app.profile_completed ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                {app.profile_completed ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                <span className="font-medium">{app.profile_completed ? 'Profile Complete' : 'Profile Incomplete'}</span>
+                              </div>
+                              {app.shipping_city && app.shipping_state && (
+                                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
+                                  <MapPin className="w-2.5 h-2.5" />
+                                  <span>{app.shipping_city}, {app.shipping_state}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {/* 이름 & 나이 */}
                           <div className="text-center mb-2">
                             <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
@@ -10450,6 +10589,94 @@ Questions? Contact us.
                 </div>
               </CardHeader>
               <CardContent>
+                {/* US 배송 주소 관리 섹션 */}
+                {region === 'us' && participants.length > 0 && (
+                  <div className="mb-6">
+                    {/* 미확인 경고 배너 */}
+                    {(() => {
+                      const unconfirmedCount = participants.filter(p => !p.shipping_address_confirmed).length
+                      if (unconfirmedCount === 0) return null
+                      return (
+                        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                          <span className="text-sm text-red-700">
+                            <strong>{unconfirmedCount}명</strong>의 크리에이터가 배송 주소를 아직 확인하지 않았습니다.
+                          </span>
+                        </div>
+                      )
+                    })()}
+
+                    {/* 국가별 그룹핑 배송 테이블 */}
+                    {(() => {
+                      const grouped = {}
+                      participants.forEach(p => {
+                        const country = p.shipping_country || 'Unknown'
+                        if (!grouped[country]) grouped[country] = []
+                        grouped[country].push(p)
+                      })
+                      const sortedCountries = Object.keys(grouped).sort((a, b) => grouped[b].length - grouped[a].length)
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                              <Truck className="w-4 h-4 text-gray-500" />
+                              배송 주소 관리
+                            </h4>
+                            <span className="text-xs text-gray-500">{sortedCountries.length}개 국가 · {participants.length}명</span>
+                          </div>
+                          {sortedCountries.map(country => (
+                            <div key={country} className="border border-gray-200 rounded-xl overflow-hidden">
+                              <div className="bg-gray-50 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
+                                <span className="text-base">{countryCodeToFlag(country)}</span>
+                                <span className="text-sm font-semibold text-gray-700">{country}</span>
+                                <Badge className="bg-gray-200 text-gray-700 text-xs">{grouped[country].length}명</Badge>
+                              </div>
+                              <div className="divide-y divide-gray-100">
+                                {grouped[country].map(p => (
+                                  <div key={p.id} className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-sm font-semibold text-gray-800 truncate">{p.shipping_recipient_name || p.applicant_name || p.creator_name}</span>
+                                        {p.shipping_address_confirmed ? (
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded border border-emerald-200">Confirmed</span>
+                                        ) : (
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded border border-red-200">Not Confirmed</span>
+                                        )}
+                                      </div>
+                                      {p.shipping_address_line1 ? (
+                                        <div className="text-xs text-gray-600 space-y-0.5">
+                                          <p>{p.shipping_address_line1}</p>
+                                          {p.shipping_address_line2 && <p>{p.shipping_address_line2}</p>}
+                                          <p>{[p.shipping_city, p.shipping_state, p.shipping_zip].filter(Boolean).join(', ')}</p>
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-gray-400 italic">주소 미입력</p>
+                                      )}
+                                      {p.shipping_phone && <p className="text-xs text-gray-500 mt-0.5">{p.shipping_phone}</p>}
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(formatShippingAddress(p))
+                                        alert('주소가 복사되었습니다.')
+                                      }}
+                                      className="flex-shrink-0 p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                                      title="주소 복사"
+                                      disabled={!p.shipping_address_line1}
+                                    >
+                                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
                 {/* 플랫폼별 필터 탭 - 모던 디자인 */}
                 <Tabs defaultValue="all" className="mt-4 lg:mt-6">
                   <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-2">
@@ -14990,10 +15217,16 @@ Questions? Contact us.
                 )}
 
                 {/* BEAUTY SPEC - 2열 카드 */}
-                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level) && (
+                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level || selectedParticipant.ethnicity) && (
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Beauty Spec</p>
                     <div className="grid grid-cols-3 gap-2">
+                      {selectedParticipant.ethnicity && (
+                        <div className="bg-teal-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-teal-400 font-medium mb-0.5">Ethnicity</p>
+                          <p className="text-xs font-semibold text-gray-800">{selectedParticipant.ethnicity}</p>
+                        </div>
+                      )}
                       {selectedParticipant.skin_type && (
                         <div className="bg-pink-50/80 px-3 py-2.5 rounded-lg">
                           <p className="text-[10px] text-pink-400 font-medium mb-0.5">피부 타입</p>
@@ -15054,10 +15287,16 @@ Questions? Contact us.
                 )}
 
                 {/* 콘텐츠 스타일 */}
-                {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency || selectedParticipant.shortform_tempo_style) && (
+                {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency || selectedParticipant.shortform_tempo_style || selectedParticipant.experience_level || selectedParticipant.content_formats?.length > 0) && (
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Content Style</p>
                     <div className="grid grid-cols-2 gap-2">
+                      {selectedParticipant.experience_level && (
+                        <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">Experience</p>
+                          <p className="text-xs font-semibold text-gray-800">{selectedParticipant.experience_level}</p>
+                        </div>
+                      )}
                       {selectedParticipant.primary_interest && (
                         <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
                           <p className="text-[10px] text-sky-400 font-medium mb-0.5">주요 콘텐츠</p>
@@ -15083,6 +15322,18 @@ Questions? Contact us.
                         </div>
                       )}
                     </div>
+                    {selectedParticipant.content_formats?.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-sky-400 font-medium mb-1.5">Content Formats</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedParticipant.content_formats.map((format, idx) => (
+                            <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-sky-50 text-sky-600 rounded-lg border border-sky-100">
+                              {format}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -15127,7 +15378,7 @@ Questions? Contact us.
                 )}
 
                 {/* 활동 정보 */}
-                {(selectedParticipant.child_appearance || selectedParticipant.family_appearance || selectedParticipant.offline_visit || selectedParticipant.languages?.length > 0) && (
+                {(selectedParticipant.child_appearance || selectedParticipant.family_appearance || selectedParticipant.offline_visit || selectedParticipant.languages?.length > 0 || selectedParticipant.collaboration_preferences?.length > 0) && (
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Activity</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -15140,9 +15391,57 @@ Questions? Contact us.
                       {selectedParticipant.offline_visit === '가능' && (
                         <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">오프라인 촬영 가능</span>
                       )}
+                      {selectedParticipant.collaboration_preferences?.map((pref, idx) => (
+                        <span key={`collab-${idx}`} className="px-2.5 py-1 text-[11px] font-medium bg-violet-50 text-violet-600 rounded-lg border border-violet-100">{pref}</span>
+                      ))}
                       {selectedParticipant.languages?.map((lang, idx) => (
                         <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-slate-50 text-slate-600 rounded-lg border border-slate-200">{lang}</span>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* US 배송 정보 */}
+                {(selectedParticipant.shipping_address_line1 || selectedParticipant.shipping_country) && (
+                  <div className="border-t border-gray-100 pt-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Truck className="w-4 h-4 text-gray-400" />
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Shipping Info</p>
+                      {selectedParticipant.shipping_address_confirmed ? (
+                        <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">Confirmed</span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded-full border border-red-200">Not Confirmed</span>
+                      )}
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3.5">
+                      <div className="flex items-start gap-2">
+                        <div className="text-lg">{countryCodeToFlag(selectedParticipant.shipping_country)}</div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-800 mb-1">{selectedParticipant.shipping_recipient_name || selectedParticipant.applicant_name}</p>
+                          {selectedParticipant.shipping_address_line1 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line1}</p>}
+                          {selectedParticipant.shipping_address_line2 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line2}</p>}
+                          <p className="text-xs text-gray-600">
+                            {[selectedParticipant.shipping_city, selectedParticipant.shipping_state, selectedParticipant.shipping_zip].filter(Boolean).join(', ')}
+                          </p>
+                          {selectedParticipant.shipping_country && <p className="text-xs text-gray-500">{selectedParticipant.shipping_country}</p>}
+                          {selectedParticipant.shipping_phone && <p className="text-xs text-gray-500 mt-1">{selectedParticipant.shipping_phone}</p>}
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(formatShippingAddress(selectedParticipant))
+                            alert('주소가 클립보드에 복사되었습니다.')
+                          }}
+                          className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                          title="주소 복사"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                      </div>
+                      {selectedParticipant.shipping_address_confirmed_at && (
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          확인일시: {new Date(selectedParticipant.shipping_address_confirmed_at).toLocaleString('ko-KR')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
