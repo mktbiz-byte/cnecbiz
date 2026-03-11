@@ -92,6 +92,9 @@
 # [functions."scheduled-weekly-withdrawal-report"]
 #   schedule = "0 1 * * 1"
 
+[functions."scheduled-billing-schedule-notification"]
+  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 빌링 스케줄 접근 알림
+
 [functions."scheduled-sns-upload"]
   schedule = "*/30 * * * *"  # 30분마다 - 예약 업로드 처리 및 성과 데이터 수집
 

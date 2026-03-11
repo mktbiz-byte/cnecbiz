@@ -1624,6 +1624,7 @@ export default function CampaignDetail() {
           skin_shade: profile?.skin_shade || app.skin_shade || null,
           personal_color: profile?.personal_color || app.personal_color || null,
           hair_type: profile?.hair_type || app.hair_type || null,
+          age_range: profile?.age_range || app.age_range || null,
           // 배송 정보 (application 우선 → profile fallback)
           shipping_country: app.shipping_country || profile?.shipping_country || null,
           shipping_state: app.shipping_state || profile?.shipping_state || null,
@@ -2018,6 +2019,7 @@ export default function CampaignDetail() {
             video_styles: profile.video_styles || app.video_styles || [],
             profile_completed: profile.profile_completed ?? app.profile_completed ?? null,
             profile_completion_step: profile.profile_completion_step || app.profile_completion_step || null,
+            age_range: profile.age_range || app.age_range || null,
             // US 배송 정보 (user_profiles → applications fallback)
             shipping_country: app.shipping_country || profile.shipping_country || null,
             shipping_state: app.shipping_state || profile.shipping_state || null,
@@ -3422,7 +3424,8 @@ JSON만 출력.`
         status: '상태',
         skinType: 'Skin Type',
         skinShade: 'Skin Shade',
-        ethnicity: 'Ethnicity'
+        ethnicity: 'Ethnicity',
+        ageRange: 'Age Range'
       }
     }
 
@@ -3451,7 +3454,8 @@ JSON만 출력.`
         [h.status]: getStatusLabel(p.status || 'selected'),
         [h.skinType]: p.skin_type || '',
         [h.skinShade]: p.skin_shade || '',
-        [h.ethnicity]: p.ethnicity || ''
+        [h.ethnicity]: p.ethnicity || '',
+        [h.ageRange]: p.age_range || ''
       }))
     } else if (region === 'japan') {
       // 일본: 이메일 컬럼 포함
@@ -11698,15 +11702,9 @@ Questions? Contact us.
                   return (
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
-                      // 해당 크리에이터의 영상들: 승인된 상태, 편집본/클린본이 있거나, SNS URL이 등록된 경우 모두 포함
+                      // 해당 크리에이터의 영상들: 모든 상태 포함 (영상/SNS URL 업로드 순서에 상관없이)
                       const allSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id &&
-                        (
-                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) ||
-                          sub.clean_video_url ||
-                          sub.video_file_url ||
-                          sub.sns_upload_url
-                        )
+                        sub => sub.user_id === participant.user_id
                       )
 
                       // video_number별로 그룹화하여 최신 버전만 유지 (클린본 병합)
@@ -11812,7 +11810,7 @@ Questions? Contact us.
                         creatorSubmissions.sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
                       }
 
-                      // 일반 캠페인도: participant에 sns_upload_url이 있지만 video_submission이 없는 경우
+                      // 일반 캠페인: participant에 sns_upload_url/clean_video_url이 있지만 video_submission이 없는 경우 synthetic 엔트리 생성
                       if (!isMultiVideoCampaign && creatorSubmissions.length === 0 && (participant.sns_upload_url || participant.clean_video_url)) {
                         creatorSubmissions.push({
                           id: `synthetic_single_${participant.id}`,
@@ -11827,6 +11825,18 @@ Questions? Contact us.
                           status: 'completed',
                           submitted_at: new Date().toISOString(),
                           _synthetic: true
+                        })
+                      }
+
+                      // 일반 캠페인: 영상은 있지만 sns_upload_url이 비어있는 경우 participant 데이터로 보충
+                      if (!isMultiVideoCampaign && creatorSubmissions.length > 0 && participant.sns_upload_url) {
+                        creatorSubmissions.forEach(sub => {
+                          if (!sub.sns_upload_url) sub.sns_upload_url = participant.sns_upload_url
+                        })
+                      }
+                      if (!isMultiVideoCampaign && creatorSubmissions.length > 0 && participant.clean_video_url) {
+                        creatorSubmissions.forEach(sub => {
+                          if (!sub.clean_video_url) sub.clean_video_url = participant.clean_video_url
                         })
                       }
 
@@ -11865,9 +11875,10 @@ Questions? Contact us.
                         allVideosHaveSnsUrl = multiVideoStatus.filter(s => !s.isStory).every(s => s.url) && !!participant.story_url
                         allVideosHaveAdCode = multiVideoStatus.filter(s => !s.isStory).every(s => s.code)
                       } else {
-                        // 일반/기획형: sns_upload_url, partnership_code
-                        allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)
-                        allVideosHaveAdCode = !!participant.partnership_code || creatorSubmissions.every(sub => sub.ad_code || sub.partnership_code)
+                        // 일반/기획형: sns_upload_url, partnership_code (participant 또는 videoSubmission 어디든 있으면 OK)
+                        const hasAnySnsUrl = !!participant.sns_upload_url || creatorSubmissions.some(sub => sub.sns_upload_url)
+                        allVideosHaveSnsUrl = hasAnySnsUrl
+                        allVideosHaveAdCode = !!participant.partnership_code || creatorSubmissions.some(sub => sub.ad_code || sub.partnership_code)
                       }
 
                       // 이미 최종 확정된 영상이 있는지 체크
@@ -15243,10 +15254,16 @@ Questions? Contact us.
                 )}
 
                 {/* BEAUTY SPEC - 2열 카드 */}
-                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level || selectedParticipant.ethnicity) && (
+                {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level || selectedParticipant.ethnicity || selectedParticipant.age_range) && (
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Beauty Spec</p>
                     <div className="grid grid-cols-3 gap-2">
+                      {selectedParticipant.age_range && (
+                        <div className="bg-violet-50/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-violet-400 font-medium mb-0.5">Age Range</p>
+                          <p className="text-xs font-semibold text-gray-800">{selectedParticipant.age_range}</p>
+                        </div>
+                      )}
                       {selectedParticipant.ethnicity && (
                         <div className="bg-teal-50/80 px-3 py-2.5 rounded-lg">
                           <p className="text-[10px] text-teal-400 font-medium mb-0.5">Ethnicity</p>

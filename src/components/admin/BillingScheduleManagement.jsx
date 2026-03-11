@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import {
   CalendarDays, Plus, Trash2, Loader2, ArrowLeft, Check, X,
   Search, Building2, ChevronLeft, ChevronRight, Download,
-  FileText, CreditCard, Bell, Calendar, ExternalLink, Edit3
+  FileText, CreditCard, Bell, Calendar, ExternalLink, Edit3, Clock
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -54,15 +54,45 @@ function generateICS(schedule) {
   const now = new Date()
   const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}00`
 
-  return [
+  const hasTime = !!schedule.scheduled_time
+  let dtStartLine, dtEndLine
+  if (hasTime) {
+    const [hours, minutes] = schedule.scheduled_time.split(':')
+    const timeStr = `${hours}${minutes}00`
+    dtStartLine = `DTSTART;TZID=Asia/Seoul:${dtStr}T${timeStr}`
+    const endHour = String(Math.min(parseInt(hours) + 1, 23)).padStart(2, '0')
+    dtEndLine = `DTEND;TZID=Asia/Seoul:${dtStr}T${endHour}${minutes}00`
+  } else {
+    dtStartLine = `DTSTART;VALUE=DATE:${dtStr}`
+    dtEndLine = `DTEND;VALUE=DATE:${dtStr}`
+  }
+
+  const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//CNEC//BillingSchedule//KO',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+  ]
+
+  if (hasTime) {
+    lines.push(
+      'BEGIN:VTIMEZONE',
+      'TZID:Asia/Seoul',
+      'BEGIN:STANDARD',
+      'DTSTART:19700101T000000',
+      'TZOFFSETFROM:+0900',
+      'TZOFFSETTO:+0900',
+      'TZNAME:KST',
+      'END:STANDARD',
+      'END:VTIMEZONE'
+    )
+  }
+
+  lines.push(
     'BEGIN:VEVENT',
-    `DTSTART;VALUE=DATE:${dtStr}`,
-    `DTEND;VALUE=DATE:${dtStr}`,
+    dtStartLine,
+    dtEndLine,
     `DTSTAMP:${stamp}`,
     `UID:${schedule.id}@cnecbiz.com`,
     `SUMMARY:[${typeLabel}] ${schedule.title}`,
@@ -74,7 +104,9 @@ function generateICS(schedule) {
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
-  ].join('\r\n')
+  )
+
+  return lines.join('\r\n')
 }
 
 function downloadICS(schedule) {
@@ -108,6 +140,7 @@ export default function BillingScheduleManagement() {
     title: '',
     description: '',
     scheduled_date: formatDate(today),
+    scheduled_time: '',
     amount: '',
     company_name: '',
     company_id: null,
@@ -174,6 +207,7 @@ export default function BillingScheduleManagement() {
       title: '',
       description: '',
       scheduled_date: date ? formatDate(date) : formatDate(today),
+      scheduled_time: '',
       amount: '',
       company_name: '',
       company_id: null,
@@ -191,6 +225,7 @@ export default function BillingScheduleManagement() {
       title: schedule.title,
       description: schedule.description || '',
       scheduled_date: schedule.scheduled_date,
+      scheduled_time: schedule.scheduled_time || '',
       amount: schedule.amount ? String(schedule.amount) : '',
       company_name: schedule.company_name || '',
       company_id: schedule.company_id,
@@ -213,6 +248,7 @@ export default function BillingScheduleManagement() {
         title: form.title,
         description: form.description || null,
         scheduled_date: form.scheduled_date,
+        scheduled_time: form.scheduled_time || null,
         amount: form.amount ? Number(form.amount) : null,
         company_name: form.company_name || '미지정',
         company_id: form.company_id,
@@ -226,6 +262,31 @@ export default function BillingScheduleManagement() {
       } else {
         await supabaseBiz.from('billing_schedules').insert(payload)
       }
+
+      // 네이버웍스 알림 (fire-and-forget)
+      const typeLabel = SCHEDULE_TYPES.find(t => t.value === payload.schedule_type)?.label || ''
+      const action = editingId ? '수정' : '등록'
+      const timeStr = payload.scheduled_time ? ` ${payload.scheduled_time}` : ''
+      const nwMessage = [
+        `📅 스케줄 ${action} 알림`,
+        '',
+        `[${typeLabel}] ${payload.title}`,
+        `예정일: ${payload.scheduled_date}${timeStr}`,
+        payload.company_name && payload.company_name !== '미지정' ? `기업: ${payload.company_name}` : null,
+        payload.amount ? `금액: ${Number(payload.amount).toLocaleString()}원` : null,
+        payload.campaign_title ? `캠페인: ${payload.campaign_title}` : null,
+        payload.description ? `메모: ${payload.description}` : null,
+      ].filter(Boolean).join('\n')
+
+      fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          message: nwMessage,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+        })
+      }).catch(err => console.error('네이버웍스 알림 실패:', err))
 
       setShowForm(false)
       setEditingId(null)
@@ -249,9 +310,9 @@ export default function BillingScheduleManagement() {
     fetchSchedules()
   }
 
-  // 이메일 알림 발송 (mkt@howlab.co.kr)
+  // 이메일 알림 발송 (mkt@cnecbiz.com)
   const handleNotify = async (schedule) => {
-    if (!confirm(`이 스케줄을 mkt@howlab.co.kr로 알림 발송하시겠습니까?`)) return
+    if (!confirm(`이 스케줄을 mkt@cnecbiz.com로 알림 발송하시겠습니까?`)) return
     setNotifying(true)
     try {
       const typeLabel = SCHEDULE_TYPES.find(t => t.value === schedule.schedule_type)?.label || ''
@@ -259,7 +320,7 @@ export default function BillingScheduleManagement() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: 'mkt@howlab.co.kr',
+          to: 'mkt@cnecbiz.com',
           subject: `[스케줄 알림] ${typeLabel} - ${schedule.title} (${schedule.scheduled_date})`,
           html: `
             <div style="font-family: Pretendard, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
@@ -275,7 +336,7 @@ export default function BillingScheduleManagement() {
                 </tr>
                 <tr style="background: #f8f9fa;">
                   <td style="padding: 10px 14px; border: 1px solid #dee2e6; font-weight: bold;">예정일</td>
-                  <td style="padding: 10px 14px; border: 1px solid #dee2e6; color: #E17055; font-weight: bold;">${schedule.scheduled_date}</td>
+                  <td style="padding: 10px 14px; border: 1px solid #dee2e6; color: #E17055; font-weight: bold;">${schedule.scheduled_date}${schedule.scheduled_time ? ` ${schedule.scheduled_time}` : ''}</td>
                 </tr>
                 <tr>
                   <td style="padding: 10px 14px; border: 1px solid #dee2e6; font-weight: bold;">기업명</td>
@@ -442,7 +503,7 @@ export default function BillingScheduleManagement() {
                                 style={{ backgroundColor: typeInfo.bg, color: typeInfo.color }}
                                 title={`${s.title} - ${s.company_name}`}
                               >
-                                {s.title}
+                                {s.scheduled_time ? `${s.scheduled_time} ` : ''}{s.title}
                               </div>
                             )
                           })}
@@ -514,6 +575,29 @@ export default function BillingScheduleManagement() {
                       onChange={e => setForm(f => ({ ...f, scheduled_date: e.target.value }))}
                       className="rounded-xl"
                     />
+                  </div>
+
+                  {/* Time */}
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">시간 (선택)</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={form.scheduled_time}
+                        onChange={e => setForm(f => ({ ...f, scheduled_time: e.target.value }))}
+                        className="rounded-xl flex-1"
+                      />
+                      {form.scheduled_time && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setForm(f => ({ ...f, scheduled_time: '' }))}
+                          className="w-8 h-8 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Company */}
@@ -692,7 +776,7 @@ export default function BillingScheduleManagement() {
                                   <div className="text-[11px] font-bold" style={{ fontFamily: 'Outfit', color: daysLeft <= 3 ? '#E17055' : '#6C5CE7' }}>
                                     {daysLeft === 0 ? 'D-DAY' : `D-${daysLeft}`}
                                   </div>
-                                  <div className="text-[10px] text-gray-400">{s.scheduled_date.slice(5)}</div>
+                                  <div className="text-[10px] text-gray-400">{s.scheduled_date.slice(5)}{s.scheduled_time ? ` ${s.scheduled_time}` : ''}</div>
                                 </div>
                               </div>
                             )
@@ -756,6 +840,11 @@ function ScheduleItem({ schedule, onEdit, onDelete, onToggle, onNotify, onCalend
         </div>
       </div>
       <div className={`text-sm font-bold mb-1 ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{schedule.title}</div>
+      {schedule.scheduled_time && (
+        <div className="text-xs text-gray-500 flex items-center gap-1 mb-0.5">
+          <Clock className="w-3 h-3" /> {schedule.scheduled_time}
+        </div>
+      )}
       {schedule.company_name && (
         <div className="text-xs text-gray-500 flex items-center gap-1 mb-0.5">
           <Building2 className="w-3 h-3" /> {schedule.company_name}
