@@ -8493,21 +8493,10 @@ Questions? Contact us.
                               </div>
                             )}
 
-                            {/* 크넥협업 썸네일 */}
+                            {/* 크넥협업 개수만 표시 */}
                             {creator.cnec_collab_videos?.length > 0 && (
-                              <div className="w-full mt-1.5 pt-1.5 border-t border-amber-100">
-                                <p className="text-[9px] text-blue-400 mb-1 text-left font-medium">★ 크넥협업 ({creator.cnec_collab_videos.length})</p>
-                                <div className="flex gap-1 overflow-x-auto">
-                                  {creator.cnec_collab_videos.slice(0, 3).map((url, vi) => {
-                                    const thumb = getYtThumb(url)
-                                    return thumb ? (
-                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
-                                        <img src={thumb} alt="" className="w-14 h-20 rounded object-cover border border-gray-200 group-hover:border-blue-400 transition-colors" />
-                                        <div className="absolute bottom-0.5 left-0.5 bg-blue-500 text-white text-[6px] px-0.5 rounded font-bold">CNEC</div>
-                                      </a>
-                                    ) : null
-                                  })}
-                                </div>
+                              <div className="w-full mt-1 text-center">
+                                <span className="text-[9px] text-blue-400 font-medium">★ 크넥협업 {creator.cnec_collab_videos.length}건</span>
                               </div>
                             )}
 
