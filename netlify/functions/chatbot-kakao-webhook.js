@@ -397,7 +397,7 @@ async function checkEscalation(text, botType) {
     .from('chatbot_guardrails')
     .select('rule_value')
     .eq('bot_type', botType)
-    .eq('rule_type', 'escalation_triggers')
+    .eq('rule_type', 'escalation_trigger')
     .eq('is_active', true)
 
   if (!triggers) return false
