@@ -8415,93 +8415,63 @@ Questions? Contact us.
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {museCreators.map((creator, index) => {
-                      // YouTube URL에서 썸네일 추출 유틸
-                      const getYtThumb = (url) => {
-                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
-                      }
+                      const reviews = creator.company_reviews || []
+                      const avgRating = reviews.length > 0
+                        ? reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
+                        : parseFloat(creator.rating) || 0
 
                       return (
-                        <div key={creator.id || index} className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border-2 border-amber-200">
+                        <div key={creator.id || index} className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow border-2 border-amber-200">
                           <div className="flex flex-col items-center text-center">
                             {/* 프로필 사진 + MUSE 뱃지 */}
-                            <div className="relative mb-2">
+                            <div className="relative mb-1.5">
                               <img
                                 src={creator.profile_photo_url || creator.profile_image_url || '/default-avatar.png'}
                                 alt={creator.name}
-                                className="w-16 h-16 rounded-full object-cover border-2 border-amber-400"
+                                className="w-14 h-14 rounded-full object-cover border-2 border-amber-400"
                               />
-                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[9px] rounded-full px-1.5 py-0.5 font-bold">
                                 MUSE
                               </div>
                             </div>
-                            <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name}</h4>
-                            <p className="text-xs text-gray-500 mb-1">크리에이터</p>
+                            <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{creator.name}</h4>
+                            <p className="text-[10px] text-gray-400">크리에이터</p>
 
-                            {/* 관리자 소개글 (bio) */}
+                            {/* 소개글 */}
                             {creator.bio && (
-                              <div className="w-full mt-1 pt-2 border-t border-amber-100">
-                                <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2 text-left" title={creator.bio}>
-                                  {creator.bio}
-                                </p>
-                              </div>
+                              <p className="text-[10px] text-gray-600 leading-relaxed line-clamp-2 text-left w-full mt-1" title={creator.bio}>
+                                {creator.bio}
+                              </p>
                             )}
 
-                            {/* 평점 */}
-                            {parseFloat(creator.rating) > 0 && (
+                            {/* 평점 + 후기 수 */}
+                            {avgRating > 0 && (
                               <div className="w-full mt-1 flex items-center gap-1">
-                                <Star className="w-3 h-3 text-amber-400 fill-current" />
-                                <span className="text-xs font-medium text-amber-600">{parseFloat(creator.rating).toFixed(1)}</span>
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map(s => (
+                                    <Star key={s} className={`w-2.5 h-2.5 ${s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                                  ))}
+                                </div>
+                                <span className="text-[10px] font-medium text-amber-600">{avgRating.toFixed(1)}</span>
+                                {reviews.length > 0 && <span className="text-[9px] text-gray-400">({reviews.length}건)</span>}
                               </div>
                             )}
 
-                            {/* 대표영상 썸네일 */}
-                            {creator.representative_videos?.length > 0 && (
-                              <div className="w-full mt-2 pt-2 border-t border-amber-100">
-                                <p className="text-[10px] text-red-400 mb-1 text-left font-medium">▶ 대표영상 ({creator.representative_videos.length})</p>
-                                <div className="flex gap-1.5 overflow-x-auto">
-                                  {creator.representative_videos.slice(0, 3).map((url, vi) => {
-                                    const thumb = getYtThumb(url)
-                                    return thumb ? (
-                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
-                                        <img src={thumb} alt="대표영상" className="w-16 h-24 rounded object-cover border border-gray-200 group-hover:border-amber-400 transition-colors" />
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <div className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
-                                            <svg className="w-2.5 h-2.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                          </div>
-                                        </div>
-                                      </a>
-                                    ) : null
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 크넥협업 썸네일 */}
-                            {creator.cnec_collab_videos?.length > 0 && (
-                              <div className="w-full mt-2 pt-2 border-t border-amber-100">
-                                <p className="text-[10px] text-blue-400 mb-1 text-left font-medium">★ 크넥협업 ({creator.cnec_collab_videos.length})</p>
-                                <div className="flex gap-1.5 overflow-x-auto">
-                                  {creator.cnec_collab_videos.slice(0, 3).map((url, vi) => {
-                                    const thumb = getYtThumb(url)
-                                    return thumb ? (
-                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
-                                        <img src={thumb} alt="크넥협업" className="w-16 h-24 rounded object-cover border border-gray-200 group-hover:border-blue-400 transition-colors" />
-                                        <div className="absolute bottom-0.5 left-0.5 bg-blue-500 text-white text-[7px] px-1 py-0.5 rounded font-bold">CNEC</div>
-                                      </a>
-                                    ) : null
-                                  })}
-                                </div>
+                            {/* 기업 후기 (최신 1건) */}
+                            {reviews.length > 0 && (
+                              <div className="w-full mt-1 bg-amber-50 rounded p-1.5">
+                                <p className="text-[9px] text-amber-700 font-medium">{reviews[reviews.length - 1].company_name}</p>
+                                <p className="text-[9px] text-gray-600 line-clamp-2 leading-relaxed">&ldquo;{reviews[reviews.length - 1].review_text}&rdquo;</p>
                               </div>
                             )}
 
                             {/* 버튼 영역 */}
-                            <div className="flex flex-col gap-1.5 w-full mt-2 pt-2 border-t border-amber-100">
+                            <div className="flex flex-col gap-1 w-full mt-1.5 pt-1.5 border-t border-amber-100">
                               <Button
                                 size="sm"
-                                className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                className={`w-full text-[10px] h-7 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                                 disabled={campaign.approval_status !== 'approved'}
                                 onClick={async () => {
                                   if (campaign.approval_status !== 'approved') {
@@ -8546,29 +8516,24 @@ Questions? Contact us.
                                 초대장 발송
                               </Button>
                               {/* SNS 팔로워 수 */}
-                              <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                              <div className="flex items-center justify-center gap-2 text-[9px] text-gray-500">
                                 {creator.instagram_followers > 0 && (
                                   <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-pink-500">
-                                    <Instagram className="w-3 h-3" />
+                                    <Instagram className="w-2.5 h-2.5" />
                                     <span>{creator.instagram_followers.toLocaleString()}</span>
                                   </a>
                                 )}
                                 {creator.youtube_subscribers > 0 && (
                                   <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-red-500">
-                                    <Youtube className="w-3 h-3" />
+                                    <Youtube className="w-2.5 h-2.5" />
                                     <span>{creator.youtube_subscribers.toLocaleString()}</span>
-                                  </a>
-                                )}
-                                {creator.tiktok_followers > 0 && (
-                                  <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-black">
-                                    <span>TikTok {creator.tiktok_followers.toLocaleString()}</span>
                                   </a>
                                 )}
                               </div>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="w-full text-[10px] h-6"
+                                className="w-full text-[10px] h-5"
                                 onClick={async () => {
                                   try {
                                     let profile = null
@@ -8578,11 +8543,11 @@ Questions? Contact us.
                                       if (p1) profile = p1
                                     }
                                     const photoUrl = creator.profile_photo_url || creator.profile_image_url || profile?.profile_photo_url
-                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
+                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl, company_reviews: reviews })
                                     setShowProfileModal(true)
                                   } catch (error) {
                                     console.error('Error fetching profile:', error)
-                                    setSelectedParticipant(creator)
+                                    setSelectedParticipant({ ...creator, company_reviews: reviews })
                                     setShowProfileModal(true)
                                   }
                                 }}
@@ -8735,15 +8700,33 @@ Questions? Contact us.
                                 </div>
                               )}
                             </div>
-                            <h4 className="font-semibold text-sm mb-0.5 truncate w-full">{creator.name || '크리에이터'}</h4>
+                            <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{creator.name || '크리에이터'}</h4>
                             {/* 소개글 */}
                             {creator.bio && (
                               <p className="text-[10px] text-gray-500 mb-0.5 line-clamp-2 w-full text-left">
                                 {creator.bio}
                               </p>
                             )}
+                            {/* 평점 + 후기 */}
+                            {(() => {
+                              const reviews = creator.company_reviews || []
+                              const avgRating = reviews.length > 0
+                                ? reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
+                                : parseFloat(creator.rating) || 0
+                              return avgRating > 0 ? (
+                                <div className="w-full flex items-center gap-1 mb-0.5">
+                                  <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map(s => (
+                                      <Star key={s} className={`w-2.5 h-2.5 ${s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] font-medium text-amber-600">{avgRating.toFixed(1)}</span>
+                                  {reviews.length > 0 && <span className="text-[9px] text-gray-400">({reviews.length})</span>}
+                                </div>
+                              ) : null
+                            })()}
                             {totalFollowers > 0 && (
-                              <p className="text-xs text-indigo-600 font-medium mb-1">
+                              <p className="text-[10px] text-indigo-600 font-medium mb-0.5">
                                 팔로워 {totalFollowers.toLocaleString()}
                               </p>
                             )}
@@ -14931,6 +14914,45 @@ Questions? Contact us.
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</p>
                     <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.bio}</p>
+                  </div>
+                )}
+
+                {/* 기업 후기 */}
+                {selectedParticipant.company_reviews?.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Company Reviews</p>
+                      {(() => {
+                        const reviews = selectedParticipant.company_reviews
+                        const avg = reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
+                        return (
+                          <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} className={`w-3 h-3 ${s <= Math.round(avg) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                              ))}
+                            </div>
+                            <span className="text-xs font-bold text-amber-600">{avg.toFixed(1)}</span>
+                            <span className="text-[10px] text-gray-400">({reviews.length}건)</span>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                    <div className="space-y-2">
+                      {selectedParticipant.company_reviews.map((review, ri) => (
+                        <div key={ri} className="bg-amber-50/80 p-3 rounded-xl border border-amber-100">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-800">{review.company_name}</span>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} className={`w-2.5 h-2.5 ${s <= (review.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed">{review.review_text}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

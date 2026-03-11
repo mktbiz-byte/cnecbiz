@@ -91,7 +91,8 @@ export default function FeaturedCreatorManagementPageNew() {
     categories: [],
     rating: 0,
     representative_videos: [], // 대표 영상 URLs
-    cnec_collab_videos: [] // 크넥 협업 영상 URLs
+    cnec_collab_videos: [], // 크넥 협업 영상 URLs
+    company_reviews: [] // 기업 후기 [{company_name, rating, review_text, created_at}]
   })
   const [savingProfile, setSavingProfile] = useState(false)
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
@@ -269,12 +270,17 @@ export default function FeaturedCreatorManagementPageNew() {
   // 프로필 편집 모달 열기
   const openProfileEditModal = (creator) => {
     setEditingCreator(creator)
+    const reviews = creator.company_reviews || []
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + (parseFloat(r.rating) || 0), 0) / reviews.length
+      : (creator.rating || 0)
     setProfileFormData({
       bio: creator.bio || '',
       categories: creator.categories || [],
-      rating: creator.rating || 0,
+      rating: avgRating,
       representative_videos: creator.representative_videos || [],
-      cnec_collab_videos: creator.cnec_collab_videos || []
+      cnec_collab_videos: creator.cnec_collab_videos || [],
+      company_reviews: reviews
     })
     setPreviewVideoUrl(null)
     setShowProfileEditModal(true)
@@ -337,14 +343,20 @@ export default function FeaturedCreatorManagementPageNew() {
 
     setSavingProfile(true)
     try {
+      const reviews = profileFormData.company_reviews || []
+      const avgRating = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + (parseFloat(r.rating) || 0), 0) / reviews.length
+        : 0
+
       const { error } = await supabaseKorea
         .from('featured_creators')
         .update({
           bio: profileFormData.bio,
           categories: profileFormData.categories,
-          rating: parseFloat(profileFormData.rating) || 0,
+          rating: Math.round(avgRating * 10) / 10,
           representative_videos: profileFormData.representative_videos,
           cnec_collab_videos: profileFormData.cnec_collab_videos,
+          company_reviews: reviews,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingCreator.id)
@@ -2401,34 +2413,116 @@ export default function FeaturedCreatorManagementPageNew() {
                 </div>
               </div>
 
-              {/* 평점 */}
+              {/* 평점 (후기 평균 자동 계산) */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">평점</Label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={profileFormData.rating}
-                    onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
-                    className="w-20 h-8"
-                  />
+                  <span className="text-lg font-bold text-yellow-600">
+                    {profileFormData.company_reviews?.length > 0
+                      ? (profileFormData.company_reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / profileFormData.company_reviews.length).toFixed(1)
+                      : '0.0'}
+                  </span>
                   <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Star
-                        key={star}
-                        className={`w-5 h-5 cursor-pointer ${
-                          star <= Math.round(profileFormData.rating)
-                            ? 'text-yellow-500 fill-yellow-500'
-                            : 'text-gray-300'
-                        }`}
-                        onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
-                      />
-                    ))}
+                    {[1, 2, 3, 4, 5].map(star => {
+                      const avg = profileFormData.company_reviews?.length > 0
+                        ? profileFormData.company_reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / profileFormData.company_reviews.length
+                        : 0
+                      return (
+                        <Star
+                          key={star}
+                          className={`w-5 h-5 ${star <= Math.round(avg) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                        />
+                      )
+                    })}
                   </div>
+                  <span className="text-xs text-gray-400">({profileFormData.company_reviews?.length || 0}건)</span>
                 </div>
               </div>
+            </div>
+
+            {/* 기업 후기 관리 */}
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold flex items-center gap-1">
+                  <span className="text-yellow-500">★</span> 기업 후기
+                  <span className="text-gray-400 font-normal">({profileFormData.company_reviews?.length || 0}건)</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setProfileFormData(prev => ({
+                      ...prev,
+                      company_reviews: [
+                        ...(prev.company_reviews || []),
+                        { company_name: '', rating: 5, review_text: '', created_at: new Date().toISOString() }
+                      ]
+                    }))
+                  }}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  후기 추가
+                </Button>
+              </div>
+              {(profileFormData.company_reviews || []).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-3">등록된 후기가 없습니다. '후기 추가' 버튼으로 추가하세요.</p>
+              )}
+              {(profileFormData.company_reviews || []).map((review, ri) => (
+                <div key={ri} className="bg-gray-50 rounded-lg p-3 space-y-2 relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileFormData(prev => ({
+                        ...prev,
+                        company_reviews: prev.company_reviews.filter((_, i) => i !== ri)
+                      }))
+                    }}
+                    className="absolute top-2 right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                  >
+                    ×
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="기업명"
+                      value={review.company_name}
+                      onChange={(e) => {
+                        const updated = [...profileFormData.company_reviews]
+                        updated[ri] = { ...updated[ri], company_name: e.target.value }
+                        setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                      }}
+                      className="h-7 text-xs flex-1"
+                    />
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 cursor-pointer ${
+                            star <= (review.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'
+                          }`}
+                          onClick={() => {
+                            const updated = [...profileFormData.company_reviews]
+                            updated[ri] = { ...updated[ri], rating: star }
+                            setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <Textarea
+                    placeholder="후기 내용을 입력하세요..."
+                    value={review.review_text}
+                    onChange={(e) => {
+                      const updated = [...profileFormData.company_reviews]
+                      updated[ri] = { ...updated[ri], review_text: e.target.value }
+                      setProfileFormData(prev => ({ ...prev, company_reviews: updated }))
+                    }}
+                    rows={2}
+                    className="resize-none text-xs"
+                  />
+                </div>
+              ))}
             </div>
 
             {/* 영상 섹션 (가로 스크롤) */}
