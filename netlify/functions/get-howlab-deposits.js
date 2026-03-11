@@ -64,7 +64,7 @@ exports.handler = async (event) => {
 
   try {
     const params = event.queryStringParameters || {};
-    const startDate = params.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const startDate = params.startDate || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
     const endDate = params.endDate || new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const filterType = params.filterType || 'input';
 

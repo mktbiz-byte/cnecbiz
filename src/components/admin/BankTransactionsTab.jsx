@@ -10,7 +10,7 @@ export default function BankTransactionsTab() {
   const [loading, setLoading] = useState(false)
   const [startDate, setStartDate] = useState(() => {
     const date = new Date()
-    date.setDate(date.getDate() - 30)
+    date.setDate(date.getDate() - 14)
     return date.toISOString().slice(0, 10)
   })
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10))
