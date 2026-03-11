@@ -99,6 +99,9 @@ export default function FeaturedCreatorManagementPageNew() {
   // AI 추천 확정 크리에이터 관리
   const [aiPickSlots, setAiPickSlots] = useState([null, null, null, null, null])
   const [savingAiPicks, setSavingAiPicks] = useState(false)
+  const [aiPickSearchQuery, setAiPickSearchQuery] = useState(['', '', '', '', ''])
+  const [aiPickSearchResults, setAiPickSearchResults] = useState([[], [], [], [], []])
+  const [aiPickActiveSlot, setAiPickActiveSlot] = useState(null)
 
   // 크리에이터 카테고리 목록
   const CREATOR_CATEGORIES = [
@@ -1367,48 +1370,126 @@ export default function FeaturedCreatorManagementPageNew() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {aiPickSlots.map((slotId, index) => {
-                      const eligibleCreators = gradedCreators.filter(c =>
-                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
-                        c.is_active !== false &&
-                        (!aiPickSlots.includes(c.id) || c.id === slotId)
-                      )
+                      const selectedCreator = slotId ? gradedCreators.find(c => c.id === slotId) : null
 
                       return (
-                        <div key={index} className="flex items-center gap-2 bg-white p-2 rounded-lg border">
-                          <span className="text-xs font-bold text-indigo-600 w-6">#{index + 1}</span>
-                          <Select
-                            value={slotId || 'none'}
-                            onValueChange={(value) => {
-                              const newSlots = [...aiPickSlots]
-                              newSlots[index] = value === 'none' ? null : value
-                              setAiPickSlots(newSlots)
-                            }}
-                          >
-                            <SelectTrigger className="flex-1 h-8 text-xs">
-                              <SelectValue placeholder="크리에이터 선택..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">선택 안 함</SelectItem>
-                              {eligibleCreators.map(c => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.name} ({c.cnec_grade_name}) — {c.instagram_followers ? `IG ${c.instagram_followers.toLocaleString()}` : c.youtube_subscribers ? `YT ${c.youtube_subscribers.toLocaleString()}` : 'SNS 없음'}
-                                </SelectItem>
+                        <div key={index} className="relative">
+                          <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+                            <span className="text-xs font-bold text-indigo-600 w-6">#{index + 1}</span>
+                            {selectedCreator ? (
+                              <div className="flex-1 flex items-center gap-2 h-8">
+                                {(selectedCreator.profile_photo_url || selectedCreator.profile_image_url) && (
+                                  <img src={selectedCreator.profile_photo_url || selectedCreator.profile_image_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                )}
+                                <span className="text-xs font-medium">{selectedCreator.name}</span>
+                                <Badge variant="outline" className="text-[10px] h-4">{selectedCreator.cnec_grade_name}</Badge>
+                                {selectedCreator.instagram_followers && (
+                                  <span className="text-[10px] text-gray-400">IG {selectedCreator.instagram_followers.toLocaleString()}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex-1 relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                                <Input
+                                  placeholder="크리에이터 이름 검색..."
+                                  className="h-8 text-xs pl-7"
+                                  value={aiPickSearchQuery[index]}
+                                  onChange={(e) => {
+                                    const q = e.target.value
+                                    const newQueries = [...aiPickSearchQuery]
+                                    newQueries[index] = q
+                                    setAiPickSearchQuery(newQueries)
+                                    setAiPickActiveSlot(index)
+
+                                    if (q.trim().length >= 1) {
+                                      const results = gradedCreators.filter(c =>
+                                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                                        c.is_active !== false &&
+                                        !aiPickSlots.includes(c.id) &&
+                                        c.name?.toLowerCase().includes(q.trim().toLowerCase())
+                                      ).slice(0, 8)
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = results
+                                      setAiPickSearchResults(newResults)
+                                    } else {
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = []
+                                      setAiPickSearchResults(newResults)
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    setAiPickActiveSlot(index)
+                                    if (aiPickSearchQuery[index]?.trim().length >= 1) {
+                                      const results = gradedCreators.filter(c =>
+                                        (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                                        c.is_active !== false &&
+                                        !aiPickSlots.includes(c.id) &&
+                                        c.name?.toLowerCase().includes(aiPickSearchQuery[index].trim().toLowerCase())
+                                      ).slice(0, 8)
+                                      const newResults = [...aiPickSearchResults]
+                                      newResults[index] = results
+                                      setAiPickSearchResults(newResults)
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    setTimeout(() => setAiPickActiveSlot(null), 200)
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                const newSlots = [...aiPickSlots]
+                                newSlots[index] = null
+                                setAiPickSlots(newSlots)
+                                const newQueries = [...aiPickSearchQuery]
+                                newQueries[index] = ''
+                                setAiPickSearchQuery(newQueries)
+                                const newResults = [...aiPickSearchResults]
+                                newResults[index] = []
+                                setAiPickSearchResults(newResults)
+                              }}
+                              disabled={!slotId}
+                            >
+                              <XIcon className="w-3 h-3 text-gray-400" />
+                            </Button>
+                          </div>
+                          {/* 검색 결과 드롭다운 */}
+                          {aiPickActiveSlot === index && aiPickSearchResults[index]?.length > 0 && !slotId && (
+                            <div className="absolute left-6 right-10 top-full z-50 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                              {aiPickSearchResults[index].map(c => (
+                                <button
+                                  key={c.id}
+                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left transition-colors"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault()
+                                    const newSlots = [...aiPickSlots]
+                                    newSlots[index] = c.id
+                                    setAiPickSlots(newSlots)
+                                    const newQueries = [...aiPickSearchQuery]
+                                    newQueries[index] = ''
+                                    setAiPickSearchQuery(newQueries)
+                                    const newResults = [...aiPickSearchResults]
+                                    newResults[index] = []
+                                    setAiPickSearchResults(newResults)
+                                    setAiPickActiveSlot(null)
+                                  }}
+                                >
+                                  {(c.profile_photo_url || c.profile_image_url) && (
+                                    <img src={c.profile_photo_url || c.profile_image_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                  )}
+                                  <span className="text-xs font-medium truncate">{c.name}</span>
+                                  <Badge variant="outline" className="text-[10px] h-4 flex-shrink-0">{c.cnec_grade_name}</Badge>
+                                  <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">
+                                    {c.instagram_followers ? `IG ${c.instagram_followers.toLocaleString()}` : c.youtube_subscribers ? `YT ${c.youtube_subscribers.toLocaleString()}` : ''}
+                                  </span>
+                                </button>
                               ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => {
-                              const newSlots = [...aiPickSlots]
-                              newSlots[index] = null
-                              setAiPickSlots(newSlots)
-                            }}
-                            disabled={!slotId}
-                          >
-                            <XIcon className="w-3 h-3 text-gray-400" />
-                          </Button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}

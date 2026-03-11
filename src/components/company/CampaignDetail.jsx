@@ -910,8 +910,29 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      console.log('[MUSE] Found creators from featured_creators:', data?.length || 0)
-      setMuseCreators(data || [])
+      // user_id가 있는 크리에이터의 프로필 사진을 user_profiles에서 가져오기
+      const userIds = (data || []).map(c => c.user_id).filter(Boolean)
+      let profileMap = {}
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabaseKorea
+          .from('user_profiles')
+          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
+          .in('id', userIds)
+        if (profiles) {
+          profiles.forEach(p => {
+            profileMap[p.id] = p.profile_image || p.profile_photo_url || p.profile_image_url || p.avatar_url
+          })
+        }
+      }
+
+      // 크리에이터 프로필 사진 매핑 (user_profiles 우선)
+      const enriched = (data || []).map(c => ({
+        ...c,
+        profile_photo_url: (c.user_id && profileMap[c.user_id]) || c.profile_photo_url || c.profile_image_url
+      }))
+
+      console.log('[MUSE] Found creators from featured_creators:', enriched.length)
+      setMuseCreators(enriched)
     } catch (error) {
       console.error('Error fetching MUSE creators:', error)
     } finally {
@@ -971,8 +992,28 @@ export default function CampaignDetail() {
         ...randomPicks.map(c => ({ ...c, is_fixed_pick: false }))
       ]
 
-      console.log('[AI Creator Rec] Fixed:', fixedPicks?.length || 0, 'Random:', randomPicks.length, 'Total:', combined.length)
-      setAiCreatorRecs(combined)
+      // user_profiles에서 프로필 사진 가져오기
+      const allUserIds = combined.map(c => c.user_id).filter(Boolean)
+      let profileMap = {}
+      if (allUserIds.length > 0) {
+        const { data: profiles } = await supabaseKorea
+          .from('user_profiles')
+          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
+          .in('id', allUserIds)
+        if (profiles) {
+          profiles.forEach(p => {
+            profileMap[p.id] = p.profile_image || p.profile_photo_url || p.profile_image_url || p.avatar_url
+          })
+        }
+      }
+
+      const enriched = combined.map(c => ({
+        ...c,
+        profile_photo_url: (c.user_id && profileMap[c.user_id]) || c.profile_photo_url || c.profile_image_url
+      }))
+
+      console.log('[AI Creator Rec] Fixed:', fixedPicks?.length || 0, 'Random:', randomPicks.length, 'Total:', enriched.length)
+      setAiCreatorRecs(enriched)
     } catch (error) {
       console.error('Error fetching AI creator recommendations:', error)
       setAiCreatorRecs([])
