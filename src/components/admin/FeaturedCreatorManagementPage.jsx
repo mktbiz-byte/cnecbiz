@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from '../ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog'
 import { analyzeCreator, formatEvaluation } from '../../lib/geminiService'
 import { scrapeYouTubeChannel } from '../../lib/youtubeScraperService'
-import { 
-  Star, Plus, Edit, Trash2, Eye, Loader2, 
-  TrendingUp, Users, Award, DollarSign, Search, UserPlus 
+import {
+  Star, Plus, Edit, Trash2, Eye, Loader2,
+  TrendingUp, Users, Award, DollarSign, Search, UserPlus,
+  Video, X, GripVertical, Save
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, supabaseTaiwan, getSupabaseClient } from '../../lib/supabaseClients'
@@ -57,6 +58,15 @@ export default function FeaturedCreatorManagementPage() {
   const [registeredCreators, setRegisteredCreators] = useState([])
   const [loadingCreators, setLoadingCreators] = useState(false)
 
+  // AI 추천 확정 크리에이터 관리
+  const [aiPickSlots, setAiPickSlots] = useState([null, null, null, null, null])
+  const [savingAiPicks, setSavingAiPicks] = useState(false)
+
+  // 크리에이터 편집 모달
+  const [editCreator, setEditCreator] = useState(null)
+  const [editFormData, setEditFormData] = useState({ admin_bio: '', representative_videos: [] })
+  const [savingEdit, setSavingEdit] = useState(false)
+
   // Load featured creators from DB
   useEffect(() => {
     loadFeaturedCreators()
@@ -76,6 +86,125 @@ export default function FeaturedCreatorManagementPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // AI 추천 확정 크리에이터 로드
+  useEffect(() => {
+    if (featuredCreators.length > 0) {
+      const picks = featuredCreators
+        .filter(c => c.is_ai_pick)
+        .sort((a, b) => (a.ai_pick_order || 99) - (b.ai_pick_order || 99))
+      const slots = [null, null, null, null, null]
+      picks.forEach((p, i) => { if (i < 5) slots[i] = p.id })
+      setAiPickSlots(slots)
+    }
+  }, [featuredCreators])
+
+  // YouTube URL에서 Video ID 추출
+  const extractYouTubeVideoId = (url) => {
+    if (!url) return null
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+    return match ? match[1] : null
+  }
+
+  // AI 추천 확정 저장
+  const handleSaveAiPicks = async () => {
+    setSavingAiPicks(true)
+    try {
+      // 기존 AI pick 리셋
+      const { error: resetError } = await supabaseBiz
+        .from('featured_creators')
+        .update({ is_ai_pick: false, ai_pick_order: null })
+        .eq('is_ai_pick', true)
+
+      if (resetError) throw resetError
+
+      // 새 AI pick 설정
+      for (let i = 0; i < aiPickSlots.length; i++) {
+        if (aiPickSlots[i]) {
+          const { error } = await supabaseBiz
+            .from('featured_creators')
+            .update({ is_ai_pick: true, ai_pick_order: i + 1 })
+            .eq('id', aiPickSlots[i])
+
+          if (error) throw error
+        }
+      }
+
+      alert('AI 추천 확정 크리에이터가 저장되었습니다.')
+      await loadFeaturedCreators()
+    } catch (err) {
+      console.error('Error saving AI picks:', err)
+      alert('저장 중 오류가 발생했습니다: ' + err.message)
+    } finally {
+      setSavingAiPicks(false)
+    }
+  }
+
+  // 크리에이터 편집 (admin_bio, representative_videos)
+  const handleOpenEdit = (creator) => {
+    setEditCreator(creator)
+    setEditFormData({
+      admin_bio: creator.admin_bio || '',
+      representative_videos: creator.representative_videos || []
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editCreator) return
+    setSavingEdit(true)
+    try {
+      const { error } = await supabaseBiz
+        .from('featured_creators')
+        .update({
+          admin_bio: editFormData.admin_bio || null,
+          representative_videos: editFormData.representative_videos.filter(v => v.url)
+        })
+        .eq('id', editCreator.id)
+
+      if (error) throw error
+
+      alert('크리에이터 정보가 저장되었습니다.')
+      setEditCreator(null)
+      await loadFeaturedCreators()
+    } catch (err) {
+      console.error('Error saving edit:', err)
+      alert('저장 중 오류가 발생했습니다: ' + err.message)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleAddVideo = () => {
+    if (editFormData.representative_videos.length >= 3) return
+    setEditFormData(prev => ({
+      ...prev,
+      representative_videos: [...prev.representative_videos, { url: '', thumbnail: '', title: '' }]
+    }))
+  }
+
+  const handleVideoUrlChange = (index, url) => {
+    const videos = [...editFormData.representative_videos]
+    videos[index] = { ...videos[index], url }
+    // YouTube URL에서 자동 썸네일 생성
+    const videoId = extractYouTubeVideoId(url)
+    if (videoId) {
+      videos[index].thumbnail = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+    }
+    setEditFormData(prev => ({ ...prev, representative_videos: videos }))
+  }
+
+  const handleVideoTitleChange = (index, title) => {
+    const videos = [...editFormData.representative_videos]
+    videos[index] = { ...videos[index], title }
+    setEditFormData(prev => ({ ...prev, representative_videos: videos }))
+  }
+
+  const handleRemoveVideo = (index) => {
+    setEditFormData(prev => ({
+      ...prev,
+      representative_videos: prev.representative_videos.filter((_, i) => i !== index)
+    }))
   }
 
   // 가입 크리에이터 검색
@@ -735,6 +864,82 @@ export default function FeaturedCreatorManagementPage() {
               </CardContent>
             </Card>
 
+            {/* AI 추천 확정 크리에이터 관리 */}
+            <Card className="border-2 border-indigo-200 bg-indigo-50">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Star className="w-5 h-5 text-indigo-500 fill-current" />
+                  AI 추천 확정 크리에이터 (5명)
+                </CardTitle>
+                <CardDescription>
+                  캠페인 AI 추천에 항상 포함되는 크리에이터를 설정합니다 · BLOOM, GLOW 등급만 선택 가능
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {aiPickSlots.map((slotId, index) => {
+                  const eligibleCreators = featuredCreators.filter(c =>
+                    (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
+                    c.is_active !== false &&
+                    (!aiPickSlots.includes(c.id) || c.id === slotId)
+                  )
+                  const selectedCreator = slotId ? featuredCreators.find(c => c.id === slotId) : null
+
+                  return (
+                    <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-lg border">
+                      <span className="text-sm font-bold text-indigo-600 w-8">#{index + 1}</span>
+                      <Select
+                        value={slotId || ''}
+                        onValueChange={(value) => {
+                          const newSlots = [...aiPickSlots]
+                          newSlots[index] = value || null
+                          setAiPickSlots(newSlots)
+                        }}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="크리에이터 선택..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {eligibleCreators.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name} ({c.cnec_grade_name || 'N/A'}) — {c.instagram_handle || c.youtube_handle || c.tiktok_handle || 'SNS 없음'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedCreator && (
+                        <span className="text-xs text-gray-500 hidden md:inline">
+                          {selectedCreator.cnec_grade_name}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newSlots = [...aiPickSlots]
+                          newSlots[index] = null
+                          setAiPickSlots(newSlots)
+                        }}
+                        disabled={!slotId}
+                      >
+                        <X className="w-4 h-4 text-gray-400" />
+                      </Button>
+                    </div>
+                  )
+                })}
+                <Button
+                  onClick={handleSaveAiPicks}
+                  disabled={savingAiPicks}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {savingAiPicks ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />저장 중...</>
+                  ) : (
+                    <><Save className="w-4 h-4 mr-2" />AI 추천 확정 저장</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">등록된 추천 크리에이터</CardTitle>
@@ -821,23 +1026,62 @@ export default function FeaturedCreatorManagementPage() {
                           </div>
                         </div>
 
+                        {/* AI Pick 뱃지 */}
+                        {creator.is_ai_pick && (
+                          <div className="pt-3 border-t">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                              <Star className="w-3 h-3 fill-current" />
+                              AI PICK #{creator.ai_pick_order}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* admin_bio 표시 */}
+                        {creator.admin_bio && (
+                          <div className="pt-3 border-t">
+                            <p className="text-xs text-gray-500 mb-1 font-semibold">관리자 소개글</p>
+                            <p className="text-xs text-gray-600 line-clamp-2">{creator.admin_bio}</p>
+                          </div>
+                        )}
+
+                        {/* 대표영상 표시 */}
+                        {creator.representative_videos?.length > 0 && (
+                          <div className="pt-3 border-t">
+                            <p className="text-xs text-gray-500 mb-1 font-semibold">대표영상 ({creator.representative_videos.length})</p>
+                            <div className="flex gap-1">
+                              {creator.representative_videos.map((v, vi) => (
+                                <a key={vi} href={v.url} target="_blank" rel="noopener noreferrer" className="block">
+                                  <img src={v.thumbnail} alt={v.title || '영상'} className="w-16 h-10 rounded object-cover border" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex gap-2">
-                          <Button 
+                          <Button
+                            onClick={() => handleOpenEdit(creator)}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            편집
+                          </Button>
+                          <Button
                             onClick={() => handleViewProfile(creator)}
                             size="sm"
                             className="flex-1"
                           >
-                            <Eye className="w-4 h-4 mr-2" />
-                            프로필 보기
+                            <Eye className="w-4 h-4 mr-1" />
+                            프로필
                           </Button>
-                          <Button 
+                          <Button
                             onClick={() => handleDelete(creator.id)}
                             size="sm"
                             variant="destructive"
-                            className="flex items-center gap-2"
                           >
                             <Trash2 className="w-4 h-4" />
-                            <span>삭제</span>
                           </Button>
                         </div>
                       </CardContent>
@@ -850,6 +1094,98 @@ export default function FeaturedCreatorManagementPage() {
         )}
       </div>
       </div>
+
+      {/* 크리에이터 편집 모달 (admin_bio, representative_videos) */}
+      <Dialog open={!!editCreator} onOpenChange={(open) => { if (!open) setEditCreator(null) }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              크리에이터 편집: {editCreator?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 관리자 소개글 */}
+            <div className="space-y-2">
+              <Label>관리자 소개글 (최대 500자)</Label>
+              <Textarea
+                value={editFormData.admin_bio}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, admin_bio: e.target.value.slice(0, 500) }))}
+                placeholder="이 크리에이터의 강점이나 특징을 소개해주세요..."
+                rows={4}
+              />
+              <p className="text-xs text-gray-400 text-right">{editFormData.admin_bio.length}/500</p>
+            </div>
+
+            {/* 대표영상 */}
+            <div className="space-y-2">
+              <Label className="flex items-center justify-between">
+                <span>대표영상 (최대 3개)</span>
+                {editFormData.representative_videos.length < 3 && (
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddVideo}>
+                    <Plus className="w-3 h-3 mr-1" />
+                    영상 추가
+                  </Button>
+                )}
+              </Label>
+              {editFormData.representative_videos.map((video, index) => (
+                <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-lg border relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1"
+                    onClick={() => handleRemoveVideo(index)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                  <div className="space-y-1">
+                    <Label className="text-xs">YouTube URL</Label>
+                    <Input
+                      value={video.url}
+                      onChange={(e) => handleVideoUrlChange(index, e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">영상 제목</Label>
+                    <Input
+                      value={video.title}
+                      onChange={(e) => handleVideoTitleChange(index, e.target.value)}
+                      placeholder="영상 제목..."
+                    />
+                  </div>
+                  {video.thumbnail && (
+                    <div className="flex items-center gap-2">
+                      <img src={video.thumbnail} alt="썸네일" className="w-24 h-16 rounded object-cover border" />
+                      <span className="text-xs text-green-600">썸네일 자동 생성됨</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {editFormData.representative_videos.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">
+                  대표영상을 추가하면 캠페인 상세 페이지에서 표시됩니다
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditCreator(null)}>
+              취소
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />저장 중...</>
+              ) : (
+                <><Save className="w-4 h-4 mr-2" />저장</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 가입 크리에이터 선택 모달 */}
       <Dialog open={showCreatorModal} onOpenChange={setShowCreatorModal}>
