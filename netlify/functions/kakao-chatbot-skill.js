@@ -213,6 +213,16 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Method not allowed' }) }
   }
 
+  // 전체 처리를 4.5초 이내로 제한 (카카오 5초 타임아웃 대비)
+  const timeoutPromise = new Promise((resolve) =>
+    setTimeout(() => resolve(makeResponse('잠시 후 다시 질문해 주세요. 😊', [
+      { label: '캠페인 만들기', action: 'message', messageText: '캠페인 어떻게 만들어요?' },
+      { label: '요금/결제', action: 'message', messageText: '요금이 얼마인가요?' },
+      { label: '담당자 연결', action: 'message', messageText: '담당자 연결해 주세요' }
+    ])), 4500)
+  )
+
+  const mainProcess = (async () => {
   try {
     const body = JSON.parse(event.body)
 
@@ -280,19 +290,7 @@ exports.handler = async (event) => {
       return makeChoicesResponse(choiceText, choices)
     }
 
-    // ─── 7. Gemini AI 응답 ───
-    if (callbackUrl) {
-      // 콜백 방식: Gemini 응답 생성 후 callbackUrl로 전송
-      // 카카오가 5초 후 "답변을 준비 중입니다..." 표시, 이후 콜백 응답 도착
-      try {
-        await generateAndCallback(callbackUrl, utterance, messages, convId)
-      } catch (err) {
-        console.error('[kakao-chatbot-skill] Callback error:', err.message)
-      }
-      return { statusCode: 200, body: JSON.stringify({ version: '2.0' }) }
-    }
-
-    // 동기 처리 (4초 타임아웃) - callbackUrl 없는 경우 (스킬 테스트 등)
+    // ─── 7. Gemini AI 응답 (항상 4초 이내 직접 응답) ───
     try {
       const aiResponse = await Promise.race([
         generateGeminiResponse(utterance, messages),
@@ -331,6 +329,9 @@ exports.handler = async (event) => {
 
     return makeResponse('일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
   }
+  })()
+
+  return Promise.race([mainProcess, timeoutPromise])
 }
 
 
