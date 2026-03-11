@@ -1,10 +1,12 @@
 /**
  * 5분마다 실행되는 계좌 거래 내역 수집 및 자동 매칭
  * Netlify Scheduled Function
+ * 하우랩/하우파파 두 계좌 모두 모니터링
  */
 
 const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
+const axios = require('axios');
 
 // Supabase 클라이언트 초기화
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_BIZ_URL;
@@ -28,11 +30,45 @@ popbill.config({
 const easyFinBankService = popbill.EasyFinBankService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
-// 계좌 정보 (환경 변수에서 가져오기)
-const BANK_CODE = process.env.BANK_CODE || '0003'; // IBK기업은행
-const ACCOUNT_NUMBER = process.env.ACCOUNT_NUMBER; // 팝빌 계좌 별칭 (예: "크넥전용계좌")
+// 계좌 정보 (하우랩 + 하우파파 두 계좌)
+const ACCOUNTS = [
+  {
+    label: '하우랩',
+    bankCode: process.env.BANK_CODE || '0003',
+    accountNumber: process.env.ACCOUNT_NUMBER
+  },
+  // 하우파파 계좌 (환경변수 설정 시 자동 활성화)
+  ...(process.env.ACCOUNT_NUMBER_2 ? [{
+    label: '하우파파',
+    bankCode: process.env.BANK_CODE_2 || '0003',
+    accountNumber: process.env.ACCOUNT_NUMBER_2
+  }] : [])
+];
+
+const BASE_URL = process.env.URL || 'https://cnecbiz.com';
+const NAVER_WORKS_CHANNEL = '75c24874-e370-afd5-9da3-72918ba15a3c';
 
 console.log('Scheduled function: collect-transactions initialized');
+console.log(`모니터링 계좌: ${ACCOUNTS.map(a => a.label).join(', ')}`);
+
+/**
+ * 네이버웍스 알림 발송 (공통 헬퍼)
+ */
+async function sendNaverWorksAlert(message) {
+  try {
+    await axios.post(
+      `${BASE_URL}/.netlify/functions/send-naver-works-message`,
+      {
+        message,
+        isAdminNotification: true,
+        channelId: NAVER_WORKS_CHANNEL
+      }
+    );
+    console.log('✅ 네이버 웍스 알림 발송 완료');
+  } catch (error) {
+    console.error('❌ 네이버 웍스 알림 발송 실패:', error.message);
+  }
+}
 
 /**
  * 수집 작업 상태 확인 (폴링)
@@ -86,10 +122,10 @@ function normalizeCompanyName(name) {
 function calculateSimilarity(str1, str2) {
   const s1 = normalizeCompanyName(str1);
   const s2 = normalizeCompanyName(str2);
-  
+
   if (s1 === s2) return 100;
   if (s1.length === 0 || s2.length === 0) return 0;
-  
+
   // Levenshtein Distance
   const matrix = [];
   for (let i = 0; i <= s2.length; i++) {
@@ -111,11 +147,11 @@ function calculateSimilarity(str1, str2) {
       }
     }
   }
-  
+
   const distance = matrix[s2.length][s1.length];
   const maxLength = Math.max(s1.length, s2.length);
   const similarity = ((maxLength - distance) / maxLength) * 100;
-  
+
   return Math.round(similarity);
 }
 
@@ -145,7 +181,7 @@ async function autoMatchTransaction(transaction) {
     // 2단계: 유사도 매칭 (70% 이상)
     if (!requests || requests.length === 0) {
       console.log(`ℹ️  정확한 매칭 없음 - 유사도 매칭 시도`);
-      
+
       const { data: allRequests, error: allError } = await supabaseAdmin
         .from('points_charge_requests')
         .select('*, companies(company_name)')
@@ -166,7 +202,7 @@ async function autoMatchTransaction(transaction) {
       for (const req of allRequests) {
         const similarity = calculateSimilarity(transaction.briefs, req.depositor_name);
         console.log(`  - ${req.depositor_name}: ${similarity}% 유사`);
-        
+
         if (similarity > bestSimilarity) {
           bestSimilarity = similarity;
           bestMatch = req;
@@ -178,8 +214,15 @@ async function autoMatchTransaction(transaction) {
         requests = [bestMatch];
       } else if (bestSimilarity >= 50) {
         console.log(`⚠️  중간 유사도: ${bestMatch.depositor_name} (${bestSimilarity}%) - 수동 확인 필요`);
-        // TODO: 네이버 웍스 경고 메시지 발송
-        return { needsManualReview: true, similarity: bestSimilarity, match: bestMatch };
+        // 수동 확인 필요 알림
+        await sendNaverWorksAlert(
+          `⚠️ 유사도 매칭 수동 확인 필요\n\n` +
+          `입금자: ${transaction.briefs}\n` +
+          `금액: ${parseInt(transaction.trade_balance).toLocaleString()}원\n` +
+          `유사 매칭: ${bestMatch.depositor_name} (${bestSimilarity}%)\n\n` +
+          `확인 페이지: https://cnecbiz.com/admin/deposits`
+        );
+        return null;
       } else {
         console.log(`❌ 유사도 너무 낮음: ${bestSimilarity}%`);
         return null;
@@ -189,19 +232,19 @@ async function autoMatchTransaction(transaction) {
     const request = requests[0];
     console.log(`✅ 자동 매칭 발견: ${request.id}`);
 
-    // 포인트 충전 처리
-    const { data: company, error: companyError } = await supabaseAdmin
+    // 회사 정보 먼저 조회 (캠페인 알림에도 사용)
+    const { data: companyInfo, error: companyInfoError } = await supabaseAdmin
       .from('companies')
-      .select('points_balance')
+      .select('company_name, notification_email, notification_phone, points_balance')
       .eq('id', request.company_id)
       .single();
 
-    if (companyError) {
-      console.error('❌ 회사 정보 조회 오류:', companyError);
+    if (companyInfoError) {
+      console.error('❌ 회사 정보 조회 오류:', companyInfoError);
       return null;
     }
 
-    const newPoints = (company.points_balance || 0) + parseInt(request.amount);
+    const newPoints = (companyInfo.points_balance || 0) + parseInt(request.amount);
 
     // 포인트 업데이트
     const { error: updateError } = await supabaseAdmin
@@ -230,7 +273,7 @@ async function autoMatchTransaction(transaction) {
     // 캠페인 자동 승인 요청 처리
     if (request.related_campaign_id) {
       console.log(`📢 캠페인 자동 승인 요청: ${request.related_campaign_id}`);
-      
+
       try {
         // 캠페인 상태를 'pending'으로 변경
         const { error: campaignError } = await supabaseAdmin
@@ -245,7 +288,7 @@ async function autoMatchTransaction(transaction) {
           console.error('❌ 캠페인 상태 업데이트 오류:', campaignError);
         } else {
           console.log('✅ 캠페인 상태를 pending으로 변경 완료');
-          
+
           // 캠페인 정보 조회
           const { data: campaign } = await supabaseAdmin
             .from('campaigns')
@@ -253,28 +296,17 @@ async function autoMatchTransaction(transaction) {
             .eq('id', request.related_campaign_id)
             .single();
 
-          // 네이버 웍스 알림 발송
+          // 네이버 웍스 캠페인 승인 요청 알림
           if (campaign) {
-            try {
-              const axios = require('axios');
-              await axios.post(
-                `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
-                {
-                  isAdminNotification: true,
-                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-                  message: `🎉 **새로운 캠페인 승인 요청**\n\n` +
-                        `🏬 **회사:** ${companyInfo?.company_name || '미상'}\n` +
-                        `📝 **캠페인:** ${campaign.title}\n` +
-                        `🎯 **타입:** ${campaign.campaign_type || '미상'}\n` +
-                        `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
-                        `💰 **입금 금액:** ${parseInt(request.amount).toLocaleString()}원\n\n` +
-                        `➡️ 관리자 페이지에서 확인해주세요.`
-                }
-              );
-              console.log('✅ 네이버 웍스 알림 발송 완료');
-            } catch (worksError) {
-              console.error('❌ 네이버 웍스 알림 발송 실패:', worksError.message);
-            }
+            await sendNaverWorksAlert(
+              `🎉 **새로운 캠페인 승인 요청**\n\n` +
+              `🏬 **회사:** ${companyInfo.company_name || '미상'}\n` +
+              `📝 **캠페인:** ${campaign.title}\n` +
+              `🎯 **타입:** ${campaign.campaign_type || '미상'}\n` +
+              `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
+              `💰 **입금 금액:** ${parseInt(request.amount).toLocaleString()}원\n\n` +
+              `➡️ 관리자 페이지에서 확인해주세요.`
+            );
           }
         }
       } catch (campaignApprovalError) {
@@ -296,10 +328,9 @@ async function autoMatchTransaction(transaction) {
 
     console.log(`🎉 자동 매칭 완료! 충전: ${request.amount}원, 새 잔액: ${newPoints}원`);
 
-    // 입금 확인 알림 발송 (비동기 - 실패해도 매칭은 완료)
+    // 고객 알림 발송 (비동기 - 실패해도 매칭은 완료)
     try {
-      const axios = require('axios');
-      const koreanDate = new Date().toLocaleString('ko-KR', { 
+      const koreanDate = new Date().toLocaleString('ko-KR', {
         timeZone: 'Asia/Seoul',
         year: 'numeric',
         month: 'long',
@@ -308,118 +339,93 @@ async function autoMatchTransaction(transaction) {
         minute: '2-digit'
       });
 
-      // 회사 정보 조회
-      const { data: companyInfo, error: companyInfoError } = await supabaseAdmin
-        .from('companies')
-        .select('company_name, notification_email, notification_phone')
-        .eq('id', request.company_id)
-        .single();
+      const companyName = companyInfo.company_name || '고객사';
+      const companyEmail = companyInfo.notification_email;
+      const companyPhone = companyInfo.notification_phone;
 
-      if (companyInfoError) {
-        console.error('❌ 회사 정보 조회 실패:', companyInfoError);
-      } else {
-        const companyName = companyInfo.company_name || '고객사';
-        const companyEmail = companyInfo.notification_email;
-        const companyPhone = companyInfo.notification_phone;
-
-        // 1. 고객에게 알림톡 발송
-        if (companyPhone) {
-          try {
-            console.log(`📱 알림톡 발송: ${companyPhone}`);
-            await axios.post(
-              `${process.env.URL}/.netlify/functions/send-kakao-notification`,
-              {
-                receiverNum: companyPhone,
-                receiverName: companyName,
-                templateCode: '025100000943',
-                variables: {
-                  '회사명': companyName,
-                  '포인트': parseInt(request.amount).toLocaleString()
-                }
-              }
-            );
-            console.log('✅ 알림톡 발송 완료');
-          } catch (kakaoError) {
-            console.error('❌ 알림톡 발송 실패:', kakaoError.message);
-          }
-        }
-
-        // 2. 고객에게 이메일 발송
-        if (companyEmail) {
-          try {
-            console.log(`📧 이메일 발송: ${companyEmail}`);
-            await axios.post(
-              `${process.env.URL}/.netlify/functions/send-email`,
-              {
-                to: companyEmail,
-                subject: '[CNEC] 포인트 충전 완료',
-                html: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #4CAF50;">✅ 입금이 확인되었습니다</h2>
-                    <p>안녕하세요, <strong>${companyName}</strong>님.</p>
-                    <p>입금이 확인되어 포인트가 충전되었습니다.</p>
-                    
-                    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                      <h3 style="margin-top: 0; color: #555;">충전 내역</h3>
-                      <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                          <td style="padding: 8px 0; color: #666;"><strong>충전 포인트:</strong></td>
-                          <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${parseInt(request.amount).toLocaleString()}P</strong></td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 8px 0; color: #666;"><strong>현재 잔액:</strong></td>
-                          <td style="padding: 8px 0;">${newPoints.toLocaleString()}P</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 8px 0; color: #666;"><strong>확인 시간:</strong></td>
-                          <td style="padding: 8px 0;">${koreanDate}</td>
-                        </tr>
-                      </table>
-                    </div>
-                    
-                    <p style="color: #666;">이제 포인트를 사용하실 수 있습니다.</p>
-                    <p style="color: #666;">문의: <strong>1833-6025</strong></p>
-                    
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    <p style="font-size: 12px; color: #999; text-align: center;">
-                      본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
-                    </p>
-                  </div>
-                `
-              }
-            );
-            console.log('✅ 이메일 발송 완료');
-          } catch (emailError) {
-            console.error('❌ 이메일 발송 실패:', emailError.message);
-          }
-        }
-
-        // 3. 관리자에게 네이버 웍스 알림
+      // 1. 고객에게 알림톡 발송
+      if (companyPhone) {
         try {
-          console.log('📢 관리자 네이버 웍스 알림 발송');
-          const naverMessage = `✅ 입금 확인 완료\n\n` +
-            `회사명: ${companyName}\n` +
-            `충전 금액: ${parseInt(request.amount).toLocaleString()}원\n` +
-            `새 잔액: ${newPoints.toLocaleString()}P\n` +
-            `확인 시간: ${koreanDate}\n\n` +
-            `관리자 페이지: https://cnecbiz.com/admin/deposits`;
-
+          console.log(`📱 알림톡 발송: ${companyPhone}`);
           await axios.post(
-            `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
+            `${BASE_URL}/.netlify/functions/send-kakao-notification`,
             {
-              message: naverMessage,
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+              receiverNum: companyPhone,
+              receiverName: companyName,
+              templateCode: '025100000943',
+              variables: {
+                '회사명': companyName,
+                '포인트': parseInt(request.amount).toLocaleString()
+              }
             }
           );
-          console.log('✅ 관리자 알림 발송 완료');
-        } catch (naverError) {
-          console.error('❌ 관리자 알림 발송 실패:', naverError.message);
+          console.log('✅ 알림톡 발송 완료');
+        } catch (kakaoError) {
+          console.error('❌ 알림톡 발송 실패:', kakaoError.message);
         }
       }
+
+      // 2. 고객에게 이메일 발송
+      if (companyEmail) {
+        try {
+          console.log(`📧 이메일 발송: ${companyEmail}`);
+          await axios.post(
+            `${BASE_URL}/.netlify/functions/send-email`,
+            {
+              to: companyEmail,
+              subject: '[CNEC] 포인트 충전 완료',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #4CAF50;">✅ 입금이 확인되었습니다</h2>
+                  <p>안녕하세요, <strong>${companyName}</strong>님.</p>
+                  <p>입금이 확인되어 포인트가 충전되었습니다.</p>
+
+                  <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #555;">충전 내역</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #666;"><strong>충전 포인트:</strong></td>
+                        <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${parseInt(request.amount).toLocaleString()}P</strong></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #666;"><strong>현재 잔액:</strong></td>
+                        <td style="padding: 8px 0;">${newPoints.toLocaleString()}P</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #666;"><strong>확인 시간:</strong></td>
+                        <td style="padding: 8px 0;">${koreanDate}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <p style="color: #666;">이제 포인트를 사용하실 수 있습니다.</p>
+                  <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                  <p style="font-size: 12px; color: #999; text-align: center;">
+                    본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                  </p>
+                </div>
+              `
+            }
+          );
+          console.log('✅ 이메일 발송 완료');
+        } catch (emailError) {
+          console.error('❌ 이메일 발송 실패:', emailError.message);
+        }
+      }
+
+      // 3. 관리자에게 네이버 웍스 매칭 완료 알림
+      await sendNaverWorksAlert(
+        `✅ 입금 확인 + 자동 매칭 완료\n\n` +
+        `회사명: ${companyName}\n` +
+        `충전 금액: ${parseInt(request.amount).toLocaleString()}원\n` +
+        `새 잔액: ${newPoints.toLocaleString()}P\n` +
+        `확인 시간: ${koreanDate}\n\n` +
+        `관리자 페이지: https://cnecbiz.com/admin/deposits`
+      );
     } catch (notificationError) {
       console.error('❌ 알림 발송 오류:', notificationError);
-      // 알림 실패해도 매칭은 완료
     }
 
     return request.id;
@@ -427,6 +433,152 @@ async function autoMatchTransaction(transaction) {
     console.error('❌ 자동 매칭 오류:', error);
     return null;
   }
+}
+
+/**
+ * 단일 계좌의 거래 내역 수집 및 처리
+ */
+async function collectTransactionsForAccount(account, startDate, endDate) {
+  console.log(`\n🏦 [${account.label}] 계좌 수집 시작: ${account.bankCode} / ${account.accountNumber}`);
+
+  if (!account.accountNumber) {
+    console.log(`⏭️  [${account.label}] 계좌번호 미설정 - 건너뜀`);
+    return { savedCount: 0, matchedCount: 0, totalTransactions: 0, newDeposits: [] };
+  }
+
+  // 1. 수집 요청 (RequestJob)
+  const jobID = await new Promise((resolve, reject) => {
+    easyFinBankService.requestJob(
+      POPBILL_CORP_NUM,
+      account.bankCode,
+      account.accountNumber,
+      startDate,
+      endDate,
+      (result) => {
+        console.log(`✅ [${account.label}] 수집 요청 성공, JobID:`, result);
+        resolve(result);
+      },
+      (error) => {
+        console.error(`❌ [${account.label}] 수집 요청 오류:`, error);
+        reject(error);
+      }
+    );
+  });
+
+  // 2. 수집 완료 대기
+  const isCompleted = await waitForJobCompletion(jobID);
+
+  if (!isCompleted) {
+    console.error(`⚠️ [${account.label}] 수집 작업 타임아웃`);
+    return { savedCount: 0, matchedCount: 0, totalTransactions: 0, newDeposits: [] };
+  }
+
+  // 3. 입금 거래 내역만 조회
+  const result = await new Promise((resolve, reject) => {
+    easyFinBankService.search(
+      POPBILL_CORP_NUM,
+      jobID,
+      ['I'], // 입금만 조회
+      '',
+      1,
+      1000,
+      'D',
+      null,
+      (result) => {
+        console.log(`✅ [${account.label}] 입금 거래 내역 조회 성공`);
+        resolve(result);
+      },
+      (error) => {
+        console.error(`❌ [${account.label}] 거래 내역 조회 오류:`, error);
+        reject(error);
+      }
+    );
+  });
+
+  const transactions = result.list || [];
+  console.log(`✅ [${account.label}] ${transactions.length}건의 입금 거래 조회 완료`);
+
+  if (transactions.length === 0) {
+    return { savedCount: 0, matchedCount: 0, totalTransactions: 0, newDeposits: [] };
+  }
+
+  // 4. Supabase에 저장 및 자동 매칭
+  let savedCount = 0;
+  let matchedCount = 0;
+  const newDeposits = [];
+
+  for (const tx of transactions) {
+    try {
+      // 이미 저장된 거래인지 확인
+      const { data: existing } = await supabaseAdmin
+        .from('bank_transactions')
+        .select('id')
+        .eq('tid', tx.tid)
+        .single();
+
+      if (existing) {
+        continue;
+      }
+
+      // 데이터 변환 및 검증
+      const tradeDate = String(tx.trdate || '').substring(0, 8);
+      const tradeTime = String(tx.trdt || '').substring(8, 14);
+      const tradeBalance = parseInt(String(tx.accIn || '0').replace(/,/g, ''));
+      const briefs = String(tx.remark1 || tx.remark2 || '').substring(0, 500);
+      const tid = String(tx.tid || '').substring(0, 32);
+
+      console.log(`🔍 [${account.label}] 새 입금: ${briefs} / ${tradeBalance.toLocaleString()}원`);
+
+      // 자동 매칭 시도
+      const matchResult = await autoMatchTransaction({
+        briefs: briefs,
+        trade_balance: tradeBalance,
+        trade_date: tradeDate
+      });
+
+      // matchResult가 object(needsManualReview)인 경우 null 처리
+      const matchedRequestId = (matchResult && typeof matchResult === 'string') ? matchResult : null;
+
+      // Supabase에 저장
+      const { error: insertError } = await supabaseAdmin
+        .from('bank_transactions')
+        .insert({
+          tid: tid,
+          trade_date: tradeDate,
+          trade_time: tradeTime,
+          trade_type: 'I',
+          trade_balance: tradeBalance,
+          briefs: briefs,
+          charge_request_id: matchedRequestId,
+          is_matched: !!matchedRequestId
+        });
+
+      if (insertError) {
+        console.error(`❌ 저장 오류 (${tid}):`, insertError);
+        continue;
+      }
+
+      savedCount++;
+      newDeposits.push({
+        label: account.label,
+        briefs,
+        tradeBalance,
+        tradeDate,
+        tradeTime,
+        matched: !!matchedRequestId
+      });
+
+      if (matchedRequestId) {
+        matchedCount++;
+      }
+    } catch (error) {
+      console.error('❌ 거래 처리 오류:', error);
+    }
+  }
+
+  console.log(`✅ [${account.label}] 새로 저장: ${savedCount}건, 자동 매칭: ${matchedCount}건`);
+
+  return { savedCount, matchedCount, totalTransactions: transactions.length, newDeposits };
 }
 
 /**
@@ -443,177 +595,58 @@ exports.handler = async (event, context) => {
     const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
-    console.log(`🏦 계좌: ${BANK_CODE} / ${ACCOUNT_NUMBER}`);
 
-    // 1. 수집 요청 (RequestJob)
-    console.log('🔍 [STEP 1] 수집 요청...');
-    const jobID = await new Promise((resolve, reject) => {
-      easyFinBankService.requestJob(
-        POPBILL_CORP_NUM,
-        BANK_CODE,
-        ACCOUNT_NUMBER,
-        startDate,
-        endDate,
-        (result) => {
-          console.log('✅ [STEP 1] 수집 요청 성공, JobID:', result);
-          resolve(result);
-        },
-        (error) => {
-          console.error('❌ [STEP 1] 수집 요청 오류:', error);
-          reject(error);
-        }
-      );
-    });
+    let totalSaved = 0;
+    let totalMatched = 0;
+    let totalTransactions = 0;
+    let allNewDeposits = [];
 
-    // 2. 수집 완료 대기
-    console.log('🔍 [STEP 2] 수집 완료 대기...');
-    const isCompleted = await waitForJobCompletion(jobID);
-
-    if (!isCompleted) {
-      console.error('⚠️ [STEP 2] 수집 작업 타임아웃');
-      return {
-        statusCode: 408,
-        body: JSON.stringify({
-          success: false,
-          error: '수집 작업 타임아웃'
-        })
-      };
-    }
-
-    console.log('✅ [STEP 2] 수집 완료!');
-
-    // 3. 입금 거래 내역만 조회 (Search)
-    console.log('🔍 [STEP 3] 입금 거래 내역 조회...');
-    const result = await new Promise((resolve, reject) => {
-      easyFinBankService.search(
-        POPBILL_CORP_NUM,
-        jobID,
-        ['I'], // ✅ 입금만 조회
-        '',    // 검색어 없음
-        1,     // 첫 페이지
-        1000,  // 최대 1000건
-        'D',   // 내림차순
-        null,  // UserID
-        (result) => {
-          console.log('✅ [STEP 3] 입금 거래 내역 조회 성공');
-          resolve(result);
-        },
-        (error) => {
-          console.error('❌ [STEP 3] 거래 내역 조회 오류:', error);
-          reject(error);
-        }
-      );
-    });
-
-    console.log('🔍 [DEBUG] result 객체:', JSON.stringify(result, null, 2));
-    
-    const transactions = result.list || [];
-    console.log(`✅ [STEP 3] ${transactions.length}건의 입금 거래 조회 완료`);
-
-    if (transactions.length === 0) {
-      console.log('ℹ️  조회된 입금 거래가 없습니다.');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          success: true,
-          message: '조회된 입금 거래가 없습니다.',
-          savedCount: 0,
-          matchedCount: 0,
-          totalTransactions: 0
-        })
-      };
-    }
-
-    // 4. Supabase에 저장 및 자동 매칭
-    console.log('🔍 [STEP 4] Supabase에 저장 및 자동 매칭...');
-    let savedCount = 0;
-    let matchedCount = 0;
-
-    for (const tx of transactions) {
+    // 모든 계좌에 대해 수집 실행
+    for (const account of ACCOUNTS) {
       try {
-        // 이미 저장된 거래인지 확인
-        const { data: existing } = await supabaseAdmin
-          .from('bank_transactions')
-          .select('id')
-          .eq('tid', tx.tid)
-          .single();
-
-        if (existing) {
-          console.log(`   ⏭️  이미 저장됨: ${tx.tid}`);
-          continue;
-        }
-
-        // 팝빌 API 응답 데이터 로그
-        console.log(`🔍 [DEBUG] 원본 거래 데이터:`, JSON.stringify(tx, null, 2));
-
-        // 데이터 변환 및 검증
-        const tradeDate = String(tx.trdate || '').substring(0, 8);
-        const tradeTime = String(tx.trdt || '').substring(8, 14);
-        const tradeBalance = parseInt(String(tx.accIn || '0').replace(/,/g, ''));
-        const briefs = String(tx.remark1 || tx.remark2 || '').substring(0, 500);
-        const tid = String(tx.tid || '').substring(0, 32);
-
-        console.log(`🔍 [DEBUG] 변환된 데이터:`, {
-          tid,
-          tradeDate,
-          tradeTime,
-          tradeBalance,
-          briefs
-        });
-
-        // 자동 매칭 시도
-        const matchedRequestId = await autoMatchTransaction({
-          briefs: briefs,
-          trade_balance: tradeBalance,
-          trade_date: tradeDate
-        });
-
-        // Supabase에 저장할 데이터 준비
-        const insertData = {
-          tid: tid,
-          trade_date: tradeDate,
-          trade_time: tradeTime,
-          trade_type: 'I',
-          trade_balance: tradeBalance,
-          briefs: briefs,
-          charge_request_id: matchedRequestId,
-          is_matched: !!matchedRequestId
-        };
-
-        console.log(`🔍 [DEBUG] 삽입할 데이터:`, JSON.stringify(insertData, null, 2));
-
-        // Supabase에 저장
-        const { error: insertError } = await supabaseAdmin
-          .from('bank_transactions')
-          .insert(insertData);
-
-        if (insertError) {
-          console.error(`❌ 저장 오류 (${tx.tid}):`, insertError);
-          continue;
-        }
-
-        savedCount++;
-        console.log(`   ✅ 저장: ${tx.tid} - ${tx.remark1 || tx.remark2} / ${parseInt(tx.accIn || 0).toLocaleString()}원`);
-
-        if (matchedRequestId) {
-          matchedCount++;
-        }
-      } catch (error) {
-        console.error('❌ 거래 처리 오류:', error);
+        const result = await collectTransactionsForAccount(account, startDate, endDate);
+        totalSaved += result.savedCount;
+        totalMatched += result.matchedCount;
+        totalTransactions += result.totalTransactions;
+        allNewDeposits = allNewDeposits.concat(result.newDeposits);
+      } catch (accountError) {
+        console.error(`❌ [${account.label}] 계좌 수집 오류:`, accountError.message);
       }
     }
 
-    console.log('✅ [STEP 4] 저장 및 매칭 완료!');
-    console.log(`   📝 새로 저장: ${savedCount}건`);
-    console.log(`   🎯 자동 매칭: ${matchedCount}건`);
+    // 새 입금이 있으면 무조건 네이버웍스 알림 발송
+    if (allNewDeposits.length > 0) {
+      const koreanDate = new Date().toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
-    // 5. 미매칭 입금 감지 및 알림
-    console.log('🔍 [STEP 5] 미매칭 입금 확인...');
-    const unmatchedCount = savedCount - matchedCount;
-    
-    if (unmatchedCount > 0) {
+      let depositMessage = `💵 새로운 입금 ${allNewDeposits.length}건 감지\n`;
+      depositMessage += `⏰ ${koreanDate}\n\n`;
+
+      allNewDeposits.forEach((dep, index) => {
+        const dateFormatted = `${dep.tradeDate.substring(0,4)}-${dep.tradeDate.substring(4,6)}-${dep.tradeDate.substring(6,8)}`;
+        const timeFormatted = dep.tradeTime ? `${dep.tradeTime.substring(0,2)}:${dep.tradeTime.substring(2,4)}` : '';
+        const matchStatus = dep.matched ? '✅ 자동매칭' : '⚠️ 미매칭';
+        depositMessage += `${index + 1}. [${dep.label}] ${dep.briefs}\n`;
+        depositMessage += `   💰 ${dep.tradeBalance.toLocaleString()}원 (${dateFormatted} ${timeFormatted})\n`;
+        depositMessage += `   ${matchStatus}\n\n`;
+      });
+
+      depositMessage += `📊 총 ${totalSaved}건 저장 / ${totalMatched}건 자동매칭\n`;
+      depositMessage += `확인: https://cnecbiz.com/admin/deposits`;
+
+      await sendNaverWorksAlert(depositMessage);
+    }
+
+    // 미매칭 입금 추가 알림 (기존 미매칭 포함)
+    const unmatchedNew = allNewDeposits.filter(d => !d.matched);
+    if (unmatchedNew.length > 0) {
       try {
-        // 미매칭 입금 내역 조회
         const { data: unmatchedTransactions } = await supabaseAdmin
           .from('bank_transactions')
           .select('*')
@@ -622,51 +655,39 @@ exports.handler = async (event, context) => {
           .limit(10);
 
         if (unmatchedTransactions && unmatchedTransactions.length > 0) {
-          console.log(`⚠️  미매칭 입금 ${unmatchedTransactions.length}건 발견`);
-          
-          // 네이버 웍스 알림 발송
-          const axios = require('axios');
-          let alertMessage = `⚠️ 미매칭 입금 발견!\n\n`;
-          alertMessage += `총 ${unmatchedTransactions.length}건의 입금이 결제 요청과 매칭되지 않았습니다.\n\n`;
-          
+          let alertMessage = `⚠️ 미매칭 입금 현황 (총 ${unmatchedTransactions.length}건)\n\n`;
+
           unmatchedTransactions.slice(0, 5).forEach((tx, index) => {
             const date = `${tx.trade_date.substring(0,4)}-${tx.trade_date.substring(4,6)}-${tx.trade_date.substring(6,8)}`;
             alertMessage += `${index + 1}. ${tx.briefs} / ${parseInt(tx.trade_balance).toLocaleString()}원 (${date})\n`;
           });
-          
+
           if (unmatchedTransactions.length > 5) {
             alertMessage += `\n... 외 ${unmatchedTransactions.length - 5}건 더 있음\n`;
           }
-          
-          alertMessage += `\n확인 페이지: https://cnecbiz.com/admin/deposits`;
-          
-          await axios.post(
-            `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`,
-            {
-              message: alertMessage,
-              isAdminNotification: true,
-              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
-            }
-          );
-          console.log('✅ 미매칭 입금 알림 발송 완료');
+
+          alertMessage += `\n수동 확인: https://cnecbiz.com/admin/deposits`;
+
+          await sendNaverWorksAlert(alertMessage);
         }
       } catch (alertError) {
         console.error('❌ 미매칭 입금 알림 발송 실패:', alertError.message);
       }
-    } else {
-      console.log('✅ 모든 입금이 정상적으로 매칭되었습니다.');
     }
-    
+
     console.log('📊 ========== 계좌 거래 내역 자동 수집 완료 ==========');
+    console.log(`   📝 총 저장: ${totalSaved}건`);
+    console.log(`   🎯 자동 매칭: ${totalMatched}건`);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        message: `${savedCount}건 저장, ${matchedCount}건 자동 매칭`,
-        savedCount,
-        matchedCount,
-        totalTransactions: transactions.length
+        message: `${totalSaved}건 저장, ${totalMatched}건 자동 매칭`,
+        savedCount: totalSaved,
+        matchedCount: totalMatched,
+        totalTransactions,
+        accounts: ACCOUNTS.map(a => a.label)
       })
     };
   } catch (error) {
@@ -674,6 +695,20 @@ exports.handler = async (event, context) => {
     console.error('오류 이름:', error.name);
     console.error('오류 메시지:', error.message);
     console.error('스택:', error.stack);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'scheduled-collect-transactions',
+          errorMessage: error.message,
+          context: { stack: error.stack }
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
 
     return {
       statusCode: 500,

@@ -58,6 +58,8 @@
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
   schedule = "* * * * *"  # 매 1분마다 실행
+  timeout = 120  # 팝빌 API 폴링(최대 20초+) + 거래 처리 시간 필요
+  external_node_modules = ["popbill"]
 
 [functions."scheduled-unmatched-deposits-alert"]
   schedule = "0 7 * * *"  # 매일 오후 4시 (한국시간 = UTC+9)
