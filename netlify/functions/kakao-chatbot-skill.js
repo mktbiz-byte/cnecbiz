@@ -282,20 +282,35 @@ exports.handler = async (event) => {
 
     // ─── 7. Gemini AI 응답 ───
     if (callbackUrl) {
-      // 비동기 처리 (5초 초과 방지) - fire and forget
-      generateAndCallback(callbackUrl, utterance, messages, convId).catch(err =>
+      // 콜백 방식: Gemini 응답 생성 후 callbackUrl로 전송
+      // 카카오가 5초 후 "답변을 준비 중입니다..." 표시, 이후 콜백 응답 도착
+      try {
+        await generateAndCallback(callbackUrl, utterance, messages, convId)
+      } catch (err) {
         console.error('[kakao-chatbot-skill] Callback error:', err.message)
-      )
-      return makeResponse('잠시만 기다려 주세요. 답변을 준비 중입니다... ⏳')
+      }
+      return { statusCode: 200, body: JSON.stringify({ version: '2.0' }) }
     }
 
-    // 동기 처리
-    const aiResponse = await generateGeminiResponse(utterance, messages)
-    if (convId) await appendMessage(convId, messages, 'assistant', aiResponse)
-    return makeResponse(aiResponse, [
-      { label: '담당자 연결', action: 'message', messageText: '담당자 연결해 주세요' },
-      { label: '다른 질문', action: 'message', messageText: '다른 질문이 있어요' }
-    ])
+    // 동기 처리 (4초 타임아웃) - callbackUrl 없는 경우 (스킬 테스트 등)
+    try {
+      const aiResponse = await Promise.race([
+        generateGeminiResponse(utterance, messages),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+      ])
+      if (convId) await appendMessage(convId, messages, 'assistant', aiResponse)
+      return makeResponse(aiResponse, [
+        { label: '담당자 연결', action: 'message', messageText: '담당자 연결해 주세요' },
+        { label: '다른 질문', action: 'message', messageText: '다른 질문이 있어요' }
+      ])
+    } catch (e) {
+      return makeResponse('궁금하신 내용에 대해 자세히 안내해 드리겠습니다. 아래에서 선택해 주세요!', [
+        { label: '캠페인 만들기', action: 'message', messageText: '캠페인 어떻게 만들어요?' },
+        { label: '크리에이터 찾기', action: 'message', messageText: '크리에이터는 어떻게 찾나요?' },
+        { label: '요금/결제', action: 'message', messageText: '요금이 얼마인가요?' },
+        { label: '담당자 연결', action: 'message', messageText: '담당자 연결해 주세요' }
+      ])
+    }
 
   } catch (error) {
     console.error('[kakao-chatbot-skill] Error:', error)
