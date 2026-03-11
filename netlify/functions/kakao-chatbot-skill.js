@@ -263,19 +263,30 @@ exports.handler = async (event) => {
     // ─── 3. 반복 질문 감지 (2회 이상 유사 → 에스컬레이션) ───
     const repeatCount = countSimilarQuestions(messages, utterance)
     if (repeatCount >= REPEAT_THRESHOLD) {
-      const escalationText = '같은 내용으로 여러 번 문의해 주셨네요. 😊\n담당자가 직접 상담해 드리는 것이 좋겠습니다.\n\n담당자에게 전달하였으니, 빠른 시일 내에 연락드리겠습니다!'
-      await triggerEscalation(utterance, userKey, 'repeated_question', repeatCount)
+      const escalationText = '같은 내용으로 여러 번 문의해 주셨네요. 😊\n담당자와 직접 상담하시는 것이 좋겠습니다.\n\n문의 내용을 채팅창에 작성하신 후, 하단의 "상담 연결" 버튼을 눌러주세요!'
       if (convId) await appendMessage(convId, messages, 'assistant', escalationText)
       return makeResponse(escalationText, [
         { label: '처음으로', action: 'message', messageText: '처음으로' }
       ])
     }
 
-    // ─── 4. 민감 키워드 → 즉시 담당자 연결 ───
+    // ─── 4. 민감 키워드 → 상담 연결 안내 ───
     const sensitiveKeyword = findSensitiveKeyword(utterance)
     if (sensitiveKeyword) {
-      const escalationText = '해당 문의는 담당자에게 전달되었습니다.\n빠른 시일 내에 답변 드리겠습니다. 🙏'
-      await triggerEscalation(utterance, userKey, 'sensitive_keyword', 0, sensitiveKeyword)
+      const escalationText = '해당 문의는 담당자와 직접 상담이 필요합니다.\n\n아래 방법으로 상담을 요청해 주세요:\n1. 문의하실 내용을 채팅창에 미리 작성해 주세요\n2. 하단의 "상담 연결" 버튼을 눌러주세요\n\n작성해 주신 내용을 담당자가 확인 후 답변드립니다! 😊'
+      // 미답변 테이블에 기록 (추적용)
+      try {
+        await supabase
+          .from('chatbot_unanswered')
+          .insert({
+            kakao_user_key: userKey,
+            bot_type: BOT_TYPE,
+            question: utterance,
+            confidence: 0,
+            user_context: { reason: 'sensitive_keyword', trigger_keyword: sensitiveKeyword },
+            status: 'pending'
+          })
+      } catch (e) { console.error('[chatbot_unanswered] Insert error:', e.message) }
       if (convId) await appendMessage(convId, messages, 'assistant', escalationText)
       return makeResponse(escalationText)
     }
