@@ -114,14 +114,19 @@ exports.handler = async (event) => {
         }
       }
 
-      // applications 테이블 업데이트
+      // applications 테이블 업데이트 (기존 + shipping_* 필드 병행 저장)
       const { error: updateError } = await supabaseUS
         .from('applications')
         .update({
           phone_number,
           postal_code: postal_code || null,
           address,
-          detail_address: detail_address || null
+          detail_address: detail_address || null,
+          // shipping_* 필드도 함께 저장 (cnecus user_profiles 정합성)
+          shipping_zip: postal_code || null,
+          shipping_address_line1: address,
+          shipping_address_line2: detail_address || null,
+          shipping_phone: phone_number
         })
         .eq('id', application_id)
 
@@ -136,16 +141,17 @@ exports.handler = async (event) => {
         .eq('id', application_id)
         .single()
 
+      // ★ US user_profiles에는 postal_code/shipping_address/detail_address 컬럼 없음
       if (appData?.user_id) {
         await supabaseUS
           .from('user_profiles')
           .update({
             phone_number,
             phone: phone_number,
-            postal_code: postal_code || null,
-            shipping_address: address,
-            address,
-            detail_address: detail_address || null
+            shipping_zip: postal_code || null,
+            shipping_address_line1: address,
+            shipping_address_line2: detail_address || null,
+            shipping_phone: phone_number
           })
           .eq('user_id', appData.user_id)
       }

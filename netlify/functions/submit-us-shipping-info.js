@@ -239,7 +239,7 @@ exports.handler = async (event) => {
 
     console.log('[INFO] Found application:', appCheck)
 
-    // 2. Applications 테이블 업데이트
+    // 2. Applications 테이블 업데이트 (기존 + shipping_* 필드 병행 저장)
     const { data: updateData, error: updateError } = await supabaseUS
       .from('applications')
       .update({
@@ -247,6 +247,11 @@ exports.handler = async (event) => {
         postal_code: postal_code || null,
         address,
         detail_address: detail_address || null,
+        // shipping_* 필드도 함께 저장 (cnecus user_profiles 정합성)
+        shipping_zip: postal_code || null,
+        shipping_address_line1: address,
+        shipping_address_line2: detail_address || null,
+        shipping_phone: phone_number,
         updated_at: new Date().toISOString()
       })
       .eq('id', application_id)
@@ -260,16 +265,18 @@ exports.handler = async (event) => {
     console.log('[SUCCESS] Application updated:', updateData)
 
     // 3. User profiles 업데이트 (user_id가 있는 경우)
+    // ★ US user_profiles에는 postal_code/shipping_address/detail_address 컬럼 없음
+    //    shipping_zip, shipping_address_line1, shipping_address_line2 사용
     if (appCheck.user_id) {
       const { error: profileError } = await supabaseUS
         .from('user_profiles')
         .update({
           phone_number,
           phone: phone_number,
-          postal_code: postal_code || null,
-          shipping_address: address,
-          address,
-          detail_address: detail_address || null
+          shipping_zip: postal_code || null,
+          shipping_address_line1: address,
+          shipping_address_line2: detail_address || null,
+          shipping_phone: phone_number
         })
         .eq('user_id', appCheck.user_id)
 

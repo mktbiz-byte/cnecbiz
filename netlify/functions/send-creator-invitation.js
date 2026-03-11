@@ -240,9 +240,9 @@ exports.handler = async (event) => {
           name: userProfile.name || userProfile.full_name || userProfile.display_name,
           email: userProfile.email,
           phone: userProfile.phone || userProfile.phone_number,
-          instagram_handle: userProfile.instagram_url || userProfile.instagram_handle || userProfile.instagram,
-          youtube_handle: userProfile.youtube_url || userProfile.youtube_handle || userProfile.youtube,
-          tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle || userProfile.tiktok,
+          instagram_url: userProfile.instagram_url || userProfile.instagram_handle || userProfile.instagram,
+          youtube_url: userProfile.youtube_url || userProfile.youtube_handle || userProfile.youtube,
+          tiktok_url: userProfile.tiktok_url || userProfile.tiktok_handle || userProfile.tiktok,
           followers: userProfile.followers_count || userProfile.followers || userProfile.total_followers
         };
         console.log('[INFO] Creator found in user_profiles (MUSE):', { name: creator.name, email: creator.email });

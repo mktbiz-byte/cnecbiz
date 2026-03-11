@@ -128,9 +128,9 @@ export default function InvitationLanding() {
             creator_name: userProfile.name || userProfile.full_name || userProfile.display_name,
             email: userProfile.email,
             phone: userProfile.phone || userProfile.phone_number,
-            instagram_handle: userProfile.instagram_url || userProfile.instagram_handle,
-            youtube_handle: userProfile.youtube_url || userProfile.youtube_handle,
-            tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle,
+            instagram_url: userProfile.instagram_url || userProfile.instagram_handle,
+            youtube_url: userProfile.youtube_url || userProfile.youtube_handle,
+            tiktok_url: userProfile.tiktok_url || userProfile.tiktok_handle,
             followers: userProfile.followers_count || userProfile.followers,
             profile_image: userProfile.profile_image_url || userProfile.profile_image || userProfile.avatar_url
           }

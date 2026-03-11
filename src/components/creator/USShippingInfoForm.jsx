@@ -73,14 +73,15 @@ const USShippingInfoForm = () => {
         throw new Error('Application not found')
       }
 
-      // 이미 배송정보가 입력된 경우
-      if (appData.phone_number && appData.address) {
+      // 이미 배송정보가 입력된 경우 (shipping_* 필드 우선, 기존 필드 fallback)
+      const existingAddress = appData.shipping_address_line1 || appData.address
+      if (appData.phone_number && existingAddress) {
         setSubmitted(true)
         setFormData({
           phone_number: appData.phone_number || '',
-          postal_code: appData.postal_code || '',
-          address: appData.address || '',
-          detail_address: appData.detail_address || ''
+          postal_code: appData.shipping_zip || appData.postal_code || '',
+          address: existingAddress || '',
+          detail_address: appData.shipping_address_line2 || appData.detail_address || ''
         })
       }
 

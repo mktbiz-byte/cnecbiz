@@ -96,9 +96,9 @@ exports.handler = async (event) => {
           name: userProfile.name || userProfile.full_name || userProfile.display_name,
           email: userProfile.email,
           phone: userProfile.phone || userProfile.phone_number,
-          instagram_handle: userProfile.instagram_url || userProfile.instagram_handle,
-          youtube_handle: userProfile.youtube_url || userProfile.youtube_handle,
-          tiktok_handle: userProfile.tiktok_url || userProfile.tiktok_handle,
+          instagram_url: userProfile.instagram_url || userProfile.instagram_handle,
+          youtube_url: userProfile.youtube_url || userProfile.youtube_handle,
+          tiktok_url: userProfile.tiktok_url || userProfile.tiktok_handle,
           followers: userProfile.followers_count || userProfile.followers
         };
       }
@@ -221,8 +221,8 @@ exports.handler = async (event) => {
 
     // 5. 주요 채널
     let mainChannel = '인스타그램';
-    if (creator.youtube_handle) mainChannel = '유튜브';
-    else if (creator.tiktok_handle) mainChannel = '틱톡';
+    if (creator.youtube_url) mainChannel = '유튜브';
+    else if (creator.tiktok_url) mainChannel = '틱톡';
 
     // 6. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
     // ★ 초대장 상태 업데이트보다 먼저 실행 (실패 시 초대장 상태가 변경되지 않도록)
@@ -236,7 +236,12 @@ exports.handler = async (event) => {
       phone_number: shippingInfo.phone_number || '',
       postal_code: shippingInfo.postal_code || '',
       address: shippingInfo.address || '',
-      detail_address: shippingInfo.detail_address || ''
+      detail_address: shippingInfo.detail_address || '',
+      // US user_profiles 정합성: shipping_* 필드도 함께 저장
+      shipping_zip: shippingInfo.postal_code || '',
+      shipping_address_line1: shippingInfo.address || '',
+      shipping_address_line2: shippingInfo.detail_address || '',
+      shipping_phone: shippingInfo.phone_number || ''
     } : {};
 
     // 1차 시도: 전체 컬럼으로 insert
@@ -248,10 +253,10 @@ exports.handler = async (event) => {
         applicant_name: creatorName,
         email: creatorEmail,
         phone: creator.phone,
-        instagram_url: creator.instagram_handle || creator.instagram_url,
+        instagram_url: creator.instagram_url || creator.instagram_handle,
         instagram_followers: creator.followers,
-        youtube_url: creator.youtube_handle || creator.youtube_url,
-        tiktok_url: creator.tiktok_handle || creator.tiktok_url,
+        youtube_url: creator.youtube_url || creator.youtube_handle,
+        tiktok_url: creator.tiktok_url || creator.tiktok_handle,
         profile_image_url: profileImage,
         profile_photo_url: profileImage,
         status: 'selected',
