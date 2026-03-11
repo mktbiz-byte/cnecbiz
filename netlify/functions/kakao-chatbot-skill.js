@@ -481,19 +481,37 @@ ${faqContext}`
     systemInstruction: fullPrompt
   })
 
-  // 대화 이력 구성 (첫 메시지가 반드시 user여야 함)
+  // 대화 이력 구성 (Gemini 규칙: 첫 메시지 user, 역할 교대)
   let filteredHistory = (conversationHistory || [])
-    .filter(m => m.role && m.content)
+    .filter(m => m.role && m.content && m.content.trim())
     .slice(-10)
     .map(m => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }]
     }))
-  // Gemini는 첫 메시지가 user여야 함 - model로 시작하는 메시지 제거
+
+  // 첫 메시지가 user가 될 때까지 제거
   while (filteredHistory.length > 0 && filteredHistory[0].role !== 'user') {
     filteredHistory.shift()
   }
-  const historyForAI = filteredHistory
+
+  // 연속된 같은 역할 메시지 제거 (Gemini는 user/model 교대 필요)
+  const deduped = []
+  for (const msg of filteredHistory) {
+    if (deduped.length > 0 && deduped[deduped.length - 1].role === msg.role) {
+      // 같은 역할이 연속이면 마지막 것만 유지
+      deduped[deduped.length - 1] = msg
+    } else {
+      deduped.push(msg)
+    }
+  }
+
+  // 마지막 메시지가 user면 제거 (현재 질문과 중복)
+  if (deduped.length > 0 && deduped[deduped.length - 1].role === 'user') {
+    deduped.pop()
+  }
+
+  const historyForAI = deduped
 
   try {
     const chat = model.startChat({ history: historyForAI })
