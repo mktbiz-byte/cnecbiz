@@ -263,21 +263,30 @@ exports.handler = async (event) => {
     // ─── 3. 반복 질문 감지 (2회 이상 유사 → 에스컬레이션) ───
     const repeatCount = countSimilarQuestions(messages, utterance)
     if (repeatCount >= REPEAT_THRESHOLD) {
-      const escalationText = '같은 내용으로 여러 번 문의해 주셨네요. 😊\n담당자가 직접 상담해 드리는 것이 좋겠습니다.\n\n담당자에게 전달하였으니, 빠른 시일 내에 연락드리겠습니다!'
-      await triggerEscalation(utterance, userKey, 'repeated_question', repeatCount)
+      const escalationText = '같은 내용으로 여러 번 문의해 주셨네요. 😊\n담당자와 직접 상담하시는 것이 좋겠습니다.\n\n아래 "상담원 연결" 버튼을 눌러주세요.\n상담 종료 후 자동으로 챗봇으로 돌아옵니다.'
       if (convId) await appendMessage(convId, messages, 'assistant', escalationText)
-      return makeResponse(escalationText, [
-        { label: '처음으로', action: 'message', messageText: '처음으로' }
-      ])
+      return makeConsultResponse(escalationText)
     }
 
-    // ─── 4. 민감 키워드 → 즉시 담당자 연결 ───
+    // ─── 4. 민감 키워드 → 상담 연결 안내 ───
     const sensitiveKeyword = findSensitiveKeyword(utterance)
     if (sensitiveKeyword) {
-      const escalationText = '해당 문의는 담당자에게 전달되었습니다.\n빠른 시일 내에 답변 드리겠습니다. 🙏'
-      await triggerEscalation(utterance, userKey, 'sensitive_keyword', 0, sensitiveKeyword)
+      const escalationText = '해당 문의는 담당자와 직접 상담이 필요합니다.\n\n아래 "상담원 연결" 버튼을 눌러주시면 담당자가 직접 답변드립니다.\n상담 종료 후 자동으로 챗봇으로 돌아옵니다.'
+      // 미답변 테이블에 기록 (추적용)
+      try {
+        await supabase
+          .from('chatbot_unanswered')
+          .insert({
+            kakao_user_key: userKey,
+            bot_type: BOT_TYPE,
+            question: utterance,
+            confidence: 0,
+            user_context: { reason: 'sensitive_keyword', trigger_keyword: sensitiveKeyword },
+            status: 'pending'
+          })
+      } catch (e) { console.error('[chatbot_unanswered] Insert error:', e.message) }
       if (convId) await appendMessage(convId, messages, 'assistant', escalationText)
-      return makeResponse(escalationText)
+      return makeConsultResponse(escalationText)
     }
 
     // ─── 5. FAQ 매칭 ───
@@ -359,6 +368,27 @@ function makeResponse(text, quickReplies = []) {
       action: qr.action || 'message',
       messageText: qr.messageText || qr.label
     }))
+  }
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({ version: '2.0', template })
+  }
+}
+
+// 상담원 연결 버튼 포함 응답 (basicCard + operator action)
+// 사용자가 버튼 누르면 상담톡으로 전환, 상담 종료 시 자동으로 챗봇 복귀
+function makeConsultResponse(text) {
+  const template = {
+    outputs: [{
+      basicCard: {
+        description: text,
+        buttons: [{
+          label: '상담원 연결',
+          action: 'operator'
+        }]
+      }
+    }]
   }
   return {
     statusCode: 200,
