@@ -8421,6 +8421,10 @@ Questions? Contact us.
                       const avgRating = reviews.length > 0
                         ? reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
                         : parseFloat(creator.rating) || 0
+                      const getYtThumb = (url) => {
+                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
+                      }
 
                       return (
                         <div key={creator.id || index} className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow border-2 border-amber-200">
@@ -8464,6 +8468,46 @@ Questions? Contact us.
                               <div className="w-full mt-1 bg-amber-50 rounded p-1.5">
                                 <p className="text-[9px] text-amber-700 font-medium">{reviews[reviews.length - 1].company_name}</p>
                                 <p className="text-[9px] text-gray-600 line-clamp-2 leading-relaxed">&ldquo;{reviews[reviews.length - 1].review_text}&rdquo;</p>
+                              </div>
+                            )}
+
+                            {/* 대표영상 썸네일 */}
+                            {creator.representative_videos?.length > 0 && (
+                              <div className="w-full mt-1.5 pt-1.5 border-t border-amber-100">
+                                <p className="text-[9px] text-red-400 mb-1 text-left font-medium">▶ 대표영상 ({creator.representative_videos.length})</p>
+                                <div className="flex gap-1 overflow-x-auto">
+                                  {creator.representative_videos.slice(0, 3).map((url, vi) => {
+                                    const thumb = getYtThumb(url)
+                                    return thumb ? (
+                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
+                                        <img src={thumb} alt="" className="w-14 h-20 rounded object-cover border border-gray-200 group-hover:border-amber-400 transition-colors" />
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="w-4 h-4 bg-black/60 rounded-full flex items-center justify-center">
+                                            <svg className="w-2 h-2 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                          </div>
+                                        </div>
+                                      </a>
+                                    ) : null
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 크넥협업 썸네일 */}
+                            {creator.cnec_collab_videos?.length > 0 && (
+                              <div className="w-full mt-1.5 pt-1.5 border-t border-amber-100">
+                                <p className="text-[9px] text-blue-400 mb-1 text-left font-medium">★ 크넥협업 ({creator.cnec_collab_videos.length})</p>
+                                <div className="flex gap-1 overflow-x-auto">
+                                  {creator.cnec_collab_videos.slice(0, 3).map((url, vi) => {
+                                    const thumb = getYtThumb(url)
+                                    return thumb ? (
+                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
+                                        <img src={thumb} alt="" className="w-14 h-20 rounded object-cover border border-gray-200 group-hover:border-blue-400 transition-colors" />
+                                        <div className="absolute bottom-0.5 left-0.5 bg-blue-500 text-white text-[6px] px-0.5 rounded font-bold">CNEC</div>
+                                      </a>
+                                    ) : null
+                                  })}
+                                </div>
                               </div>
                             )}
 
