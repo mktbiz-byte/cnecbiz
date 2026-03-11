@@ -724,7 +724,8 @@ export default function CampaignDetail() {
   const [addressFormData, setAddressFormData] = useState({
     phone_number: '',
     postal_code: '',
-    address: ''
+    address: '',
+    detail_address: ''
   })
   const [savingAddress, setSavingAddress] = useState(false)
   // Bulk guide generation state
@@ -2631,7 +2632,8 @@ export default function CampaignDetail() {
     setAddressFormData({
       phone_number: participant.phone_number || participant.shipping_phone || participant.phone || '',
       postal_code: participant.shipping_zip || participant.postal_code || '',
-      address: participant.shipping_address_line1 || participant.address || ''
+      address: participant.shipping_address_line1 || participant.address || '',
+      detail_address: participant.shipping_address_line2 || participant.detail_address || ''
     })
   }
 
@@ -2645,10 +2647,12 @@ export default function CampaignDetail() {
         phone_number: addressFormData.phone_number,
         postal_code: addressFormData.postal_code,
         address: addressFormData.address,
+        detail_address: addressFormData.detail_address,
         // US 정합성: shipping_* 필드도 함께 저장
         ...(region === 'us' ? {
           shipping_zip: addressFormData.postal_code,
           shipping_address_line1: addressFormData.address,
+          shipping_address_line2: addressFormData.detail_address,
           shipping_phone: addressFormData.phone_number
         } : {})
       }
@@ -7429,6 +7433,16 @@ Questions? Contact us.
                                   value={addressFormData.address}
                                   onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
                                   placeholder="서울 성동구 성수일로10길 3 101동 613호"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">상세주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.detail_address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
+                                  placeholder="아파트, 동/호수, 건물명 등"
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                                 />
                               </div>
@@ -14612,6 +14626,12 @@ Questions? Contact us.
                 <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
                 <div className="text-sm sm:text-base text-gray-900 break-words">{selectedParticipant.shipping_address_line1 || selectedParticipant.address || '미등록'}</div>
               </div>
+              {(selectedParticipant.shipping_address_line2 || selectedParticipant.detail_address) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
+                  <div className="text-sm sm:text-base text-gray-900 break-words">{selectedParticipant.shipping_address_line2 || selectedParticipant.detail_address}</div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">배송 요청사항</label>
                 <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.delivery_notes || selectedParticipant.delivery_request || '없음'}</div>
