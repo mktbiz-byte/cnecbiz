@@ -2588,9 +2588,9 @@ export default function CampaignDetail() {
   const handleStartEditAddress = (participant) => {
     setEditingAddressFor(participant.id)
     setAddressFormData({
-      phone_number: participant.phone_number || participant.phone || '',
-      postal_code: participant.postal_code || '',
-      address: participant.address || ''
+      phone_number: participant.phone_number || participant.shipping_phone || participant.phone || '',
+      postal_code: participant.shipping_zip || participant.postal_code || '',
+      address: participant.shipping_address_line1 || participant.address || ''
     })
   }
 
@@ -2603,7 +2603,13 @@ export default function CampaignDetail() {
       const updateData = {
         phone_number: addressFormData.phone_number,
         postal_code: addressFormData.postal_code,
-        address: addressFormData.address
+        address: addressFormData.address,
+        // US 정합성: shipping_* 필드도 함께 저장
+        ...(region === 'us' ? {
+          shipping_zip: addressFormData.postal_code,
+          shipping_address_line1: addressFormData.address,
+          shipping_phone: addressFormData.phone_number
+        } : {})
       }
 
       const { error } = await supabase
@@ -3384,7 +3390,7 @@ JSON만 출력.`
       data = participants.map(p => ({
         [h.name]: getCreatorName(p),
         [h.email]: p.email || p.applicant_email || '',
-        [h.instagram]: p.instagram_handle || p.instagram_url || '',
+        [h.instagram]: p.instagram_url || '',
         [h.country]: p.shipping_country || '',
         [h.recipient]: p.shipping_recipient_name || getCreatorName(p),
         [h.addressLine1]: p.shipping_address_line1 || p.address || '',
@@ -7204,7 +7210,7 @@ Questions? Contact us.
                           participant.youtube_url ? 'youtube' :
                           participant.tiktok_url ? 'tiktok' : 'instagram'
             const snsUrl = normalizeSnsUrl(rawSnsUrl, snsUrlPlatform)
-            const shippingAddress = participant.shipping_address || participant.address || ''
+            const shippingAddress = participant.shipping_address_line1 || participant.shipping_address || participant.address || ''
             const shippingPhone = participant.shipping_phone || participant.phone || participant.phone_number || participant.creator_phone || ''
             const courierCompany = trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''
             const trackingNum = trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''
@@ -14543,11 +14549,11 @@ Questions? Contact us.
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
-                <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.postal_code || '미등록'}</div>
+                <div className="text-sm sm:text-base text-gray-900">{selectedParticipant.shipping_zip || selectedParticipant.postal_code || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <div className="text-sm sm:text-base text-gray-900 break-words">{selectedParticipant.address || '미등록'}</div>
+                <div className="text-sm sm:text-base text-gray-900 break-words">{selectedParticipant.shipping_address_line1 || selectedParticipant.address || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">배송 요청사항</label>
