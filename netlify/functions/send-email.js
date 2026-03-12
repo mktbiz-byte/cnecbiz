@@ -18,7 +18,17 @@ exports.handler = async (event) => {
     if (event.isBase64Encoded) {
       rawBody = Buffer.from(rawBody, 'base64').toString('utf-8');
     }
-    const { to, subject, html, text, attachments } = JSON.parse(rawBody);
+    let parsed;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch (parseErr) {
+      console.error('[send-email] JSON 파싱 실패:', parseErr.message, 'body:', rawBody.substring(0, 200));
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ success: false, error: `JSON 파싱 실패: ${parseErr.message}` })
+      };
+    }
+    const { to, subject, html, text, attachments } = parsed;
 
     if (!to || !subject || (!html && !text)) {
       return {
@@ -77,7 +87,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // 이메일 발송
+    // 이메일 발송 (Gmail 454/451 임시 에러 시 최대 2회 재시도)
     const mailOptions = {
       from: `"${senderName}" <${gmailEmail}>`,
       to: to,
@@ -87,7 +97,26 @@ exports.handler = async (event) => {
       ...(mailAttachments.length > 0 && { attachments: mailAttachments })
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    let info;
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        info = await transporter.sendMail(mailOptions);
+        break;
+      } catch (sendErr) {
+        lastError = sendErr;
+        const code = sendErr.responseCode || sendErr.code || '';
+        const isTemporary = [454, 451, '454', '451'].includes(code) ||
+          /too many connections|rate limit|try again/i.test(sendErr.message);
+        if (isTemporary && attempt < 2) {
+          const delay = (attempt + 1) * 2000;
+          console.warn(`[send-email] Gmail 임시 에러 (${code}), ${delay}ms 후 재시도 (${attempt + 1}/2)`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw sendErr;
+      }
+    }
 
     console.log('이메일 발송 성공:', info.messageId);
 
@@ -112,18 +141,22 @@ exports.handler = async (event) => {
     console.error('이메일 발송 오류:', error);
 
     // 실패 로그
+    let failTo, failSubject;
     try {
-      const { to: t, subject: s } = JSON.parse(event.body || '{}');
+      const parsed = JSON.parse(event.body || '{}');
+      failTo = parsed.to;
+      failSubject = parsed.subject;
+    } catch (e) { /* body parse failed */ }
+    try {
       await supabase.from('notification_send_logs').insert({
         channel: 'email', status: 'failed', function_name: 'send-email',
-        recipient: t, message_preview: s ? s.substring(0, 200) : null,
+        recipient: failTo, message_preview: failSubject ? failSubject.substring(0, 200) : null,
         error_message: error.message
       });
     } catch (e) { /* skip */ }
 
     // 에러 알림 발송
     try {
-      const { to, subject } = JSON.parse(event.body || '{}');
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
         method: 'POST',
@@ -131,7 +164,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           functionName: 'send-email (이메일 발송)',
           errorMessage: error.message,
-          context: { 수신자: to, 제목: subject }
+          context: { 수신자: failTo, 제목: failSubject }
         })
       });
     } catch (e) { console.error('[send-email] Error alert failed:', e.message); }
