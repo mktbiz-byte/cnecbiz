@@ -193,6 +193,27 @@ exports.handler = async (event) => {
       }
     }
 
+    // 네이버 웍스 관리자 알림 (가이드 전달 완료)
+    try {
+      const baseUrl = process.env.URL || 'https://cnecbiz.com'
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      const nwMessage = `📋 4주 챌린지 가이드 전달 완료\n\n• 캠페인: ${campaign.title || '캠페인'}\n• ${weekNumber}주차 가이드\n• 발송 대상: ${participants.length}명\n• 성공/실패: ${successCount}/${errorCount}\n• 시간: ${koreanTime}`
+
+      const nwRes = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: nwMessage
+        })
+      })
+      const nwResult = await nwRes.json()
+      console.log('[deliver-4week-guide] 네이버 웍스 알림:', nwResult.success ? '성공' : '실패')
+    } catch (nwErr) {
+      console.error('[deliver-4week-guide] 네이버 웍스 알림 오류:', nwErr.message)
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -205,6 +226,21 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Error in deliver-4week-guide:', error)
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'deliver-4week-guide',
+          errorMessage: error.message,
+          context: { campaignId: JSON.parse(event.body || '{}').campaignId }
+        })
+      })
+    } catch (e) { console.error('[deliver-4week-guide] Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })

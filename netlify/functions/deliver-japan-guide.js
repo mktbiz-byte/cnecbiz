@@ -537,6 +537,27 @@ CNEC BIZ`;
       .update(campaignUpdateData)
       .eq('id', campaign_id);
 
+    // 네이버 웍스 관리자 알림 (가이드 전달 완료)
+    try {
+      const baseUrl = process.env.URL || 'https://cnecbiz.com';
+      const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const nwMessage = `🇯🇵 📋 가이드 전달 완료 (일본)\n\n• 캠페인: ${campaign.title || '캠페인'}\n• 브랜드: ${campaign.brand || '-'}\n• 발송 대상: ${results.total}명\n• LINE 성공/실패: ${results.line_sent}/${results.line_failed}\n• 이메일 성공/실패: ${results.email_sent}/${results.email_failed}\n• 시간: ${koreanTime}`;
+
+      const nwRes = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: nwMessage
+        })
+      });
+      const nwResult = await nwRes.json();
+      console.log('[deliver-japan-guide] 네이버 웍스 알림:', nwResult.success ? '성공' : '실패');
+    } catch (nwErr) {
+      console.error('[deliver-japan-guide] 네이버 웍스 알림 오류:', nwErr.message);
+    }
+
     return {
       statusCode: 200,
       headers,
@@ -549,6 +570,21 @@ CNEC BIZ`;
 
   } catch (error) {
     console.error('[deliver-japan-guide] Error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'deliver-japan-guide',
+          errorMessage: error.message,
+          context: { campaign_id: JSON.parse(event.body || '{}').campaign_id }
+        })
+      });
+    } catch (e) { console.error('[deliver-japan-guide] Error alert failed:', e.message); }
+
     return {
       statusCode: 500,
       headers,
