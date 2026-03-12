@@ -217,18 +217,18 @@ export default function AdminPackageManager() {
       const client = supabaseKorea || supabaseBiz
       const { data, error } = await client
         .from('user_profiles')
-        .select('id, name, email, phone, profile_image, profile_image_url, avatar_url, youtube_url, youtube_handle, youtube_channel, youtube_subscribers, instagram_url, instagram_followers, bio')
-        .or(`name.ilike.%${term}%,email.ilike.%${term}%`)
+        .select('*')
+        .or(`name.ilike.%${term}%,email.ilike.%${term}%,channel_name.ilike.%${term}%`)
         .limit(10)
 
       if (error) throw error
-      // 정규화
+      // 정규화 (Korea DB 스키마 대응)
       const normalized = (data || []).map(c => ({
         ...c,
-        name: c.name || c.full_name || null,
-        youtube_url: c.youtube_url || c.youtube_handle || c.youtube_channel || null,
-        youtube_subscribers: c.youtube_subscribers || 0,
-        profile_image: c.profile_image || c.profile_image_url || c.avatar_url || null,
+        name: c.name || c.creator_name || c.channel_name || c.full_name || null,
+        youtube_url: c.youtube_url || c.youtube || c.youtube_handle || c.youtube_channel || c.youtube_id || null,
+        youtube_subscribers: c.youtube_subscribers || c.youtube_subs || c.subscribers || 0,
+        profile_image: c.profile_image || c.profile_image_url || c.avatar || c.avatar_url || c.photo || null,
       }))
       setSearchResults(normalized)
     } catch (error) {
