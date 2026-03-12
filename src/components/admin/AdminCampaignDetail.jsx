@@ -590,30 +590,9 @@ export default function AdminCampaignDetail() {
         console.error('네이버 웍스 알림 발송 실패:', worksErr)
       }
 
-      // 기업에게 알림톡 발송 (영상 제출 알림 — 서버사이드로 RLS 우회)
-      try {
-        const notifRes = await fetch('/.netlify/functions/notify-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId: id,
-            region: campaign?.target_country === 'jp' ? 'japan' : campaign?.target_country === 'us' ? 'us' : 'korea',
-            version: version,
-            creatorName: creatorName,
-            campaignTitle: campaign?.title || '',
-            companyName: companyDisplayName,
-            companyBizId: campaign?.company_biz_id,
-            companyId: campaign?.company_id,
-            companyEmail: campaign?.company_email,
-            isResubmission: false,
-            videoFileCount: 1
-          })
-        })
-        const notifResult = await notifRes.json()
-        console.log('영상 제출 알림 발송 완료 (서버사이드):', notifResult)
-      } catch (notifErr) {
-        console.error('알림 발송 실패:', notifErr)
-      }
+      // 기업 알림은 save-video-upload의 insert_video_submission에서 이미 발송됨 (skipNotification=false)
+      // 별도 notify-video-upload 호출 제거 — 중복 알림 방지
+      console.log('영상 제출 알림: save-video-upload에서 이미 발송됨 (별도 호출 불필요)')
 
       alert(`영상이 업로드되었습니다! (v${version})\n상태가 '영상 제출'로 변경되었습니다.`)
       setShowVideoUploadModal(false)

@@ -193,11 +193,37 @@ function getRegionClient(region) {
   }
 }
 
+// 중복 알림 방지: 5분 이내 동일 캠페인+알림 타입 확인
+async function isDuplicateNotification(campaignId, functionName) {
+  try {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { data } = await supabaseBiz
+      .from('notification_send_logs')
+      .select('id')
+      .eq('function_name', functionName)
+      .eq('status', 'success')
+      .gte('created_at', fiveMinAgo)
+      .like('message_preview', `%${campaignId}%`)
+      .limit(1)
+    return data && data.length > 0
+  } catch (e) {
+    console.log('[dedup] notification_send_logs 조회 실패 (알림 계속 발송):', e.message)
+    return false
+  }
+}
+
 // 영상 업로드 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
 // 성능 최적화: 모든 독립적 쿼리를 병렬로 실행
 async function sendVideoUploadNotifications({ client, campaignId, userId, region, version, isResubmission, videoFileCount, creatorEmail: paramCreatorEmail, participantCreatorName, hintCampaignTitle, hintCompanyName, hintCreatorName }) {
   const startTime = Date.now()
   const baseUrl = process.env.URL || 'https://cnecbiz.com'
+
+  // 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었으면 스킵
+  const isDup = await isDuplicateNotification(campaignId, 'save-video-upload')
+  if (isDup) {
+    console.log('[알림] 중복 알림 감지 — 5분 이내 동일 캠페인 알림 이미 발송됨. 스킵:', { campaignId })
+    return { naverWorks: null, kakao: null, email: null, skipped: true, reason: 'duplicate' }
+  }
   let campaignTitle = hintCampaignTitle || '(캠페인명 없음)'
   let companyName = hintCompanyName || '(기업명 없음)'
   let companyPhone = null
@@ -461,6 +487,11 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   // 모든 알림 병렬 발송
   await Promise.allSettled(notificationPromises)
   console.log('[알림] 전체 완료:', { naverWorks: !!results.naverWorks?.success, kakao: !!results.kakao?.success, email: !!results.email?.success, totalElapsed: Date.now() - startTime + 'ms' })
+
+  // 성공 로그 기록 (중복 알림 방지용 dedup key로도 사용)
+  if (results.naverWorks?.success || results.kakao?.success || results.email?.success) {
+    logNotificationDirect('naver_works', 'success', 'save-video-upload', companyPhone || companyEmail, `campaign:${campaignId}|creator:${creatorName}|region:${region}`)
+  }
 
   return results
 }

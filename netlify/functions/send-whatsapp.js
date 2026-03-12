@@ -122,11 +122,14 @@ async function sendTemplateMessage(toNumber, contentSid, contentVariables, accou
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
   const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
 
+  const statusCallbackUrl = (process.env.URL || 'https://cnecbiz.com') + '/.netlify/functions/whatsapp-status-callback';
+
   const formData = new URLSearchParams();
   formData.append('From', formattedFrom);
   formData.append('To', `whatsapp:${toNumber}`);
   formData.append('ContentSid', contentSid);
   formData.append('ContentVariables', JSON.stringify(contentVariables));
+  formData.append('StatusCallback', statusCallbackUrl);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -275,7 +278,7 @@ exports.handler = async (event) => {
         formattedPhone, template.sid, variables, accountSid, authToken, fromNumber
       );
 
-      // 로그 저장
+      // whatsapp_logs 저장
       await supabase.from('whatsapp_logs').insert({
         phone_number: formattedPhone,
         template_name: templateName,
@@ -290,6 +293,18 @@ exports.handler = async (event) => {
       }).then(({ error }) => {
         if (error) console.warn('[send-whatsapp] Log save failed:', error.message);
       });
+
+      // notification_send_logs 통합 로그
+      try {
+        await supabase.from('notification_send_logs').insert({
+          channel: 'whatsapp',
+          status: 'success',
+          function_name: 'send-whatsapp',
+          recipient: formattedPhone,
+          message_preview: `[${template.label}] ${name} (${templateName})`.substring(0, 200),
+          metadata: { twilio_sid: result.sid, template_name: templateName, batch_id: batchId }
+        });
+      } catch (e) { /* skip */ }
 
       return {
         statusCode: 200,
@@ -392,7 +407,7 @@ exports.handler = async (event) => {
             formattedPhone, template.sid, variables, accountSid, authToken, fromNumber
           );
 
-          // 로그 저장
+          // whatsapp_logs 저장
           await supabase.from('whatsapp_logs').insert({
             phone_number: formattedPhone,
             template_name: templateName,
@@ -409,6 +424,18 @@ exports.handler = async (event) => {
           }).then(({ error }) => {
             if (error) console.warn('[send-whatsapp] Log save failed:', error.message);
           });
+
+          // notification_send_logs 통합 로그
+          try {
+            await supabase.from('notification_send_logs').insert({
+              channel: 'whatsapp',
+              status: 'success',
+              function_name: 'send-whatsapp',
+              recipient: formattedPhone,
+              message_preview: `[${template.label}] ${app.creator_name} (${campaignName})`.substring(0, 200),
+              metadata: { twilio_sid: result.sid, template_name: templateName, campaign_id: campaignId, batch_id: batchId }
+            });
+          } catch (e) { /* skip */ }
 
           results.push({
             creatorId: app.creator_id,
@@ -435,6 +462,19 @@ exports.handler = async (event) => {
           }).then(({ error }) => {
             if (error) console.warn('[send-whatsapp] Log save failed:', error.message);
           });
+
+          // notification_send_logs 통합 로그 (실패)
+          try {
+            await supabase.from('notification_send_logs').insert({
+              channel: 'whatsapp',
+              status: 'failed',
+              function_name: 'send-whatsapp',
+              recipient: formattedPhone,
+              message_preview: `[${template.label}] ${app.creator_name} (${campaignName})`.substring(0, 200),
+              error_message: err.message,
+              metadata: { template_name: templateName, campaign_id: campaignId, batch_id: batchId }
+            });
+          } catch (e) { /* skip */ }
 
           results.push({
             creatorId: app.creator_id,

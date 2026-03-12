@@ -54,6 +54,7 @@ import PaymentSuccess from './components/payment/PaymentSuccess'
 import PaymentFail from './components/payment/PaymentFail'
 import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
+import NotificationDashboard from './components/admin/NotificationDashboard'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
@@ -274,6 +275,7 @@ function App() {
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/data-sync" element={<DataSyncMonitor />} />
+        <Route path="/admin/notifications/dashboard" element={<NotificationDashboard />} />
         <Route path="/admin/video-feedback" element={<VideoFeedback />} />
         <Route path="/company/video-feedback" element={<CampaignVideoFeedback />} />
         <Route path="/creator/video-feedback" element={<CampaignVideoFeedback />} />
