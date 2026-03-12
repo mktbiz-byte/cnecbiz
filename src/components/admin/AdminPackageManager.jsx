@@ -8,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Package, Plus, Save, Trash2, Eye, EyeOff, Loader2,
   ChevronUp, ChevronDown, Copy, ExternalLink, Check, X,
-  Users, Settings, FileText, GripVertical, Play
+  Users, Settings, FileText, GripVertical, Play, Search, Link
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 const CATEGORY_OPTIONS = [
@@ -60,8 +60,13 @@ export default function AdminPackageManager() {
     highlight: '', sample_video_url_1: '', sample_video_url_2: '',
     sample_video_url_3: '', youtube_channel_url: '', subscriber_count: '',
     is_visible_on_landing: false, is_available: true, display_order: 0,
+    source_user_id: null, profile_image_url: '',
   })
   const [showCreatorForm, setShowCreatorForm] = useState(false)
+  const [creatorSearch, setCreatorSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [selectedSourceCreator, setSelectedSourceCreator] = useState(null)
 
   // Applications state
   const [applications, setApplications] = useState([])
@@ -198,6 +203,56 @@ export default function AdminPackageManager() {
   }
 
   // ==================== Creators Tab ====================
+
+  // Korea DB 크리에이터 검색
+  const handleCreatorSearch = async (term) => {
+    setCreatorSearch(term)
+    if (!term || term.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setSearching(true)
+    try {
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
+        .from('user_profiles')
+        .select('id, name, email, phone, profile_image, profile_image_url, avatar_url, youtube_url, youtube_handle, youtube_channel, youtube_subscribers, instagram_url, instagram_followers, bio')
+        .or(`name.ilike.%${term}%,email.ilike.%${term}%`)
+        .limit(10)
+
+      if (error) throw error
+      // 정규화
+      const normalized = (data || []).map(c => ({
+        ...c,
+        name: c.name || c.full_name || null,
+        youtube_url: c.youtube_url || c.youtube_handle || c.youtube_channel || null,
+        youtube_subscribers: c.youtube_subscribers || 0,
+        profile_image: c.profile_image || c.profile_image_url || c.avatar_url || null,
+      }))
+      setSearchResults(normalized)
+    } catch (error) {
+      console.error('크리에이터 검색 실패:', error)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  // 검색 결과에서 크리에이터 선택 → 폼 자동 채움
+  const handleSelectSourceCreator = (creator) => {
+    setSelectedSourceCreator(creator)
+    setCreatorForm(prev => ({
+      ...prev,
+      creator_name: creator.name || '',
+      youtube_channel_url: creator.youtube_url || '',
+      subscriber_count: creator.youtube_subscribers ? String(creator.youtube_subscribers) : '',
+      source_user_id: creator.id,
+      profile_image_url: creator.profile_image || '',
+    }))
+    setSearchResults([])
+    setCreatorSearch('')
+  }
+
   const handleSaveCreator = async () => {
     if (!settings) {
       alert('먼저 패키지 설정을 저장해주세요.')
@@ -259,6 +314,11 @@ export default function AdminPackageManager() {
 
   const handleEditCreator = (creator) => {
     setEditingCreator(creator)
+    if (creator.source_user_id) {
+      setSelectedSourceCreator({ id: creator.source_user_id, name: creator.creator_name, profile_image: creator.profile_image_url })
+    } else {
+      setSelectedSourceCreator(null)
+    }
     setCreatorForm({
       creator_name: creator.creator_name || '',
       display_name: creator.display_name || '',
@@ -275,18 +335,24 @@ export default function AdminPackageManager() {
       is_visible_on_landing: creator.is_visible_on_landing || false,
       is_available: creator.is_available !== false,
       display_order: creator.display_order || 0,
+      source_user_id: creator.source_user_id || null,
+      profile_image_url: creator.profile_image_url || '',
     })
     setShowCreatorForm(true)
   }
 
   const resetCreatorForm = () => {
     setEditingCreator(null)
+    setSelectedSourceCreator(null)
+    setCreatorSearch('')
+    setSearchResults([])
     setCreatorForm({
       creator_name: '', display_name: '', category: '',
       avg_views: '', avg_views_number: 0, content_style: '',
       highlight: '', sample_video_url_1: '', sample_video_url_2: '',
       sample_video_url_3: '', youtube_channel_url: '', subscriber_count: '',
       is_visible_on_landing: false, is_available: true, display_order: 0,
+      source_user_id: null, profile_image_url: '',
     })
     setShowCreatorForm(false)
   }
@@ -592,143 +658,206 @@ export default function AdminPackageManager() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">실명 (관리자만 표시) *</label>
-                        <Input
-                          value={creatorForm.creator_name}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, creator_name: e.target.value })}
-                          placeholder="홍길동"
-                        />
+                    {/* Step 1: Creator Search (새 추가 시만 표시) */}
+                    {!editingCreator && !selectedSourceCreator && (
+                      <div className="relative">
+                        <label className="text-xs font-medium mb-1 block">크리에이터 검색 (한국 DB)</label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636E72]" />
+                          <Input
+                            value={creatorSearch}
+                            onChange={(e) => handleCreatorSearch(e.target.value)}
+                            placeholder="이름 또는 이메일로 검색..."
+                            className="pl-10"
+                          />
+                          {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#6C5CE7]" />}
+                        </div>
+                        {/* Search Results Dropdown */}
+                        {searchResults.length > 0 && (
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-[#DFE6E9] rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                            {searchResults.map((result) => (
+                              <button
+                                key={result.id}
+                                onClick={() => handleSelectSourceCreator(result)}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F8F9FA] text-left border-b border-[#F0F0F0] last:border-0"
+                              >
+                                {result.profile_image ? (
+                                  <img src={result.profile_image} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-[#6C5CE7]" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-[#1A1A2E] truncate">{result.name || '이름 없음'}</p>
+                                  <p className="text-xs text-[#636E72] truncate">{result.email || ''}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  {result.youtube_subscribers > 0 && (
+                                    <p className="text-xs text-[#636E72]">구독 {result.youtube_subscribers.toLocaleString()}</p>
+                                  )}
+                                  {result.youtube_url && (
+                                    <p className="text-xs text-[#6C5CE7]">YouTube</p>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {creatorSearch.length >= 2 && searchResults.length === 0 && !searching && (
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-[#DFE6E9] rounded-xl shadow-lg p-4 text-center text-sm text-[#636E72]">
+                            검색 결과가 없습니다
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">랜딩 노출 이름</label>
-                        <Input
-                          value={creatorForm.display_name}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, display_name: e.target.value })}
-                          placeholder="비공개 시 비워두세요"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">카테고리</label>
-                        <select
-                          className="w-full border rounded-lg p-2 text-sm"
-                          value={creatorForm.category}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, category: e.target.value })}
-                        >
-                          <option value="">선택</option>
-                          {CATEGORY_OPTIONS.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">평균 조회수 (텍스트)</label>
-                        <Input
-                          value={creatorForm.avg_views}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, avg_views: e.target.value })}
-                          placeholder="12.5만"
-                        />
+                    {/* Selected Creator Preview */}
+                    {selectedSourceCreator && (
+                      <div className="flex items-center gap-3 bg-[#F0EDFF] rounded-xl p-3">
+                        {selectedSourceCreator.profile_image ? (
+                          <img src={selectedSourceCreator.profile_image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[#6C5CE7]/20 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-[#6C5CE7]" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-semibold text-[#1A1A2E] text-sm">{creatorForm.creator_name}</p>
+                          <div className="flex items-center gap-3 text-xs text-[#636E72]">
+                            {creatorForm.youtube_channel_url && <span>YouTube: {creatorForm.youtube_channel_url}</span>}
+                            {creatorForm.subscriber_count && <span>구독 {creatorForm.subscriber_count}</span>}
+                          </div>
+                        </div>
+                        <Badge className="bg-[#6C5CE7]/10 text-[#6C5CE7] text-xs">
+                          <Link className="w-3 h-3 mr-1" /> DB 연동
+                        </Badge>
+                        {!editingCreator && (
+                          <button
+                            onClick={() => { setSelectedSourceCreator(null); setCreatorForm(prev => ({ ...prev, creator_name: '', youtube_channel_url: '', subscriber_count: '', source_user_id: null, profile_image_url: '' })) }}
+                            className="text-[#636E72] hover:text-red-500 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">평균 조회수 (숫자)</label>
-                        <Input
-                          type="number"
-                          value={creatorForm.avg_views_number}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, avg_views_number: parseInt(e.target.value) || 0 })}
-                          placeholder="125000"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">콘텐츠 스타일</label>
-                        <Input
-                          value={creatorForm.content_style}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, content_style: e.target.value })}
-                          placeholder="내돈내산 리뷰"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">하이라이트</label>
-                        <select
-                          className="w-full border rounded-lg p-2 text-sm"
-                          value={creatorForm.highlight}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, highlight: e.target.value })}
-                        >
-                          <option value="">선택</option>
-                          {HIGHLIGHT_OPTIONS.map(h => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">샘플 영상 URL 1</label>
-                        <Input
-                          value={creatorForm.sample_video_url_1}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_1: e.target.value })}
-                          placeholder="https://youtube.com/watch?v=..."
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">샘플 영상 URL 2</label>
-                        <Input
-                          value={creatorForm.sample_video_url_2}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_2: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">샘플 영상 URL 3</label>
-                        <Input
-                          value={creatorForm.sample_video_url_3}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_3: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                    {/* Manual fields (always visible once creator selected or editing) */}
+                    {(selectedSourceCreator || editingCreator) && (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">랜딩 노출 이름</label>
+                            <Input
+                              value={creatorForm.display_name}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, display_name: e.target.value })}
+                              placeholder="비공개 시 비워두세요"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">카테고리</label>
+                            <select
+                              className="w-full border rounded-lg p-2 text-sm"
+                              value={creatorForm.category}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, category: e.target.value })}
+                            >
+                              <option value="">선택</option>
+                              {CATEGORY_OPTIONS.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">하이라이트</label>
+                            <select
+                              className="w-full border rounded-lg p-2 text-sm"
+                              value={creatorForm.highlight}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, highlight: e.target.value })}
+                            >
+                              <option value="">선택</option>
+                              {HIGHLIGHT_OPTIONS.map(h => (
+                                <option key={h} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">유튜브 채널 URL</label>
-                        <Input
-                          value={creatorForm.youtube_channel_url}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, youtube_channel_url: e.target.value })}
-                          placeholder="https://youtube.com/@channel"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1 block">구독자 수</label>
-                        <Input
-                          value={creatorForm.subscriber_count}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, subscriber_count: e.target.value })}
-                          placeholder="5.2만"
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">평균 조회수 (텍스트)</label>
+                            <Input
+                              value={creatorForm.avg_views}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, avg_views: e.target.value })}
+                              placeholder="12.5만"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">평균 조회수 (숫자)</label>
+                            <Input
+                              type="number"
+                              value={creatorForm.avg_views_number}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, avg_views_number: parseInt(e.target.value) || 0 })}
+                              placeholder="125000"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">콘텐츠 스타일</label>
+                            <Input
+                              value={creatorForm.content_style}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, content_style: e.target.value })}
+                              placeholder="내돈내산 리뷰"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="flex items-center gap-6">
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={creatorForm.is_visible_on_landing}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, is_visible_on_landing: e.target.checked })}
-                          className="rounded"
-                        />
-                        랜딩 페이지 노출
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={creatorForm.is_available}
-                          onChange={(e) => setCreatorForm({ ...creatorForm, is_available: e.target.checked })}
-                          className="rounded"
-                        />
-                        참여 가능
-                      </label>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">샘플 영상 URL 1</label>
+                            <Input
+                              value={creatorForm.sample_video_url_1}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_1: e.target.value })}
+                              placeholder="https://youtube.com/watch?v=..."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">샘플 영상 URL 2</label>
+                            <Input
+                              value={creatorForm.sample_video_url_2}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_2: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium mb-1 block">샘플 영상 URL 3</label>
+                            <Input
+                              value={creatorForm.sample_video_url_3}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, sample_video_url_3: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={creatorForm.is_visible_on_landing}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, is_visible_on_landing: e.target.checked })}
+                              className="rounded"
+                            />
+                            랜딩 페이지 노출
+                          </label>
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={creatorForm.is_available}
+                              onChange={(e) => setCreatorForm({ ...creatorForm, is_available: e.target.checked })}
+                              className="rounded"
+                            />
+                            참여 가능
+                          </label>
+                        </div>
+                      </>
+                    )}
 
                     <div className="flex items-center gap-2 pt-2">
                       <Button
@@ -769,11 +898,25 @@ export default function AdminPackageManager() {
                           </button>
                         </div>
 
+                        {/* Profile Image */}
+                        {creator.profile_image_url ? (
+                          <img src={creator.profile_image_url} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                            <Users className="w-5 h-5 text-[#6C5CE7]" />
+                          </div>
+                        )}
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-[#1A1A2E]">{creator.creator_name}</span>
                             {creator.display_name && (
                               <span className="text-xs text-[#636E72]">({creator.display_name})</span>
+                            )}
+                            {creator.source_user_id && (
+                              <Badge className="bg-[#6C5CE7]/10 text-[#6C5CE7] text-xs">
+                                <Link className="w-3 h-3 mr-0.5" /> DB 연동
+                              </Badge>
                             )}
                             {creator.category && (
                               <Badge className="bg-[#F0EDFF] text-[#6C5CE7] text-xs">{creator.category}</Badge>
