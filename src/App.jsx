@@ -154,6 +154,9 @@ import OliveYoungCampaignIntro from './pages/OliveYoungCampaignIntro'
 import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignIntro'
 import InvitationLanding from './pages/InvitationLanding'
 import HolidayNotice from './components/HolidayNotice'
+import PackageLanding from './pages/PackageLanding'
+import AdminPackageManager from './components/admin/AdminPackageManager'
+import CompanyPackageCampaign from './components/company/CompanyPackageCampaign'
 
 function App() {
   return (
@@ -169,6 +172,7 @@ function App() {
         <Route path="/campaigns/intro/4week" element={<FourWeekChallengeCampaignIntro />} />
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
+        <Route path="/package" element={<PackageLanding />} />
         <Route path="/newsletters" element={<NewsletterShowcase />} />
         <Route path="/newsletter/:id" element={<NewsletterDetail />} />
         <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
@@ -222,6 +226,7 @@ function App() {
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/campaign-guide" element={<CampaignCreationGuide />} />
+        <Route path="/company/package/:campaignId" element={<CompanyPackageCampaign />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         <Route path="/company/campaigns/payment" element={<PaymentMethodSelection />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -299,6 +304,7 @@ function App() {
         <Route path="/admin/oauth-test" element={<OAuthTestPage />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
         <Route path="/admin/test-approval" element={<TestApprovalSubmit />} />
+        <Route path="/admin/package" element={<AdminPackageManager />} />
 
         {/* OpenClo Routes */}
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
