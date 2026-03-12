@@ -26,7 +26,8 @@ import {
   ChevronRight,
   FolderOpen,
   Wallet,
-  Play
+  Play,
+  Package
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import RegionSelectModal from './RegionSelectModal'
@@ -52,6 +53,7 @@ export default function CompanyDashboard() {
   const [showRegionModal, setShowRegionModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState(null) // 상태 필터: null, 'all', 'completed', 'active', 'pending'
+  const [packageApps, setPackageApps] = useState([])
 
   useEffect(() => {
     checkAuth()
@@ -185,6 +187,19 @@ export default function CompanyDashboard() {
       }).length
 
       setStats({ total, pending, active, completed, totalSpent, confirmedCreators, needsAttention })
+
+      // 패키지 신청 조회
+      try {
+        const { data: pkgApps } = await supabaseBiz
+          .from('package_applications')
+          .select('*')
+          .or(`email.eq.${user.email},company_id.eq.${company?.id || '00000000-0000-0000-0000-000000000000'}`)
+          .in('status', ['approved', 'campaign_created'])
+          .order('created_at', { ascending: false })
+        setPackageApps(pkgApps || [])
+      } catch (e) {
+        console.error('Package apps fetch error:', e)
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     }
@@ -501,6 +516,43 @@ export default function CompanyDashboard() {
                 </span>
               </button>
             </div>
+
+            {/* Package Campaigns */}
+            {packageApps.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 sm:p-5 md:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
+                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#6C5CE7]" />
+                    </div>
+                    <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">진행 중인 패키지</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {packageApps.map((app) => (
+                      <div
+                        key={app.id}
+                        className="flex items-center gap-3 p-3 bg-[#F8F9FA] rounded-2xl cursor-pointer hover:shadow-md transition-all"
+                        onClick={() => app.campaign_id && navigate(`/company/package/${app.campaign_id}`)}
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-[#6C5CE7]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm truncate">
+                            {app.brand_name || '특가 패키지'}
+                          </p>
+                          <p className="text-xs text-[#636E72]">{app.month} | {app.company_name}</p>
+                        </div>
+                        <Badge className={app.status === 'campaign_created' ? 'bg-green-100 text-green-800 text-xs' : 'bg-blue-100 text-blue-800 text-xs'}>
+                          {app.status === 'campaign_created' ? '진행중' : '승인됨'}
+                        </Badge>
+                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Recent Campaigns */}
             <div className="mb-6">
