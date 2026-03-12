@@ -314,7 +314,7 @@ exports.handler = async (event, context) => {
 
       const worksMessage = `✅ 캠페인 승인 완료\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 승인 시간: ${koreanTime}\n• 모집인원: ${campaign.total_slots || campaign.target_creators || '-'}명`
 
-      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+      const nwRes = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -323,9 +323,25 @@ exports.handler = async (event, context) => {
           message: worksMessage
         })
       })
-      console.log('[approve-campaign] 네이버 웍스 알림 발송 완료')
+      const nwResult = await nwRes.json()
+      if (nwResult.success) {
+        console.log('[approve-campaign] 네이버 웍스 알림 발송 완료')
+      } else {
+        console.error('[approve-campaign] 네이버 웍스 알림 실패:', nwResult.error || nwResult.details)
+        await supabaseBiz.from('notification_send_logs').insert({
+          channel: 'naver_works', status: 'failed', function_name: 'approve-campaign',
+          recipient: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message_preview: worksMessage.substring(0, 200),
+          error_message: nwResult.error || nwResult.details || 'Unknown error',
+          metadata: { campaignId, region }
+        }).catch(() => {})
+      }
     } catch (worksError) {
-      console.error('[approve-campaign] 네이버 웍스 알림 오류:', worksError)
+      console.error('[approve-campaign] 네이버 웍스 알림 오류:', worksError.message)
+      await supabaseBiz.from('notification_send_logs').insert({
+        channel: 'naver_works', status: 'failed', function_name: 'approve-campaign',
+        error_message: worksError.message, metadata: { campaignId, region }
+      }).catch(() => {})
     }
 
     return {
