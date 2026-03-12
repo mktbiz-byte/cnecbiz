@@ -129,6 +129,11 @@ export default function AdminCampaignEdit() {
         application_deadline: campaign.application_deadline,
         start_date: campaign.start_date,
         end_date: campaign.end_date,
+        // 영상/SNS 스케줄 필드 (리전 사이트에서 사용)
+        video_deadline: campaign.video_deadline || null,
+        content_submission_deadline: campaign.content_submission_deadline || null,
+        sns_deadline: campaign.sns_deadline || null,
+        deadline: campaign.deadline || null,
         status: campaign.status,
         target_platforms: campaign.target_platforms,
         // 캠페인 등록 기업 정보 유지 (수정 시 변경 방지)
@@ -1188,6 +1193,35 @@ ${JSON.stringify(Object.fromEntries(nonEmptyFields), null, 2)}
                       type="date"
                       value={campaign.end_date ? new Date(campaign.end_date).toISOString().split('T')[0] : ''}
                       onChange={(e) => setCampaign({ ...campaign, end_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* 영상/SNS 스케줄 */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label htmlFor="video_deadline">영상 제출 마감일</Label>
+                    <Input
+                      id="video_deadline"
+                      type="date"
+                      value={(() => {
+                        const val = campaign.video_deadline || campaign.content_submission_deadline
+                        return val ? new Date(val).toISOString().split('T')[0] : ''
+                      })()}
+                      onChange={(e) => setCampaign({
+                        ...campaign,
+                        video_deadline: e.target.value,
+                        content_submission_deadline: e.target.value
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sns_deadline">SNS 업로드 예정일</Label>
+                    <Input
+                      id="sns_deadline"
+                      type="date"
+                      value={campaign.sns_deadline ? new Date(campaign.sns_deadline).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setCampaign({ ...campaign, sns_deadline: e.target.value })}
                     />
                   </div>
                 </div>
