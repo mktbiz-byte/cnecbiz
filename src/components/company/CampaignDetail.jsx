@@ -5319,6 +5319,27 @@ Questions? Contact us.
         } catch (worksError) {
           console.error('네이버 웍스 알림 발송 실패:', worksError)
         }
+
+        // 기업에게 영상 검수 완료 알림 (카카오 + 이메일)
+        try {
+          await fetch('/.netlify/functions/notify-video-review-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: submission.campaign_id || id,
+              region,
+              creatorName,
+              campaignTitle: campaign?.title || '',
+              companyBizId: campaign?.company_biz_id,
+              companyId: campaign?.company_id,
+              companyEmail: campaign?.company_email,
+              uploadDeadline: inputDeadline
+            })
+          })
+          console.log('✓ 기업 영상 검수 완료 알림 발송 성공')
+        } catch (companyNotifError) {
+          console.error('기업 검수 완료 알림 발송 실패:', companyNotifError)
+        }
       } else {
         console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
@@ -14871,6 +14892,27 @@ Questions? Contact us.
                       })
                     } catch (worksError) {
                       console.error('네이버 웍스 알림 발송 실패:', worksError)
+                    }
+
+                    // 기업에게 영상 검수 완료 알림 (카카오 + 이메일)
+                    try {
+                      await fetch('/.netlify/functions/notify-video-review-complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          campaignId: id,
+                          region,
+                          creatorName,
+                          campaignTitle: campaign?.title || '',
+                          companyBizId: campaign?.company_biz_id,
+                          companyId: campaign?.company_id,
+                          companyEmail: campaign?.company_email,
+                          uploadDeadline
+                        })
+                      })
+                      console.log('✓ 기업 영상 검수 완료 알림 발송 성공')
+                    } catch (companyNotifError) {
+                      console.error('기업 검수 완료 알림 발송 실패:', companyNotifError)
                     }
 
                     alert('영상이 승인되었습니다!')
