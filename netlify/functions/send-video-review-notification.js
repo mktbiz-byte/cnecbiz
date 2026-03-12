@@ -93,8 +93,8 @@ exports.handler = async (event) => {
         `${baseUrl}/.netlify/functions/send-naver-works-message`,
         {
           isAdminNotification: true,
-          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `[영상 수정요청]\n\n📋 캠페인: ${campaignTitle || '캠페인'}\n🏢 기업: ${companyName || '미확인'}\n👤 크리에이터: ${creatorName || '크리에이터'}\n📝 피드백: ${feedbackCount || 0}건\n📅 재제출기한: ${resubmitDateStr}\n⏰ 시간: ${koreanDate}`
+          channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
+          message: `📝 [영상 수정요청]\n\n📋 캠페인: ${campaignTitle || '캠페인'}\n🏢 기업: ${companyName || '미확인'}\n👤 크리에이터: ${creatorName || '크리에이터'}\n📝 피드백: ${feedbackCount || 0}건\n📅 재제출기한: ${resubmitDateStr}\n⏰ 시간: ${koreanDate}`
         },
         { timeout: 15000 }
       ).then(r => {

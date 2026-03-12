@@ -431,6 +431,38 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // 캠페인 상태 변경 알림 (수정요청/업데이트 방) - paused, rejected, cancelled 등
+    if (['paused', 'rejected', 'cancelled', 'pending', 'draft'].includes(newStatus)) {
+      try {
+        const regionClient = getSupabaseClient(region)
+        let campaignTitle = '캠페인'
+        if (regionClient) {
+          const { data: cData } = await regionClient
+            .from('campaigns')
+            .select('title, campaign_name')
+            .eq('id', campaignId)
+            .single()
+          if (cData) campaignTitle = cData.title || cData.campaign_name || '캠페인'
+        }
+        const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', kr: '한국', biz: '한국' }[region] || region || '한국'
+        const statusLabel = { paused: '일시정지', rejected: '반려', cancelled: '취소', pending: '대기', draft: '초안' }[newStatus] || newStatus
+        const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+        await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
+            message: `⚠️ 캠페인 상태 변경\n\n• 캠페인: ${campaignTitle}\n• 변경 상태: ${statusLabel}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+          })
+        })
+        console.log('[update-campaign-status] 상태 변경 네이버 웍스 알림 발송 완료 (업데이트 방)')
+      } catch (worksError) {
+        console.error('[update-campaign-status] 상태 변경 네이버 웍스 알림 오류:', worksError)
+      }
+    }
+
     return {
       statusCode: 200,
       headers,
