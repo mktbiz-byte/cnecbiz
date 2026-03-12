@@ -246,7 +246,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           isAdminNotification: true,
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `[SNS 업로드 완료]\n\n📋 캠페인: ${campaignTitle}\n🏢 기업: ${companyName}\n👤 크리에이터: ${creatorName}\n⏰ 시간: ${koreanDate}`
+          message: `${({ japan: '🇯🇵 ', us: '🇺🇸 ' }[region] || '')}[SNS 업로드 완료]\n\n📋 캠페인: ${campaignTitle}\n🏢 기업: ${companyName}\n👤 크리에이터: ${creatorName}\n⏰ 시간: ${koreanDate}`
         })
       }).then(r => r.json()).then(r => {
         results.naverWorks = !!r.success

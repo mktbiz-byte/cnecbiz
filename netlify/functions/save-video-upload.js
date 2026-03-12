@@ -399,7 +399,8 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // 네이버 웍스 (영상 제출 알림) — send-naver-works-message 함수 호출
   {
-    let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
+    const countryFlag = { kr: '🇰🇷 ', jp: '🇯🇵 ', us: '🇺🇸 ' }[countryCode] || ''
+    let naverWorksMessage = `${countryFlag}${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
     naverWorksMessage += `🏢 기업: ${companyName}\n`
     naverWorksMessage += `👤 크리에이터: ${creatorName}\n`

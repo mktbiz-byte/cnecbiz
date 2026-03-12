@@ -309,10 +309,11 @@ exports.handler = async (event, context) => {
     try {
       const campaignTitle = campaign.title || campaign.campaign_name || '캠페인'
       const companyDisplayName = company.company_name || '기업'
+      const regionFlag = { korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼' }[region] || ''
       const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만' }[region] || region
       const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
-      const worksMessage = `✅ 캠페인 승인 완료\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 승인 시간: ${koreanTime}\n• 모집인원: ${campaign.total_slots || campaign.target_creators || '-'}명`
+      const worksMessage = `${regionFlag} ✅ 캠페인 승인 완료\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 승인 시간: ${koreanTime}\n• 모집인원: ${campaign.total_slots || campaign.target_creators || '-'}명`
 
       const nwRes = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',

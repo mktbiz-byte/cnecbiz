@@ -182,6 +182,7 @@ exports.handler = async (event, context) => {
             .single()
           if (cData) campaignTitle = cData.title || cData.campaign_name || '캠페인'
         }
+        const regionFlag = { korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼', kr: '🇰🇷' }[region] || ''
         const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', kr: '한국' }[region] || region || '한국'
         const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
@@ -191,7 +192,7 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({
             isAdminNotification: true,
             channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-            message: `✅ 캠페인 수동 완료\n\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+            message: `${regionFlag} ✅ 캠페인 수동 완료\n\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
           })
         })
         console.log('[update-campaign-status] 완료 네이버 웍스 알림 발송 완료')
@@ -409,6 +410,7 @@ exports.handler = async (event, context) => {
           try {
             const companyDisplayName = company?.company_name || '기업'
             const campaignTitle = campaign.title || campaign.campaign_name || '캠페인'
+            const regionFlag = { korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼', biz: '🇰🇷', kr: '🇰🇷' }[region] || ''
             const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', biz: '한국', kr: '한국' }[region] || region || '한국'
             const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
@@ -418,7 +420,7 @@ exports.handler = async (event, context) => {
               body: JSON.stringify({
                 isAdminNotification: true,
                 channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-                message: `✅ 캠페인 활성화 (입금확인 후 자동승인)\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+                message: `${regionFlag} ✅ 캠페인 활성화 (입금확인 후 자동승인)\n\n• 기업: ${companyDisplayName}\n• 캠페인: ${campaignTitle}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
               })
             })
             console.log('[update-campaign-status] 네이버 웍스 알림 발송 완료')
@@ -444,6 +446,7 @@ exports.handler = async (event, context) => {
             .single()
           if (cData) campaignTitle = cData.title || cData.campaign_name || '캠페인'
         }
+        const regionFlag = { korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼', kr: '🇰🇷', biz: '🇰🇷' }[region] || ''
         const regionLabel = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만', kr: '한국', biz: '한국' }[region] || region || '한국'
         const statusLabel = { paused: '일시정지', rejected: '반려', cancelled: '취소', pending: '대기', draft: '초안' }[newStatus] || newStatus
         const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -454,7 +457,7 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({
             isAdminNotification: true,
             channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
-            message: `⚠️ 캠페인 상태 변경\n\n• 캠페인: ${campaignTitle}\n• 변경 상태: ${statusLabel}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
+            message: `${regionFlag} ⚠️ 캠페인 상태 변경\n\n• 캠페인: ${campaignTitle}\n• 변경 상태: ${statusLabel}\n• 리전: ${regionLabel}\n• 시간: ${koreanTime}`
           })
         })
         console.log('[update-campaign-status] 상태 변경 네이버 웍스 알림 발송 완료 (업데이트 방)')
