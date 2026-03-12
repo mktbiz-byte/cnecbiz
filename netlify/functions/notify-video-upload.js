@@ -40,6 +40,25 @@ function getRegionClient(region) {
   }
 }
 
+// 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었는지 확인
+async function isDuplicateNotification(campaignId) {
+  try {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { data } = await supabaseBiz
+      .from('notification_send_logs')
+      .select('id')
+      .in('function_name', ['save-video-upload', 'notify-video-upload'])
+      .eq('status', 'success')
+      .gte('created_at', fiveMinAgo)
+      .like('message_preview', `%${campaignId}%`)
+      .limit(1)
+    return data && data.length > 0
+  } catch (e) {
+    console.log('[dedup] notification_send_logs 조회 실패 (알림 계속 발송):', e.message)
+    return false
+  }
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -75,6 +94,17 @@ exports.handler = async (event) => {
         statusCode: 400,
         headers,
         body: JSON.stringify({ success: false, error: 'campaignId is required' })
+      }
+    }
+
+    // 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었으면 스킵
+    const isDup = await isDuplicateNotification(campaignId)
+    if (isDup) {
+      console.log('[notify-video-upload] 중복 알림 감지 — 스킵:', { campaignId })
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, results: {}, skipped: true, reason: 'duplicate_within_5min' })
       }
     }
 
@@ -335,6 +365,19 @@ exports.handler = async (event) => {
     await Promise.allSettled([naverWorksPromise, kakaoPromise, emailPromise])
 
     console.log('[notify-video-upload] 완료:', results)
+
+    // 성공 로그 기록 (중복 알림 방지용 dedup key)
+    if (results.naverWorks || results.kakao || results.email) {
+      try {
+        await supabaseBiz.from('notification_send_logs').insert({
+          channel: 'naver_works',
+          status: 'success',
+          function_name: 'notify-video-upload',
+          recipient: companyPhone || companyEmail,
+          message_preview: `campaign:${campaignId}|creator:${creatorName}|region:${region}`
+        })
+      } catch (e) { /* skip */ }
+    }
 
     return {
       statusCode: 200,
