@@ -50,8 +50,14 @@ export default function VideoReview() {
   const [translating, setTranslating] = useState({}) // { commentId: true/false }
   const [showTranslation, setShowTranslation] = useState(true) // Toggle for showing translations
 
+  // submission이 실제로 로드된 DB 클라이언트를 추적
+  // video_submissions와 video_review_comments가 반드시 같은 DB에 있어야 FK 제약 충족
+  const [resolvedClient, setResolvedClient] = useState(null)
+
   // Get the appropriate Supabase client based on region
+  // resolvedClient가 있으면 우선 사용 (실제 submission이 존재하는 DB)
   const getRegionClient = () => {
+    if (resolvedClient) return resolvedClient
     switch (region) {
       case 'japan':
         return supabaseJapan || supabaseBiz
@@ -363,6 +369,42 @@ export default function VideoReview() {
         }
         setSubmission(data)
 
+        // route state로 받은 경우, submission이 실제로 존재하는 DB를 확인하여 resolvedClient 설정
+        // video_submissions와 video_review_comments가 반드시 같은 DB에 있어야 FK 제약 충족
+        const actualSubmissionId = (data.id && !/^(app_|cp_|ca_)/.test(data.id)) ? data.id : null
+        if (actualSubmissionId) {
+          // _source_region이 있으면 해당 DB를 우선 사용 (save-video-upload에서 전달)
+          const sourceRegion = data._source_region
+          const clientsToCheck = sourceRegion
+            ? [
+                { name: sourceRegion, client: getSupabaseClient(sourceRegion) },
+                { name: region, client: getSupabaseClient(region) },
+                { name: 'biz', client: supabaseBiz }
+              ]
+            : [
+                { name: region, client: getSupabaseClient(region) },
+                { name: 'biz', client: supabaseBiz }
+              ]
+
+          for (const { name, client: c } of clientsToCheck) {
+            if (!c) continue
+            try {
+              const { data: checkData, error: checkError } = await c
+                .from('video_submissions')
+                .select('id')
+                .eq('id', actualSubmissionId)
+                .maybeSingle()
+              if (checkData && !checkError) {
+                setResolvedClient(c)
+                console.log(`[VideoReview] resolvedClient set to ${name} DB (submission found)`)
+                break
+              }
+            } catch (e) {
+              console.log(`[VideoReview] ${name} DB check failed:`, e.message)
+            }
+          }
+        }
+
         // Generate signed URL for the video
         if (data.video_file_url) {
           const client = getRegionClient()
@@ -529,6 +571,13 @@ export default function VideoReview() {
       }
 
       setSubmission(data)
+
+      // DB 직접 조회로 submission을 찾은 경우, 해당 클라이언트를 resolvedClient로 설정
+      // 코멘트 INSERT 시 같은 DB를 사용하여 FK 제약 충족
+      if (data && data.id && !/^(app_|cp_|ca_)/.test(data.id)) {
+        setResolvedClient(client)
+        console.log(`[VideoReview] resolvedClient set via direct DB query (region: ${region})`)
+      }
 
       // Generate signed URL for the video
       if (data.video_file_url) {
@@ -737,9 +786,18 @@ export default function VideoReview() {
       }
 
       // Use region-specific DB to avoid FK constraint error
+      // resolvedClient가 있으면 submission이 실제로 존재하는 DB를 사용
       const client = getRegionClient()
       // 합성 ID인 경우 실제 submission ID 사용
       const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
+
+      // 합성 ID(app_xxx)가 그대로 남은 경우 FK 위반 방지
+      if (/^(app_|cp_|ca_)/.test(actualSubmissionId)) {
+        alert('이 영상은 video_submissions 테이블에 등록되지 않은 레코드입니다.\n피드백을 추가하려면 크리에이터가 영상을 다시 제출해야 합니다.')
+        setUploadingFile(false)
+        return
+      }
+
       const { data, error } = await client
         .from('video_review_comments')
         .insert({
@@ -878,10 +936,16 @@ export default function VideoReview() {
       // 1. video_submissions 상태를 revision_requested로 변경
       const client = getRegionClient()
       const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
-      await client
+
+      const { error: updateError } = await client
         .from('video_submissions')
         .update({ status: 'revision_requested', updated_at: new Date().toISOString() })
         .eq('id', actualSubmissionId)
+
+      if (updateError) {
+        console.error('[VideoReview] video_submissions update error:', updateError)
+        // 업데이트 실패해도 알림 발송은 시도
+      }
 
       // 2. 피드백 내용 텍스트 생성 (번역용)
       const feedbackText = comments.map((c, i) =>
