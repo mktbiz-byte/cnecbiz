@@ -193,14 +193,14 @@ function getRegionClient(region) {
   }
 }
 
-// 중복 알림 방지: 5분 이내 동일 캠페인+알림 타입 확인
-async function isDuplicateNotification(campaignId, functionName) {
+// 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었는지 확인
+async function isDuplicateNotification(campaignId) {
   try {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { data } = await supabaseBiz
       .from('notification_send_logs')
       .select('id')
-      .eq('function_name', functionName)
+      .in('function_name', ['save-video-upload', 'notify-video-upload'])
       .eq('status', 'success')
       .gte('created_at', fiveMinAgo)
       .like('message_preview', `%${campaignId}%`)
@@ -219,7 +219,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const baseUrl = process.env.URL || 'https://cnecbiz.com'
 
   // 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었으면 스킵
-  const isDup = await isDuplicateNotification(campaignId, 'save-video-upload')
+  const isDup = await isDuplicateNotification(campaignId)
   if (isDup) {
     console.log('[알림] 중복 알림 감지 — 5분 이내 동일 캠페인 알림 이미 발송됨. 스킵:', { campaignId })
     return { naverWorks: null, kakao: null, email: null, skipped: true, reason: 'duplicate' }
@@ -399,7 +399,8 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
 
   // 네이버 웍스 (영상 제출 알림) — send-naver-works-message 함수 호출
   {
-    let naverWorksMessage = `${actionLabel} 알림 (${siteLabel})\n\n`
+    const countryFlag = { kr: '🇰🇷 ', jp: '🇯🇵 ', us: '🇺🇸 ' }[countryCode] || ''
+    let naverWorksMessage = `${countryFlag}${actionLabel} 알림 (${siteLabel})\n\n`
     naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
     naverWorksMessage += `🏢 기업: ${companyName}\n`
     naverWorksMessage += `👤 크리에이터: ${creatorName}\n`

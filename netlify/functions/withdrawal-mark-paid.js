@@ -142,17 +142,35 @@ exports.handler = async (event) => {
 
     // 네이버웍스 송금 완료 알림
     const baseUrl = process.env.URL || 'https://cnecbiz.com';
+    const nwMessage = `✅ [송금완료] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} / ${(withdrawal.final_amount || withdrawal.requested_amount || 0).toLocaleString()}원 송금 처리됨`;
     try {
-      await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+      const nwRes = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isAdminNotification: true,
-          message: `✅ [송금완료] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} / ${(withdrawal.final_amount || withdrawal.requested_amount || 0).toLocaleString()}원 송금 처리됨`,
+          message: nwMessage,
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
         })
       });
-    } catch (e) { console.error('Naver Works notification failed:', e.message); }
+      const nwResult = await nwRes.json();
+      if (!nwResult.success) {
+        console.error('[withdrawal-mark-paid] NW 알림 실패:', nwResult.error || nwResult.details);
+        await supabase.from('notification_send_logs').insert({
+          channel: 'naver_works', status: 'failed', function_name: 'withdrawal-mark-paid',
+          recipient: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message_preview: nwMessage.substring(0, 200),
+          error_message: nwResult.error || nwResult.details || 'Unknown error',
+          metadata: { withdrawal_id }
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.error('[withdrawal-mark-paid] NW 알림 오류:', e.message);
+      await supabase.from('notification_send_logs').insert({
+        channel: 'naver_works', status: 'failed', function_name: 'withdrawal-mark-paid',
+        error_message: e.message, metadata: { withdrawal_id }
+      }).catch(() => {});
+    }
 
     return {
       statusCode: 200,

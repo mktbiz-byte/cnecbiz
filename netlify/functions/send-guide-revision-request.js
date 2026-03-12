@@ -41,7 +41,7 @@ ${revisionRequest}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         isAdminNotification: true,
-        channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+        channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
         message: message
       })
     })

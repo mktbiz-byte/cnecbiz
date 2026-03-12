@@ -272,19 +272,25 @@ exports.handler = async (event) => {
 
     // 4. 네이버 웍스 알림 발송
     const siteLabel = { 'korea': 'cnec.co.kr', 'japan': 'cnec.jp', 'us': 'cnec.us' }[region] || region
+    const regionFlag = { 'japan': '🇯🇵 ', 'us': '🇺🇸 ' }[region] || ''
     try {
-      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+      const nwRes = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isAdminNotification: true,
-          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `📹 영상 재제출 알림 (${siteLabel})\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `${regionFlag}📹 영상 재제출 알림 (${siteLabel})\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n리전: ${region.toUpperCase()}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
         })
       })
-      console.log('[SUCCESS] 네이버 웍스 알림 발송 완료')
+      const nwResult = await nwRes.json()
+      if (nwResult.success) {
+        console.log('[SUCCESS] 네이버 웍스 알림 발송 완료')
+      } else {
+        console.error('[ERROR] 네이버 웍스 알림 실패:', nwResult.error || nwResult.details)
+      }
     } catch (worksError) {
-      console.error('[ERROR] 네이버 웍스 알림 발송 실패:', worksError)
+      console.error('[ERROR] 네이버 웍스 알림 발송 실패:', worksError.message)
     }
 
     // 5. DB 상태 업데이트

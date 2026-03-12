@@ -346,19 +346,44 @@ exports.handler = async (event) => {
       const koreanTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       const baseUrl = process.env.URL || 'https://cnecbiz.com'
       const featured = isFeaturedCreator ? ' (추천 크리에이터)' : ''
+      const nwMessage = `👤 크리에이터 캠페인 지원${featured}\n\n• 크리에이터: ${creator.full_name || '크리에이터'}\n• 캠페인: ${campaign.title}\n• 기업: ${company.company_name || '기업'}\n• 주요 채널: ${mainChannel} (${totalFollowers.toLocaleString()}명)\n• 시간: ${koreanTime}`
 
-      await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+      const nwRes = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isAdminNotification: true,
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `👤 크리에이터 캠페인 지원${featured}\n\n• 크리에이터: ${creator.full_name || '크리에이터'}\n• 캠페인: ${campaign.title}\n• 기업: ${company.company_name || '기업'}\n• 주요 채널: ${mainChannel} (${totalFollowers.toLocaleString()}명)\n• 시간: ${koreanTime}`
+          message: nwMessage
         })
       })
-      console.log('[notify-creator-application] 네이버 웍스 알림 발송 완료')
+      const nwResult = await nwRes.json()
+      if (nwResult.success) {
+        console.log('[notify-creator-application] 네이버 웍스 알림 발송 완료')
+      } else {
+        console.error('[notify-creator-application] 네이버 웍스 알림 실패:', nwResult.error || nwResult.details)
+        // 실패 시 notification_send_logs에 기록
+        await supabase.from('notification_send_logs').insert({
+          channel: 'naver_works',
+          status: 'failed',
+          function_name: 'notify-creator-application',
+          recipient: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message_preview: nwMessage.substring(0, 200),
+          error_message: nwResult.error || nwResult.details || 'Unknown error',
+          metadata: { applicationId, campaignTitle: campaign.title }
+        }).catch(() => {})
+      }
     } catch (worksError) {
-      console.error('[notify-creator-application] 네이버 웍스 알림 오류:', worksError)
+      console.error('[notify-creator-application] 네이버 웍스 알림 오류:', worksError.message)
+      // 네트워크 오류 시에도 로그 기록
+      await supabase.from('notification_send_logs').insert({
+        channel: 'naver_works',
+        status: 'failed',
+        function_name: 'notify-creator-application',
+        recipient: '75c24874-e370-afd5-9da3-72918ba15a3c',
+        error_message: worksError.message,
+        metadata: { applicationId }
+      }).catch(() => {})
     }
 
     return {
