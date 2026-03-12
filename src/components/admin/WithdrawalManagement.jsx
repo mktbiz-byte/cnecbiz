@@ -1742,7 +1742,12 @@ export default function WithdrawalManagement() {
       const result = await response.json()
       if (result.error) throw new Error(result.error)
 
-      alert(`${result.count || 0}건 결재 상신 완료`)
+      const details = (result.results || []).map(r =>
+        `[${r.entity}] ${r.count}건 / ${(r.totalAmount || 0).toLocaleString()}원${r.approvalDocId ? ' ✅' : ''}${r.error ? ` ❌ ${r.error}` : ''}`
+      ).join('\n')
+      const emailStatus = result.emailNotification?.success ? '\n📧 이메일 알림: 발송 완료' : ''
+
+      alert(`결재 상신 완료\n\n성공: ${result.count || 0}건 (${result.documents || 0}문서)${result.failed ? `\n실패: ${result.failed}건` : ''}\n\n${details}${emailStatus}`)
       fetchWithdrawals()
     } catch (error) {
       console.error('결재 상신 오류:', error)

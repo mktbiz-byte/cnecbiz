@@ -395,7 +395,17 @@ exports.handler = async (event) => {
   const httpMethod = event.httpMethod || 'SCHEDULED';
   const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
   const queryParams = event.queryStringParameters || {};
-  console.log(`[daily-withdrawal-approval] 시작 - ${isManualTest ? '수동' : '자동'}`);
+
+  // dry-run 모드: DB 변경 없이 결과만 반환
+  let dryRun = false;
+  if (httpMethod === 'POST' && event.body) {
+    try {
+      const bodyData = JSON.parse(event.body);
+      dryRun = bodyData.dryRun === true;
+    } catch (e) { /* body가 없거나 파싱 불가 → 기본값 */ }
+  }
+
+  console.log(`[daily-withdrawal-approval] 시작 - ${isManualTest ? '수동' : '자동'}${dryRun ? ' (DRY-RUN)' : ''}`);
 
   try {
     // GET ?debug=form → 서식 컴포넌트 조회 모드
@@ -497,6 +507,45 @@ exports.handler = async (event) => {
 
     console.log(`[daily-withdrawal-approval] 총 ${withdrawals.length}건 - 그룹: ${Object.keys(grouped).join(', ')}`);
 
+    // DRY-RUN 모드: 대상 건만 반환하고 종료
+    if (dryRun) {
+      const dryRunResults = Object.entries(grouped).map(([entity, items]) => {
+        const entityName = { howlab: '하우랩', howpapa: '하우파파' }[entity] || entity;
+        const totalAmount = items.reduce((s, w) => s + (w.requested_amount || 0), 0);
+        const totalIncomeTax = Math.round(totalAmount * 0.03);
+        const totalResidentTax = Math.round(totalAmount * 0.003);
+        const totalNet = totalAmount - totalIncomeTax - totalResidentTax;
+        return {
+          entity: entityName,
+          entityKey: entity,
+          count: items.length,
+          totalAmount,
+          totalTax: totalIncomeTax + totalResidentTax,
+          totalNet,
+          items: items.map(w => ({
+            id: w.id,
+            creator_name: w.creator_name || w.account_holder || '-',
+            requested_amount: w.requested_amount || 0,
+            bank_name: w.bank_name || '-',
+            account_number: w.account_number || '-',
+            account_holder: w.account_holder || '-',
+            created_at: w.created_at
+          }))
+        };
+      });
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          dryRun: true,
+          message: 'DRY-RUN: 실제 결재 상신 없이 대상 건만 조회합니다.',
+          totalCount: withdrawals.length,
+          groups: dryRunResults
+        })
+      };
+    }
+
     // 네이버웍스 인증
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
@@ -524,6 +573,16 @@ exports.handler = async (event) => {
     fileToken = fileRes.status === 'fulfilled' ? fileRes.value : null;
     botToken = botRes.status === 'fulfilled' ? botRes.value : null;
 
+    const debugInfo = {
+      tokens: {
+        approval: approvalRes.status === 'fulfilled' ? 'OK' : (approvalRes.reason?.message || 'FAILED'),
+        file: fileRes.status === 'fulfilled' ? 'OK' : (fileRes.reason?.message || 'FAILED'),
+        bot: botRes.status === 'fulfilled' ? 'OK' : (botRes.reason?.message || 'FAILED')
+      },
+      formMatch: null,
+      formError: null
+    };
+
     if (approvalRes.status === 'rejected') console.error('[daily-withdrawal-approval] Approval token error:', approvalRes.reason?.message);
     if (fileRes.status === 'rejected') console.error('[daily-withdrawal-approval] File token error:', fileRes.reason?.message);
     if (!botToken) console.error('[daily-withdrawal-approval] Bot token error:', botRes.reason?.message);
@@ -534,8 +593,10 @@ exports.handler = async (event) => {
       try {
         const formData = await getFormComponents(approvalToken, documentFormId);
         componentIds = matchComponentIds(formData);
+        debugInfo.formMatch = Object.keys(componentIds);
         console.log('[daily-withdrawal-approval] 서식 컴포넌트 자동 매칭 완료:', Object.keys(componentIds).join(', '));
       } catch (formErr) {
+        debugInfo.formError = formErr.message;
         console.error('[daily-withdrawal-approval] 서식 조회 실패 (빈 본문으로 진행):', formErr.message);
       }
     }
@@ -648,6 +709,64 @@ exports.handler = async (event) => {
     const totalFailed = results.filter(r => r.error).reduce((s, r) => s + r.count, 0);
     console.log(`[daily-withdrawal-approval] 완료 - 성공: ${totalSuccess}건 (${successResults.length}문서), 실패: ${totalFailed}건`);
 
+    // 이메일 알림 발송 (mkt@cnecbiz.com)
+    let emailResult = null;
+    if (successResults.length > 0) {
+      try {
+        const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+        const totalAll = successResults.reduce((s, r) => s + r.totalAmount, 0);
+        const countAll = successResults.reduce((s, r) => s + r.count, 0);
+        const detailRows = successResults.map(r =>
+          `<tr><td style="padding:8px;border:1px solid #e2e8f0;">${r.entity}</td>` +
+          `<td style="padding:8px;border:1px solid #e2e8f0;text-align:right;">${r.count}건</td>` +
+          `<td style="padding:8px;border:1px solid #e2e8f0;text-align:right;">${r.totalAmount.toLocaleString()}원</td>` +
+          `<td style="padding:8px;border:1px solid #e2e8f0;">${r.approvalDocId || '-'}</td>` +
+          `<td style="padding:8px;border:1px solid #e2e8f0;">${r.fileUploaded ? '✅' : '❌'}</td></tr>`
+        ).join('');
+
+        const emailHtml = `
+          <div style="font-family:'Pretendard',sans-serif;max-width:600px;margin:0 auto;">
+            <h2 style="color:#6C5CE7;">📋 결재 상신 완료 알림</h2>
+            <p style="color:#4a5568;">${koreanDate} 출금 결재 상신이 완료되었습니다.</p>
+            <div style="background:#f7fafc;border-radius:8px;padding:16px;margin:16px 0;">
+              <p style="margin:4px 0;"><strong>총 건수:</strong> ${countAll}건</p>
+              <p style="margin:4px 0;"><strong>총 금액:</strong> ${totalAll.toLocaleString()}원</p>
+              <p style="margin:4px 0;"><strong>결재 문서:</strong> ${successResults.length}건</p>
+            </div>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <thead>
+                <tr style="background:#6C5CE7;color:#fff;">
+                  <th style="padding:8px;border:1px solid #e2e8f0;">입금처</th>
+                  <th style="padding:8px;border:1px solid #e2e8f0;">건수</th>
+                  <th style="padding:8px;border:1px solid #e2e8f0;">금액</th>
+                  <th style="padding:8px;border:1px solid #e2e8f0;">결재문서ID</th>
+                  <th style="padding:8px;border:1px solid #e2e8f0;">엑셀</th>
+                </tr>
+              </thead>
+              <tbody>${detailRows}</tbody>
+            </table>
+            <p style="color:#a0aec0;font-size:12px;">이 메일은 자동 발송되었습니다. - CNECBIZ</p>
+          </div>`;
+
+        const baseUrl = process.env.URL || 'https://cnecbiz.com';
+        const emailRes = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: 'mkt@cnecbiz.com',
+            subject: `[결재상신완료] ${koreanDate} - ${countAll}건 / ${totalAll.toLocaleString()}원`,
+            html: emailHtml
+          })
+        });
+        const emailData = await emailRes.json();
+        emailResult = { success: emailData.success, messageId: emailData.messageId };
+        console.log('[daily-withdrawal-approval] 이메일 알림 발송:', emailResult.success ? '성공' : '실패');
+      } catch (emailErr) {
+        console.error('[daily-withdrawal-approval] 이메일 알림 발송 실패:', emailErr.message);
+        emailResult = { success: false, error: emailErr.message };
+      }
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -655,7 +774,9 @@ exports.handler = async (event) => {
         count: totalSuccess,
         failed: totalFailed,
         documents: results.length,
-        results
+        results,
+        emailNotification: emailResult,
+        debug: debugInfo
       })
     };
 

@@ -127,6 +127,7 @@ import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
 import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
+import TestApprovalSubmit from './components/admin/TestApprovalSubmit'
 import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import DeadlineCreatorManagement from './components/admin/DeadlineCreatorManagement'
 import UnpaidCampaignsManagement from './components/admin/UnpaidCampaignsManagement'
@@ -297,6 +298,7 @@ function App() {
         <Route path="/admin/meta-ads/callback" element={<MetaAdsManagement />} />
         <Route path="/admin/oauth-test" element={<OAuthTestPage />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
+        <Route path="/admin/test-approval" element={<TestApprovalSubmit />} />
 
         {/* OpenClo Routes */}
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
