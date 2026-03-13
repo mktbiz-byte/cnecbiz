@@ -1,13 +1,18 @@
 /**
  * 패키지 캠페인 생성 (관리자 전용)
- * 신청 승인 후 비공개 캠페인 생성 + 기업 연결
+ * 신청 승인 후 Korea DB에 캠페인 생성 + BIZ DB 신청 상태 업데이트
  */
 
 const { createClient } = require('@supabase/supabase-js')
 
-const supabase = createClient(
+const supabaseBiz = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+const supabaseKorea = createClient(
+  process.env.VITE_SUPABASE_KOREA_URL,
+  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
 )
 
 exports.handler = async (event) => {
@@ -37,8 +42,8 @@ exports.handler = async (event) => {
       }
     }
 
-    // 신청 조회
-    const { data: application, error: appError } = await supabase
+    // 신청 조회 (BIZ DB)
+    const { data: application, error: appError } = await supabaseBiz
       .from('package_applications')
       .select('*')
       .eq('id', application_id)
@@ -60,30 +65,32 @@ exports.handler = async (event) => {
       }
     }
 
-    // 패키지 설정 조회
-    const { data: settings } = await supabase
+    // 패키지 설정 조회 (BIZ DB)
+    const { data: settings } = await supabaseBiz
       .from('package_settings')
       .select('*')
       .eq('id', application.package_setting_id)
       .single()
 
-    // 기업 매칭 (이메일 기반)
-    let companyId = null
+    // 기업 매칭 (BIZ DB companies 테이블에서 이메일로 검색)
     let companyBizId = null
-    const { data: company } = await supabase
+    let companyUserId = null
+    const { data: company } = await supabaseBiz
       .from('companies')
-      .select('id, user_id')
+      .select('id, user_id, phone')
       .eq('email', application.email)
       .limit(1)
       .single()
 
     if (company) {
       companyBizId = company.id
-      companyId = company.user_id || null
+      companyUserId = company.user_id || null
     }
 
-    // 캠페인 생성 (BIZ DB campaigns 테이블)
+    // 캠페인 생성 (Korea DB campaigns 테이블 - 실제 캠페인이 저장되는 곳)
+    const totalCreators = settings?.total_creators || 10
     const campaignTitle = `[패키지] ${application.brand_name || application.company_name} - ${application.month}`
+
     const campaignPayload = {
       title: campaignTitle,
       campaign_type: 'planned',
@@ -92,12 +99,14 @@ exports.handler = async (event) => {
       brand: application.company_name,
       product_name: application.brand_name || '',
       company_email: application.email,
-      total_slots: settings?.total_creators || 10,
+      total_slots: totalCreators,
+      remaining_slots: totalCreators,
     }
-    if (companyId) campaignPayload.company_id = companyId
+    if (companyUserId) campaignPayload.company_id = companyUserId
     if (companyBizId) campaignPayload.company_biz_id = companyBizId
+    if (company?.phone) campaignPayload.company_phone = company.phone
 
-    const { data: campaign, error: campaignError } = await supabase
+    const { data: campaign, error: campaignError } = await supabaseKorea
       .from('campaigns')
       .insert(campaignPayload)
       .select()
@@ -108,7 +117,7 @@ exports.handler = async (event) => {
     // 캠페인 URL 생성
     const campaignUrl = `https://cnecbiz.com/company/package/${campaign.id}`
 
-    // 신청 업데이트
+    // BIZ DB 신청 업데이트
     const updatePayload = {
       status: 'campaign_created',
       campaign_id: campaign.id,
@@ -117,16 +126,16 @@ exports.handler = async (event) => {
     }
     if (companyBizId) updatePayload.company_id = companyBizId
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseBiz
       .from('package_applications')
       .update(updatePayload)
       .eq('id', application_id)
 
     if (updateError) throw updateError
 
-    // current_companies 증가
+    // current_companies 증가 (BIZ DB)
     if (settings) {
-      await supabase
+      await supabaseBiz
         .from('package_settings')
         .update({ current_companies: (settings.current_companies || 0) + 1 })
         .eq('id', settings.id)
