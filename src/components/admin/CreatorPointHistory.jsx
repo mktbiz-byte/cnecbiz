@@ -52,6 +52,11 @@ export default function CreatorPointHistory() {
   const [paying, setPaying] = useState(false)
   const [regionFilter, setRegionFilter] = useState('all') // all, korea, japan, us
   const [historyRegionFilter, setHistoryRegionFilter] = useState('all') // all, korea, japan, us
+  const [regionStats, setRegionStats] = useState({
+    korea: { totalPaid: 0, totalDeducted: 0, campaignRewards: 0, adminAdd: 0, otherAdd: 0 },
+    japan: { totalPaid: 0, totalDeducted: 0, campaignRewards: 0, adminAdd: 0, otherAdd: 0 },
+    us: { totalPaid: 0, totalDeducted: 0, campaignRewards: 0, adminAdd: 0, otherAdd: 0 }
+  })
 
   useEffect(() => {
     checkAuth()
@@ -487,6 +492,94 @@ export default function CreatorPointHistory() {
         }
       }
 
+      // Japan/US DB에서도 완료된 캠페인 미지급 건 체크
+      for (const regionInfo of [
+        { name: 'japan', client: supabaseJapan, symbol: '¥' },
+        { name: 'us', client: supabaseUS, symbol: '$' }
+      ]) {
+        if (!regionInfo.client) continue
+        try {
+          let regionAppQuery = regionInfo.client
+            .from('applications')
+            .select('id, user_id, campaign_id, status, updated_at, created_at')
+            .eq('status', 'completed')
+            .order('updated_at', { ascending: false })
+            .limit(500)
+
+          if (dateStart) {
+            regionAppQuery = regionAppQuery.gte('updated_at', dateStart)
+          }
+
+          const { data: regionCompletedApps, error: regionAppError } = await regionAppQuery
+
+          if (!regionAppError && regionCompletedApps && regionCompletedApps.length > 0) {
+            const regionCampaignIds = [...new Set(regionCompletedApps.map(a => a.campaign_id).filter(Boolean))]
+            let regionCampaignMap = {}
+            if (regionCampaignIds.length > 0) {
+              const { data: regionCampaigns } = await regionInfo.client
+                .from('campaigns')
+                .select('id, title, reward_points, reward_amount')
+                .in('id', regionCampaignIds)
+              if (regionCampaigns) {
+                regionCampaigns.forEach(c => { regionCampaignMap[c.id] = c })
+              }
+            }
+
+            const existingKeys = new Set(
+              allTransactions
+                .filter(t => (t.related_campaign_id || t.campaign_id) && t.source_db === regionInfo.name)
+                .map(t => `${t.related_campaign_id || t.campaign_id}_${t.user_id}`)
+            )
+
+            const regionUserIds = [...new Set(regionCompletedApps.map(a => a.user_id).filter(Boolean))]
+            let regionProfileMap = {}
+            if (regionUserIds.length > 0) {
+              const { data: regionProfiles } = await regionInfo.client
+                .from('user_profiles')
+                .select('id, user_id, name, channel_name, email, phone')
+                .limit(2000)
+              if (regionProfiles) {
+                regionProfiles.forEach(p => {
+                  if (p.user_id) regionProfileMap[p.user_id] = p
+                  if (p.id) regionProfileMap[p.id] = p
+                })
+              }
+            }
+
+            const regionAppTransactions = regionCompletedApps
+              .filter(app => {
+                const key = `${app.campaign_id}_${app.user_id}`
+                return !existingKeys.has(key)
+              })
+              .map(app => {
+                const profile = regionProfileMap[app.user_id]
+                const campaign = regionCampaignMap[app.campaign_id]
+                const pointAmount = campaign?.reward_amount || campaign?.reward_points || 0
+                return {
+                  id: `app_${regionInfo.name}_${app.id}`,
+                  user_id: app.user_id,
+                  amount: pointAmount,
+                  transaction_type: 'unpaid',
+                  description: `[미지급] 캠페인 완료되었으나 포인트 미지급: ${campaign?.title || ''}`,
+                  related_campaign_id: app.campaign_id,
+                  created_at: app.updated_at || app.created_at,
+                  creator_name: profile?.name || profile?.channel_name || app.user_id?.substring(0, 8) + '...',
+                  creator_email: profile?.email || '',
+                  creator_phone: profile?.phone || '',
+                  campaign_title: campaign?.title || null,
+                  source_db: regionInfo.name
+                }
+              })
+              .filter(t => t.amount > 0)
+
+            console.log(`${regionInfo.name} 캠페인 완료 미지급 건:`, regionAppTransactions.length, '건')
+            allTransactions = [...allTransactions, ...regionAppTransactions]
+          }
+        } catch (regionErr) {
+          console.log(`${regionInfo.name} 완료 캠페인 미지급 조회 스킵:`, regionErr.message)
+        }
+      }
+
       // 날짜순 정렬
       allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
@@ -498,22 +591,33 @@ export default function CreatorPointHistory() {
     }
   }
 
-  const calculateStats = () => {
+  // 리전별 통화 기호
+  const getCurrencySymbol = (sourceDb) => {
+    if (sourceDb === 'japan') return '¥'
+    if (sourceDb === 'us') return '$'
+    return '₩'
+  }
+
+  const getCurrencyLabel = (region) => {
+    if (region === 'japan') return '¥ (JPY)'
+    if (region === 'us') return '$ (USD)'
+    return '₩ (KRW)'
+  }
+
+  const calculateStatsForRegion = (txList) => {
     let totalPaid = 0
     let totalDeducted = 0
     let campaignRewards = 0
     let adminAdd = 0
     let otherAdd = 0
 
-    transactions.forEach(t => {
+    txList.forEach(t => {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
-        // 환불(refund)과 미지급(unpaid)은 총 지급 포인트에서 제외
         if (t.transaction_type === 'refund' || t.transaction_type === 'unpaid') {
-          return // skip refunds and unpaid from totalPaid
+          return
         }
         totalPaid += amount
-        // 캠페인 보상: campaign_reward, campaign_complete, campaign_payment, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
         if (t.transaction_type === 'campaign_reward' ||
             t.transaction_type === 'campaign_complete' ||
             t.transaction_type === 'campaign_payment' ||
@@ -530,7 +634,24 @@ export default function CreatorPointHistory() {
       }
     })
 
-    setStats({ totalPaid, totalDeducted, campaignRewards, adminAdd, otherAdd })
+    return { totalPaid, totalDeducted, campaignRewards, adminAdd, otherAdd }
+  }
+
+  const calculateStats = () => {
+    // 전체 통합 (하위 호환)
+    const allStats = calculateStatsForRegion(transactions)
+    setStats(allStats)
+
+    // 리전별 분리 통계
+    const koreaTransactions = transactions.filter(t => t.source_db === 'korea' || t.source_db === 'korea_applications' || t.source_db === 'biz')
+    const japanTransactions = transactions.filter(t => t.source_db === 'japan')
+    const usTransactions = transactions.filter(t => t.source_db === 'us')
+
+    setRegionStats({
+      korea: calculateStatsForRegion(koreaTransactions),
+      japan: calculateStatsForRegion(japanTransactions),
+      us: calculateStatsForRegion(usTransactions)
+    })
   }
 
   const getFilteredTransactions = () => {
@@ -654,7 +775,8 @@ export default function CreatorPointHistory() {
       '이메일': t.creator_email,
       'User ID': t.user_id,
       '유형': t.amount > 0 ? '지급' : '차감',
-      '포인트': t.amount,
+      '통화': t.source_db === 'japan' ? 'JPY' : t.source_db === 'us' ? 'USD' : 'KRW',
+      '금액': t.amount,
       '사유': t.description || '',
       '캠페인': t.campaign_title || '',
       'DB': t.source_db === 'korea' ? '한국' : t.source_db === 'japan' ? '일본' : t.source_db === 'us' ? '미국' : 'BIZ'
@@ -818,79 +940,126 @@ export default function CreatorPointHistory() {
                 </Button>
               </div>
 
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">총 지급 포인트</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {stats.totalPaid.toLocaleString()}P
-                    </p>
-                  </div>
-                  <ArrowUpCircle className="w-10 h-10 text-green-300" />
+          {/* 리전별 통계 카드 */}
+          {[
+            { key: 'korea', label: '한국', symbol: '₩', flag: '🇰🇷', color: 'blue' },
+            { key: 'japan', label: '일본', symbol: '¥', flag: '🇯🇵', color: 'red' },
+            { key: 'us', label: '미국', symbol: '$', flag: '🇺🇸', color: 'indigo' }
+          ].filter(r => historyRegionFilter === 'all' || historyRegionFilter === r.key).map(region => {
+            const rs = regionStats[region.key]
+            const hasData = rs.totalPaid > 0 || rs.totalDeducted > 0
+            if (!hasData && historyRegionFilter === 'all') return null
+            return (
+              <div key={region.key} className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{region.flag}</span>
+                  <span className="text-sm font-semibold text-gray-700">{region.label} ({region.symbol})</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">캠페인 보상</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {stats.campaignRewards.toLocaleString()}P
-                    </p>
-                  </div>
-                  <Briefcase className="w-10 h-10 text-blue-300" />
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 mb-1">총 지급</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {region.symbol}{rs.totalPaid.toLocaleString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 mb-1">캠페인 보상</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {region.symbol}{rs.campaignRewards.toLocaleString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 mb-1">관리자 지급</p>
+                      <p className="text-xl font-bold text-purple-600">
+                        {region.symbol}{rs.adminAdd.toLocaleString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 mb-1">기타 지급</p>
+                      <p className="text-xl font-bold text-orange-600">
+                        {region.symbol}{rs.otherAdd.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-gray-400">환불 제외</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 mb-1">출금</p>
+                      <p className="text-xl font-bold text-red-600">
+                        {region.symbol}{rs.totalDeducted.toLocaleString()}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">관리자 지급</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {stats.adminAdd.toLocaleString()}P
-                    </p>
+              </div>
+            )
+          })}
+          {historyRegionFilter === 'all' && !regionStats.japan.totalPaid && !regionStats.us.totalPaid && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">총 지급 포인트</p>
+                      <p className="text-xl font-bold text-green-600">₩{stats.totalPaid.toLocaleString()}</p>
+                    </div>
+                    <ArrowUpCircle className="w-8 h-8 text-green-300" />
                   </div>
-                  <Coins className="w-10 h-10 text-purple-300" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">기타 지급</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {stats.otherAdd.toLocaleString()}P
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">환불 제외</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">캠페인 보상</p>
+                      <p className="text-xl font-bold text-blue-600">₩{stats.campaignRewards.toLocaleString()}</p>
+                    </div>
+                    <Briefcase className="w-8 h-8 text-blue-300" />
                   </div>
-                  <Coins className="w-10 h-10 text-orange-300" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">출금 포인트</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {stats.totalDeducted.toLocaleString()}P
-                    </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">관리자 지급</p>
+                      <p className="text-xl font-bold text-purple-600">₩{stats.adminAdd.toLocaleString()}</p>
+                    </div>
+                    <Coins className="w-8 h-8 text-purple-300" />
                   </div>
-                  <ArrowDownCircle className="w-10 h-10 text-red-300" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">기타 지급</p>
+                      <p className="text-xl font-bold text-orange-600">₩{stats.otherAdd.toLocaleString()}</p>
+                    </div>
+                    <Coins className="w-8 h-8 text-orange-300" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">출금 포인트</p>
+                      <p className="text-xl font-bold text-red-600">₩{stats.totalDeducted.toLocaleString()}</p>
+                    </div>
+                    <ArrowDownCircle className="w-8 h-8 text-red-300" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* 필터 및 검색 */}
           <Card className="mb-6">
@@ -1104,7 +1273,7 @@ export default function CreatorPointHistory() {
                           transaction.transaction_type === 'unpaid' ? 'text-yellow-600' :
                           transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {transaction.transaction_type === 'unpaid' ? '' : transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()}P
+                          {transaction.transaction_type === 'unpaid' ? '' : transaction.amount > 0 ? '+' : ''}{getCurrencySymbol(transaction.source_db)}{transaction.amount.toLocaleString()}
                           {transaction.transaction_type === 'unpaid' && <span className="text-xs ml-1">(미지급)</span>}
                         </span>
                       </div>
@@ -1567,7 +1736,7 @@ export default function CreatorPointHistory() {
                         </div>
                       </div>
                       <div className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}P
+                        {tx.amount > 0 ? '+' : ''}{getCurrencySymbol(tx.source_db)}{tx.amount.toLocaleString()}
                       </div>
                     </div>
                   ))}
