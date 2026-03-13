@@ -288,12 +288,13 @@ async function callNotificationFunction(request) {
   }
 
   // 2. 이메일 발송
-  if (company.email) {
+  const companyEmail = company.notification_email || company.email
+  if (companyEmail) {
     try {
       await axios.post(
         `${process.env.URL}/.netlify/functions/send-email`,
         {
-          to: company.email,
+          to: companyEmail,
           subject: '[CNEC] 포인트 충전 완료',
           html: `
             <h2>포인트 충전이 완료되었습니다</h2>

@@ -235,7 +235,7 @@ async function autoMatchTransaction(transaction) {
     // 회사 정보 먼저 조회 (캠페인 알림에도 사용)
     const { data: companyInfo, error: companyInfoError } = await supabaseAdmin
       .from('companies')
-      .select('company_name, notification_email, notification_phone, phone, points_balance')
+      .select('company_name, notification_email, notification_phone, phone, email, points_balance')
       .eq('id', request.company_id)
       .single();
 
@@ -340,7 +340,7 @@ async function autoMatchTransaction(transaction) {
       });
 
       const companyName = companyInfo.company_name || '고객사';
-      const companyEmail = companyInfo.notification_email;
+      const companyEmail = companyInfo.notification_email || companyInfo.email;
       const companyPhone = companyInfo.notification_phone || companyInfo.phone;
 
       // 1. 고객에게 알림톡 발송
