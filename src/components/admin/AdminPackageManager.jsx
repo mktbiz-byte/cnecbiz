@@ -27,6 +27,7 @@ const STATUS_LABELS = {
   approved: { label: '승인', color: 'bg-blue-100 text-blue-800' },
   campaign_created: { label: '캠페인 개설 완료', color: 'bg-green-100 text-green-800' },
   rejected: { label: '거절', color: 'bg-red-100 text-red-800' },
+  cancelled: { label: '취소됨', color: 'bg-gray-100 text-gray-600' },
 }
 
 export default function AdminPackageManager() {
@@ -439,6 +440,32 @@ export default function AdminPackageManager() {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
     alert('복사되었습니다.')
+  }
+
+  const handleCancelApplication = async (app) => {
+    if (!confirm(`${app.company_name}의 신청을 취소하시겠습니까?\n\n승인된 경우 잔여 슬롯이 복구됩니다.`)) return
+    try {
+      const wasApproved = app.status === 'approved' || app.status === 'campaign_created'
+
+      const { error } = await supabaseBiz
+        .from('package_applications')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .eq('id', app.id)
+      if (error) throw error
+
+      // 승인 상태였으면 current_companies 감소
+      if (wasApproved && settings && (settings.current_companies || 0) > 0) {
+        await supabaseBiz
+          .from('package_settings')
+          .update({ current_companies: settings.current_companies - 1 })
+          .eq('id', settings.id)
+      }
+
+      alert('신청이 취소되었습니다.')
+      await loadData()
+    } catch (error) {
+      alert(`취소 실패: ${error.message}`)
+    }
   }
 
   const handleSendInvitation = async (app) => {
@@ -1080,15 +1107,6 @@ export default function AdminPackageManager() {
                             요청사항: {app.note}
                           </div>
                         )}
-                        {app.campaign_url && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-[#636E72]">캠페인 URL:</span>
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">{app.campaign_url}</code>
-                            <button onClick={() => copyToClipboard(app.campaign_url)} className="text-[#6C5CE7]">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
                         {/* 회원가입 / 캠페인 개설 URL */}
                         {(app.status === 'approved' || app.status === 'campaign_created') && (
                           <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -1155,15 +1173,14 @@ export default function AdminPackageManager() {
                               )}
                               {app.invitation_sent_at ? '초대장 재발송' : '초대장 발송'}
                             </Button>
-                            {app.campaign_url && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(app.campaign_url, '_blank')}
-                              >
-                                <ExternalLink className="w-3.5 h-3.5 mr-1" /> 캠페인 보기
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCancelApplication(app)}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <X className="w-3.5 h-3.5 mr-1" /> 취소
+                            </Button>
                           </div>
                         )}
                       </div>
