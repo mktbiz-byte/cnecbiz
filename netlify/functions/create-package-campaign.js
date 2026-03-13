@@ -67,36 +67,43 @@ exports.handler = async (event) => {
       .eq('id', application.package_setting_id)
       .single()
 
-    // 캠페인 생성 (BIZ DB campaigns 테이블)
-    const campaignTitle = `[패키지] ${application.brand_name || application.company_name} - ${application.month}`
-    const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
-      .insert({
-        title: campaignTitle,
-        type: 'package',
-        status: 'active',
-        is_public: false,
-        region: 'biz',
-        company_name: application.company_name,
-        contact_email: application.email,
-      })
-      .select()
-      .single()
-
-    if (campaignError) throw campaignError
-
     // 기업 매칭 (이메일 기반)
     let companyId = null
+    let companyBizId = null
     const { data: company } = await supabase
       .from('companies')
-      .select('id')
+      .select('id, user_id')
       .eq('email', application.email)
       .limit(1)
       .single()
 
     if (company) {
-      companyId = company.id
+      companyBizId = company.id
+      companyId = company.user_id || null
     }
+
+    // 캠페인 생성 (BIZ DB campaigns 테이블)
+    const campaignTitle = `[패키지] ${application.brand_name || application.company_name} - ${application.month}`
+    const campaignPayload = {
+      title: campaignTitle,
+      campaign_type: 'planned',
+      status: 'active',
+      region: 'korea',
+      brand: application.company_name,
+      product_name: application.brand_name || '',
+      company_email: application.email,
+      total_slots: settings?.total_creators || 10,
+    }
+    if (companyId) campaignPayload.company_id = companyId
+    if (companyBizId) campaignPayload.company_biz_id = companyBizId
+
+    const { data: campaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .insert(campaignPayload)
+      .select()
+      .single()
+
+    if (campaignError) throw campaignError
 
     // 캠페인 URL 생성
     const campaignUrl = `https://cnecbiz.com/company/package/${campaign.id}`
@@ -108,7 +115,7 @@ exports.handler = async (event) => {
       campaign_url: campaignUrl,
       admin_note: admin_note || application.admin_note,
     }
-    if (companyId) updatePayload.company_id = companyId
+    if (companyBizId) updatePayload.company_id = companyBizId
 
     const { error: updateError } = await supabase
       .from('package_applications')
@@ -156,6 +163,7 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          isAdminNotification: true,
           message: `✅ [패키지 캠페인 생성 완료]\n\n기업: ${application.company_name}\n브랜드: ${application.brand_name || '-'}\n캠페인 URL: ${campaignUrl}`
         })
       })
