@@ -5577,7 +5577,8 @@ Questions? Contact us.
             pointAmount,
             campaignId: campaign.id,
             campaignTitle: campaign.title,
-            creatorName: applicationData?.creator_name || applicationData?.applicant_name || ''
+            creatorName: applicationData?.creator_name || applicationData?.applicant_name || '',
+            applicationId: submission.application_id
           })
         })
 
@@ -5830,7 +5831,8 @@ Questions? Contact us.
             pointAmount,
             campaignId: campaign.id,
             campaignTitle: campaign.title,
-            creatorName: participant.creator_name || participant.applicant_name || ''
+            creatorName: participant.creator_name || participant.applicant_name || '',
+            applicationId: participant.id
           })
         })
 

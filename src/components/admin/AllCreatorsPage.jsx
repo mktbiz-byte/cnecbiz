@@ -960,9 +960,9 @@ export default function AllCreatorsPage() {
       }
 
       // 진행중/완료/지원 분류
-      const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected']
-      const completedStatuses = ['completed']
-      const appliedStatuses = ['pending', 'applied', 'rejected', 'cancelled', 'withdrawn']
+      const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected', 'sns_uploaded', 'guide_approved']
+      const completedStatuses = ['completed', 'paid']
+      const appliedStatuses = ['pending', 'applied', 'rejected', 'cancelled', 'withdrawn', 'force_cancelled']
 
       const inProgress = applications?.filter(app =>
         inProgressStatuses.includes(app.status) && app.campaigns
@@ -2337,7 +2337,9 @@ export default function AllCreatorsPage() {
                                     {app.status === 'revision_requested' && '수정요청'}
                                     {app.status === 'guide_confirmation' && '가이드확인'}
                                     {app.status === 'virtual_selected' && '가상선정'}
-                                    {!['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected'].includes(app.status) && app.status}
+                                    {app.status === 'sns_uploaded' && 'SNS 업로드'}
+                                    {app.status === 'guide_approved' && '가이드승인'}
+                                    {!['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected', 'sns_uploaded', 'guide_approved'].includes(app.status) && app.status}
                                   </span>
                                   <ExternalLink className="w-4 h-4 text-gray-400" />
                                 </div>
