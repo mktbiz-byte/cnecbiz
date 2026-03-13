@@ -4,6 +4,12 @@
  */
 
 const axios = require('axios')
+const { createClient } = require('@supabase/supabase-js')
+
+const supabaseBiz = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -28,7 +34,25 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { creatorName, creatorPhone, feedbackCount, campaignTitle, submissionId, companyName } = JSON.parse(event.body)
+    const { creatorName, creatorPhone, feedbackCount, campaignTitle, submissionId, companyName, companyId } = JSON.parse(event.body)
+
+    // companyName이 없으면 서버사이드에서 조회
+    let resolvedCompanyName = companyName
+    if (!resolvedCompanyName && companyId) {
+      try {
+        // company_id(user_id)로 companies 테이블에서 조회
+        const { data: company } = await supabaseBiz
+          .from('companies')
+          .select('company_name')
+          .eq('user_id', companyId)
+          .single()
+        if (company?.company_name) {
+          resolvedCompanyName = company.company_name
+        }
+      } catch (e) {
+        console.error('[WARN] Company name lookup failed:', e.message)
+      }
+    }
 
     if (!creatorPhone) {
       return {
@@ -93,8 +117,8 @@ exports.handler = async (event) => {
         `${baseUrl}/.netlify/functions/send-naver-works-message`,
         {
           isAdminNotification: true,
-          channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
-          message: `📝 [영상 수정요청]\n\n📋 캠페인: ${campaignTitle || '캠페인'}\n🏢 기업: ${companyName || '미확인'}\n👤 크리에이터: ${creatorName || '크리에이터'}\n📝 피드백: ${feedbackCount || 0}건\n📅 재제출기한: ${resubmitDateStr}\n⏰ 시간: ${koreanDate}`
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: `📝 [영상 수정요청]\n\n📋 캠페인: ${campaignTitle || '캠페인'}\n🏢 기업: ${resolvedCompanyName || '미확인'}\n👤 크리에이터: ${creatorName || '크리에이터'}\n📝 피드백: ${feedbackCount || 0}건\n📅 재제출기한: ${resubmitDateStr}\n⏰ 시간: ${koreanDate}`
         },
         { timeout: 15000 }
       ).then(r => {
