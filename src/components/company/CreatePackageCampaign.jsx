@@ -6,13 +6,11 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Loader2, X, Download, ArrowLeft, Check, Package } from 'lucide-react'
 
-// 패키지 캠페인 타입 정의 (가격/인원 고정)
+// 패키지 캠페인 타입 정의 (가격/인원은 package_settings에서 가져옴)
 const PACKAGE_TYPES = [
   {
     id: 'planned',
     label: '기획형 캠페인',
-    price: 200000,
-    slots: 10,
     color: 'indigo',
     description: '합리적인 비용으로 전문적인 숏폼 기획',
     features: [
@@ -27,8 +25,6 @@ const PACKAGE_TYPES = [
   {
     id: 'oliveyoung',
     label: '올영세일 패키지',
-    price: 400000,
-    slots: 10,
     color: 'pink',
     description: '세일 기간 집중 트래픽과 구매 전환 유도',
     features: [
@@ -43,8 +39,6 @@ const PACKAGE_TYPES = [
   {
     id: '4week_challenge',
     label: '4주 챌린지',
-    price: 600000,
-    slots: 10,
     color: 'purple',
     description: '진정성 있는 리뷰와 장기적 바이럴 효과',
     features: [
@@ -190,20 +184,22 @@ export default function CreatePackageCampaign() {
     loadPackageSettings()
   }, [])
 
-  // 선택된 패키지 정보
+  // 선택된 패키지 정보 (가격/인원/할인율 모두 package_settings에서)
   const getSelectedPackage = () => {
-    if (!selectedType) return null
+    if (!selectedType || !packageSettings) return null
     const pkg = PACKAGE_TYPES.find(p => p.id === selectedType)
     if (!pkg) return null
 
-    // 패키지 세팅에서 인원수/가격 오버라이드
-    const slots = packageSettings?.total_creators || pkg.slots
-    const price = pkg.price // 타입별 가격은 고정
-    const totalBeforeVat = price * slots
+    const price = packageSettings.per_creator_price
+    const slots = packageSettings.total_creators
+    const discountRate = packageSettings.discount_rate || 0
+    const subtotal = price * slots
+    const discountAmount = Math.floor(subtotal * (discountRate / 100))
+    const totalBeforeVat = subtotal - discountAmount
     const vat = Math.round(totalBeforeVat * 0.1)
     const totalWithVat = totalBeforeVat + vat
 
-    return { ...pkg, slots, totalBeforeVat, vat, totalWithVat }
+    return { ...pkg, price, slots, discountRate, subtotal, discountAmount, totalBeforeVat, vat, totalWithVat }
   }
 
   // 썸네일 업로드
@@ -509,13 +505,66 @@ export default function CreatePackageCampaign() {
         {step === 1 && (
           <div>
             <h2 className="text-lg font-bold text-[#1A1A2E] mb-2">캠페인 타입을 선택하세요</h2>
-            <p className="text-sm text-[#636E72] mb-6">가격과 인원이 고정된 패키지 캠페인입니다.</p>
+            <p className="text-sm text-[#636E72] mb-6">원하는 캠페인 타입을 선택해주세요.</p>
+
+            {/* 패키지 세팅 요약 */}
+            {packageSettings && (() => {
+              const price = packageSettings.per_creator_price
+              const slots = packageSettings.total_creators
+              const discountRate = packageSettings.discount_rate || 0
+              const originalTotal = price * slots
+              const discountedTotal = originalTotal - Math.floor(originalTotal * (discountRate / 100))
+
+              return (
+                <div className="bg-[#F0EDFF] rounded-2xl p-4 lg:p-5 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-[#6C5CE7] rounded-xl flex items-center justify-center">
+                        <Package className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[#1A1A2E]">{packageSettings.title || '패키지 캠페인'}</p>
+                        {packageSettings.subtitle && (
+                          <p className="text-xs text-[#636E72]">{packageSettings.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        {discountRate > 0 && (
+                          <span className="text-sm text-[#636E72] line-through" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {originalTotal.toLocaleString()}원
+                          </span>
+                        )}
+                        <span className="text-xl font-bold text-[#6C5CE7]" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          {discountedTotal.toLocaleString()}원
+                        </span>
+                        {discountRate > 0 && (
+                          <span className="text-xs font-bold text-[#FF6B6B] bg-red-50 px-1.5 py-0.5 rounded">
+                            {discountRate}% OFF
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#636E72] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        {price.toLocaleString()}원 x {slots}인 (VAT 별도)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {!packageSettings && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-[#6C5CE7]" />
+                <span className="ml-2 text-sm text-[#636E72]">패키지 정보를 불러오는 중...</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
               {PACKAGE_TYPES.map((pkg) => {
                 const colors = COLOR_MAP[pkg.color]
                 const isSelected = selectedType === pkg.id
-                const displaySlots = packageSettings?.total_creators || pkg.slots
 
                 return (
                   <div
@@ -536,23 +585,10 @@ export default function CreatePackageCampaign() {
                     )}
 
                     <div className={`mb-4 ${pkg.badge ? 'pt-2' : ''}`}>
-                      <h3 className={`text-base font-bold mb-1 ${isSelected ? colors.text : 'text-[#1A1A2E]'}`}>
+                      <h3 className={`text-lg font-bold mb-1 ${isSelected ? colors.text : 'text-[#1A1A2E]'}`}>
                         {pkg.label}
                       </h3>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl lg:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {pkg.price.toLocaleString()}
-                        </span>
-                        <span className="text-[#636E72] text-sm">원/건</span>
-                      </div>
-                      <p className="text-[#636E72] text-xs mt-2 leading-relaxed">{pkg.description}</p>
-                    </div>
-
-                    {/* 고정 인원 표시 */}
-                    <div className={`mb-4 px-3 py-2 rounded-lg text-center ${isSelected ? colors.bg : 'bg-[#F8F9FA]'}`}>
-                      <span className={`text-sm font-semibold ${isSelected ? colors.text : 'text-[#636E72]'}`}>
-                        {displaySlots}명 고정
-                      </span>
+                      <p className="text-[#636E72] text-sm mt-1 leading-relaxed">{pkg.description}</p>
                     </div>
 
                     <button
@@ -585,7 +621,7 @@ export default function CreatePackageCampaign() {
             <div className="mt-8 flex justify-end">
               <Button
                 onClick={goToStep2}
-                disabled={!selectedType}
+                disabled={!selectedType || !packageSettings}
                 className="h-12 px-8 bg-[#6C5CE7] hover:bg-[#5A4BD5] text-white rounded-xl font-semibold text-base disabled:opacity-40"
               >
                 다음 단계
@@ -776,7 +812,7 @@ export default function CreatePackageCampaign() {
 
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">단가 ({selectedPkg.label})</span>
+                        <span className="text-gray-400">크리에이터 단가</span>
                         <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.price.toLocaleString()}원</span>
                       </div>
                       <div className="flex justify-between">
@@ -785,9 +821,19 @@ export default function CreatePackageCampaign() {
                       </div>
                       <div className="border-t border-gray-700 pt-3">
                         <div className="flex justify-between">
-                          <span className="text-gray-400">공급가액</span>
-                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.totalBeforeVat.toLocaleString()}원</span>
+                          <span className="text-gray-400">소계</span>
+                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.subtotal.toLocaleString()}원</span>
                         </div>
+                      </div>
+                      {selectedPkg.discountRate > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#FF6B6B]">할인 ({selectedPkg.discountRate}%)</span>
+                          <span className="text-[#FF6B6B]" style={{ fontFamily: 'Outfit, sans-serif' }}>-{selectedPkg.discountAmount.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">공급가액</span>
+                        <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.totalBeforeVat.toLocaleString()}원</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">부가세 (10%)</span>
