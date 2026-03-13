@@ -97,7 +97,8 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `📦 [특가 패키지 신규 신청]\n\n기업명: ${company_name}\n담당자: ${contact_name}\n이메일: ${email}\n브랜드: ${brand_name || '-'}\n\n관리자 페이지에서 확인해주세요.\nhttps://cnecbiz.com/admin/package`
+          isAdminNotification: true,
+          message: `📦 [특가 패키지 신규 신청]\n\n기업명: ${company_name}\n담당자: ${contact_name}\n이메일: ${email}\n연락처: ${phone || '-'}\n브랜드: ${brand_name || '-'}\n\n관리자 페이지에서 확인해주세요.\nhttps://cnecbiz.com/admin/package`
         })
       })
     } catch (e) { console.error('Naver Works notification failed:', e.message) }
