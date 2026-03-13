@@ -547,7 +547,9 @@ export default function VideoReview() {
               campaign_id,
               campaigns (
                 title,
-                company_id
+                company_id,
+                company_name,
+                brand
               )
             )
           `)
@@ -1020,6 +1022,7 @@ export default function VideoReview() {
             creatorPhone: submission?.applications?.phone_number,
             campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
             companyName: submission?.applications?.campaigns?.company_name || submission?.applications?.campaigns?.brand || '',
+            companyId: submission?.applications?.campaigns?.company_id || '',
             feedbackCount: comments.length,
             submissionId: actualSubmissionId
           })
