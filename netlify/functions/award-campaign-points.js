@@ -47,7 +47,8 @@ exports.handler = async (event) => {
       pointAmount,
       campaignId,
       campaignTitle,
-      creatorName: passedCreatorName
+      creatorName: passedCreatorName,
+      applicationId
     } = JSON.parse(event.body)
 
     if (!userId || !pointAmount || !campaignId) {
@@ -158,6 +159,19 @@ exports.handler = async (event) => {
       }
     } else {
       console.log(`[award-campaign-points] Transaction recorded for userId=${userId}, campaign=${campaignId}`)
+    }
+
+    // 4. application 상태를 completed로 업데이트 (applicationId가 전달된 경우)
+    if (applicationId) {
+      const { error: appUpdateError } = await supabase
+        .from('applications')
+        .update({ status: 'completed' })
+        .eq('id', applicationId)
+      if (appUpdateError) {
+        console.warn(`[award-campaign-points] application status 업데이트 실패 (id=${applicationId}):`, appUpdateError.message)
+      } else {
+        console.log(`[award-campaign-points] Application ${applicationId} status → completed`)
+      }
     }
 
     // 네이버 웍스 알림 발송
