@@ -4,94 +4,18 @@ import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Loader2, X, Download, ArrowLeft, Check, Package } from 'lucide-react'
-
-// 패키지 캠페인 타입 정의 (가격/인원은 package_settings에서 가져옴)
-const PACKAGE_TYPES = [
-  {
-    id: 'planned',
-    label: '기획형 캠페인',
-    color: 'indigo',
-    description: '합리적인 비용으로 전문적인 숏폼 기획',
-    features: [
-      '브랜드 맞춤 시나리오 기획',
-      '촬영 가이드라인 제공',
-      'AI 크리에이터 매칭',
-      'SNS 업로드 URL 1개',
-      '2차 활용 및 파트너코드',
-    ],
-    badge: '인기',
-  },
-  {
-    id: 'oliveyoung',
-    label: '올영세일 패키지',
-    color: 'pink',
-    description: '세일 기간 집중 트래픽과 구매 전환 유도',
-    features: [
-      '3단계 콘텐츠 (리뷰→홍보→당일)',
-      '구매 전환 유도형 기획',
-      'SNS 업로드 URL 3개',
-      '원본 영상 파일 제공',
-      '2차 활용 및 파트너코드',
-    ],
-    badge: null,
-  },
-  {
-    id: '4week_challenge',
-    label: '4주 챌린지',
-    color: 'purple',
-    description: '진정성 있는 리뷰와 장기적 바이럴 효과',
-    features: [
-      '주차별 미션 (총 4편 제작)',
-      'Before & After 변화 기록',
-      'SNS 업로드 URL 4개',
-      '원본 영상 파일 제공',
-      '2차 활용 및 파트너코드',
-    ],
-    badge: null,
-  },
-]
-
-const COLOR_MAP = {
-  indigo: {
-    border: 'border-[#6C5CE7]',
-    ring: 'ring-[#F0EDFF]',
-    bg: 'bg-[#F0EDFF]',
-    text: 'text-[#6C5CE7]',
-    button: 'bg-[#6C5CE7] text-white',
-    buttonHover: 'hover:bg-[#5A4BD5]',
-    check: 'text-[#6C5CE7]',
-    badge: 'bg-[#6C5CE7]',
-  },
-  pink: {
-    border: 'border-pink-500',
-    ring: 'ring-pink-100',
-    bg: 'bg-pink-50',
-    text: 'text-pink-600',
-    button: 'bg-pink-600 text-white',
-    buttonHover: 'hover:bg-pink-700',
-    check: 'text-pink-500',
-    badge: 'bg-pink-500',
-  },
-  purple: {
-    border: 'border-purple-500',
-    ring: 'ring-purple-100',
-    bg: 'bg-purple-50',
-    text: 'text-purple-600',
-    button: 'bg-purple-600 text-white',
-    buttonHover: 'hover:bg-purple-700',
-    check: 'text-purple-500',
-    badge: 'bg-purple-500',
-  },
-}
+import { Loader2, ArrowLeft, Check, Package, Download } from 'lucide-react'
 
 export default function CreatePackageCampaign() {
   const navigate = useNavigate()
   const thumbnailInputRef = useRef(null)
 
-  // 단계 관리: 1=타입선택, 2=상품정보, 3=확인&결제
+  // 단계: 1=동의서, 2=상품정보 입력 & 결제
   const [step, setStep] = useState(1)
-  const [selectedType, setSelectedType] = useState(null)
+
+  // 동의 체크
+  const [consentRefundPolicy, setConsentRefundPolicy] = useState(false)
+  const [consentNoDirectContact, setConsentNoDirectContact] = useState(false)
 
   // 상품 정보
   const [form, setForm] = useState({
@@ -105,20 +29,13 @@ export default function CreatePackageCampaign() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [isCrawling, setIsCrawling] = useState(false)
 
   // 세금계산서/회사 정보
   const [companyInfo, setCompanyInfo] = useState(null)
   const [taxInvoiceComplete, setTaxInvoiceComplete] = useState(true)
 
-  // 동의 모달
-  const [showConsentModal, setShowConsentModal] = useState(false)
-  const [consentRefundPolicy, setConsentRefundPolicy] = useState(false)
-  const [consentNoDirectContact, setConsentNoDirectContact] = useState(false)
-
-  // URL 크롤링
-  const [isCrawling, setIsCrawling] = useState(false)
-
-  // 패키지 세팅 (DB에서 가져온 고정값)
+  // 패키지 세팅 (DB에서 가져온 값)
   const [packageSettings, setPackageSettings] = useState(null)
 
   // 세금계산서 정보 체크
@@ -161,7 +78,7 @@ export default function CreatePackageCampaign() {
     checkTaxInvoiceInfo()
   }, [])
 
-  // 패키지 세팅 로드 (관리자가 세팅한 인원/금액)
+  // 패키지 세팅 로드
   useEffect(() => {
     const loadPackageSettings = async () => {
       try {
@@ -184,11 +101,9 @@ export default function CreatePackageCampaign() {
     loadPackageSettings()
   }, [])
 
-  // 선택된 패키지 정보 (가격/인원/할인율 모두 package_settings에서)
-  const getSelectedPackage = () => {
-    if (!selectedType || !packageSettings) return null
-    const pkg = PACKAGE_TYPES.find(p => p.id === selectedType)
-    if (!pkg) return null
+  // 패키지 가격 계산
+  const getPackagePricing = () => {
+    if (!packageSettings) return null
 
     const price = packageSettings.per_creator_price
     const slots = packageSettings.total_creators
@@ -199,7 +114,7 @@ export default function CreatePackageCampaign() {
     const vat = Math.round(totalBeforeVat * 0.1)
     const totalWithVat = totalBeforeVat + vat
 
-    return { ...pkg, price, slots, discountRate, subtotal, discountAmount, totalBeforeVat, vat, totalWithVat }
+    return { price, slots, discountRate, subtotal, discountAmount, totalBeforeVat, vat, totalWithVat }
   }
 
   // 썸네일 업로드
@@ -266,10 +181,10 @@ export default function CreatePackageCampaign() {
     }
   }
 
-  // 다음 단계로 진행
+  // Step 1 → Step 2
   const goToStep2 = () => {
-    if (!selectedType) {
-      setError('캠페인 타입을 선택해주세요.')
+    if (!consentRefundPolicy || !consentNoDirectContact) {
+      setError('모든 약관에 동의해주세요.')
       return
     }
     setError('')
@@ -277,7 +192,20 @@ export default function CreatePackageCampaign() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const goToStep3 = () => {
+  // 약관 다운로드
+  const handleDownloadContract = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>캠페인 등록 동의서</title><style>body{font-family:'Pretendard',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1a1a2e}h1{text-align:center;margin-bottom:40px}h2{margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:8px}.warning{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin:12px 0}</style></head><body><h1>캠페인 등록 동의서</h1><h2>1. 환불 규정</h2><p><strong>캠페인 진행 전</strong>: 크리에이터 선정 완료 이전 → 전액 환불</p><p><strong>캠페인 진행 후</strong>: 크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p><p><strong>콘텐츠 제출 후</strong>: 크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p><p>※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p><p>※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p><h2>2. 크리에이터 개별 연락 금지</h2><p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위를 해서는 안 됩니다.</p><p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p><p>본 조항은 캠페인 종료 후 6개월간 유효합니다.</p><div class="warning">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</div><h2>3. 콘텐츠 저작권 및 2차 활용</h2><p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p><p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p><p>2차 활용 기간은 크리에이터의 SNS 업로드일로부터 1년입니다.</p><div class="warning">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가: 2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</div></body></html>`
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '캠페인_등록_동의서.html'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 캠페인 제출
+  const handleSubmit = async () => {
     if (!form.brand.trim()) {
       setError('브랜드명을 입력해주세요.')
       return
@@ -286,31 +214,21 @@ export default function CreatePackageCampaign() {
       setError('제품명을 입력해주세요.')
       return
     }
-    setError('')
-    setStep(3)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  // 캠페인 제출 (동의 후)
-  const handleSubmit = () => {
     if (!taxInvoiceComplete) {
       setError('캠페인 생성을 위해 세금계산서 발행 정보를 먼저 입력해주세요.')
       return
     }
-    setConsentRefundPolicy(false)
-    setConsentNoDirectContact(false)
-    setShowConsentModal(true)
-  }
 
-  const executeSubmit = async () => {
-    setShowConsentModal(false)
+    const pricing = getPackagePricing()
+    if (!pricing) {
+      setError('패키지 정보를 불러올 수 없습니다.')
+      return
+    }
+
     setProcessing(true)
     setError('')
 
     try {
-      const pkg = getSelectedPackage()
-      if (!pkg) throw new Error('패키지 정보를 찾을 수 없습니다.')
-
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다')
 
@@ -327,7 +245,7 @@ export default function CreatePackageCampaign() {
       const endDate = addDays(21)
 
       const campaignData = {
-        campaign_type: pkg.id,
+        campaign_type: 'planned',
         package_type: 'standard',
         brand: form.brand,
         product_name: form.product_name,
@@ -335,18 +253,18 @@ export default function CreatePackageCampaign() {
         product_description: '',
         product_detail_file_url: '',
         category: ['instagram'],
-        total_slots: pkg.slots,
-        remaining_slots: pkg.slots,
+        total_slots: pricing.slots,
+        remaining_slots: pricing.slots,
         application_deadline: applicationDeadline,
         shipping_date: shippingDate,
         start_date: startDate,
         end_date: endDate,
-        reward_points: Math.round(pkg.price * 0.6),
-        estimated_cost: pkg.totalWithVat,
+        reward_points: Math.round(pricing.price * 0.6),
+        estimated_cost: pricing.totalWithVat,
         bonus_amount: 0,
         requirements: '',
         image_url: form.image_url,
-        is_oliveyoung_sale: pkg.id === 'oliveyoung',
+        is_oliveyoung_sale: false,
         is_private: true,
         title: `${form.brand} ${form.product_name}`.trim(),
         status: 'draft',
@@ -354,7 +272,6 @@ export default function CreatePackageCampaign() {
         company_email: user.email,
       }
 
-      // company_biz_id, company_phone 추가
       if (companyInfo?.id) {
         campaignData.company_biz_id = companyInfo.id
       }
@@ -383,10 +300,7 @@ export default function CreatePackageCampaign() {
           hour: '2-digit',
           minute: '2-digit'
         })
-        const typeLabel = pkg.id === 'oliveyoung' ? '올영세일'
-          : pkg.id === '4week_challenge' ? '4주 챌린지'
-          : '기획형'
-        const naverWorksMessage = `[패키지 캠페인 생성]\n\n캠페인: ${campaignData.title}\n타입: ${typeLabel}\n브랜드: ${form.brand}\n상품: ${form.product_name}\n인원: ${pkg.slots}명\n금액: ${pkg.totalWithVat.toLocaleString()}원 (VAT 포함)\n\n기업 이메일: ${user.email}\n\n${koreanDate}`
+        const naverWorksMessage = `[패키지 캠페인 생성]\n\n캠페인: ${campaignData.title}\n브랜드: ${form.brand}\n상품: ${form.product_name}\n인원: ${pricing.slots}명\n금액: ${pricing.totalWithVat.toLocaleString()}원 (VAT 포함)\n\n기업 이메일: ${user.email}\n\n${koreanDate}`
 
         await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',
@@ -401,7 +315,7 @@ export default function CreatePackageCampaign() {
         console.error('네이버 웍스 알림 발송 실패:', naverWorksError)
       }
 
-      // 결제 페이지로 바로 이동
+      // 결제 페이지로 이동
       navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
     } catch (err) {
       console.error('캠페인 저장 실패:', err)
@@ -412,19 +326,7 @@ export default function CreatePackageCampaign() {
     }
   }
 
-  // 약관 다운로드
-  const handleDownloadContract = () => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>캠페인 이용약관</title><style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8}h1{text-align:center}h2{margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:8px}</style></head><body><h1>캠페인 이용약관 및 환불 규정</h1><h2>환불 규정</h2><p>캠페인 진행 전: 전액 환불</p><p>캠페인 진행 후: 50% 환불 (실비 공제)</p><p>콘텐츠 제출 후: 환불 불가</p><h2>크리에이터 개별 연락 금지</h2><p>위반 시 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</p></body></html>`
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = '캠페인_이용약관.html'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const selectedPkg = getSelectedPackage()
+  const pricing = getPackagePricing()
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
@@ -467,9 +369,8 @@ export default function CreatePackageCampaign() {
           {/* 스텝 인디케이터 */}
           <div className="flex items-center gap-2 mt-6">
             {[
-              { num: 1, label: '캠페인 선택' },
-              { num: 2, label: '상품 정보' },
-              { num: 3, label: '확인 & 결제' },
+              { num: 1, label: '캠페인 등록 동의' },
+              { num: 2, label: '상품 정보 & 결제' },
             ].map((s, i) => (
               <div key={s.num} className="flex items-center gap-2 flex-1">
                 <div className="flex items-center gap-2 flex-1">
@@ -482,7 +383,7 @@ export default function CreatePackageCampaign() {
                     {s.label}
                   </span>
                 </div>
-                {i < 2 && (
+                {i < 1 && (
                   <div className={`flex-1 h-0.5 rounded ${step > s.num ? 'bg-[#6C5CE7]' : 'bg-[#DFE6E9]'}`} />
                 )}
               </div>
@@ -501,136 +402,135 @@ export default function CreatePackageCampaign() {
           </div>
         )}
 
-        {/* Step 1: 캠페인 타입 선택 */}
+        {/* Step 1: 캠페인 등록 동의 */}
         {step === 1 && (
           <div>
-            <h2 className="text-lg font-bold text-[#1A1A2E] mb-2">캠페인 타입을 선택하세요</h2>
-            <p className="text-sm text-[#636E72] mb-6">원하는 캠페인 타입을 선택해주세요.</p>
-
-            {/* 패키지 세팅 요약 */}
-            {packageSettings && (() => {
-              const price = packageSettings.per_creator_price
-              const slots = packageSettings.total_creators
-              const discountRate = packageSettings.discount_rate || 0
-              const originalTotal = price * slots
-              const discountedTotal = originalTotal - Math.floor(originalTotal * (discountRate / 100))
-
-              return (
-                <div className="bg-[#F0EDFF] rounded-2xl p-4 lg:p-5 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-[#6C5CE7] rounded-xl flex items-center justify-center">
-                        <Package className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-[#1A1A2E]">{packageSettings.title || '패키지 캠페인'}</p>
-                        {packageSettings.subtitle && (
-                          <p className="text-xs text-[#636E72]">{packageSettings.subtitle}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        {discountRate > 0 && (
-                          <span className="text-sm text-[#636E72] line-through" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                            {originalTotal.toLocaleString()}원
-                          </span>
-                        )}
-                        <span className="text-xl font-bold text-[#6C5CE7]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {discountedTotal.toLocaleString()}원
-                        </span>
-                        {discountRate > 0 && (
-                          <span className="text-xs font-bold text-[#FF6B6B] bg-red-50 px-1.5 py-0.5 rounded">
-                            {discountRate}% OFF
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#636E72] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                        {price.toLocaleString()}원 x {slots}인 (VAT 별도)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {!packageSettings && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-[#6C5CE7]" />
-                <span className="ml-2 text-sm text-[#636E72]">패키지 정보를 불러오는 중...</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
-              {PACKAGE_TYPES.map((pkg) => {
-                const colors = COLOR_MAP[pkg.color]
-                const isSelected = selectedType === pkg.id
-
-                return (
-                  <div
-                    key={pkg.id}
-                    onClick={() => setSelectedType(pkg.id)}
-                    className={`relative bg-white rounded-2xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
-                      isSelected
-                        ? `${colors.border} shadow-lg ring-2 ${colors.ring}`
-                        : 'border-[#DFE6E9] hover:border-[#B2BEC3] hover:shadow-md'
-                    }`}
-                  >
-                    {pkg.badge && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className={`${colors.badge} text-white text-xs font-bold px-3 py-1 rounded-full shadow-md`}>
-                          {pkg.badge}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className={`mb-4 ${pkg.badge ? 'pt-2' : ''}`}>
-                      <h3 className={`text-lg font-bold mb-1 ${isSelected ? colors.text : 'text-[#1A1A2E]'}`}>
-                        {pkg.label}
-                      </h3>
-                      <p className="text-[#636E72] text-sm mt-1 leading-relaxed">{pkg.description}</p>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-all mb-4 ${
-                        isSelected
-                          ? `${colors.button} shadow-md`
-                          : 'bg-[#F8F9FA] text-[#636E72] hover:bg-[#DFE6E9]'
-                      }`}
-                    >
-                      {isSelected ? '선택됨' : '선택하기'}
-                    </button>
-
-                    <ul className="space-y-2 text-sm flex-1">
-                      {pkg.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <svg className={`w-4 h-4 flex-shrink-0 ${isSelected ? colors.check : 'text-[#00B894]'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                          </svg>
-                          <span className="text-[#1A1A2E]">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )
-              })}
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-[#1A1A2E]">캠페인 등록 동의</h2>
+              <p className="text-sm text-[#636E72]">캠페인 등록 전 아래 내용을 확인해주세요</p>
             </div>
 
-            {/* 다음 버튼 */}
-            <div className="mt-8 flex justify-end">
-              <Button
-                onClick={goToStep2}
-                disabled={!selectedType || !packageSettings}
-                className="h-12 px-8 bg-[#6C5CE7] hover:bg-[#5A4BD5] text-white rounded-xl font-semibold text-base disabled:opacity-40"
-              >
-                다음 단계
-              </Button>
+            <div className="bg-white rounded-2xl shadow-sm border border-[#DFE6E9] overflow-hidden">
+              <div className="p-5 lg:p-8 space-y-6">
+                {/* 1. 환불 규정 */}
+                <div>
+                  <h3 className="font-bold text-[#1A1A2E] mb-3 flex items-center gap-2">
+                    <span className="w-6 h-6 bg-[#F0EDFF] rounded-full flex items-center justify-center text-[#6C5CE7] text-xs font-bold">1</span>
+                    환불 규정
+                  </h3>
+                  <div className="bg-[#F8F9FA] rounded-xl p-4 text-sm text-[#636E72] space-y-3">
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
+                        <div className="flex-shrink-0 w-12 h-8 bg-green-100 rounded flex items-center justify-center">
+                          <span className="text-green-700 font-bold text-xs">100%</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E]">캠페인 진행 전</p>
+                          <p className="text-xs text-[#636E72]">크리에이터 선정 완료 이전 → 전액 환불</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
+                        <div className="flex-shrink-0 w-12 h-8 bg-amber-100 rounded flex items-center justify-center">
+                          <span className="text-amber-700 font-bold text-xs">50%</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E]">캠페인 진행 후</p>
+                          <p className="text-xs text-[#636E72]">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
+                        <div className="flex-shrink-0 w-12 h-8 bg-red-100 rounded flex items-center justify-center">
+                          <span className="text-red-700 font-bold text-xs">0%</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E]">콘텐츠 제출 후</p>
+                          <p className="text-xs text-[#636E72]">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#B2BEC3] mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                    <p className="text-xs text-[#B2BEC3]">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
+                    <p className="text-xs text-[#B2BEC3]">※ 광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</p>
+                  </div>
+                </div>
+
+                {/* 2. 크리에이터 개별 연락 금지 */}
+                <div>
+                  <h3 className="font-bold text-[#1A1A2E] mb-3 flex items-center gap-2">
+                    <span className="w-6 h-6 bg-[#F0EDFF] rounded-full flex items-center justify-center text-[#6C5CE7] text-xs font-bold">2</span>
+                    크리에이터 개별 연락 금지
+                  </h3>
+                  <div className="bg-red-50 rounded-xl p-4 text-sm text-[#636E72] space-y-2 border border-red-100">
+                    <p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 <strong className="text-red-700">직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위</strong>를 해서는 안 됩니다.</p>
+                    <p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p>
+                    <p>본 조항은 <strong>캠페인 종료 후 6개월간</strong> 유효합니다.</p>
+                    <p className="text-red-600 font-semibold">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</p>
+                  </div>
+                </div>
+
+                {/* 3. 콘텐츠 저작권 및 2차 활용 */}
+                <div>
+                  <h3 className="font-bold text-[#1A1A2E] mb-3 flex items-center gap-2">
+                    <span className="w-6 h-6 bg-[#F0EDFF] rounded-full flex items-center justify-center text-[#6C5CE7] text-xs font-bold">3</span>
+                    콘텐츠 저작권 및 2차 활용
+                  </h3>
+                  <div className="bg-[#F8F9FA] rounded-xl p-4 text-sm text-[#636E72] space-y-2">
+                    <p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p>
+                    <p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p>
+                    <p>2차 활용 기간은 크리에이터의 <strong className="text-[#1A1A2E]">SNS 업로드일로부터 1년</strong>입니다.</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mt-2">
+                    <p className="font-semibold flex items-center gap-1.5 mb-1">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가</p>
+                    <p>2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 <strong>Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</strong> 기간 만료 후 Meta 광고에 활용하려면 별도의 2차 활용 계약이 필요합니다.</p>
+                  </div>
+                </div>
+
+                {/* 체크박스 */}
+                <div className="space-y-3 pt-2">
+                  <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-[#DFE6E9] hover:bg-[#F8F9FA] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={consentRefundPolicy}
+                      onChange={(e) => setConsentRefundPolicy(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 rounded border-[#DFE6E9] text-[#6C5CE7] focus:ring-[#6C5CE7]"
+                    />
+                    <span className="text-sm text-[#636E72]">
+                      <strong className="text-[#1A1A2E]">환불 규정</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-[#DFE6E9] hover:bg-[#F8F9FA] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={consentNoDirectContact}
+                      onChange={(e) => setConsentNoDirectContact(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 rounded border-[#DFE6E9] text-[#6C5CE7] focus:ring-[#6C5CE7]"
+                    />
+                    <span className="text-sm text-[#636E72]">
+                      <strong className="text-[#1A1A2E]">크리에이터 개별 연락 금지 조항 및 콘텐츠 저작권 규정</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 하단 버튼 영역 */}
+              <div className="border-t border-[#DFE6E9] px-5 lg:px-8 py-4 flex items-center justify-between">
+                <button onClick={handleDownloadContract} className="flex items-center gap-2 text-sm text-[#6C5CE7] hover:text-[#5A4BD5] font-medium">
+                  <Download className="w-4 h-4" />
+                  동의서 다운로드
+                </button>
+                <Button
+                  onClick={goToStep2}
+                  disabled={!consentRefundPolicy || !consentNoDirectContact}
+                  className="h-12 px-8 bg-[#6C5CE7] hover:bg-[#5A4BD5] text-white rounded-xl font-semibold text-base disabled:opacity-40"
+                >
+                  동의 후 다음 단계
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Step 2: 상품 정보 입력 */}
+        {/* Step 2: 상품 정보 & 결제 */}
         {step === 2 && (
           <div>
             <div className="flex items-center gap-3 mb-6">
@@ -643,355 +543,190 @@ export default function CreatePackageCampaign() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-[#DFE6E9]">
-              <div className="space-y-5">
-                {/* 브랜드명 */}
-                <div>
-                  <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">
-                    브랜드명 <span className="text-[#FF6B6B]">*</span>
-                  </Label>
-                  <Input
-                    value={form.brand}
-                    onChange={(e) => setForm(prev => ({ ...prev, brand: e.target.value }))}
-                    placeholder="예: 에이블씨엔씨"
-                    className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl"
-                  />
-                </div>
-
-                {/* 제품명 */}
-                <div>
-                  <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">
-                    제품명 <span className="text-[#FF6B6B]">*</span>
-                  </Label>
-                  <Input
-                    value={form.product_name}
-                    onChange={(e) => setForm(prev => ({ ...prev, product_name: e.target.value }))}
-                    placeholder="예: 미샤 타임 레볼루션 에센스"
-                    className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl"
-                  />
-                </div>
-
-                {/* 상품 URL */}
-                <div>
-                  <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">상품 URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="url"
-                      value={form.product_link}
-                      onChange={(e) => setForm(prev => ({ ...prev, product_link: e.target.value }))}
-                      placeholder="https://www.oliveyoung.co.kr/store/goods/..."
-                      className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={crawlProductUrl}
-                      disabled={isCrawling || !form.product_link}
-                      className="h-12 px-4 whitespace-nowrap border-[#DFE6E9] text-[#636E72] hover:bg-[#F0EDFF] hover:text-[#6C5CE7] rounded-xl"
-                    >
-                      {isCrawling ? <Loader2 className="w-4 h-4 animate-spin" /> : '정보 가져오기'}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* 썸네일 이미지 */}
-                <div>
-                  <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">대표 이미지</Label>
-                  <input ref={thumbnailInputRef} type="file" accept="image/*" onChange={handleThumbnailUpload} className="hidden" />
-                  <div
-                    onClick={() => thumbnailInputRef.current?.click()}
-                    className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all hover:border-[#6C5CE7] hover:bg-[#F0EDFF]/30 ${
-                      form.image_url ? 'border-[#00B894] bg-green-50/30' : 'border-[#DFE6E9]'
-                    }`}
-                  >
-                    {uploadingImage ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="w-8 h-8 animate-spin text-[#6C5CE7]" />
-                        <span className="text-sm text-[#636E72]">업로드 중...</span>
-                      </div>
-                    ) : form.image_url ? (
-                      <div className="flex flex-col items-center gap-3">
-                        <img src={form.image_url} alt="썸네일" className="max-h-36 rounded-xl shadow-sm" />
-                        <span className="text-sm text-[#00B894] font-medium">클릭하여 이미지 변경</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 bg-[#F0EDFF] rounded-full flex items-center justify-center">
-                          <svg className="w-6 h-6 text-[#6C5CE7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        </div>
-                        <span className="text-sm text-[#636E72]">클릭하여 이미지 업로드</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 다음/이전 버튼 */}
-            <div className="mt-8 flex justify-between">
-              <Button variant="outline" onClick={() => { setStep(1); setError('') }} className="h-12 px-6 rounded-xl border-[#DFE6E9]">
-                이전 단계
-              </Button>
-              <Button
-                onClick={goToStep3}
-                className="h-12 px-8 bg-[#6C5CE7] hover:bg-[#5A4BD5] text-white rounded-xl font-semibold text-base"
-              >
-                다음 단계
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: 확인 & 결제 */}
-        {step === 3 && selectedPkg && (
-          <div>
-            <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => { setStep(2); setError('') }} className="text-[#636E72] hover:text-[#1A1A2E]">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-lg font-bold text-[#1A1A2E]">주문 확인</h2>
-                <p className="text-sm text-[#636E72]">내용을 확인하고 결제를 진행하세요.</p>
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              {/* 왼쪽: 요약 */}
-              <div className="lg:col-span-3 space-y-5">
-                {/* 캠페인 정보 */}
-                <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm border border-[#DFE6E9]">
-                  <h3 className="text-base font-bold text-[#1A1A2E] mb-4">캠페인 정보</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#636E72]">캠페인 타입</span>
-                      <span className="font-medium text-[#1A1A2E]">{selectedPkg.label}</span>
+              {/* 왼쪽: 상품 정보 폼 */}
+              <div className="lg:col-span-3">
+                <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-[#DFE6E9]">
+                  <div className="space-y-5">
+                    {/* 브랜드명 */}
+                    <div>
+                      <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">
+                        브랜드명 <span className="text-[#FF6B6B]">*</span>
+                      </Label>
+                      <Input
+                        value={form.brand}
+                        onChange={(e) => setForm(prev => ({ ...prev, brand: e.target.value }))}
+                        placeholder="예: 에이블씨엔씨"
+                        className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl"
+                      />
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#636E72]">브랜드</span>
-                      <span className="font-medium text-[#1A1A2E]">{form.brand}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#636E72]">제품명</span>
-                      <span className="font-medium text-[#1A1A2E]">{form.product_name}</span>
-                    </div>
-                    {form.product_link && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#636E72]">상품 URL</span>
-                        <a href={form.product_link} target="_blank" rel="noopener noreferrer" className="font-medium text-[#6C5CE7] hover:underline truncate max-w-[200px]">
-                          {form.product_link}
-                        </a>
-                      </div>
-                    )}
-                    {form.image_url && (
-                      <div className="pt-3 border-t border-[#DFE6E9]">
-                        <img src={form.image_url} alt="대표 이미지" className="max-h-28 rounded-xl" />
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* 포함 사항 */}
-                <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm border border-[#DFE6E9]">
-                  <h3 className="text-base font-bold text-[#1A1A2E] mb-4">포함 사항</h3>
-                  <ul className="space-y-2">
-                    {selectedPkg.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm">
-                        <Check className="w-4 h-4 text-[#00B894] flex-shrink-0" />
-                        <span className="text-[#1A1A2E]">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                    {/* 제품명 */}
+                    <div>
+                      <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">
+                        제품명 <span className="text-[#FF6B6B]">*</span>
+                      </Label>
+                      <Input
+                        value={form.product_name}
+                        onChange={(e) => setForm(prev => ({ ...prev, product_name: e.target.value }))}
+                        placeholder="예: 미샤 타임 레볼루션 에센스"
+                        className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl"
+                      />
+                    </div>
+
+                    {/* 상품 URL */}
+                    <div>
+                      <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">상품 URL</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="url"
+                          value={form.product_link}
+                          onChange={(e) => setForm(prev => ({ ...prev, product_link: e.target.value }))}
+                          placeholder="https://www.oliveyoung.co.kr/store/goods/..."
+                          className="h-12 border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7] rounded-xl flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={crawlProductUrl}
+                          disabled={isCrawling || !form.product_link}
+                          className="h-12 px-4 whitespace-nowrap border-[#DFE6E9] text-[#636E72] hover:bg-[#F0EDFF] hover:text-[#6C5CE7] rounded-xl"
+                        >
+                          {isCrawling ? <Loader2 className="w-4 h-4 animate-spin" /> : '정보 가져오기'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* 썸네일 이미지 */}
+                    <div>
+                      <Label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">대표 이미지</Label>
+                      <input ref={thumbnailInputRef} type="file" accept="image/*" onChange={handleThumbnailUpload} className="hidden" />
+                      <div
+                        onClick={() => thumbnailInputRef.current?.click()}
+                        className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all hover:border-[#6C5CE7] hover:bg-[#F0EDFF]/30 ${
+                          form.image_url ? 'border-[#00B894] bg-green-50/30' : 'border-[#DFE6E9]'
+                        }`}
+                      >
+                        {uploadingImage ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#6C5CE7]" />
+                            <span className="text-sm text-[#636E72]">업로드 중...</span>
+                          </div>
+                        ) : form.image_url ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <img src={form.image_url} alt="썸네일" className="max-h-36 rounded-xl shadow-sm" />
+                            <span className="text-sm text-[#00B894] font-medium">클릭하여 이미지 변경</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-12 h-12 bg-[#F0EDFF] rounded-full flex items-center justify-center">
+                              <svg className="w-6 h-6 text-[#6C5CE7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                            </div>
+                            <span className="text-sm text-[#636E72]">클릭하여 이미지 업로드</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* 오른쪽: 견적서 */}
+              {/* 오른쪽: 패키지 견적서 */}
               <div className="lg:col-span-2">
                 <div className="lg:sticky lg:top-6">
-                  <div className="bg-[#1A1A2E] rounded-2xl p-5 lg:p-6 text-white">
-                    <h3 className="text-lg font-bold mb-5">결제 금액</h3>
-
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">크리에이터 단가</span>
-                        <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.price.toLocaleString()}원</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">인원</span>
-                        <span style={{ fontFamily: 'Outfit, sans-serif' }}>x {selectedPkg.slots}명</span>
-                      </div>
-                      <div className="border-t border-gray-700 pt-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">소계</span>
-                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.subtotal.toLocaleString()}원</span>
+                  {!pricing ? (
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#DFE6E9] flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-[#6C5CE7]" />
+                      <span className="ml-2 text-sm text-[#636E72]">패키지 정보 로딩 중...</span>
+                    </div>
+                  ) : (
+                    <div className="bg-[#1A1A2E] rounded-2xl p-5 lg:p-6 text-white">
+                      {/* 패키지 타이틀 */}
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-9 h-9 bg-[#6C5CE7] rounded-xl flex items-center justify-center">
+                          <Package className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold">{packageSettings?.title || '패키지 캠페인'}</h3>
+                          {packageSettings?.subtitle && (
+                            <p className="text-xs text-gray-400">{packageSettings.subtitle}</p>
+                          )}
                         </div>
                       </div>
-                      {selectedPkg.discountRate > 0 && (
+
+                      <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-[#FF6B6B]">할인 ({selectedPkg.discountRate}%)</span>
-                          <span className="text-[#FF6B6B]" style={{ fontFamily: 'Outfit, sans-serif' }}>-{selectedPkg.discountAmount.toLocaleString()}원</span>
+                          <span className="text-gray-400">크리에이터 단가</span>
+                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{pricing.price.toLocaleString()}원</span>
                         </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">공급가액</span>
-                        <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.totalBeforeVat.toLocaleString()}원</span>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">인원</span>
+                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>x {pricing.slots}명</span>
+                        </div>
+                        <div className="border-t border-gray-700 pt-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">소계</span>
+                            <span style={{ fontFamily: 'Outfit, sans-serif' }}>{pricing.subtotal.toLocaleString()}원</span>
+                          </div>
+                        </div>
+                        {pricing.discountRate > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-[#FF6B6B]">할인 ({pricing.discountRate}%)</span>
+                            <span className="text-[#FF6B6B]" style={{ fontFamily: 'Outfit, sans-serif' }}>-{pricing.discountAmount.toLocaleString()}원</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">공급가액</span>
+                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{pricing.totalBeforeVat.toLocaleString()}원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">부가세 (10%)</span>
+                          <span style={{ fontFamily: 'Outfit, sans-serif' }}>{pricing.vat.toLocaleString()}원</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">부가세 (10%)</span>
-                        <span style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedPkg.vat.toLocaleString()}원</span>
+
+                      <div className="mt-5 pt-4 border-t border-gray-700">
+                        <div className="flex justify-between items-end mb-1">
+                          <span className="text-gray-400">총 결제 금액</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-3xl lg:text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {pricing.totalWithVat.toLocaleString()}
+                          </span>
+                          <span className="text-lg ml-1">원</span>
+                        </div>
                       </div>
+
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={processing || !form.brand.trim() || !form.product_name.trim()}
+                        className="w-full mt-6 py-6 text-lg bg-gradient-to-r from-[#6C5CE7] to-[#A29BFE] hover:from-[#5A4BD5] hover:to-[#8B7CF5] text-white font-bold rounded-xl disabled:opacity-40"
+                      >
+                        {processing ? (
+                          <><Loader2 className="w-5 h-5 animate-spin mr-2" /> 처리 중...</>
+                        ) : (
+                          '결제하기'
+                        )}
+                      </Button>
+
+                      <p className="text-xs text-gray-500 mt-4 text-center">
+                        * 세금계산서 발행 가능 / 카드 결제 지원
+                      </p>
                     </div>
-
-                    <div className="mt-5 pt-4 border-t border-gray-700">
-                      <div className="flex justify-between items-end mb-1">
-                        <span className="text-gray-400">총 결제 금액</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-3xl lg:text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {selectedPkg.totalWithVat.toLocaleString()}
-                        </span>
-                        <span className="text-lg ml-1">원</span>
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={processing}
-                      className="w-full mt-6 py-6 text-lg bg-gradient-to-r from-[#6C5CE7] to-[#A29BFE] hover:from-[#5A4BD5] hover:to-[#8B7CF5] text-white font-bold rounded-xl"
-                    >
-                      {processing ? (
-                        <><Loader2 className="w-5 h-5 animate-spin mr-2" /> 처리 중...</>
-                      ) : (
-                        '결제하기'
-                      )}
-                    </Button>
-
-                    <p className="text-xs text-gray-500 mt-4 text-center">
-                      * 세금계산서 발행 가능 / 카드 결제 지원
-                    </p>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* 이전 단계 */}
             <div className="mt-6">
-              <Button variant="outline" onClick={() => { setStep(2); setError('') }} className="h-12 px-6 rounded-xl border-[#DFE6E9]">
+              <Button variant="outline" onClick={() => { setStep(1); setError('') }} className="h-12 px-6 rounded-xl border-[#DFE6E9]">
                 이전 단계
               </Button>
             </div>
           </div>
         )}
       </div>
-
-      {/* 동의 모달 */}
-      {showConsentModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#1A1A2E]">캠페인 이용약관 동의</h2>
-              <button onClick={() => setShowConsentModal(false)} className="text-[#B2BEC3] hover:text-[#636E72]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="px-6 py-4 space-y-5">
-              {/* 환불 규정 */}
-              <div>
-                <h3 className="font-bold text-[#1A1A2E] mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-[#F0EDFF] rounded-full flex items-center justify-center text-[#6C5CE7] text-xs font-bold">1</span>
-                  환불 규정
-                </h3>
-                <div className="bg-[#F8F9FA] rounded-xl p-4 text-sm text-[#636E72] space-y-2">
-                  <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
-                    <div className="flex-shrink-0 w-12 h-8 bg-green-100 rounded flex items-center justify-center">
-                      <span className="text-green-700 font-bold text-xs">100%</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#1A1A2E]">캠페인 진행 전</p>
-                      <p className="text-xs text-[#636E72]">크리에이터 선정 완료 이전 → 전액 환불</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
-                    <div className="flex-shrink-0 w-12 h-8 bg-amber-100 rounded flex items-center justify-center">
-                      <span className="text-amber-700 font-bold text-xs">50%</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#1A1A2E]">캠페인 진행 후</p>
-                      <p className="text-xs text-[#636E72]">크리에이터 선정 후 ~ 콘텐츠 제작 중 → 50% 환불</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
-                    <div className="flex-shrink-0 w-12 h-8 bg-red-100 rounded flex items-center justify-center">
-                      <span className="text-red-700 font-bold text-xs">0%</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#1A1A2E]">콘텐츠 제출 후</p>
-                      <p className="text-xs text-[#636E72]">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 개별 연락 금지 */}
-              <div>
-                <h3 className="font-bold text-[#1A1A2E] mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-[#F0EDFF] rounded-full flex items-center justify-center text-[#6C5CE7] text-xs font-bold">2</span>
-                  크리에이터 개별 연락 금지
-                </h3>
-                <div className="bg-red-50 rounded-xl p-4 text-sm text-[#636E72] space-y-2 border border-red-100">
-                  <p>플랫폼을 통해 매칭된 크리에이터에게 <strong className="text-red-700">직접 연락하여 별도 거래를 제안하는 행위</strong>를 해서는 안 됩니다.</p>
-                  <p className="text-red-600 font-semibold">위반 시 캠페인 결제 금액의 200% 위약금이 청구될 수 있습니다.</p>
-                </div>
-              </div>
-
-              {/* 체크박스 */}
-              <div className="space-y-3 pt-2">
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-[#DFE6E9] hover:bg-[#F8F9FA] transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={consentRefundPolicy}
-                    onChange={(e) => setConsentRefundPolicy(e.target.checked)}
-                    className="mt-0.5 w-5 h-5 rounded border-[#DFE6E9] text-[#6C5CE7] focus:ring-[#6C5CE7]"
-                  />
-                  <span className="text-sm text-[#636E72]">
-                    <strong className="text-[#1A1A2E]">환불 규정</strong>에 동의합니다.
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-[#DFE6E9] hover:bg-[#F8F9FA] transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={consentNoDirectContact}
-                    onChange={(e) => setConsentNoDirectContact(e.target.checked)}
-                    className="mt-0.5 w-5 h-5 rounded border-[#DFE6E9] text-[#6C5CE7] focus:ring-[#6C5CE7]"
-                  />
-                  <span className="text-sm text-[#636E72]">
-                    <strong className="text-[#1A1A2E]">크리에이터 개별 연락 금지 조항</strong>에 동의합니다.
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="sticky bottom-0 bg-white border-t px-6 py-4 rounded-b-2xl flex items-center justify-between">
-              <button onClick={handleDownloadContract} className="flex items-center gap-2 text-sm text-[#6C5CE7] hover:text-[#5A4BD5] font-medium">
-                <Download className="w-4 h-4" />
-                약관 다운로드
-              </button>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => setShowConsentModal(false)} className="rounded-xl">
-                  취소
-                </Button>
-                <Button
-                  disabled={!consentRefundPolicy || !consentNoDirectContact || processing}
-                  onClick={executeSubmit}
-                  className="bg-[#6C5CE7] hover:bg-[#5A4BD5] text-white px-6 rounded-xl"
-                >
-                  {processing ? '처리 중...' : '동의 후 결제 진행'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
