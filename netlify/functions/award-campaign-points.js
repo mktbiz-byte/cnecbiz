@@ -60,29 +60,31 @@ exports.handler = async (event) => {
 
     const supabase = getRegionClient(region || 'korea')
 
-    // 1. user_profiles에서 현재 포인트 조회 (id 또는 user_id로 시도)
+    // 1. user_profiles에서 현재 포인트 조회 (user_id 우선 → id fallback)
     let profile = null
     let profileMatchField = 'id'
 
-    const { data: profileById } = await supabase
+    // user_id 우선 시도 (Supabase Auth UUID가 더 일반적)
+    const { data: profileByUserId } = await supabase
       .from('user_profiles')
-      .select('id, points')
-      .eq('id', userId)
+      .select('id, points, user_id')
+      .eq('user_id', userId)
       .maybeSingle()
 
-    if (profileById) {
-      profile = profileById
-      profileMatchField = 'id'
+    if (profileByUserId) {
+      profile = profileByUserId
+      profileMatchField = 'user_id'
     } else {
-      const { data: profileByUserId } = await supabase
+      // fallback: id로 시도
+      const { data: profileById } = await supabase
         .from('user_profiles')
-        .select('id, points, user_id')
-        .eq('user_id', userId)
+        .select('id, points')
+        .eq('id', userId)
         .maybeSingle()
 
-      if (profileByUserId) {
-        profile = profileByUserId
-        profileMatchField = 'user_id'
+      if (profileById) {
+        profile = profileById
+        profileMatchField = 'id'
       }
     }
 
@@ -116,8 +118,8 @@ exports.handler = async (event) => {
     console.log(`[award-campaign-points] Points updated: ${currentPoints} → ${newPoints} for userId=${userId}`)
 
     // 3. point_transactions에 이력 저장 (지역별 컬럼 구조 대응)
-    const txData = {
-      user_id: userId,
+    const baseTxData = {
+      user_id: profileMatchField === 'user_id' ? userId : (profile.user_id || userId),
       amount: pointAmount,
       transaction_type: 'campaign_payment',
       description: `캠페인 완료: ${campaignTitle || ''}`,
@@ -125,7 +127,8 @@ exports.handler = async (event) => {
       created_at: new Date().toISOString()
     }
 
-    // 일본 DB: region 컬럼 / 한국·미국 DB: platform_region + country_code
+    // 리전별 컬럼 추가
+    const txData = { ...baseTxData }
     if (region === 'japan' || region === 'jp') {
       txData.region = 'jp'
     } else if (region === 'us' || region === 'usa') {
@@ -136,13 +139,23 @@ exports.handler = async (event) => {
       txData.country_code = 'KR'
     }
 
-    const { error: txError } = await supabase
+    let txError = null
+    const { error: firstTxError } = await supabase
       .from('point_transactions')
       .insert(txData)
 
-    if (txError) {
-      console.error(`[award-campaign-points] point_transactions insert failed:`, txError)
-      // 포인트는 이미 업데이트됨 - 이력 저장 실패는 경고만
+    if (firstTxError) {
+      console.warn(`[award-campaign-points] point_transactions insert 실패 (리전 컬럼 포함), 기본 데이터로 재시도:`, firstTxError.message)
+      // 리전 컬럼 없이 재시도
+      const { error: retryError } = await supabase
+        .from('point_transactions')
+        .insert(baseTxData)
+      if (retryError) {
+        console.error(`[award-campaign-points] point_transactions 재시도도 실패:`, retryError)
+        txError = retryError
+      } else {
+        console.log(`[award-campaign-points] Transaction recorded (without region columns) for userId=${userId}, campaign=${campaignId}`)
+      }
     } else {
       console.log(`[award-campaign-points] Transaction recorded for userId=${userId}, campaign=${campaignId}`)
     }
