@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare, Key, Shield, EyeOff, Loader2 } from 'lucide-react'
 import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
@@ -56,25 +56,19 @@ const CreatorMyPage = () => {
     try {
       setLoading(true)
 
-      // 내가 참여 중인 캠페인 목록 가져오기
-      const { data: participants, error: participantsError } = await supabaseKorea
-        .from('campaign_participants')
-        .select(`
-          *,
-          campaigns (*)
-        `)
-        .eq('creator_email', user.email)
-        .eq('selection_status', 'selected')
+      // 모든 리전 DB에서 캠페인 참여 목록 가져오기
+      const regionalClients = [
+        { name: 'korea', client: supabaseKorea },
+        { name: 'japan', client: supabaseJapan },
+        { name: 'us', client: supabaseUS },
+        { name: 'biz', client: supabaseBiz }
+      ].filter(r => r.client)
 
-      if (participantsError) {
-        console.error('campaign_participants 조회 실패:', participantsError.message)
-      }
+      let allParticipants = []
 
-      // Korea DB에서 결과가 없으면 BIZ DB에서도 시도
-      let allParticipants = participants || []
-      if (allParticipants.length === 0 && supabaseBiz) {
+      for (const region of regionalClients) {
         try {
-          const { data: bizParticipants, error: bizError } = await supabaseBiz
+          const { data: participants, error } = await region.client
             .from('campaign_participants')
             .select(`
               *,
@@ -83,12 +77,15 @@ const CreatorMyPage = () => {
             .eq('creator_email', user.email)
             .eq('selection_status', 'selected')
 
-          if (!bizError && bizParticipants && bizParticipants.length > 0) {
-            console.log('BIZ DB에서 campaign_participants 발견:', bizParticipants.length, '건')
-            allParticipants = bizParticipants
+          if (!error && participants && participants.length > 0) {
+            console.log(`${region.name} DB에서 campaign_participants 발견:`, participants.length, '건')
+            // 중복 방지: 이미 추가된 캠페인 ID 제외
+            const existingIds = new Set(allParticipants.map(p => p.id))
+            const newParticipants = participants.filter(p => !existingIds.has(p.id))
+            allParticipants = [...allParticipants, ...newParticipants]
           }
         } catch (e) {
-          console.log('BIZ DB campaign_participants 조회 스킵:', e.message)
+          console.log(`${region.name} DB campaign_participants 조회 스킵:`, e.message)
         }
       }
 
@@ -100,25 +97,22 @@ const CreatorMyPage = () => {
           .filter(Boolean)
 
         if (campaignIds.length > 0) {
-          // Korea DB applications에서 먼저 조회
-          const { data: apps } = await supabaseKorea
-            .from('applications')
-            .select('campaign_id, main_channel, guide_group, applicant_email, user_id')
-            .in('campaign_id', campaignIds)
-            .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
-
-          // BIZ DB에서도 조회 (fallback)
-          let bizApps = []
-          if (supabaseBiz) {
-            const { data: bApps } = await supabaseBiz
-              .from('applications')
-              .select('campaign_id, main_channel, guide_group, applicant_email, user_id')
-              .in('campaign_id', campaignIds)
-              .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
-            bizApps = bApps || []
+          let allApps = []
+          for (const region of regionalClients) {
+            try {
+              const { data: apps } = await region.client
+                .from('applications')
+                .select('campaign_id, main_channel, guide_group, applicant_email, user_id')
+                .in('campaign_id', campaignIds)
+                .or(`applicant_email.eq.${user.email},email.eq.${user.email}`)
+              if (apps && apps.length > 0) {
+                allApps = [...allApps, ...apps]
+              }
+            } catch (e) {
+              // skip
+            }
           }
 
-          const allApps = [...(apps || []), ...bizApps]
           if (allApps.length > 0) {
             participantsWithChannel = participantsWithChannel.map(p => {
               const app = allApps.find(a => a.campaign_id === p.campaigns?.id)
