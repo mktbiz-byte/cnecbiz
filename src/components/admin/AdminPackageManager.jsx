@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Package, Plus, Save, Trash2, Eye, EyeOff, Loader2,
   ChevronUp, ChevronDown, Copy, ExternalLink, Check, X,
-  Users, Settings, FileText, GripVertical, Play, Search, Link
+  Users, Settings, FileText, GripVertical, Play, Search, Link, Mail, Send
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -49,6 +49,8 @@ export default function AdminPackageManager() {
     landing_description: '',
     deadline_date: '',
     is_active: false,
+    display_remaining_slots: '',
+    display_max_slots: '',
   })
 
   // Creators state
@@ -71,6 +73,7 @@ export default function AdminPackageManager() {
   // Applications state
   const [applications, setApplications] = useState([])
   const [creatingCampaign, setCreatingCampaign] = useState(null)
+  const [sendingInvitation, setSendingInvitation] = useState(null)
 
   // Auth check
   useEffect(() => {
@@ -115,6 +118,8 @@ export default function AdminPackageManager() {
           landing_description: settingsData[0].landing_description || '',
           deadline_date: settingsData[0].deadline_date ? settingsData[0].deadline_date.slice(0, 16) : '',
           is_active: settingsData[0].is_active,
+          display_remaining_slots: settingsData[0].display_remaining_slots ?? '',
+          display_max_slots: settingsData[0].display_max_slots ?? '',
         })
 
         // Load creators for this setting
@@ -150,6 +155,8 @@ export default function AdminPackageManager() {
       const payload = {
         ...settingsForm,
         deadline_date: settingsForm.deadline_date ? new Date(settingsForm.deadline_date).toISOString() : null,
+        display_remaining_slots: settingsForm.display_remaining_slots !== '' ? parseInt(settingsForm.display_remaining_slots) : null,
+        display_max_slots: settingsForm.display_max_slots !== '' ? parseInt(settingsForm.display_max_slots) : null,
       }
 
       if (settings) {
@@ -437,6 +444,26 @@ export default function AdminPackageManager() {
     alert('복사되었습니다.')
   }
 
+  const handleSendInvitation = async (app) => {
+    if (!confirm(`${app.company_name} (${app.email})에게 초대장 이메일을 발송하시겠습니까?`)) return
+    setSendingInvitation(app.id)
+    try {
+      const response = await fetch('/.netlify/functions/send-package-invitation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application_id: app.id })
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
+      alert('초대장이 발송되었습니다.')
+      await loadData()
+    } catch (error) {
+      alert(`초대장 발송 실패: ${error.message}`)
+    } finally {
+      setSendingInvitation(null)
+    }
+  }
+
   // ==================== Render ====================
   if (loading) {
     return (
@@ -588,6 +615,39 @@ export default function AdminPackageManager() {
                       />
                     </div>
                   </div>
+                  {/* 랜딩 잔여 슬롯 오버라이드 */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
+                    <p className="text-sm font-medium text-amber-800 mb-2">랜딩 페이지 잔여 슬롯 표시 (마케팅용)</p>
+                    <p className="text-xs text-amber-600 mb-3">비워두면 실제 신청 수 기반으로 자동 계산됩니다.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-amber-700 mb-1 block">표시 잔여 슬롯</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="자동"
+                          value={settingsForm.display_remaining_slots}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, display_remaining_slots: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-amber-700 mb-1 block">표시 전체 슬롯</label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="자동"
+                          value={settingsForm.display_max_slots}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, display_max_slots: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    {settingsForm.display_remaining_slots !== '' && settingsForm.display_max_slots !== '' && (
+                      <p className="text-xs text-amber-700 mt-2">
+                        미리보기: 잔여 <span className="font-bold">{settingsForm.display_remaining_slots}</span> / {settingsForm.display_max_slots} 브랜드
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium text-[#1A1A2E] mb-1 block">랜딩 노출 크리에이터 수</label>
                     <Input
@@ -1032,8 +1092,34 @@ export default function AdminPackageManager() {
                             </button>
                           </div>
                         )}
-                        <div className="text-xs text-[#B2BEC3] mt-2">
-                          {new Date(app.created_at).toLocaleString('ko-KR')}
+                        {/* 회원가입 / 캠페인 개설 URL */}
+                        {(app.status === 'approved' || app.status === 'campaign_created') && (
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[#636E72]">가입 URL:</span>
+                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/signup</code>
+                              <button onClick={() => copyToClipboard('https://cnecbiz.com/signup')} className="text-[#6C5CE7]">
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[#636E72]">캠페인 개설:</span>
+                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/company/campaigns</code>
+                              <button onClick={() => copyToClipboard('https://cnecbiz.com/company/campaigns')} className="text-[#6C5CE7]">
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-xs text-[#B2BEC3]">
+                            {new Date(app.created_at).toLocaleString('ko-KR')}
+                          </span>
+                          {app.invitation_sent_at && (
+                            <span className="text-xs text-green-600 flex items-center gap-1">
+                              <Mail className="w-3 h-3" /> 초대장 발송 ({new Date(app.invitation_sent_at).toLocaleDateString('ko-KR')})
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -1058,28 +1144,61 @@ export default function AdminPackageManager() {
                           </>
                         )}
                         {app.status === 'approved' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleCreateCampaign(app)}
-                            disabled={creatingCampaign === app.id}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            {creatingCampaign === app.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                            ) : (
-                              <Plus className="w-3.5 h-3.5 mr-1" />
-                            )}
-                            캠페인 생성
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSendInvitation(app)}
+                              disabled={sendingInvitation === app.id}
+                              className="bg-[#6C5CE7] hover:bg-[#5A4BD1]"
+                            >
+                              {sendingInvitation === app.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Send className="w-3.5 h-3.5 mr-1" />
+                              )}
+                              초대장 발송
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleCreateCampaign(app)}
+                              disabled={creatingCampaign === app.id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              {creatingCampaign === app.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Plus className="w-3.5 h-3.5 mr-1" />
+                              )}
+                              캠페인 생성
+                            </Button>
+                          </div>
                         )}
-                        {app.status === 'campaign_created' && app.campaign_url && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.open(app.campaign_url, '_blank')}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 mr-1" /> 캠페인 보기
-                          </Button>
+                        {app.status === 'campaign_created' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSendInvitation(app)}
+                              disabled={sendingInvitation === app.id}
+                              className="text-[#6C5CE7]"
+                            >
+                              {sendingInvitation === app.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Send className="w-3.5 h-3.5 mr-1" />
+                              )}
+                              초대장 재발송
+                            </Button>
+                            {app.campaign_url && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(app.campaign_url, '_blank')}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 mr-1" /> 캠페인 보기
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

@@ -51,14 +51,16 @@ exports.handler = async (event) => {
 
     if (creatorsError) throw creatorsError
 
-    const remaining_slots = Math.max(0, settings.max_companies - (settings.current_companies || 0))
+    const actual_remaining = Math.max(0, settings.max_companies - (settings.current_companies || 0))
+    const remaining_slots = settings.display_remaining_slots != null ? settings.display_remaining_slots : actual_remaining
+    const display_max = settings.display_max_slots != null ? settings.display_max_slots : settings.max_companies
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        data: { settings, creators: creators || [], remaining_slots }
+        data: { settings: { ...settings, _display_max: display_max }, creators: creators || [], remaining_slots }
       })
     }
   } catch (error) {

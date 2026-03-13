@@ -179,6 +179,7 @@ export default function PackageLanding() {
 
   const totalPrice = settings.per_creator_price * settings.total_creators
   const discountedPrice = totalPrice * (1 - settings.discount_rate / 100)
+  const displayMax = settings._display_max || settings.max_companies
 
   const faqs = [
     { q: '패키지 신청 후 어떻게 진행되나요?', a: '신청 확인 후 24시간 이내에 전담 매니저가 연락드립니다. 심사 승인 후 전용 캠페인 대시보드가 오픈되며, 브랜드에 최적화된 크리에이터를 매칭하여 캠페인을 시작합니다.' },
@@ -253,12 +254,12 @@ export default function PackageLanding() {
                   <p className="text-sm text-[#A0A0B0] mb-1">현재 잔여 슬롯</p>
                   <div className="flex items-end gap-2">
                     <span className="text-3xl font-bold text-red-400" style={{ fontFamily: "'Outfit', sans-serif" }}>{remainingSlots}</span>
-                    <span className="text-[#5A5A6E] mb-1">/ {settings.max_companies} 브랜드</span>
+                    <span className="text-[#5A5A6E] mb-1">/ {displayMax} 브랜드</span>
                   </div>
                   <div className="w-full bg-black/50 h-2 rounded-full mt-3 overflow-hidden">
                     <div
                       className="bg-red-500 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${((settings.max_companies - remainingSlots) / settings.max_companies) * 100}%` }}
+                      style={{ width: `${((displayMax - remainingSlots) / displayMax) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -391,10 +392,9 @@ export default function PackageLanding() {
                       <h3 className="text-lg font-bold text-white mb-2">
                         {creator.display_name || '비공개 크리에이터'}
                       </h3>
-                      <div className="flex items-center gap-3 text-sm text-[#A0A0B0] mb-3">
-                        {creator.avg_views && <span>평균 {creator.avg_views} 조회</span>}
-                        {creator.subscriber_count && <span>구독 {creator.subscriber_count}</span>}
-                      </div>
+                      {creator.avg_views && (
+                        <p className="text-sm text-[#A0A0B0] mb-3">평균 {creator.avg_views} 조회</p>
+                      )}
                       {creator.content_style && (
                         <p className="text-xs text-[#A0A0B0] mb-3 leading-relaxed whitespace-pre-line">{creator.content_style}</p>
                       )}
