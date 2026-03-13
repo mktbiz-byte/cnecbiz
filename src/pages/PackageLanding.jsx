@@ -392,10 +392,9 @@ export default function PackageLanding() {
                       <h3 className="text-lg font-bold text-white mb-2">
                         {creator.display_name || '비공개 크리에이터'}
                       </h3>
-                      <div className="flex items-center gap-3 text-sm text-[#A0A0B0] mb-3">
-                        {creator.avg_views && <span>평균 {creator.avg_views} 조회</span>}
-                        {creator.subscriber_count && <span>구독 {creator.subscriber_count}</span>}
-                      </div>
+                      {creator.avg_views && (
+                        <p className="text-sm text-[#A0A0B0] mb-3">평균 {creator.avg_views} 조회</p>
+                      )}
                       {creator.content_style && (
                         <p className="text-xs text-[#A0A0B0] mb-3 leading-relaxed whitespace-pre-line">{creator.content_style}</p>
                       )}
