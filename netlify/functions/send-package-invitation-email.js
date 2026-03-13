@@ -55,7 +55,7 @@ exports.handler = async (event) => {
 
     const settings = app.package_settings
     const signupUrl = 'https://cnecbiz.com/signup'
-    const campaignCreateUrl = 'https://cnecbiz.com/company/campaigns'
+    const campaignCreateUrl = 'https://cnecbiz.com/company/campaigns/create/korea?package=true'
     const totalCreators = settings?.total_creators || 10
     const perCreatorPrice = settings?.per_creator_price || 300000
     const discountRate = settings?.discount_rate || 0

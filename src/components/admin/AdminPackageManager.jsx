@@ -25,8 +25,9 @@ const HIGHLIGHT_OPTIONS = [
 const STATUS_LABELS = {
   pending: { label: '대기중', color: 'bg-yellow-100 text-yellow-800' },
   approved: { label: '승인', color: 'bg-blue-100 text-blue-800' },
-  campaign_created: { label: '캠페인 생성됨', color: 'bg-green-100 text-green-800' },
+  campaign_created: { label: '캠페인 개설 완료', color: 'bg-green-100 text-green-800' },
   rejected: { label: '거절', color: 'bg-red-100 text-red-800' },
+  cancelled: { label: '취소됨', color: 'bg-gray-100 text-gray-600' },
 }
 
 export default function AdminPackageManager() {
@@ -72,7 +73,7 @@ export default function AdminPackageManager() {
 
   // Applications state
   const [applications, setApplications] = useState([])
-  const [creatingCampaign, setCreatingCampaign] = useState(null)
+  // creatingCampaign removed - companies create their own campaigns
   const [sendingInvitation, setSendingInvitation] = useState(null)
 
   // Auth check
@@ -419,9 +420,8 @@ export default function AdminPackageManager() {
     }
   }
 
-  const handleCreateCampaign = async (application) => {
-    if (!confirm(`${application.company_name}의 패키지 캠페인을 생성하시겠습니까?`)) return
-    setCreatingCampaign(application.id)
+  const handleApprove = async (application) => {
+    if (!confirm(`${application.company_name}의 패키지 신청을 승인하시겠습니까?`)) return
     try {
       const response = await fetch('/.netlify/functions/create-package-campaign', {
         method: 'POST',
@@ -430,18 +430,42 @@ export default function AdminPackageManager() {
       })
       const result = await response.json()
       if (!result.success) throw new Error(result.error)
-      alert('캠페인이 생성되었습니다.')
+      alert('승인되었습니다. 초대장을 발송해주세요.')
       await loadData()
     } catch (error) {
-      alert(`캠페인 생성 실패: ${error.message}`)
-    } finally {
-      setCreatingCampaign(null)
+      alert(`승인 실패: ${error.message}`)
     }
   }
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
     alert('복사되었습니다.')
+  }
+
+  const handleCancelApplication = async (app) => {
+    if (!confirm(`${app.company_name}의 신청을 취소하시겠습니까?\n\n승인된 경우 잔여 슬롯이 복구됩니다.`)) return
+    try {
+      const wasApproved = app.status === 'approved' || app.status === 'campaign_created'
+
+      const { error } = await supabaseBiz
+        .from('package_applications')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .eq('id', app.id)
+      if (error) throw error
+
+      // 승인 상태였으면 current_companies 감소
+      if (wasApproved && settings && (settings.current_companies || 0) > 0) {
+        await supabaseBiz
+          .from('package_settings')
+          .update({ current_companies: settings.current_companies - 1 })
+          .eq('id', settings.id)
+      }
+
+      alert('신청이 취소되었습니다.')
+      await loadData()
+    } catch (error) {
+      alert(`취소 실패: ${error.message}`)
+    }
   }
 
   const handleSendInvitation = async (app) => {
@@ -1047,9 +1071,9 @@ export default function AdminPackageManager() {
                     </div>
                   </Card>
                   <Card className="rounded-xl px-4 py-3">
-                    <div className="text-xs text-[#636E72]">캠페인 생성됨</div>
+                    <div className="text-xs text-[#636E72]">승인됨</div>
                     <div className="text-lg font-bold text-green-600" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                      {applications.filter(a => a.status === 'campaign_created').length}
+                      {applications.filter(a => a.status === 'approved' || a.status === 'campaign_created').length}
                     </div>
                   </Card>
                 </div>
@@ -1083,15 +1107,6 @@ export default function AdminPackageManager() {
                             요청사항: {app.note}
                           </div>
                         )}
-                        {app.campaign_url && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-[#636E72]">캠페인 URL:</span>
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">{app.campaign_url}</code>
-                            <button onClick={() => copyToClipboard(app.campaign_url)} className="text-[#6C5CE7]">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
                         {/* 회원가입 / 캠페인 개설 URL */}
                         {(app.status === 'approved' || app.status === 'campaign_created') && (
                           <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -1104,8 +1119,8 @@ export default function AdminPackageManager() {
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs text-[#636E72]">캠페인 개설:</span>
-                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/company/campaigns</code>
-                              <button onClick={() => copyToClipboard('https://cnecbiz.com/company/campaigns')} className="text-[#6C5CE7]">
+                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/company/campaigns/create/korea?package=true</code>
+                              <button onClick={() => copyToClipboard('https://cnecbiz.com/company/campaigns/create/korea?package=true')} className="text-[#6C5CE7]">
                                 <Copy className="w-3 h-3" />
                               </button>
                             </div>
@@ -1128,7 +1143,7 @@ export default function AdminPackageManager() {
                           <>
                             <Button
                               size="sm"
-                              onClick={() => handleUpdateApplicationStatus(app.id, 'approved')}
+                              onClick={() => handleApprove(app)}
                               className="bg-[#6C5CE7] hover:bg-[#5A4BD1]"
                             >
                               <Check className="w-3.5 h-3.5 mr-1" /> 승인
@@ -1143,7 +1158,7 @@ export default function AdminPackageManager() {
                             </Button>
                           </>
                         )}
-                        {app.status === 'approved' && (
+                        {(app.status === 'approved' || app.status === 'campaign_created') && (
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
@@ -1156,48 +1171,16 @@ export default function AdminPackageManager() {
                               ) : (
                                 <Send className="w-3.5 h-3.5 mr-1" />
                               )}
-                              초대장 발송
+                              {app.invitation_sent_at ? '초대장 재발송' : '초대장 발송'}
                             </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleCreateCampaign(app)}
-                              disabled={creatingCampaign === app.id}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              {creatingCampaign === app.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                              ) : (
-                                <Plus className="w-3.5 h-3.5 mr-1" />
-                              )}
-                              캠페인 생성
-                            </Button>
-                          </div>
-                        )}
-                        {app.status === 'campaign_created' && (
-                          <div className="flex items-center gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleSendInvitation(app)}
-                              disabled={sendingInvitation === app.id}
-                              className="text-[#6C5CE7]"
+                              onClick={() => handleCancelApplication(app)}
+                              className="text-red-500 hover:text-red-600"
                             >
-                              {sendingInvitation === app.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                              ) : (
-                                <Send className="w-3.5 h-3.5 mr-1" />
-                              )}
-                              초대장 재발송
+                              <X className="w-3.5 h-3.5 mr-1" /> 취소
                             </Button>
-                            {app.campaign_url && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(app.campaign_url, '_blank')}
-                              >
-                                <ExternalLink className="w-3.5 h-3.5 mr-1" /> 캠페인 보기
-                              </Button>
-                            )}
                           </div>
                         )}
                       </div>
