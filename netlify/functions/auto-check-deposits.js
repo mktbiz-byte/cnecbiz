@@ -256,7 +256,7 @@ async function callNotificationFunction(request) {
   // 회사 정보 조회
   const { data: company } = await supabaseAdmin
     .from('companies')
-    .select('company_name, email, phone, phone_number')
+    .select('company_name, email, phone, phone_number, notification_phone, notification_email')
     .eq('user_id', request.company_id)
     .single()
 
@@ -264,7 +264,7 @@ async function callNotificationFunction(request) {
     throw new Error('회사 정보를 찾을 수 없습니다.')
   }
 
-  const phoneNumber = company.phone || company.phone_number
+  const phoneNumber = company.notification_phone || company.phone || company.phone_number
 
   // 1. 카카오톡 알림톡 발송 (025100000943 - 포인트 구매 완료)
   if (phoneNumber) {
@@ -288,12 +288,13 @@ async function callNotificationFunction(request) {
   }
 
   // 2. 이메일 발송
-  if (company.email) {
+  const companyEmail = company.notification_email || company.email
+  if (companyEmail) {
     try {
       await axios.post(
         `${process.env.URL}/.netlify/functions/send-email`,
         {
-          to: company.email,
+          to: companyEmail,
           subject: '[CNEC] 포인트 충전 완료',
           html: `
             <h2>포인트 충전이 완료되었습니다</h2>

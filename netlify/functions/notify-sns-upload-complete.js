@@ -119,11 +119,18 @@ exports.handler = async (event) => {
     let comp = null
 
     // ★ lookup 순서: AdminCampaignsManagement.jsx의 getCompanyData와 동일
+    // 유효한 매칭 = company_name이 있고, notification_phone 또는 phone이 있는 레코드
+    const isValidMatch = (data) => data && data.company_name && (data.notification_phone || data.phone)
+
     // 1순위: company_biz_id → companies.id (백필된 정확한 매칭 — 가장 신뢰)
     if (companyBizId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyBizId).maybeSingle()
-        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_biz_id 매칭:', data.company_name) }
+        if (isValidMatch(data)) {
+          comp = data; console.log('[notify-sns-upload-complete] company_biz_id 매칭:', data.company_name, '전화:', data.notification_phone || data.phone)
+        } else if (data) {
+          console.warn('[notify-sns-upload-complete] company_biz_id 매칭됐으나 유효하지 않음 (name/phone 없음), 다음 우선순위 시도:', { id: companyBizId, name: data.company_name })
+        }
       } catch (e) { console.log('[notify-sns-upload-complete] company_biz_id 조회 실패:', e.message) }
     }
 
@@ -131,7 +138,11 @@ exports.handler = async (event) => {
     if (!comp && companyId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', companyId).maybeSingle()
-        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_id→user_id 매칭:', data.company_name) }
+        if (isValidMatch(data)) {
+          comp = data; console.log('[notify-sns-upload-complete] company_id→user_id 매칭:', data.company_name, '전화:', data.notification_phone || data.phone)
+        } else if (data) {
+          console.warn('[notify-sns-upload-complete] company_id→user_id 매칭됐으나 유효하지 않음, 다음 우선순위 시도:', { user_id: companyId, name: data.company_name })
+        }
       } catch (e) { /* skip */ }
     }
 
@@ -139,7 +150,11 @@ exports.handler = async (event) => {
     if (!comp && companyEmailFromCampaign) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', companyEmailFromCampaign).maybeSingle()
-        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_email 매칭:', data.company_name) }
+        if (isValidMatch(data)) {
+          comp = data; console.log('[notify-sns-upload-complete] company_email 매칭:', data.company_name, '전화:', data.notification_phone || data.phone)
+        } else if (data) {
+          console.warn('[notify-sns-upload-complete] company_email 매칭됐으나 유효하지 않음:', { email: companyEmailFromCampaign, name: data.company_name })
+        }
       } catch (e) { /* skip */ }
     }
 
@@ -147,7 +162,11 @@ exports.handler = async (event) => {
     if (!comp && companyId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', companyId).maybeSingle()
-        if (data) { comp = data; console.log('[notify-sns-upload-complete] company_id→id 매칭:', data.company_name) }
+        if (isValidMatch(data)) {
+          comp = data; console.log('[notify-sns-upload-complete] company_id→id 매칭:', data.company_name, '전화:', data.notification_phone || data.phone)
+        } else if (data) {
+          console.warn('[notify-sns-upload-complete] company_id→id 매칭됐으나 유효하지 않음:', { id: companyId, name: data.company_name })
+        }
       } catch (e) { /* skip */ }
     }
 

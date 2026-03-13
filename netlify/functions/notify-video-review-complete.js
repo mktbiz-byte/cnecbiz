@@ -58,24 +58,56 @@ exports.handler = async (event) => {
     const selectFields = 'company_name, notification_phone, phone, notification_email, email'
     let comp = null
 
+    // 유효한 매칭 = company_name이 있고, notification_phone 또는 phone이 있는 레코드
+    const isValidMatch = (data) => data && data.company_name && (data.notification_phone || data.phone)
+
+    // 1순위: company_biz_id → companies.id
     if (hintCompanyBizId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', hintCompanyBizId).maybeSingle()
-        if (data) comp = data
+        if (isValidMatch(data)) {
+          comp = data
+          console.log('[notify-video-review-complete] company_biz_id 매칭:', data.company_name)
+        } else if (data) {
+          console.warn('[notify-video-review-complete] company_biz_id 매칭됐으나 유효하지 않음:', { name: data.company_name })
+        }
       } catch (e) { /* skip */ }
     }
 
+    // 2순위: company_id → companies.user_id
     if (!comp && hintCompanyId) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('user_id', hintCompanyId).maybeSingle()
-        if (data) comp = data
+        if (isValidMatch(data)) {
+          comp = data
+          console.log('[notify-video-review-complete] company_id→user_id 매칭:', data.company_name)
+        } else if (data) {
+          console.warn('[notify-video-review-complete] company_id→user_id 매칭됐으나 유효하지 않음:', { name: data.company_name })
+        }
       } catch (e) { /* skip */ }
     }
 
+    // 3순위: company_email → companies.email
     if (!comp && hintCompanyEmail) {
       try {
         const { data } = await supabaseBiz.from('companies').select(selectFields).eq('email', hintCompanyEmail).maybeSingle()
-        if (data) comp = data
+        if (isValidMatch(data)) {
+          comp = data
+          console.log('[notify-video-review-complete] company_email 매칭:', data.company_name)
+        } else if (data) {
+          console.warn('[notify-video-review-complete] company_email 매칭됐으나 유효하지 않음:', { name: data.company_name })
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    // 4순위: company_id → companies.id (legacy/이관 케이스)
+    if (!comp && hintCompanyId) {
+      try {
+        const { data } = await supabaseBiz.from('companies').select(selectFields).eq('id', hintCompanyId).maybeSingle()
+        if (isValidMatch(data)) {
+          comp = data
+          console.log('[notify-video-review-complete] company_id→id 매칭:', data.company_name)
+        }
       } catch (e) { /* skip */ }
     }
 
@@ -85,7 +117,7 @@ exports.handler = async (event) => {
       companyName = comp.company_name || companyName
     } else {
       companyEmail = hintCompanyEmail
-      console.warn('[notify-video-review-complete] 기업 매칭 실패:', { hintCompanyBizId, hintCompanyId })
+      console.warn('[notify-video-review-complete] 기업 매칭 실패:', { hintCompanyBizId, hintCompanyId, hintCompanyEmail })
     }
 
     const results = { kakao: false, email: false }

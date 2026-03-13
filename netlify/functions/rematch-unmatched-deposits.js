@@ -280,13 +280,13 @@ exports.handler = async (event, context) => {
             // 회사 정보 조회
             const { data: companyData } = await supabase
               .from('companies')
-              .select('company_name, notification_email, notification_phone')
+              .select('company_name, notification_email, notification_phone, phone')
               .eq('user_id', bestMatch.company_id)
               .single();
-            
+
             const companyName = companyData?.company_name || '고객사';
-            const companyEmail = companyData?.notification_email;
-            const companyPhone = companyData?.notification_phone;
+            const companyEmail = companyData?.notification_email || companyData?.email;
+            const companyPhone = companyData?.notification_phone || companyData?.phone;
 
             // 알림톡
             if (companyPhone) {
