@@ -14,6 +14,7 @@ const CampaignCreationKorea = () => {
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('edit') || searchParams.get('id')
   const isAdmin = searchParams.get('admin') === 'true'
+  const isPackage = searchParams.get('package') === 'true'
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
   const brandInfoRef = useRef(null)
@@ -1107,7 +1108,8 @@ const CampaignCreationKorea = () => {
         week1_sns_deadline: campaignForm.week1_sns_deadline || null,
         week2_sns_deadline: campaignForm.week2_sns_deadline || null,
         week3_sns_deadline: campaignForm.week3_sns_deadline || null,
-        week4_sns_deadline: campaignForm.week4_sns_deadline || null
+        week4_sns_deadline: campaignForm.week4_sns_deadline || null,
+        is_private: isPackage ? true : false
       }
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
@@ -1315,6 +1317,15 @@ const CampaignCreationKorea = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 패키지 캠페인 안내 배너 */}
+      {isPackage && (
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-3 text-center">
+          <p className="text-sm font-medium">
+            📦 VIP 패키지 캠페인 개설 — 비공개 캠페인으로 생성됩니다. 캠페인 정보를 입력해주세요.
+          </p>
         </div>
       )}
 

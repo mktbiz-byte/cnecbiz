@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     }
 
     // 신청 업데이트 - 승인 처리
-    const campaignCreateUrl = 'https://cnecbiz.com/company/campaigns/create/korea'
+    const campaignCreateUrl = 'https://cnecbiz.com/company/campaigns/create/korea?package=true'
 
     const { error: updateError } = await supabaseBiz
       .from('package_applications')

@@ -1119,8 +1119,8 @@ export default function AdminPackageManager() {
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs text-[#636E72]">캠페인 개설:</span>
-                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/company/campaigns/create/korea</code>
-                              <button onClick={() => copyToClipboard('https://cnecbiz.com/company/campaigns/create/korea')} className="text-[#6C5CE7]">
+                              <code className="text-xs bg-purple-50 text-[#6C5CE7] px-2 py-0.5 rounded">https://cnecbiz.com/company/campaigns/create/korea?package=true</code>
+                              <button onClick={() => copyToClipboard('https://cnecbiz.com/company/campaigns/create/korea?package=true')} className="text-[#6C5CE7]">
                                 <Copy className="w-3 h-3" />
                               </button>
                             </div>
