@@ -49,6 +49,8 @@ export default function AdminPackageManager() {
     landing_description: '',
     deadline_date: '',
     is_active: false,
+    display_remaining_slots: '',
+    display_max_slots: '',
   })
 
   // Creators state
@@ -115,6 +117,8 @@ export default function AdminPackageManager() {
           landing_description: settingsData[0].landing_description || '',
           deadline_date: settingsData[0].deadline_date ? settingsData[0].deadline_date.slice(0, 16) : '',
           is_active: settingsData[0].is_active,
+          display_remaining_slots: settingsData[0].display_remaining_slots ?? '',
+          display_max_slots: settingsData[0].display_max_slots ?? '',
         })
 
         // Load creators for this setting
@@ -150,6 +154,8 @@ export default function AdminPackageManager() {
       const payload = {
         ...settingsForm,
         deadline_date: settingsForm.deadline_date ? new Date(settingsForm.deadline_date).toISOString() : null,
+        display_remaining_slots: settingsForm.display_remaining_slots !== '' ? parseInt(settingsForm.display_remaining_slots) : null,
+        display_max_slots: settingsForm.display_max_slots !== '' ? parseInt(settingsForm.display_max_slots) : null,
       }
 
       if (settings) {
@@ -588,6 +594,39 @@ export default function AdminPackageManager() {
                       />
                     </div>
                   </div>
+                  {/* 랜딩 잔여 슬롯 오버라이드 */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
+                    <p className="text-sm font-medium text-amber-800 mb-2">랜딩 페이지 잔여 슬롯 표시 (마케팅용)</p>
+                    <p className="text-xs text-amber-600 mb-3">비워두면 실제 신청 수 기반으로 자동 계산됩니다.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-amber-700 mb-1 block">표시 잔여 슬롯</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="자동"
+                          value={settingsForm.display_remaining_slots}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, display_remaining_slots: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-amber-700 mb-1 block">표시 전체 슬롯</label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="자동"
+                          value={settingsForm.display_max_slots}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, display_max_slots: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    {settingsForm.display_remaining_slots !== '' && settingsForm.display_max_slots !== '' && (
+                      <p className="text-xs text-amber-700 mt-2">
+                        미리보기: 잔여 <span className="font-bold">{settingsForm.display_remaining_slots}</span> / {settingsForm.display_max_slots} 브랜드
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium text-[#1A1A2E] mb-1 block">랜딩 노출 크리에이터 수</label>
                     <Input
