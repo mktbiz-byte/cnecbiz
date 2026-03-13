@@ -213,16 +213,35 @@ async function sendNotification(request) {
   try {
     const baseUrl = process.env.URL || 'https://cnecbiz.com'
 
+    // companies 테이블에서 올바른 연락처 조회 (request 값은 충전 신청 시점 캐시 — 부정확할 수 있음)
+    let companyPhone = request.company_phone
+    let companyEmail = request.company_email
+    let companyName = request.company_name
+
+    if (request.company_id) {
+      const { data: comp } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, notification_phone, phone, notification_email, email')
+        .eq('user_id', request.company_id)
+        .maybeSingle()
+
+      if (comp) {
+        companyPhone = comp.notification_phone || comp.phone || companyPhone
+        companyEmail = comp.notification_email || comp.email || companyEmail
+        companyName = comp.company_name || companyName
+      }
+    }
+
     // 알림톡 발송
-    if (request.company_phone) {
+    if (companyPhone) {
       await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateCode: '025100000943',
-          receiverNum: request.company_phone,
+          receiverNum: companyPhone.replace(/-/g, ''),
           variables: {
-            회사명: request.company_name,
+            회사명: companyName,
             금액: request.amount.toLocaleString()
           }
         })
@@ -230,16 +249,16 @@ async function sendNotification(request) {
     }
 
     // 이메일 발송
-    if (request.company_email) {
+    if (companyEmail) {
       await fetch(`${baseUrl}/.netlify/functions/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: request.company_email,
+          to: companyEmail,
           subject: '[CNEC] 포인트 충전 완료',
           html: `
             <h2>포인트 충전이 완료되었습니다</h2>
-            <p><strong>${request.company_name}</strong>님의 포인트 충전이 완료되었습니다.</p>
+            <p><strong>${companyName}</strong>님의 포인트 충전이 완료되었습니다.</p>
             <p><strong>충전 금액:</strong> ${request.amount.toLocaleString()}원</p>
             <p>충전된 포인트로 캠페인을 진행하실 수 있습니다.</p>
             <p>문의: 1833-6025</p>
