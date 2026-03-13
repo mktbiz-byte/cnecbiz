@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useParams, Navigate, useNavigate } from 'react-router-dom'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import CreateCampaignKorea from './CreateCampaignKorea'
+import CreatePackageCampaign from './CreatePackageCampaign'
 import CreateCampaign from './CreateCampaign'
 import CreateCampaignJapan from './CreateCampaignJapan'
 import CreateCampaignUS from './CreateCampaignUS'
@@ -13,6 +14,7 @@ export default function CreateCampaignRouter() {
   const params = useParams()
   const navigate = useNavigate()
   const region = params.region || searchParams.get('region')
+  const isPackage = searchParams.get('package') === 'true'
 
   const [loading, setLoading] = useState(true)
   const [isApproved, setIsApproved] = useState(null)
@@ -131,6 +133,8 @@ export default function CreateCampaignRouter() {
   // 나라별로 다른 컴포넌트 렌더링
   switch (region) {
     case 'korea':
+      // 패키지 캠페인은 전용 간소화 컴포넌트 사용
+      if (isPackage) return <CreatePackageCampaign />
       return <CreateCampaignKorea />
     case 'japan':
       // 일본은 전용 컴포넌트 사용
