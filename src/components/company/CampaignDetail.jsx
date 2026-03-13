@@ -1859,11 +1859,34 @@ export default function CampaignDetail() {
 
   const fetchApplications = async () => {
     try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('campaign_id', id)
-        .order('created_at', { ascending: false })
+      let data, error
+
+      // US 리전은 서버사이드 API를 사용하여 RLS 우회 및 전체 결과 반환
+      if (region === 'us') {
+        try {
+          const apiResult = await callUSCampaignAPI('get_applications', id)
+          data = apiResult?.data || []
+          error = apiResult?.error || null
+        } catch (apiErr) {
+          console.error('[fetchApplications] US API fallback to direct query:', apiErr)
+          const result = await supabase
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
+            .limit(1000)
+          data = result.data
+          error = result.error
+        }
+      } else {
+        const result = await supabase
+          .from('applications')
+          .select('*')
+          .eq('campaign_id', id)
+          .order('created_at', { ascending: false })
+        data = result.data
+        error = result.error
+      }
 
       if (error) throw error
 
@@ -11312,7 +11335,7 @@ Questions? Contact us.
                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                     }`}
                                   >
-                                    v{sub.version || (stepSubmissions.length - index)}
+                                    v{sub.version || (index + 1)}
                                   </button>
                                 ))}
                               </div>
@@ -14183,6 +14206,16 @@ Questions? Contact us.
                   }}
                 >
                   닫기
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowGuideModal(false)
+                    setShowRevisionRequestModal(true)
+                  }}
+                  className="text-orange-600 border-orange-500 hover:bg-orange-50"
+                >
+                  수정 요청
                 </Button>
                 {editingGuide ? (
                   <>
