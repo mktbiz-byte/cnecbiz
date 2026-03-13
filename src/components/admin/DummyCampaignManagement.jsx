@@ -200,6 +200,12 @@ export default function DummyCampaignManagement() {
       return
     }
 
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!geminiApiKey) {
+      alert('Gemini API 키가 설정되지 않았습니다. 환경변수 VITE_GEMINI_API_KEY를 확인해주세요.')
+      return
+    }
+
     setAiGenerating(true)
     try {
       const regionLabel = form.region === 'japan' ? '일본' : form.region === 'us' ? '미국' : '한국'
@@ -227,7 +233,7 @@ export default function DummyCampaignManagement() {
   "product_link": "제품 공식 사이트 또는 구매 링크 URL (실제 URL을 찾을 수 없으면 빈 문자열)"
 }`
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -280,6 +286,12 @@ export default function DummyCampaignManagement() {
       return
     }
 
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!geminiApiKey) {
+      alert('Gemini API 키가 설정되지 않았습니다. 환경변수 VITE_GEMINI_API_KEY를 확인해주세요.')
+      return
+    }
+
     setTranslating(true)
     try {
       const targetLang = form.region === 'japan' ? '일본어 (자연스러운 일본어)' : '영어 (자연스러운 미국식 영어)'
@@ -298,7 +310,7 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
   "required_dialogues": ["번역된 멘트1", "번역된 멘트2", ...]
 }`
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -862,17 +862,21 @@ export default function CampaignsManagement() {
       }
 
       // 지역 DB에서도 user_id 조회 (BIZ에서 못 찾은 경우)
-      if (!targetUserId && campaignRegion !== 'japan' && campaignRegion !== 'jp') {
-        const { data: regionalCompany } = await supabaseClient
-          .from('companies')
-          .select('id, user_id, email')
-          .eq('email', transferEmail)
-          .maybeSingle()
+      if (!targetUserId) {
+        try {
+          const { data: regionalCompany } = await supabaseClient
+            .from('companies')
+            .select('id, user_id, email')
+            .eq('email', transferEmail)
+            .maybeSingle()
 
-        if (regionalCompany) {
-          targetUserId = regionalCompany.user_id
-          if (!targetBizCompanyId) targetBizCompanyId = regionalCompany.id
-          console.log('지역 DB에서 기업 정보 찾음:', { targetUserId })
+          if (regionalCompany) {
+            targetUserId = regionalCompany.user_id
+            if (!targetBizCompanyId) targetBizCompanyId = regionalCompany.id
+            console.log('지역 DB에서 기업 정보 찾음:', { targetUserId })
+          }
+        } catch (e) {
+          console.log('지역 DB companies 조회 실패 (테이블 없을 수 있음):', e.message)
         }
       }
 
@@ -890,7 +894,7 @@ export default function CampaignsManagement() {
       if (targetUserId) {
         updateData.company_id = targetUserId
         console.log('company_id (auth user_id) 업데이트:', targetUserId)
-      } else if (campaignRegion !== 'japan' && campaignRegion !== 'jp') {
+      } else {
         // user_id를 못 찾은 경우 이전 소유자 연결 끊기
         updateData.company_id = null
         console.warn('타겟 user_id를 찾을 수 없어 company_id를 null로 설정')

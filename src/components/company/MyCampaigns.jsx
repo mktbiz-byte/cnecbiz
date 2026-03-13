@@ -120,11 +120,13 @@ export default function MyCampaigns() {
       const supabaseUS = getSupabaseClient('us')
 
       // Fetch all regions in parallel - by email, company_id, AND user_id for proper transfer support
-      const [koreaByEmail, koreaByCompanyId, koreaByUserId, japanResult, usResult] = await Promise.allSettled([
+      const [koreaByEmail, koreaByCompanyId, koreaByUserId, japanByEmail, japanByCompanyId, japanByUserId, usResult] = await Promise.allSettled([
         koreaClient.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
         companyId ? koreaClient.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         userId ? koreaClient.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
-        supabaseJapan?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
+        supabaseJapan ? supabaseJapan.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        companyId && supabaseJapan ? supabaseJapan.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        userId && supabaseJapan ? supabaseJapan.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         userId && supabaseUS ? supabaseUS.from('campaigns').select('*').eq('company_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] })
       ])
 
@@ -141,7 +143,19 @@ export default function MyCampaigns() {
         }
       })
 
-      const japanCampaigns = (japanResult.status === 'fulfilled' && japanResult.value?.data || []).map(c => ({ ...c, region: 'japan' }))
+      // Merge Japan campaigns (by email, company_id, AND user_id - deduplicate)
+      const japanByEmailData = (japanByEmail.status === 'fulfilled' && japanByEmail.value?.data || [])
+      const japanByCompanyIdData = (japanByCompanyId.status === 'fulfilled' && japanByCompanyId.value?.data || [])
+      const japanByUserIdData = (japanByUserId.status === 'fulfilled' && japanByUserId.value?.data || [])
+      const japanIds = new Set()
+      const japanCampaigns = []
+      ;[...japanByEmailData, ...japanByCompanyIdData, ...japanByUserIdData].forEach(c => {
+        if (!japanIds.has(c.id)) {
+          japanIds.add(c.id)
+          japanCampaigns.push({ ...c, region: 'japan' })
+        }
+      })
+
       const usCampaigns = (usResult.status === 'fulfilled' && usResult.value?.data || []).map(c => ({ ...c, region: 'us' }))
 
       const allCampaigns = [...koreaCampaigns, ...japanCampaigns, ...usCampaigns]

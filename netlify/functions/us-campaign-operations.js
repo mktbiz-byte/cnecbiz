@@ -239,6 +239,7 @@ exports.handler = async (event) => {
           .select('*')
           .eq('campaign_id', campaign_id)
           .order('created_at', { ascending: false })
+          .limit(1000)
         break
 
       // 일반 업데이트 (updated_at 제외)
