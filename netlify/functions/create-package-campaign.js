@@ -1,6 +1,16 @@
 /**
  * 패키지 캠페인 생성 (관리자 전용)
  * 신청 승인 후 Korea DB에 캠페인 생성 + BIZ DB 신청 상태 업데이트
+ *
+ * Korea DB campaigns 테이블 실제 컬럼 (CreateCampaignKorea.jsx 참조):
+ * - title, campaign_type, package_type, status
+ * - brand, product_name, product_description, product_link
+ * - category, total_slots, remaining_slots
+ * - reward_points, estimated_cost, bonus_amount
+ * - company_id (auth user_id), company_email, company_biz_id, company_phone
+ * - application_deadline, shipping_date, start_date, end_date
+ * - content_submission_deadline, sns_upload_deadline
+ * - requirements, image_url
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -75,6 +85,7 @@ exports.handler = async (event) => {
     // 기업 매칭 (BIZ DB companies 테이블에서 이메일로 검색)
     let companyBizId = null
     let companyUserId = null
+    let companyPhone = null
     const { data: company } = await supabaseBiz
       .from('companies')
       .select('id, user_id, phone')
@@ -85,26 +96,39 @@ exports.handler = async (event) => {
     if (company) {
       companyBizId = company.id
       companyUserId = company.user_id || null
+      companyPhone = company.phone || null
     }
 
-    // 캠페인 생성 (Korea DB campaigns 테이블 - 실제 캠페인이 저장되는 곳)
+    // 캠페인 생성 (Korea DB campaigns 테이블)
+    // CreateCampaignKorea.jsx의 allowedFields 기준으로 컬럼 매핑
     const totalCreators = settings?.total_creators || 10
+    const perCreatorPrice = settings?.per_creator_price || 300000
+    const discountRate = settings?.discount_rate || 0
+    const totalPrice = perCreatorPrice * totalCreators
+    const discountedPrice = Math.round(totalPrice * (1 - discountRate / 100))
+    const estimatedCost = Math.round(discountedPrice * 1.1) // VAT 포함
+
     const campaignTitle = `[패키지] ${application.brand_name || application.company_name} - ${application.month}`
 
     const campaignPayload = {
       title: campaignTitle,
       campaign_type: 'planned',
-      status: 'active',
-      region: 'korea',
+      package_type: 'premium',
+      status: 'draft',
       brand: application.company_name,
       product_name: application.brand_name || '',
-      company_email: application.email,
+      product_link: application.product_url || '',
       total_slots: totalCreators,
       remaining_slots: totalCreators,
+      reward_points: perCreatorPrice,
+      estimated_cost: estimatedCost,
+      company_email: application.email,
     }
+
+    // 기업 매칭 정보가 있을 때만 추가
     if (companyUserId) campaignPayload.company_id = companyUserId
     if (companyBizId) campaignPayload.company_biz_id = companyBizId
-    if (company?.phone) campaignPayload.company_phone = company.phone
+    if (companyPhone) campaignPayload.company_phone = companyPhone
 
     const { data: campaign, error: campaignError } = await supabaseKorea
       .from('campaigns')
