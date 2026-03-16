@@ -45,7 +45,8 @@ import {
   Youtube,
   ChevronRight,
   CreditCard,
-  Star
+  Star,
+  Lock
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
@@ -9850,9 +9851,9 @@ Questions? Contact us.
                                 app.profile_completed ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
                               }`}>
                                 {app.profile_completed ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                <span className="font-medium">{app.profile_completed ? 'Profile Complete' : 'Profile Incomplete'}</span>
+                                <span className="font-medium">{app.profile_completed ? '프로필 완성' : '프로필 미완성'}</span>
                               </div>
-                              {app.shipping_city && app.shipping_state && (
+                              {app.shipping_city && app.shipping_state && ['selected', 'approved', 'virtual_selected', 'filming', 'guide_sent', 'product_shipped', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(app.status) && (
                                 <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
                                   <MapPin className="w-2.5 h-2.5" />
                                   <span>{app.shipping_city}, {app.shipping_state}</span>
@@ -10796,9 +10797,9 @@ Questions? Contact us.
                                       <div className="flex items-center gap-2 mb-1">
                                         <span className="text-sm font-semibold text-gray-800 truncate">{p.shipping_recipient_name || p.applicant_name || p.creator_name}</span>
                                         {p.shipping_address_confirmed ? (
-                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded border border-emerald-200">Confirmed</span>
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded border border-emerald-200">확인 완료</span>
                                         ) : (
-                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded border border-red-200">Not Confirmed</span>
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded border border-red-200">미확인</span>
                                         )}
                                       </div>
                                       {p.shipping_address_line1 ? (
@@ -15382,7 +15383,7 @@ Questions? Contact us.
                 {selectedParticipant.company_reviews?.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2.5">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Company Reviews</p>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">기업 후기</p>
                       {(() => {
                         const reviews = selectedParticipant.company_reviews
                         const avg = reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
@@ -15420,17 +15421,17 @@ Questions? Contact us.
                 {/* BEAUTY SPEC - 2열 카드 */}
                 {(selectedParticipant.skin_type || selectedParticipant.skin_shade || selectedParticipant.personal_color || selectedParticipant.hair_type || selectedParticipant.editing_level || selectedParticipant.shooting_level || selectedParticipant.ethnicity || selectedParticipant.age_range) && (
                   <div>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Beauty Spec</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">뷰티 스펙</p>
                     <div className="grid grid-cols-3 gap-2">
                       {selectedParticipant.age_range && (
                         <div className="bg-violet-50/80 px-3 py-2.5 rounded-lg">
-                          <p className="text-[10px] text-violet-400 font-medium mb-0.5">Age Range</p>
+                          <p className="text-[10px] text-violet-400 font-medium mb-0.5">연령대</p>
                           <p className="text-xs font-semibold text-gray-800">{selectedParticipant.age_range}</p>
                         </div>
                       )}
                       {selectedParticipant.ethnicity && (
                         <div className="bg-teal-50/80 px-3 py-2.5 rounded-lg">
-                          <p className="text-[10px] text-teal-400 font-medium mb-0.5">Ethnicity</p>
+                          <p className="text-[10px] text-teal-400 font-medium mb-0.5">인종</p>
                           <p className="text-xs font-semibold text-gray-800">{selectedParticipant.ethnicity}</p>
                         </div>
                       )}
@@ -15474,10 +15475,10 @@ Questions? Contact us.
                   </div>
                 )}
 
-                {/* 피부/헤어 고민 - 태그 스타일 */}
+                {/* Concerns - 태그 스타일 */}
                 {((selectedParticipant.skin_concerns && selectedParticipant.skin_concerns.length > 0) || (selectedParticipant.hair_concerns && selectedParticipant.hair_concerns.length > 0)) && (
                   <div>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Concerns</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">피부/헤어 고민</p>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedParticipant.skin_concerns?.map((concern, idx) => (
                         <span key={`skin-${idx}`} className="px-2.5 py-1 text-[11px] font-medium bg-pink-50 text-pink-600 rounded-lg border border-pink-100">
@@ -15496,11 +15497,11 @@ Questions? Contact us.
                 {/* 콘텐츠 스타일 */}
                 {(selectedParticipant.primary_interest || selectedParticipant.video_length_style || selectedParticipant.upload_frequency || selectedParticipant.shortform_tempo_style || selectedParticipant.experience_level || selectedParticipant.content_formats?.length > 0) && (
                   <div>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Content Style</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">콘텐츠 스타일</p>
                     <div className="grid grid-cols-2 gap-2">
                       {selectedParticipant.experience_level && (
                         <div className="bg-sky-50/80 px-3 py-2.5 rounded-lg">
-                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">Experience</p>
+                          <p className="text-[10px] text-sky-400 font-medium mb-0.5">경력</p>
                           <p className="text-xs font-semibold text-gray-800">{selectedParticipant.experience_level}</p>
                         </div>
                       )}
@@ -15531,7 +15532,7 @@ Questions? Contact us.
                     </div>
                     {selectedParticipant.content_formats?.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-[10px] text-sky-400 font-medium mb-1.5">Content Formats</p>
+                        <p className="text-[10px] text-sky-400 font-medium mb-1.5">콘텐츠 포맷</p>
                         <div className="flex flex-wrap gap-1.5">
                           {selectedParticipant.content_formats.map((format, idx) => (
                             <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-sky-50 text-sky-600 rounded-lg border border-sky-100">
@@ -15549,7 +15550,7 @@ Questions? Contact us.
                   <div>
                     {selectedParticipant.video_styles?.length > 0 && (
                       <>
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Video Style</p>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">영상 스타일</p>
                         <div className="flex flex-wrap gap-1.5 mb-3">
                           {selectedParticipant.video_styles.map((style, idx) => (
                             <span key={idx} className="px-2.5 py-1 text-[11px] font-medium bg-blue-50 text-blue-600 rounded-lg border border-blue-100">
@@ -15561,7 +15562,7 @@ Questions? Contact us.
                     )}
                     {(selectedParticipant.nail_usage || selectedParticipant.circle_lens_usage || selectedParticipant.glasses_usage) && (
                       <>
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-3">Beauty Items</p>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-3">뷰티 아이템</p>
                         <div className="flex flex-wrap gap-1.5">
                           {selectedParticipant.nail_usage && (
                             <span className="px-2.5 py-1 text-[11px] font-medium bg-rose-50 text-rose-600 rounded-lg border border-rose-100">
@@ -15587,7 +15588,7 @@ Questions? Contact us.
                 {/* 활동 정보 */}
                 {(selectedParticipant.child_appearance || selectedParticipant.family_appearance || selectedParticipant.offline_visit || selectedParticipant.languages?.length > 0 || selectedParticipant.collaboration_preferences?.length > 0) && (
                   <div>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Activity</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">활동 정보</p>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedParticipant.child_appearance === '가능' && (
                         <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">아이 출연 가능</span>
@@ -15608,48 +15609,57 @@ Questions? Contact us.
                   </div>
                 )}
 
-                {/* US 배송 정보 */}
+                {/* US 배송 정보 - 선정 후에만 공개 */}
                 {(selectedParticipant.shipping_address_line1 || selectedParticipant.shipping_country) && (
                   <div className="border-t border-gray-100 pt-5">
                     <div className="flex items-center gap-2 mb-3">
                       <Truck className="w-4 h-4 text-gray-400" />
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Shipping Info</p>
-                      {selectedParticipant.shipping_address_confirmed ? (
-                        <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">Confirmed</span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded-full border border-red-200">Not Confirmed</span>
-                      )}
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">배송 정보</p>
+                      {['selected', 'approved', 'virtual_selected', 'filming', 'guide_sent', 'product_shipped', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(selectedParticipant.status) ? (
+                        selectedParticipant.shipping_address_confirmed ? (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">확인 완료</span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded-full border border-red-200">미확인</span>
+                        )
+                      ) : null}
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-3.5">
-                      <div className="flex items-start gap-2">
-                        <div className="text-lg">{countryCodeToFlag(selectedParticipant.shipping_country)}</div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-800 mb-1">{selectedParticipant.shipping_recipient_name || selectedParticipant.applicant_name}</p>
-                          {selectedParticipant.shipping_address_line1 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line1}</p>}
-                          {selectedParticipant.shipping_address_line2 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line2}</p>}
-                          <p className="text-xs text-gray-600">
-                            {[selectedParticipant.shipping_city, selectedParticipant.shipping_state, selectedParticipant.shipping_zip].filter(Boolean).join(', ')}
-                          </p>
-                          {selectedParticipant.shipping_country && <p className="text-xs text-gray-500">{selectedParticipant.shipping_country}</p>}
-                          {selectedParticipant.shipping_phone && <p className="text-xs text-gray-500 mt-1">{selectedParticipant.shipping_phone}</p>}
+                    {['selected', 'approved', 'virtual_selected', 'filming', 'guide_sent', 'product_shipped', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(selectedParticipant.status) ? (
+                      <div className="bg-gray-50 rounded-xl p-3.5">
+                        <div className="flex items-start gap-2">
+                          <div className="text-lg">{countryCodeToFlag(selectedParticipant.shipping_country)}</div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-800 mb-1">{selectedParticipant.shipping_recipient_name || selectedParticipant.applicant_name}</p>
+                            {selectedParticipant.shipping_address_line1 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line1}</p>}
+                            {selectedParticipant.shipping_address_line2 && <p className="text-xs text-gray-600">{selectedParticipant.shipping_address_line2}</p>}
+                            <p className="text-xs text-gray-600">
+                              {[selectedParticipant.shipping_city, selectedParticipant.shipping_state, selectedParticipant.shipping_zip].filter(Boolean).join(', ')}
+                            </p>
+                            {selectedParticipant.shipping_country && <p className="text-xs text-gray-500">{selectedParticipant.shipping_country}</p>}
+                            {selectedParticipant.shipping_phone && <p className="text-xs text-gray-500 mt-1">{selectedParticipant.shipping_phone}</p>}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(formatShippingAddress(selectedParticipant))
+                              alert('주소가 클립보드에 복사되었습니다.')
+                            }}
+                            className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                            title="주소 복사"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-gray-400" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(formatShippingAddress(selectedParticipant))
-                            alert('주소가 클립보드에 복사되었습니다.')
-                          }}
-                          className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                          title="주소 복사"
-                        >
-                          <Copy className="w-3.5 h-3.5 text-gray-400" />
-                        </button>
+                        {selectedParticipant.shipping_address_confirmed_at && (
+                          <p className="text-[10px] text-gray-400 mt-2">
+                            확인일시: {new Date(selectedParticipant.shipping_address_confirmed_at).toLocaleString('ko-KR')}
+                          </p>
+                        )}
                       </div>
-                      {selectedParticipant.shipping_address_confirmed_at && (
-                        <p className="text-[10px] text-gray-400 mt-2">
-                          확인일시: {new Date(selectedParticipant.shipping_address_confirmed_at).toLocaleString('ko-KR')}
-                        </p>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                        <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <p className="text-sm text-gray-500">선정 후 배송 정보가 공개됩니다.</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -15661,7 +15671,7 @@ Questions? Contact us.
                       <div className="mb-5">
                         <div className="flex items-center gap-2 mb-3">
                           <FileText className="w-4 h-4 text-gray-400" />
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Application Q&A</p>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">지원서 Q&A</p>
                         </div>
                         <div className="space-y-3">
                           {[
