@@ -313,7 +313,7 @@ export default function LandingPage() {
     {
       id: 'before-after',
       title: 'Before & After',
-      subtitle: '드라마틱한 사용후기',
+      subtitle: '드라마틱한 사용 후기',
     },
     {
       id: '4week-challenge',
@@ -464,9 +464,9 @@ export default function LandingPage() {
         setFaqs(data)
       } else {
         setFaqs([
-          { question: '크리에이터는 어떻게 선발되나요?', answer: '팔로워 수, 콘텐츠 퀄리티, 참여율 등 엄격한 기준으로 선발됩니다. 모든 크리에이터는 실제 영향력을 검증받은 전문가들입니다.' },
+          { question: '크리에이터는 어떻게 선발되나요?', answer: '팔로워 수, 콘텐츠 품질, 참여율 등을 기준으로 선발합니다. AI가 자동으로 최적의 크리에이터를 매칭합니다.' },
           { question: '영상 제작 기간은 얼마나 걸리나요?', answer: '평균 7-14일 내 완성됩니다. 긴급 프로젝트는 별도 협의를 통해 빠른 진행이 가능합니다.' },
-          { question: '수정 요청은 몇 번까지 가능한가요?', answer: '기본 1회 무료 수정이 제공됩니다. 가이드 범위 내에서 수정 가능하며, 추가 수정이나 기획 변경 시 별도 비용이 발생할 수 있습니다.' },
+          { question: '수정 요청은 몇 번까지 가능한가요?', answer: '기본 1회 수정이 포함되어 있습니다. 가이드 범위 내 수정은 무료이며, 기획 자체를 변경하는 경우 별도 상담이 필요합니다.' },
           { question: '해외 크리에이터도 섭외 가능한가요?', answer: '네, 일본/미국/대만 현지 크리에이터 네트워크를 보유하고 있어 글로벌 캠페인 진행이 가능합니다.' },
         ])
       }
@@ -501,7 +501,7 @@ export default function LandingPage() {
       name: '김 팀장',
       role: '마케팅 팀장',
       company: 'MEDIHEAL',
-      content: '처음으로 숏폼 캠페인을 진행했는데, 크리에이터 매칭부터 SNS 업로드까지 플랫폼에서 한 번에 해결됐습니다. 대시보드에서 진행 상황을 바로 확인할 수 있어 편했어요.',
+      content: '크리에이터 매칭부터 SNS 업로드까지 한 번에 해결. 대시보드에서 진행 상황을 실시간 확인할 수 있어 편했습니다.',
     },
     {
       name: '이 대표',
@@ -528,7 +528,7 @@ export default function LandingPage() {
               <nav className="hidden lg:flex items-center gap-8">
                 <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">포트폴리오</a>
                 <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">요금제</a>
-                <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">글로벌 캠페인</a>
+                <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">수출바우처</a>
                 <button onClick={() => navigate('/newsletters')} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">인사이트</button>
                 <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">FAQ</a>
               </nav>
@@ -573,7 +573,7 @@ export default function LandingPage() {
               <nav className="flex flex-col space-y-3">
                 <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
                 <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
-                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">글로벌 캠페인</a>
+                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">수출바우처</a>
                 <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-400 py-2 text-left">인사이트</button>
                 <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
               </nav>
@@ -648,7 +648,7 @@ export default function LandingPage() {
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
               <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>520+</span> 브랜드가 선택한 플랫폼
             </h2>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">클리오, 동아제약, 스킨푸드 등 다양한 브랜드가 직접 캠페인을 운영하고 있습니다</p>
+            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">클리오, 동아제약, 스킨푸드 등 다양한 브랜드가 직접 캠페인을 운영하고 있습니다.</p>
           </div>
 
           <div className="bg-[#121218] rounded-[20px] sm:rounded-[24px] p-4 sm:p-8 lg:p-12 border border-white/[0.06]">
@@ -683,7 +683,7 @@ export default function LandingPage() {
               SOCIAL PROOF
             </p>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
-              이미 수많은 브랜드가 크넥을 통해<br className="hidden sm:block" /> 성공적인 숏폼을 만들고 있습니다.
+              브랜드 담당자들의 <span className="text-[#C084FC]">실제 후기</span>
             </h2>
           </div>
 
@@ -722,7 +722,7 @@ export default function LandingPage() {
             수출바우처로 최대 <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>80%</span> 지원
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-6 sm:mb-8">
-            200만원 패키지 이용 시 실 부담금 40만원부터 시작
+            200만원 패키지 이용 시 실제 부담금 40만원부터
           </p>
           <a
             href="https://pf.kakao.com/_xgNdxlG"
@@ -788,7 +788,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6 sm:mb-8 lg:mb-10">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 text-white">
-                금주의 <span className="text-[#C084FC]">뉴스레터</span>
+                최신 <span className="text-[#C084FC]">뉴스레터</span>
               </h2>
               <p className="text-[#A0A0B0] text-sm sm:text-base">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
             </div>
@@ -862,8 +862,8 @@ export default function LandingPage() {
             크넥이 처음이신가요?
           </h3>
           <p className="text-[#A0A0B0] text-sm sm:text-base mb-5 sm:mb-6 max-w-lg mx-auto">
-            서비스 소개서에서 크리에이터 마케팅의 모든 것을 확인하세요.<br className="hidden sm:inline" />
-            캠페인 프로세스, 성과 사례, 가격 안내까지 한 번에.
+            소개서 한 장이면 크넥 서비스가 한눈에 보입니다.<br className="hidden sm:inline" />
+            프로세스, 성과 사례, 가격 안내까지.
           </p>
           <a
             href={brochureUrl || "https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"}

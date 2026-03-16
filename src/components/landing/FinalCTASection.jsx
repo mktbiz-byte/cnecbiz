@@ -15,8 +15,8 @@ export default function FinalCTASection({ user, navigate }) {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 text-white leading-tight">
-            <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>20만원</span>으로 첫 캠페인을<br />
-            시작하세요.
+            아직도 에이전시에<br />
+            <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>300만원</span> 쓰시나요?
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto">
             가입 5분, 캠페인 오픈 3분. 오늘 시작하면 2주 후 결과를 확인합니다.
