@@ -6,7 +6,7 @@ const tiers = [
     name: '기획형 캠페인',
     price: '₩200,000',
     unit: '/건',
-    desc: '합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드',
+    desc: '숏폼 1건을 가장 합리적으로 시작하는 방법',
     popular: true,
     guideUrl: '/campaigns/intro/regular',
     features: [
@@ -21,7 +21,7 @@ const tiers = [
     name: '올영세일 패키지',
     price: '₩400,000',
     unit: '/건',
-    desc: '세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지',
+    desc: '올리브영 세일 기간 매출을 극대화하는 3단계 패키지',
     popular: false,
     guideUrl: '/campaigns/intro/oliveyoung',
     features: [

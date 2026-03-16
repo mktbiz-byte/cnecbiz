@@ -8,7 +8,7 @@ const countries = [
     region: 'South Korea',
     creators: '1,200+',
     stat: 'K-뷰티 특화',
-    desc: '국내 최대 뷰티 크리에이터 네트워크. 인스타그램, 틱톡, 유튜브 숏폼 전문.',
+    desc: '1,200+ 뷰티 크리에이터 네트워크. 인스타그램, 틱톡, 유튜브 숏폼 전문.',
   },
   {
     flag: '/flags/jp.png',
@@ -24,7 +24,7 @@ const countries = [
     region: 'United States',
     creators: '700+',
     stat: '다양성 · 글로벌',
-    desc: '북미 시장 타겟 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입 커버.',
+    desc: '북미 시장 타겟 글로벌 뷰티 콘텐츠. 다양한 피부톤과 피부 타입 커버.',
   },
 ]
 
@@ -43,7 +43,7 @@ export default function GlobalSection({ navigate }) {
             GLOBAL NETWORK
           </p>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">
-            <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>3개국</span> 크리에이터를 하나의 플랫폼에서
+            <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>3개국</span> 크리에이터를 한 곳에서
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base max-w-2xl mx-auto">
             한국어로 캠페인을 만들면 AI가 자동 번역하여 각국 크리에이터에게 발송합니다.

@@ -5,28 +5,28 @@ const steps = [
   {
     day: 'Day 1',
     title: '캠페인 개설 + AI 매칭',
-    desc: '캠페인 정보 입력 3분, AI가 즉시 최적 크리에이터를 추천합니다.',
+    desc: '캠페인 정보 입력 3분. AI가 즉시 최적 크리에이터 추천.',
     icon: Sparkles,
     time: '5분',
   },
   {
     day: 'Day 2-3',
     title: '크리에이터 확정 + 제품 발송',
-    desc: '추천된 크리에이터 중 직접 선택, 제품을 발송합니다.',
+    desc: '추천 크리에이터 중 직접 선택 후 제품 발송.',
     icon: Package,
     time: '10분',
   },
   {
     day: 'Day 4-10',
     title: 'AI 가이드 기반 촬영 · 제작',
-    desc: 'AI가 생성한 촬영 가이드에 따라 크리에이터가 콘텐츠를 제작합니다.',
+    desc: 'AI 촬영 가이드에 따라 크리에이터가 콘텐츠 제작.',
     icon: Video,
     time: '자동 진행',
   },
   {
     day: 'Day 11-14',
     title: 'SNS 업로드 + 결과 리포트',
-    desc: '완성된 콘텐츠가 SNS에 업로드되고, 대시보드에서 성과를 확인합니다.',
+    desc: '완성 콘텐츠 SNS 업로드. 대시보드에서 성과 확인.',
     icon: Upload,
     time: '자동 완료',
   },
@@ -48,7 +48,7 @@ export default function ProcessSection({ user, navigate }) {
           </p>
           <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
             캠페인 완료까지 <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>14일.</span><br className="sm:hidden" />
-            <span className="text-[#A0A0B0] text-[15px] sm:text-2xl lg:text-3xl font-medium"> 대부분 자동으로 진행됩니다.</span>
+            <span className="text-[#A0A0B0] text-[15px] sm:text-2xl lg:text-3xl font-medium"> 브랜드가 직접 하는 건 제품 발송뿐.</span>
           </h2>
         </motion.div>
 

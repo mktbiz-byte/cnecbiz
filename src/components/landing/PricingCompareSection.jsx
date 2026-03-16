@@ -85,7 +85,7 @@ export default function PricingCompareSection({ user, navigate }) {
             같은 숏폼, <span className="text-[#C084FC]">다른 가격</span>
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base max-w-2xl mx-auto">
-            에이전시, 체험단, 크넥. 같은 결과물을 만드는 데 드는 비용을 비교해 보세요.
+            에이전시, 체험단, 크넥 — 같은 결과물, 전혀 다른 비용.
           </p>
         </motion.div>
 
@@ -178,7 +178,7 @@ export default function PricingCompareSection({ user, navigate }) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#C084FC]/20 bg-[#C084FC]/[0.05] text-[#C084FC] text-sm font-medium mb-6">
             <Shield className="w-4 h-4" />
-            숨겨진 비용 없음 · 기획비 · 매칭비 · 2차 활용비 모두 포함
+            숨겨진 비용 없음 — 기획비, 매칭비, 2차 활용비 모두 포함
           </div>
           <div className="block">
             <button

@@ -29,9 +29,9 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight mb-4"
           >
-            인플루언서 마케팅<br />
+            숏폼 마케팅<br />
             <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>20만원</span>이면<br />
-            충분합니다.
+            끝납니다.
           </motion.h1>
 
           <motion.div
@@ -41,7 +41,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             className="mb-6"
           >
             <p className="text-sm sm:text-base text-[#C084FC] font-semibold tracking-wide">
-              클린본 무료, AI 기획 무료지원, 광고코드 무료, 2차활용까지<br className="sm:hidden" /> 전면 무료 선언!
+              원본 영상 무료 · AI 기획안 무료 · 광고 소재 2차 활용 무료
             </p>
           </motion.div>
 
@@ -51,8 +51,8 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-base sm:text-lg text-gray-400 mb-8 sm:mb-10 leading-relaxed max-w-xl"
           >
-            에이전시 없이, 글로벌 숏폼 캠페인을 직접 시작하세요.<br />
-            AI가 최적의 크리에이터를 매칭합니다. 가입부터 캠페인 오픈까지 단 <span className="text-white font-semibold">5분</span>.
+            가입 <span className="text-white font-semibold">5분</span>, AI가 크리에이터를 매칭합니다.<br />
+            에이전시 없이 직접 시작하는 숏폼 캠페인.
           </motion.p>
 
           <motion.div

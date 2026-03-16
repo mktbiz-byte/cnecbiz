@@ -24,7 +24,7 @@ const comparisons = [
     painDesc: '"견적 문의" 뒤에 숨겨진 비용. 결과물 나올 때까지 총 비용 불명확.',
     solutionIcon: TrendingDown,
     solutionTitle: '투명한 가격표',
-    solutionDesc: '홈페이지에 가격 공개. 결제 전 정확한 금액을 확인할 수 있습니다.',
+    solutionDesc: '홈페이지에 가격 공개. 결제 전 정확한 금액 확인 가능.',
   },
 ]
 
@@ -43,7 +43,7 @@ export default function PainSolutionSection({ navigate }) {
             BEFORE & AFTER
           </p>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">
-            숏폼 마케팅, <span className="text-[#C084FC]">이렇게 달라집니다</span>
+            에이전시 300만원 vs <span className="text-[#C084FC]">크넥 20만원</span>
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base">
             에이전시에 맡길 때 vs 크넥에서 직접 할 때

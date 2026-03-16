@@ -11,9 +11,9 @@ export default function ResultsSection({
   PortfolioSlider,
 }) {
   const channels = {
-    korea: { region: 'South Korea', name: 'CNEC Korea', desc: '가장 빠른 트렌드 반영, K-뷰티 특화 숏폼 솔루션. 현지 크리에이터 네트워크를 통한 폭발적인 도달률을 보장합니다.', url: 'https://www.youtube.com/@bizcnec/shorts' },
-    japan: { region: 'Japan', name: 'CNEC Japan', desc: '일본 현지 크리에이터와 함께 만드는 J-뷰티 숏폼 마케팅. 일본 시장의 섬세한 뷰티 트렌드를 정확히 포착합니다.', url: 'https://www.youtube.com/@CNEC_JP/shorts' },
-    usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장을 타겟으로 한 글로벌 뷰티 콘텐츠. 다양한 인종과 피부 타입에 맞는 진정성 있는 리뷰를 제공합니다.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
+    korea: { region: 'South Korea', name: 'CNEC Korea', desc: 'K-뷰티 특화 숏폼 제작. 국내 크리에이터 네트워크로 높은 도달률을 실현합니다.', url: 'https://www.youtube.com/@bizcnec/shorts' },
+    japan: { region: 'Japan', name: 'CNEC Japan', desc: '현지 크리에이터와 함께 만드는 J-뷰티 숏폼. 섬세한 일본 뷰티 트렌드를 정확히 포착합니다.', url: 'https://www.youtube.com/@CNEC_JP/shorts' },
+    usa: { region: 'United States', name: 'CNEC USA', desc: '북미 시장 타겟 글로벌 뷰티 콘텐츠. 다양한 피부 타입에 맞는 진정성 있는 리뷰.', url: 'https://www.youtube.com/@CNEC_USA/shorts' }
   }
 
   const ch = channels[selectedRegion]
