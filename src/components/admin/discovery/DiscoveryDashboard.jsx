@@ -19,12 +19,12 @@ const REGIONS = [
 ]
 
 const NAV_ITEMS = [
-  { path: '/admin/discovery', label: '대시보드' },
-  { path: '/admin/discovery/creators', label: '크리에이터' },
-  { path: '/admin/discovery/blocklist', label: '차단 목록' },
+  { path: '/admin/openclo', label: '대시보드' },
+  { path: '/admin/openclo/creators', label: '크리에이터' },
   { path: '/admin/discovery/servers', label: '서버 상태' },
-  { path: '/admin/discovery/kpi', label: 'KPI 통계' },
+  { path: '/admin/discovery/blocklist', label: '차단 목록' },
   { path: '/admin/discovery/emails', label: '이메일 현황' },
+  { path: '/admin/openclo/kpi', label: 'KPI 통계' },
 ]
 
 export function DiscoveryNav({ currentRegion, onRegionChange }) {
@@ -39,7 +39,7 @@ export function DiscoveryNav({ currentRegion, onRegionChange }) {
             <Radar className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Discovery</h1>
+            <h1 className="text-xl font-bold text-gray-900">오픈클로</h1>
             <p className="text-xs text-gray-400">크리에이터 자동 발굴 시스템</p>
           </div>
         </div>

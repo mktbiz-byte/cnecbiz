@@ -122,23 +122,12 @@ export default function AdminNavigation() {
         { path: '/admin/openclo/creators', icon: Users, label: '크리에이터' },
         { path: '/admin/openclo/review', icon: Shield, label: '검토 대기열' },
         { path: '/admin/openclo/bot-status', icon: TrendingUp, label: '봇 상태' },
+        { path: '/admin/discovery/servers', icon: Server, label: '서버 상태' },
+        { path: '/admin/discovery/blocklist', icon: Shield, label: '차단 목록' },
         { path: '/admin/openclo/bot-config', icon: Settings, label: '봇 설정' },
         { path: '/admin/openclo/emails', icon: Mail, label: '이메일 관리' },
-        { path: '/admin/openclo/kpi', icon: BarChart3, label: 'KPI 통계' },
-      ]
-    },
-    {
-      id: 'discovery',
-      type: 'group',
-      icon: Radar,
-      label: '디스커버리',
-      items: [
-        { path: '/admin/discovery', icon: Radar, label: '대시보드' },
-        { path: '/admin/discovery/creators', icon: Users, label: '크리에이터' },
-        { path: '/admin/discovery/blocklist', icon: Shield, label: '차단 목록' },
-        { path: '/admin/discovery/servers', icon: Server, label: '서버 상태' },
-        { path: '/admin/discovery/kpi', icon: BarChart3, label: 'KPI 통계' },
         { path: '/admin/discovery/emails', icon: Mail, label: '이메일 현황' },
+        { path: '/admin/openclo/kpi', icon: BarChart3, label: 'KPI 통계' },
       ]
     },
     {
