@@ -10443,6 +10443,68 @@ Questions? Contact us.
                                       main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
                                     }).eq('id', app.id)
                                     if (error) throw error
+
+                                    // 선정 알림 발송 (fire-and-forget)
+                                    const pName = app.applicant_name || app.creator_name || '크리에이터'
+                                    const pEmail = app.email || app.applicant_email || app.creator_email
+                                    const pPhone = app.phone || app.phone_number || app.creator_phone
+                                    try {
+                                      if (region === 'japan') {
+                                        fetch('/.netlify/functions/send-japan-notification', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            type: 'campaign_selected',
+                                            creatorId: app.user_id,
+                                            lineUserId: app.line_user_id,
+                                            creatorEmail: pEmail,
+                                            creatorPhone: pPhone,
+                                            data: {
+                                              creatorName: pName,
+                                              campaignName: campaign?.title || '캠페인',
+                                              brandName: campaign?.brand_name || campaign?.company_name,
+                                              reward: campaign?.reward_text || campaign?.compensation || '협의',
+                                              deadline: campaign?.content_submission_deadline || '추후 안내',
+                                              guideUrl: `https://cnec.jp/creator/campaigns/${campaignId}`
+                                            }
+                                          })
+                                        }).catch(e => console.error('[Japan] Individual selection notification error:', e.message))
+                                      } else if (region === 'us') {
+                                        fetch('/.netlify/functions/send-us-notification', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            type: 'campaign_selected',
+                                            creatorEmail: pEmail,
+                                            creatorPhone: pPhone,
+                                            data: {
+                                              creatorName: pName,
+                                              campaignName: campaign?.title || 'Campaign',
+                                              brandName: campaign?.brand_name || campaign?.company_name,
+                                              reward: campaign?.reward_text || campaign?.compensation || 'TBA',
+                                              deadline: campaign?.content_submission_deadline || 'TBA',
+                                              guideUrl: `https://cnec.us/creator/campaigns/${campaignId}`
+                                            }
+                                          })
+                                        }).catch(e => console.error('[US] Individual selection notification error:', e.message))
+                                      } else {
+                                        fetch('/.netlify/functions/dispatch-campaign-notification', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            eventType: 'creator_selected',
+                                            creatorName: pName,
+                                            creatorPhone: pPhone,
+                                            creatorEmail: pEmail,
+                                            campaignTitle: campaign?.title || '캠페인',
+                                            campaignId: campaignId
+                                          })
+                                        }).catch(e => console.error('[Korea] Individual selection notification error:', e.message))
+                                      }
+                                    } catch (notifError) {
+                                      console.error('Selection notification error:', notifError.message)
+                                    }
+
                                     await fetchApplications()
                                     await fetchParticipants()
                                     setActiveTab('confirmed')
