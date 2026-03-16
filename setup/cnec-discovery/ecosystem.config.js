@@ -1,0 +1,113 @@
+// PM2 Ecosystem 설정 — CNEC Discovery
+module.exports = {
+  apps: [
+    {
+      name: 'heartbeat',
+      script: 'main.py',
+      args: '--mode worker --worker heartbeat',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 5000,
+      autorestart: true,
+      watch: false,
+    },
+    {
+      name: 'discovery',
+      script: 'main.py',
+      args: '--mode worker --worker discovery',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 10000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 0 * * *',     // 매일 00:00에 재시작
+      // Discovery: 00:00~10:00 실행 (scheduler.py에서 시간 제어)
+    },
+    {
+      name: 'apify',
+      script: 'main.py',
+      args: '--mode worker --worker apify',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 10000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 10 * * *',    // 매일 10:00에 재시작
+      // Apify: 10:00~13:00 실행
+    },
+    {
+      name: 'filter',
+      script: 'main.py',
+      args: '--mode worker --worker filter',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 10000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 10 * * *',
+      // Filter: 10:00~13:00 실행
+    },
+    {
+      name: 'verify',
+      script: 'main.py',
+      args: '--mode worker --worker verify',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 10000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 6 * * *',
+      // Verify: 06:00~09:00 실행
+    },
+    {
+      name: 'email_sender',
+      script: 'main.py',
+      args: '--mode worker --worker email',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 5000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 13 * * *',    // 매일 13:00에 재시작
+      // Email: 13:00~22:00 실행
+    },
+    {
+      name: 'dm_sender',
+      script: 'main.py',
+      args: '--mode worker --worker dm',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 10000,
+      autorestart: true,
+      watch: false,
+      cron_restart: '0 18 * * *',
+      // DM: 18:00~21:00 실행
+    },
+    {
+      name: 'scheduler',
+      script: 'main.py',
+      args: '--mode scheduler',
+      interpreter: 'python3.11',
+      cwd: '/home/cnec/cnec-discovery',
+      max_memory_restart: '400M',
+      max_restarts: 10,
+      restart_delay: 5000,
+      autorestart: true,
+      watch: false,
+    },
+  ],
+}

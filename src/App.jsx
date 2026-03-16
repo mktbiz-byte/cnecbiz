@@ -141,6 +141,12 @@ import GitUpdateHistory from './components/admin/GitUpdateHistory'
 import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
 import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
 import OpenCloReport from './components/admin/openclo/OpenCloReport'
+import DiscoveryDashboard from './components/admin/discovery/DiscoveryDashboard'
+import DiscoveryCreatorList from './components/admin/discovery/DiscoveryCreatorList'
+import DiscoveryBlocklist from './components/admin/discovery/DiscoveryBlocklist'
+import DiscoveryServerStatus from './components/admin/discovery/DiscoveryServerStatus'
+import DiscoveryKPI from './components/admin/discovery/DiscoveryKPI'
+import DiscoveryEmailStatus from './components/admin/discovery/DiscoveryEmailStatus'
 import ChatbotDashboard from './components/admin/chatbot/ChatbotDashboard'
 import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagement'
 import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
@@ -312,6 +318,14 @@ function App() {
         <Route path="/admin/openclo" element={<OpenCloDashboard />} />
         <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
         <Route path="/admin/openclo/report" element={<OpenCloReport />} />
+
+        {/* Discovery Routes */}
+        <Route path="/admin/discovery" element={<DiscoveryDashboard />} />
+        <Route path="/admin/discovery/creators" element={<DiscoveryCreatorList />} />
+        <Route path="/admin/discovery/blocklist" element={<DiscoveryBlocklist />} />
+        <Route path="/admin/discovery/servers" element={<DiscoveryServerStatus />} />
+        <Route path="/admin/discovery/kpi" element={<DiscoveryKPI />} />
+        <Route path="/admin/discovery/emails" element={<DiscoveryEmailStatus />} />
 
         {/* AI 챗봇 Routes */}
         <Route path="/admin/chatbot/dashboard" element={<ChatbotDashboard />} />
