@@ -7,8 +7,8 @@ const comparisons = [
     painTitle: '높은 비용',
     painDesc: '에이전시 숏폼 1건 300만원 이상. 기획비, 매칭비, 2차 활용비 별도.',
     solutionIcon: Shield,
-    solutionTitle: '20만원, 올인원',
-    solutionDesc: '기획부터 2차 활용까지 20만원에 모두 포함. 추가 비용 없음.',
+    solutionTitle: '20만원부터, 올인원',
+    solutionDesc: '기획부터 2차 활용까지 20만원부터 모두 포함. 추가 비용 없음.',
   },
   {
     painIcon: Clock,
@@ -43,7 +43,7 @@ export default function PainSolutionSection({ navigate }) {
             BEFORE & AFTER
           </p>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">
-            에이전시 300만원 vs <span className="text-[#C084FC]">크넥 20만원</span>
+            에이전시 300만원 vs <span className="text-[#C084FC]">크넥 20만원부터</span>
           </h2>
           <p className="text-[#A0A0B0] text-sm sm:text-base">
             에이전시에 맡길 때 vs 크넥에서 직접 할 때
