@@ -67,6 +67,90 @@ exports.handler = async (event) => {
 
         if (error) throw error
         result = data
+
+        // 선정 알림 발송 (fire-and-forget)
+        try {
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
+
+          // 캠페인 정보 조회 (리전 확인)
+          const { data: campaignData } = await supabase
+            .from('campaigns')
+            .select('title, region, brand_name, company_name, reward_text, compensation, content_submission_deadline')
+            .eq('id', campaign_id)
+            .maybeSingle()
+
+          const campaignRegion = campaignData?.region || 'korea'
+
+          // 선정된 크리에이터 정보 조회
+          const { data: creators } = await supabase
+            .from('package_creators')
+            .select('id, name, email, phone, line_user_id, user_id')
+            .in('id', package_creator_ids)
+
+          if (creators && creators.length > 0) {
+            for (const creator of creators) {
+              const pName = creator.name || '크리에이터'
+              const pEmail = creator.email
+              const pPhone = creator.phone
+
+              if (campaignRegion === 'japan') {
+                fetch(`${baseUrl}/.netlify/functions/send-japan-notification`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: 'campaign_selected',
+                    creatorId: creator.user_id,
+                    lineUserId: creator.line_user_id,
+                    creatorEmail: pEmail,
+                    creatorPhone: pPhone,
+                    data: {
+                      creatorName: pName,
+                      campaignName: campaignData?.title || '캠페인',
+                      brandName: campaignData?.brand_name || campaignData?.company_name,
+                      reward: campaignData?.reward_text || campaignData?.compensation || '협의',
+                      deadline: campaignData?.content_submission_deadline || '추후 안내',
+                      guideUrl: `https://cnec.jp/creator/campaigns/${campaign_id}`
+                    }
+                  })
+                }).catch(e => console.error('[select_creators] JP notification error:', e.message))
+              } else if (campaignRegion === 'us') {
+                fetch(`${baseUrl}/.netlify/functions/send-us-notification`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: 'campaign_selected',
+                    creatorEmail: pEmail,
+                    creatorPhone: pPhone,
+                    data: {
+                      creatorName: pName,
+                      campaignName: campaignData?.title || 'Campaign',
+                      brandName: campaignData?.brand_name || campaignData?.company_name,
+                      reward: campaignData?.reward_text || campaignData?.compensation || 'TBA',
+                      deadline: campaignData?.content_submission_deadline || 'TBA',
+                      guideUrl: `https://cnec.us/creator/campaigns/${campaign_id}`
+                    }
+                  })
+                }).catch(e => console.error('[select_creators] US notification error:', e.message))
+              } else {
+                fetch(`${baseUrl}/.netlify/functions/dispatch-campaign-notification`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    eventType: 'creator_selected',
+                    creatorName: pName,
+                    creatorPhone: pPhone,
+                    creatorEmail: pEmail,
+                    campaignTitle: campaignData?.title || '캠페인',
+                    campaignId: campaign_id
+                  })
+                }).catch(e => console.error('[select_creators] KR notification error:', e.message))
+              }
+            }
+          }
+        } catch (notifError) {
+          console.error('[select_creators] Notification dispatch error:', notifError.message)
+        }
+
         break
       }
 
