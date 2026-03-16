@@ -1,0 +1,20 @@
+{
+  "kr": {
+    "keywords": ["뷰티", "스킨케어", "화장품", "올리브영", "K뷰티", "메이크업"],
+    "platforms": ["instagram", "tiktok", "youtube"],
+    "follower_range": [1000, 500000],
+    "engagement_min": 1.5
+  },
+  "jp": {
+    "keywords": ["韓国コスメ", "スキンケア", "美容", "Kビューティー", "韓国美容"],
+    "platforms": ["instagram", "tiktok", "youtube"],
+    "follower_range": [1000, 500000],
+    "engagement_min": 1.5
+  },
+  "us": {
+    "keywords": ["K-beauty", "Korean skincare", "glass skin", "K-beauty routine"],
+    "platforms": ["instagram", "tiktok", "youtube"],
+    "follower_range": [1000, 500000],
+    "engagement_min": 1.5
+  }
+}

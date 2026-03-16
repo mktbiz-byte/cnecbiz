@@ -1,0 +1,47 @@
+{
+  "discovery": {
+    "start_hour": 0,
+    "end_hour": 10,
+    "interval_minutes": 10,
+    "description": "Influencers Club API 크리에이터 발굴"
+  },
+  "apify": {
+    "start_hour": 10,
+    "end_hour": 13,
+    "interval_minutes": 30,
+    "description": "Apify 소셜 미디어 스크래핑"
+  },
+  "filter": {
+    "start_hour": 10,
+    "end_hour": 13,
+    "interval_minutes": 20,
+    "description": "Gemini AI K-뷰티 적합도 평가"
+  },
+  "verify": {
+    "start_hour": 6,
+    "end_hour": 9,
+    "interval_minutes": 15,
+    "description": "ZeroBounce 이메일 검증"
+  },
+  "email": {
+    "start_hour": 13,
+    "end_hour": 22,
+    "interval_minutes": 5,
+    "description": "AWS SES 이메일 발송"
+  },
+  "dm": {
+    "start_hour": 18,
+    "end_hour": 21,
+    "interval_minutes": 10,
+    "description": "Instagram DM 발송"
+  },
+  "heartbeat": {
+    "interval_seconds": 30,
+    "description": "서버 상태 보고 (상시)"
+  },
+  "daily_report": {
+    "hour": 22,
+    "minute": 0,
+    "description": "일일 리포트 (1회)"
+  }
+}

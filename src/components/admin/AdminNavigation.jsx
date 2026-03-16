@@ -5,7 +5,7 @@ import {
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
   Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target,
-  Bot, Send, FileText, CalendarDays, FlaskConical, Calendar, Package
+  Bot, Send, FileText, CalendarDays, FlaskConical, Calendar, Package, Radar, Server
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -125,6 +125,20 @@ export default function AdminNavigation() {
         { path: '/admin/openclo/bot-config', icon: Settings, label: '봇 설정' },
         { path: '/admin/openclo/emails', icon: Mail, label: '이메일 관리' },
         { path: '/admin/openclo/kpi', icon: BarChart3, label: 'KPI 통계' },
+      ]
+    },
+    {
+      id: 'discovery',
+      type: 'group',
+      icon: Radar,
+      label: '디스커버리',
+      items: [
+        { path: '/admin/discovery', icon: Radar, label: '대시보드' },
+        { path: '/admin/discovery/creators', icon: Users, label: '크리에이터' },
+        { path: '/admin/discovery/blocklist', icon: Shield, label: '차단 목록' },
+        { path: '/admin/discovery/servers', icon: Server, label: '서버 상태' },
+        { path: '/admin/discovery/kpi', icon: BarChart3, label: 'KPI 통계' },
+        { path: '/admin/discovery/emails', icon: Mail, label: '이메일 현황' },
       ]
     },
     {
