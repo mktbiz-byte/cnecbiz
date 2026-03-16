@@ -32,8 +32,8 @@
   "dm": {
     "start_hour": 18,
     "end_hour": 21,
-    "interval_minutes": 10,
-    "description": "Instagram DM 발송"
+    "interval_minutes": 30,
+    "description": "Instagram DM 발송 (일일 40건 한도, 랜덤 간격)"
   },
   "heartbeat": {
     "interval_seconds": 30,
