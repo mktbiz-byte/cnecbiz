@@ -2,10 +2,10 @@ import { Users, Globe, Award, Sparkles, Video } from 'lucide-react'
 
 const items = [
   { icon: Users, text: '520+ 브랜드 이용 중' },
+  { icon: Video, text: '유튜브·인스타·틱톡 전 채널 대응' },
   { icon: Globe, text: '3개국 운영 (한국·미국·일본)' },
   { icon: Award, text: 'KOTRA 수출바우처 공식 수행기관' },
   { icon: Sparkles, text: 'AI 기획안 무료 제공' },
-  { icon: Video, text: '2차 활용(광고 소재) 무료' },
 ]
 
 export default function SocialProofTicker() {

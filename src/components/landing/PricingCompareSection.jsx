@@ -23,9 +23,10 @@ const comparisonRows = [
   },
   {
     label: 'SNS 업로드',
-    cnec: true,
+    cnec: '유튜브·인스타·틱톡',
     agency: true,
-    experience: true,
+    experience: '인스타 한정',
+    cnecHighlight: true,
   },
   {
     label: '2차 활용 (광고 소재)',
@@ -185,7 +186,7 @@ export default function PricingCompareSection({ user, navigate }) {
               onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
               className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
             >
-              20만원으로 시작하기
+              20만원부터 시작하기
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

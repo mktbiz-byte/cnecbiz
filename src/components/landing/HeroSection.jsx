@@ -30,8 +30,8 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight mb-4"
           >
             숏폼 마케팅<br />
-            <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>20만원</span>이면<br />
-            끝납니다.
+            <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>20만원</span>부터<br />
+            시작합니다.
           </motion.h1>
 
           <motion.div
@@ -41,7 +41,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             className="mb-6"
           >
             <p className="text-sm sm:text-base text-[#C084FC] font-semibold tracking-wide">
-              원본 영상 무료 · AI 기획안 무료 · 광고 소재 2차 활용 무료
+              유튜브·인스타·틱톡 전 채널 · AI 기획안 무료 · 2차 활용 무료
             </p>
           </motion.div>
 
@@ -198,7 +198,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C084FC] opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0AAFF]" />
             </div>
-            <p className="text-sm font-medium text-white">숏폼 1건 20만원, 숨겨진 비용 없음</p>
+            <p className="text-sm font-medium text-white">숏폼 1건 20만원부터, 숨겨진 비용 없음</p>
           </div>
         </motion.div>
       </div>
