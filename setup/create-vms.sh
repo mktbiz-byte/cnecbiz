@@ -19,7 +19,7 @@ echo "프로젝트: ${PROJECT_ID}"
 echo ""
 echo "생성할 VM:"
 echo "  1. cnec-disc-kr (Seoul, asia-northeast3-a)"
-echo "  2. cnec-disc-jp (Tokyo, asia-northeast1-a)"
+echo "  2. cnec-disc-jp (Seoul, asia-northeast3-a)"
 echo "  3. cnec-disc-us (Virginia, us-east1-b)"
 echo ""
 echo "스펙: ${MACHINE_TYPE}, Ubuntu 22.04, ${BOOT_DISK_SIZE}"
@@ -68,7 +68,7 @@ echo ""
 echo "========== VM 생성: cnec-disc-jp (Tokyo) =========="
 gcloud compute instances create cnec-disc-jp \
   --project="${PROJECT_ID}" \
-  --zone=asia-northeast1-a \
+  --zone=asia-northeast3-a \
   --machine-type="${MACHINE_TYPE}" \
   --image-family="${IMAGE_FAMILY}" \
   --image-project="${IMAGE_PROJECT}" \
@@ -103,5 +103,5 @@ echo "다음 단계:"
 echo "  각 VM에 SSH 접속 후 init-vm.sh를 실행하세요."
 echo ""
 echo "  gcloud compute ssh cnec-disc-kr --zone=asia-northeast3-a"
-echo "  gcloud compute ssh cnec-disc-jp --zone=asia-northeast1-a"
+echo "  gcloud compute ssh cnec-disc-jp --zone=asia-northeast3-a"
 echo "  gcloud compute ssh cnec-disc-us --zone=us-east1-b"
