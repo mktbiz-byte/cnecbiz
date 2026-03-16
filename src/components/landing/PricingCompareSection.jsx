@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 const comparisonRows = [
   {
     label: '숏폼 1건 가격',
-    cnec: '₩300,000',
+    cnec: '₩200,000',
     agency: '₩3,000,000~',
     experience: '₩500,000~',
     cnecHighlight: true,
@@ -152,7 +152,7 @@ export default function PricingCompareSection({ user, navigate }) {
                 추천
               </div>
               <p className="text-white font-bold text-lg">크넥 CNEC</p>
-              <p className="text-[#C084FC] text-2xl font-bold mt-2" style={{ fontFamily: "'Outfit', sans-serif" }}>₩300,000<span className="text-[#5A5A6E] text-sm font-normal">/건</span></p>
+              <p className="text-[#C084FC] text-2xl font-bold mt-2" style={{ fontFamily: "'Outfit', sans-serif" }}>₩200,000<span className="text-[#5A5A6E] text-sm font-normal">/건</span></p>
             </div>
             <div className="space-y-3">
               {comparisonRows.slice(1).map((row, idx) => (
@@ -185,7 +185,7 @@ export default function PricingCompareSection({ user, navigate }) {
               onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
               className="w-full sm:w-auto px-7 py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
             >
-              30만원으로 시작하기
+              20만원으로 시작하기
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

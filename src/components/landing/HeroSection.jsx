@@ -27,11 +27,23 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.2] tracking-tight mb-6"
+            className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight mb-4"
           >
-            <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>30만원</span>이면<br />
+            인플루언서 마케팅<br />
+            <span className="bg-gradient-to-r from-[#E0AAFF] to-[#C084FC] bg-clip-text text-transparent" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>20만원</span>이면<br />
             충분합니다.
           </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="mb-6"
+          >
+            <p className="text-sm sm:text-base text-[#C084FC] font-semibold tracking-wide">
+              클린본 무료, AI 기획 무료지원, 광고코드 무료, 2차활용까지<br className="sm:hidden" /> 전면 무료 선언!
+            </p>
+          </motion.div>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -130,7 +142,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                 <p className="text-xs text-gray-400 mb-1">캠페인 비용</p>
-                <p className="text-2xl font-bold text-[#E0AAFF]" style={{ fontFamily: "'Outfit', sans-serif" }}>₩30<span className="text-sm text-gray-500 font-normal ml-0.5">만</span></p>
+                <p className="text-2xl font-bold text-[#E0AAFF]" style={{ fontFamily: "'Outfit', sans-serif" }}>₩20<span className="text-sm text-gray-500 font-normal ml-0.5">만</span></p>
               </div>
               <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                 <p className="text-xs text-gray-400 mb-1">매칭 크리에이터</p>
@@ -186,7 +198,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C084FC] opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0AAFF]" />
             </div>
-            <p className="text-sm font-medium text-white">숏폼 1건 30만원, 숨겨진 비용 없음</p>
+            <p className="text-sm font-medium text-white">숏폼 1건 20만원, 숨겨진 비용 없음</p>
           </div>
         </motion.div>
       </div>

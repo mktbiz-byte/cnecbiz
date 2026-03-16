@@ -7,8 +7,8 @@ const comparisons = [
     painTitle: '높은 비용',
     painDesc: '에이전시 숏폼 1건 300만원 이상. 기획비, 매칭비, 2차 활용비 별도.',
     solutionIcon: Shield,
-    solutionTitle: '30만원, 올인원',
-    solutionDesc: '기획부터 2차 활용까지 30만원에 모두 포함. 추가 비용 없음.',
+    solutionTitle: '20만원, 올인원',
+    solutionDesc: '기획부터 2차 활용까지 20만원에 모두 포함. 추가 비용 없음.',
   },
   {
     painIcon: Clock,
