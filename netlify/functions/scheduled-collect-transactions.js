@@ -28,19 +28,20 @@ popbill.config({
 
 // 팝빌 계좌조회 서비스 객체 생성
 const easyFinBankService = popbill.EasyFinBankService();
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
-// 계좌 정보 (하우랩 + 하우파파 두 계좌)
+// 계좌 정보 (하우랩 + 하우파파 두 계좌, 각각 다른 사업자번호)
 const ACCOUNTS = [
   {
     label: '하우랩',
+    corpNum: process.env.POPBILL_HAULAB_CORP_NUM || '3768100944',
     bankCode: '0004', // 국민은행
     accountNumber: '28800104344172'
   },
   {
     label: '하우파파',
+    corpNum: process.env.POPBILL_CORP_NUM,
     bankCode: '0003', // IBK기업은행
-    accountNumber: '04712275304011'
+    accountNumber: '047-122753-04-011'
   }
 ];
 
@@ -72,11 +73,11 @@ async function sendNaverWorksAlert(message) {
 /**
  * 수집 작업 상태 확인 (폴링)
  */
-async function waitForJobCompletion(jobID, maxAttempts = 10) {
+async function waitForJobCompletion(corpNum, jobID, maxAttempts = 10) {
   for (let i = 0; i < maxAttempts; i++) {
     const jobState = await new Promise((resolve, reject) => {
       easyFinBankService.getJobState(
-        POPBILL_CORP_NUM,
+        corpNum,
         jobID,
         null, // UserID
         (result) => {
@@ -445,10 +446,13 @@ async function collectTransactionsForAccount(account, startDate, endDate) {
     return { savedCount: 0, matchedCount: 0, totalTransactions: 0, newDeposits: [] };
   }
 
+  const corpNum = account.corpNum;
+  console.log(`🏢 [${account.label}] 사업자번호: ${corpNum}`);
+
   // 1. 수집 요청 (RequestJob)
   const jobID = await new Promise((resolve, reject) => {
     easyFinBankService.requestJob(
-      POPBILL_CORP_NUM,
+      corpNum,
       account.bankCode,
       account.accountNumber,
       startDate,
@@ -465,7 +469,7 @@ async function collectTransactionsForAccount(account, startDate, endDate) {
   });
 
   // 2. 수집 완료 대기
-  const isCompleted = await waitForJobCompletion(jobID);
+  const isCompleted = await waitForJobCompletion(corpNum, jobID);
 
   if (!isCompleted) {
     console.error(`⚠️ [${account.label}] 수집 작업 타임아웃`);
@@ -475,7 +479,7 @@ async function collectTransactionsForAccount(account, startDate, endDate) {
   // 3. 입금 거래 내역만 조회
   const result = await new Promise((resolve, reject) => {
     easyFinBankService.search(
-      POPBILL_CORP_NUM,
+      corpNum,
       jobID,
       ['I'], // 입금만 조회
       '',
