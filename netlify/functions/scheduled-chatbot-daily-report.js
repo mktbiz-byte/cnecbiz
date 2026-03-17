@@ -13,15 +13,26 @@ const CHATBOT_CHANNEL_ID = '75c24874-e370-afd5-9da3-72918ba15a3c'
 
 exports.handler = async (event) => {
   try {
-    // 어제 날짜 범위
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 어제 날짜 범위 (KST 기준: UTC+9)
+    // 이 함수는 00:00 UTC (= 09:00 KST)에 실행됨
+    // KST 어제 00:00 ~ 오늘 00:00 범위를 UTC로 변환
+    const now = new Date()
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 
-    const from = yesterday.toISOString()
-    const to = today.toISOString()
+    // KST 기준 오늘 00:00
+    const kstNow = new Date(now.getTime() + KST_OFFSET_MS)
+    const kstTodayStart = new Date(kstNow)
+    kstTodayStart.setUTCHours(0, 0, 0, 0)
+
+    // KST 기준 어제 00:00
+    const kstYesterdayStart = new Date(kstTodayStart)
+    kstYesterdayStart.setUTCDate(kstYesterdayStart.getUTCDate() - 1)
+
+    // UTC로 변환 (KST - 9시간)
+    const from = new Date(kstYesterdayStart.getTime() - KST_OFFSET_MS).toISOString()
+    const to = new Date(kstTodayStart.getTime() - KST_OFFSET_MS).toISOString()
+
+    console.log(`[scheduled-chatbot-daily-report] Date range (UTC): ${from} ~ ${to}`)
 
     // 통계 수집
     const [convResult, escResult, fbResult, learnResult] = await Promise.all([
@@ -30,6 +41,12 @@ exports.handler = async (event) => {
       supabase.from('chatbot_feedback').select('rating').gte('created_at', from).lt('created_at', to),
       supabase.from('chatbot_learning_queue').select('id', { count: 'exact' }).eq('status', 'pending')
     ])
+
+    // 에러 로깅
+    if (convResult.error) console.error('[daily-report] conversations query error:', convResult.error)
+    if (escResult.error) console.error('[daily-report] unanswered query error:', escResult.error)
+    if (fbResult.error) console.error('[daily-report] feedback query error:', fbResult.error)
+    if (learnResult.error) console.error('[daily-report] learning queue query error:', learnResult.error)
 
     const totalConversations = convResult.count || 0
     const creatorConvs = (convResult.data || []).filter(c => c.bot_type === 'creator').length
@@ -50,7 +67,8 @@ exports.handler = async (event) => {
 
     const pendingLearning = learnResult.count || 0
 
-    const dateStr = yesterday.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
+    // KST 어제 날짜 문자열
+    const dateStr = kstYesterdayStart.toLocaleDateString('ko-KR')
 
     const message = `📊 챗봇 일일 리포트 (${dateStr})
 

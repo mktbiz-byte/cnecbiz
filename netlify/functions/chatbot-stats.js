@@ -30,9 +30,12 @@ exports.handler = async (event) => {
   try {
     const { bot_type, date_from, date_to } = JSON.parse(event.body || '{}')
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayISO = today.toISOString()
+    // KST 기준 오늘 00:00을 UTC로 변환
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+    const kstNow = new Date(Date.now() + KST_OFFSET_MS)
+    const kstTodayStart = new Date(kstNow)
+    kstTodayStart.setUTCHours(0, 0, 0, 0)
+    const todayISO = new Date(kstTodayStart.getTime() - KST_OFFSET_MS).toISOString()
 
     // 오늘 대화 수
     let todayQuery = supabase
@@ -102,26 +105,31 @@ exports.handler = async (event) => {
     if (bot_type) learningQuery = learningQuery.eq('bot_type', bot_type)
     const { count: pendingLearning } = await learningQuery
 
-    // 최근 7일 일별 대화 수
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    // 최근 7일 일별 대화 수 (KST 기준)
+    const kstSevenDaysAgo = new Date(kstTodayStart)
+    kstSevenDaysAgo.setUTCDate(kstSevenDaysAgo.getUTCDate() - 7)
+    const sevenDaysAgoUTC = new Date(kstSevenDaysAgo.getTime() - KST_OFFSET_MS).toISOString()
+
     let dailyQuery = supabase
       .from('chatbot_conversations')
       .select('created_at')
-      .gte('created_at', sevenDaysAgo.toISOString())
+      .gte('created_at', sevenDaysAgoUTC)
     if (bot_type) dailyQuery = dailyQuery.eq('bot_type', bot_type)
     const { data: dailyData } = await dailyQuery
 
     const dailyCounts = {}
     for (let i = 6; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
+      const d = new Date(kstTodayStart)
+      d.setUTCDate(d.getUTCDate() - i)
+      // KST 날짜로 키 생성
       const key = d.toISOString().split('T')[0]
       dailyCounts[key] = 0
     }
     if (dailyData) {
       dailyData.forEach(item => {
-        const key = item.created_at.split('T')[0]
+        // created_at(UTC)를 KST 날짜로 변환
+        const kstDate = new Date(new Date(item.created_at).getTime() + KST_OFFSET_MS)
+        const key = kstDate.toISOString().split('T')[0]
         if (dailyCounts[key] !== undefined) dailyCounts[key]++
       })
     }
