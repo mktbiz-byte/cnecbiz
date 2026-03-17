@@ -5081,12 +5081,14 @@ Questions? Contact us.
             body: JSON.stringify({
               action: 'insert_video_submission',
               region,
+              skipNotification: true,
               submissionData: {
                 campaign_id: submission.campaign_id || id,
+                application_id: submission.application_id,
                 user_id: submission.user_id,
-                video_number: submission.video_number || 1,
+                video_number: submission.video_number || submission.week_number || 1,
                 version: submission.version || 1,
-                video_file_url: submission.video_file_url,
+                video_file_url: submission.video_file_url || submission.video_url,
                 video_file_name: submission.video_file_name,
                 status: 'approved',
                 submitted_at: submission.submitted_at || now,
