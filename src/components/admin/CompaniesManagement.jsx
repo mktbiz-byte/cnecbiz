@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, ShieldX, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download, ShieldOff, Wallet } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -505,6 +506,59 @@ export default function CompaniesManagement() {
     }
   }
 
+  const handleExcelDownload = () => {
+    const excelData = filteredCompanies.map((company, index) => {
+      const campaignData = companyCampaigns[company.email] || { count: 0, inProgress: 0, totalAmount: 0 }
+      const stats = voucherStats[company.user_id] || { totalCharged: 0, totalUsed: 0 }
+
+      const statusLabel = company.is_blocked ? '차단됨'
+        : company.is_approved === false ? '승인대기'
+        : company.status === 'suspended' ? '휴면'
+        : '정상'
+
+      return {
+        'NO': index + 1,
+        '기업명': company.company_name || '',
+        '담당자명': company.contact_person || company.contact_name || '',
+        '전화번호': company.phone || company.contact_phone || '',
+        '이메일': company.email || '',
+        '가입일': company.created_at ? new Date(company.created_at).toLocaleDateString('ko-KR') : '',
+        '상태': statusLabel,
+        '진행중 캠페인': campaignData.inProgress,
+        '누적 캠페인': campaignData.count,
+        '총 결제금액(VAT별도)': Math.round(campaignData.totalAmount / 1.1),
+        '바우처 충전액': stats.totalCharged,
+        '바우처 사용액': stats.totalUsed,
+        '바우처 잔액': company.points_balance || 0,
+      }
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData)
+
+    // 컬럼 너비 설정
+    worksheet['!cols'] = [
+      { wch: 5 },   // NO
+      { wch: 20 },  // 기업명
+      { wch: 12 },  // 담당자명
+      { wch: 15 },  // 전화번호
+      { wch: 28 },  // 이메일
+      { wch: 12 },  // 가입일
+      { wch: 8 },   // 상태
+      { wch: 10 },  // 진행중
+      { wch: 10 },  // 누적
+      { wch: 15 },  // 총 결제금액
+      { wch: 12 },  // 바우처 충전
+      { wch: 12 },  // 바우처 사용
+      { wch: 12 },  // 바우처 잔액
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, '기업목록')
+
+    const today = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(workbook, `기업목록_${today}.xlsx`)
+  }
+
   const filteredCompanies = companies.filter(company =>
     company.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -639,7 +693,7 @@ export default function CompaniesManagement() {
               기업 회원 관리
             </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExcelDownload}>
                 <Download className="w-4 h-4 mr-2" />
                 엑셀 다운로드
               </Button>
