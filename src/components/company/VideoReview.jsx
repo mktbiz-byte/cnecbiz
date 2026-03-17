@@ -791,13 +791,50 @@ export default function VideoReview() {
       // resolvedClient가 있으면 submission이 실제로 존재하는 DB를 사용
       const client = getRegionClient()
       // 합성 ID인 경우 실제 submission ID 사용
-      const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
+      let actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
 
-      // 합성 ID(app_xxx)가 그대로 남은 경우 FK 위반 방지
+      // 합성 ID(app_xxx)인 경우 video_submissions 레코드 자동 생성
       if (/^(app_|cp_|ca_)/.test(actualSubmissionId)) {
-        alert('이 영상은 video_submissions 테이블에 등록되지 않은 레코드입니다.\n피드백을 추가하려면 크리에이터가 영상을 다시 제출해야 합니다.')
-        setUploadingFile(false)
-        return
+        const realAppId = actualSubmissionId.replace(/^(app_|cp_|ca_)/, '')
+        try {
+          const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'insert_video_submission',
+              region,
+              skipNotification: true,
+              submissionData: {
+                campaign_id: submission?.campaign_id,
+                application_id: submission?.application_id || realAppId,
+                user_id: submission?.user_id,
+                video_number: submission?.video_number || submission?.week_number || 1,
+                version: submission?.version || 1,
+                video_file_url: submission?.video_file_url || submission?.video_url,
+                video_file_name: submission?.video_file_name,
+                status: submission?.status || 'submitted',
+                submitted_at: submission?.submitted_at || submission?.created_at || new Date().toISOString(),
+                created_at: submission?.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            })
+          })
+          const insertResult = await insertRes.json()
+          if (insertResult.success && insertResult.data?.id) {
+            // 새로 생성된 실제 ID로 submission 업데이트
+            actualSubmissionId = insertResult.data.id
+            setSubmission(prev => ({ ...prev, id: insertResult.data.id }))
+          } else {
+            alert('영상 레코드 생성에 실패했습니다.\n관리자에게 문의해주세요.')
+            setUploadingFile(false)
+            return
+          }
+        } catch (e) {
+          console.error('video_submissions auto-create failed:', e)
+          alert('영상 레코드 생성 중 오류가 발생했습니다.\n관리자에게 문의해주세요.')
+          setUploadingFile(false)
+          return
+        }
       }
 
       const { data, error } = await client
@@ -937,16 +974,53 @@ export default function VideoReview() {
     try {
       // 1. video_submissions 상태를 revision_requested로 변경
       const client = getRegionClient()
-      const actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
+      let actualSubmissionId = (submission?.id && !/^(app_|cp_|ca_)/.test(submission.id)) ? submission.id : submissionId
 
-      const { error: updateError } = await client
-        .from('video_submissions')
-        .update({ status: 'revision_requested', updated_at: new Date().toISOString() })
-        .eq('id', actualSubmissionId)
+      // 합성 ID인 경우 video_submissions 레코드 자동 생성
+      if (/^(app_|cp_|ca_)/.test(actualSubmissionId)) {
+        const realAppId = actualSubmissionId.replace(/^(app_|cp_|ca_)/, '')
+        try {
+          const insertRes = await fetch('/.netlify/functions/save-video-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'insert_video_submission',
+              region,
+              skipNotification: true,
+              submissionData: {
+                campaign_id: submission?.campaign_id,
+                application_id: submission?.application_id || realAppId,
+                user_id: submission?.user_id,
+                video_number: submission?.video_number || submission?.week_number || 1,
+                version: submission?.version || 1,
+                video_file_url: submission?.video_file_url || submission?.video_url,
+                video_file_name: submission?.video_file_name,
+                status: 'revision_requested',
+                submitted_at: submission?.submitted_at || submission?.created_at || new Date().toISOString(),
+                created_at: submission?.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            })
+          })
+          const insertResult = await insertRes.json()
+          if (insertResult.success && insertResult.data?.id) {
+            actualSubmissionId = insertResult.data.id
+            setSubmission(prev => ({ ...prev, id: insertResult.data.id }))
+          }
+        } catch (e) {
+          console.error('[VideoReview] auto-create video_submission failed:', e)
+        }
+      }
 
-      if (updateError) {
-        console.error('[VideoReview] video_submissions update error:', updateError)
-        // 업데이트 실패해도 알림 발송은 시도
+      if (!/^(app_|cp_|ca_)/.test(actualSubmissionId)) {
+        const { error: updateError } = await client
+          .from('video_submissions')
+          .update({ status: 'revision_requested', updated_at: new Date().toISOString() })
+          .eq('id', actualSubmissionId)
+
+        if (updateError) {
+          console.error('[VideoReview] video_submissions update error:', updateError)
+        }
       }
 
       // 2. 피드백 내용 텍스트 생성 (번역용)
