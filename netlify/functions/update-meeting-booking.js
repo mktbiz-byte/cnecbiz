@@ -12,6 +12,28 @@ const headers = {
   'Content-Type': 'application/json'
 }
 
+// 슬롯의 current_bookings를 실제 확정 예약 수로 동기화
+// excludeBookingId: 상태가 변경될 예약을 제외 (아직 DB에 반영 전이므로)
+async function syncSlotCounter(slotId, excludeBookingId) {
+  try {
+    const { count, error } = await supabase
+      .from('meeting_bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('confirmed_slot_id', slotId)
+      .eq('status', 'confirmed')
+      .neq('id', excludeBookingId)
+
+    if (!error) {
+      await supabase
+        .from('meeting_slots')
+        .update({ current_bookings: count || 0, updated_at: new Date().toISOString() })
+        .eq('id', slotId)
+    }
+  } catch (e) {
+    console.error('[syncSlotCounter] Error:', e.message)
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' }
@@ -70,10 +92,10 @@ exports.handler = async (event) => {
         updateData.status = 'confirmed'
         updateData.confirmed_slot_id = confirmed_slot_id
 
-        // Increment current_bookings on the slot
+        // 슬롯 정보 조회
         const { data: slot, error: slotErr } = await supabase
           .from('meeting_slots')
-          .select('current_bookings, max_bookings')
+          .select('max_bookings')
           .eq('id', confirmed_slot_id)
           .single()
 
@@ -85,7 +107,16 @@ exports.handler = async (event) => {
           }
         }
 
-        if (slot.current_bookings >= slot.max_bookings) {
+        // 카운터 대신 실제 확정된 예약 수를 조회 (정확한 체크)
+        const { count: activeBookings, error: countErr } = await supabase
+          .from('meeting_bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('confirmed_slot_id', confirmed_slot_id)
+          .eq('status', 'confirmed')
+
+        if (countErr) throw countErr
+
+        if ((activeBookings || 0) >= slot.max_bookings) {
           return {
             statusCode: 400,
             headers,
@@ -93,9 +124,10 @@ exports.handler = async (event) => {
           }
         }
 
+        // current_bookings 카운터도 실제 값으로 동기화
         const { error: slotUpdateErr } = await supabase
           .from('meeting_slots')
-          .update({ current_bookings: slot.current_bookings + 1, updated_at: new Date().toISOString() })
+          .update({ current_bookings: (activeBookings || 0) + 1, updated_at: new Date().toISOString() })
           .eq('id', confirmed_slot_id)
 
         if (slotUpdateErr) throw slotUpdateErr
@@ -109,26 +141,20 @@ exports.handler = async (event) => {
 
       case 'complete': {
         updateData.status = 'completed'
+
+        // 완료 시 슬롯 카운터 동기화 (완료된 예약은 활성 예약이 아님)
+        if (booking.confirmed_slot_id) {
+          await syncSlotCounter(booking.confirmed_slot_id, booking_id)
+        }
         break
       }
 
       case 'cancel': {
         updateData.status = 'cancelled'
 
-        // Decrement current_bookings if there was a confirmed slot
+        // 취소 시 슬롯 카운터 동기화
         if (booking.confirmed_slot_id) {
-          const { data: slot, error: slotErr } = await supabase
-            .from('meeting_slots')
-            .select('current_bookings')
-            .eq('id', booking.confirmed_slot_id)
-            .single()
-
-          if (!slotErr && slot && slot.current_bookings > 0) {
-            await supabase
-              .from('meeting_slots')
-              .update({ current_bookings: slot.current_bookings - 1, updated_at: new Date().toISOString() })
-              .eq('id', booking.confirmed_slot_id)
-          }
+          await syncSlotCounter(booking.confirmed_slot_id, booking_id)
         }
 
         updateData.confirmed_slot_id = null
@@ -137,6 +163,11 @@ exports.handler = async (event) => {
 
       case 'no_show': {
         updateData.status = 'no_show'
+
+        // 노쇼 시 슬롯 카운터 동기화
+        if (booking.confirmed_slot_id) {
+          await syncSlotCounter(booking.confirmed_slot_id, booking_id)
+        }
         break
       }
     }
