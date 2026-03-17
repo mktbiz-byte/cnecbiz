@@ -56,7 +56,13 @@ apt-get install -y python3.11 python3.11-venv python3.11-dev python3-pip
 update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 echo ""
+echo "========== apt_pkg 모듈 복구 =========="
+# Python 3.11 기본 설정 후 apt_pkg 호환성 문제 해결
+ln -sf /usr/lib/python3/dist-packages/apt_pkg.cpython-310-x86_64-linux-gnu.so /usr/lib/python3/dist-packages/apt_pkg.so 2>/dev/null || true
+
+echo ""
 echo "========== Node.js 20 설치 =========="
+apt-get remove -y nodejs libnode72 2>/dev/null || true
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 
