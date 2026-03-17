@@ -128,66 +128,25 @@ exports.handler = async (event, context) => {
 
     console.log('[approve-campaign] Campaign found:', campaign.title)
 
-    // 회사 정보 조회 (company_id → user_id → company_email 순서로 폴백)
+    // 회사 정보 조회 (company_email 우선 → company_id 순서로 폴백)
+    // ★ company_email을 최우선으로 조회해야 관리자가 대신 등록한 캠페인에서도 올바른 기업을 찾음
     let company = null
 
-    if (campaign.company_id) {
-      // 1. company_id로 companies.id 조회 (이관된 캠페인)
-      const { data: byIdRegional } = await supabaseRegion
+    // 1. company_email로 Biz DB에서 조회 (가장 정확)
+    if (campaign.company_email) {
+      const { data: companyData } = await supabaseBiz
         .from('companies')
         .select('*')
-        .eq('id', campaign.company_id)
+        .eq('email', campaign.company_email)
         .maybeSingle()
 
-      if (byIdRegional) {
-        company = byIdRegional
-        console.log('[approve-campaign] Company found by id in regional DB')
-      }
-
-      // 2. company_id로 companies.user_id 조회 (원래 생성된 캠페인)
-      if (!company) {
-        const { data: byUserIdRegional } = await supabaseRegion
-          .from('companies')
-          .select('*')
-          .eq('user_id', campaign.company_id)
-          .maybeSingle()
-
-        if (byUserIdRegional) {
-          company = byUserIdRegional
-          console.log('[approve-campaign] Company found by user_id in regional DB')
-        }
-      }
-
-      // 3. BIZ DB에서 companies.id로 조회
-      if (!company) {
-        const { data: byIdBiz } = await supabaseBiz
-          .from('companies')
-          .select('*')
-          .eq('id', campaign.company_id)
-          .maybeSingle()
-
-        if (byIdBiz) {
-          company = byIdBiz
-          console.log('[approve-campaign] Company found by id in Biz DB')
-        }
-      }
-
-      // 4. BIZ DB에서 companies.user_id로 조회
-      if (!company) {
-        const { data: byUserIdBiz } = await supabaseBiz
-          .from('companies')
-          .select('*')
-          .eq('user_id', campaign.company_id)
-          .maybeSingle()
-
-        if (byUserIdBiz) {
-          company = byUserIdBiz
-          console.log('[approve-campaign] Company found by user_id in Biz DB')
-        }
+      if (companyData) {
+        company = companyData
+        console.log('[approve-campaign] Company found by company_email in Biz DB')
       }
     }
 
-    // 5. company_email로 지역 DB에서 조회
+    // 2. company_email로 지역 DB에서 조회
     if (!company && campaign.company_email) {
       const { data: companyData } = await supabaseRegion
         .from('companies')
@@ -201,17 +160,59 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 6. company_email로 Biz DB에서 조회
-    if (!company && campaign.company_email) {
-      const { data: companyData } = await supabaseBiz
+    // 3. company_id로 companies.id 조회 (Biz DB)
+    if (!company && campaign.company_id) {
+      const { data: byIdBiz } = await supabaseBiz
         .from('companies')
         .select('*')
-        .eq('email', campaign.company_email)
+        .eq('id', campaign.company_id)
         .maybeSingle()
 
-      if (companyData) {
-        company = companyData
-        console.log('[approve-campaign] Company found by company_email in Biz DB')
+      if (byIdBiz) {
+        company = byIdBiz
+        console.log('[approve-campaign] Company found by id in Biz DB')
+      }
+    }
+
+    // 4. company_id로 companies.id 조회 (지역 DB)
+    if (!company && campaign.company_id) {
+      const { data: byIdRegional } = await supabaseRegion
+        .from('companies')
+        .select('*')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (byIdRegional) {
+        company = byIdRegional
+        console.log('[approve-campaign] Company found by id in regional DB')
+      }
+    }
+
+    // 5. company_id로 companies.user_id 조회 (Biz DB - fallback)
+    if (!company && campaign.company_id) {
+      const { data: byUserIdBiz } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('user_id', campaign.company_id)
+        .maybeSingle()
+
+      if (byUserIdBiz) {
+        company = byUserIdBiz
+        console.log('[approve-campaign] Company found by user_id in Biz DB')
+      }
+    }
+
+    // 6. company_id로 companies.user_id 조회 (지역 DB - fallback)
+    if (!company && campaign.company_id) {
+      const { data: byUserIdRegional } = await supabaseRegion
+        .from('companies')
+        .select('*')
+        .eq('user_id', campaign.company_id)
+        .maybeSingle()
+
+      if (byUserIdRegional) {
+        company = byUserIdRegional
+        console.log('[approve-campaign] Company found by user_id in regional DB')
       }
     }
 

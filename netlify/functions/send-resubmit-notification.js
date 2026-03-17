@@ -130,12 +130,12 @@ exports.handler = async (event) => {
     let companyContactName = companyNameFromCampaign
     let companyName = companyNameFromCampaign
 
-    const selectFields = 'company_name, notification_phone, notification_email, notification_contact_person, phone, email, contact_phone, contact_email, contact_person'
+    const selectFields = 'company_name, notification_phone, notification_email, notification_contact_person, phone, email, contact_person'
 
     const applyCompanyResult = (comp, source) => {
       if (!comp) return false
-      const phone = comp.notification_phone || comp.phone || comp.contact_phone
-      const email = comp.notification_email || comp.email || comp.contact_email
+      const phone = comp.notification_phone || comp.phone
+      const email = comp.notification_email || comp.email
       if (phone || email) {
         if (phone && !companyPhone) companyPhone = phone
         if (email && !companyEmail) companyEmail = email
