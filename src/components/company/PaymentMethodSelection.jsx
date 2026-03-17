@@ -70,7 +70,7 @@ const PaymentMethodSelection = () => {
         if (data?.company_email) {
           const { data: cd, error: ce } = await supabaseBiz
             .from('companies')
-            .select('id, user_id, points_balance, company_name, phone')
+            .select('id, user_id, points_balance, company_name, phone, notification_phone')
             .eq('email', data.company_email)
             .single();
           if (!ce) companyData = cd;
@@ -79,7 +79,7 @@ const PaymentMethodSelection = () => {
         if (!companyData && data?.company_id) {
           const { data: cd, error: ce } = await supabaseBiz
             .from('companies')
-            .select('id, user_id, points_balance, company_name, phone')
+            .select('id, user_id, points_balance, company_name, phone, notification_phone')
             .eq('user_id', data.company_id)
             .single();
           if (!ce) companyData = cd;
@@ -89,7 +89,7 @@ const PaymentMethodSelection = () => {
           setCompanyId(companyData.id);
           setCompanyUserId(companyData.user_id);
           setCompanyName(companyData.company_name || data.brand || '');
-          setCompanyPhone(companyData.phone || '');
+          setCompanyPhone(companyData.notification_phone || companyData.phone || '');
         }
 
         setLoading(false);

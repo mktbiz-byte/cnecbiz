@@ -239,18 +239,67 @@ exports.handler = async (event, context) => {
       console.log('[confirm-payment] No campaign to update')
     }
 
-    // 회사 정보 조회
-    console.log('[confirm-payment] Looking up company info for user_id:', chargeRequest.company_id)
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from('companies')
-      .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-      .eq('user_id', chargeRequest.company_id)
-      .single()
-    
-    if (companyError) {
-      console.error('[confirm-payment] Company lookup error:', companyError)
-    } else {
-      console.log('[confirm-payment] Company found:', company?.company_name)
+    // 회사 정보 조회 (캠페인의 실제 기업 우선, charge_request fallback)
+    let company = null
+
+    // 1. 캠페인의 company_biz_id로 BIZ DB 조회 (가장 정확)
+    if (!company && campaign?.company_biz_id) {
+      const { data: companyData } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_biz_id)
+        .maybeSingle()
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-payment] Company found by campaign.company_biz_id:', company.company_name)
+      }
+    }
+
+    // 2. 캠페인의 company_email로 BIZ DB 조회
+    if (!company && campaign?.company_email) {
+      const { data: companyData } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-payment] Company found by campaign.company_email:', company.company_name)
+      }
+    }
+
+    // 3. 캠페인의 company_id로 BIZ DB companies.id 직접 매칭
+    if (!company && campaign?.company_id) {
+      const { data: companyData } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-payment] Company found by campaign.company_id→id:', company.company_name)
+      }
+    }
+
+    // 4. charge_request의 company_id → user_id 매칭 (기존 방식, fallback)
+    if (!company && chargeRequest.company_id) {
+      console.log('[confirm-payment] Fallback: looking up company by user_id:', chargeRequest.company_id)
+      const { data: companyData, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('user_id', chargeRequest.company_id)
+        .maybeSingle()
+      if (companyError) {
+        console.error('[confirm-payment] Company lookup error:', companyError)
+      }
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-payment] Company found by chargeRequest.company_id→user_id:', company.company_name)
+      }
+    }
+
+    if (!company) {
+      console.error('[confirm-payment] Company not found for charge request:', chargeRequest.id)
     }
 
     // 고객에게 카카오 알림톡 및 이메일 발송

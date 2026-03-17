@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
     // 캠페인 정보 조회
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from('campaigns')
-      .select('*, companies(company_name, email, phone)')
+      .select('*, companies(company_name, email, phone, notification_phone, notification_email)')
       .eq('id', campaignId)
       .eq('company_id', companyId)
       .single()
@@ -108,8 +108,8 @@ exports.handler = async (event, context) => {
       const emailTemplate = generateEmailHtml(templateCode, variables)
 
       await sendNotification({
-        receiverNum: campaign.companies.phone,
-        receiverEmail: campaign.companies.email,
+        receiverNum: campaign.companies.notification_phone || campaign.companies.phone,
+        receiverEmail: campaign.companies.notification_email || campaign.companies.email,
         receiverName: campaign.companies.company_name,
         templateCode,
         variables,
