@@ -55,11 +55,11 @@ exports.handler = async (event, context) => {
     console.log('🔍 매칭된 충전 요청 정보 조회...');
     const transactionsWithRequests = await Promise.all(
       transactions.map(async (tx) => {
-        if (tx.matched_request_id) {
+        if (tx.charge_request_id) {
           const { data: request, error: requestError } = await supabaseAdmin
             .from('points_charge_requests')
             .select('id, amount, status, company_id, depositor_name')
-            .eq('id', tx.matched_request_id)
+            .eq('id', tx.charge_request_id)
             .single();
 
           if (requestError) {
@@ -104,7 +104,8 @@ exports.handler = async (event, context) => {
       remark2: tx.remark2,
       remark3: tx.remark3,
       isMatched: tx.is_matched,
-      matchedRequest: tx.matchedRequest
+      matchedRequest: tx.matchedRequest,
+      accountLabel: tx.account_label || null
     }));
 
     // 통계 계산

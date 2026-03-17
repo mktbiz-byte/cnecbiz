@@ -9,7 +9,7 @@ const popbill = require('popbill');
 const axios = require('axios');
 
 // Supabase 클라이언트 초기화
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -550,7 +550,8 @@ async function collectTransactionsForAccount(account, startDate, endDate) {
           trade_balance: tradeBalance,
           briefs: briefs,
           charge_request_id: matchedRequestId,
-          is_matched: !!matchedRequestId
+          is_matched: !!matchedRequestId,
+          account_label: account.label
         });
 
       if (insertError) {
