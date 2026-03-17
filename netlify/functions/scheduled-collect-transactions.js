@@ -34,15 +34,14 @@ const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 const ACCOUNTS = [
   {
     label: '하우랩',
-    bankCode: process.env.BANK_CODE || '0003',
-    accountNumber: process.env.ACCOUNT_NUMBER
+    bankCode: '0004', // 국민은행
+    accountNumber: '28800104344172'
   },
-  // 하우파파 계좌 (환경변수 설정 시 자동 활성화)
-  ...(process.env.ACCOUNT_NUMBER_2 ? [{
+  {
     label: '하우파파',
-    bankCode: process.env.BANK_CODE_2 || '0003',
-    accountNumber: process.env.ACCOUNT_NUMBER_2
-  }] : [])
+    bankCode: '0003', // IBK기업은행
+    accountNumber: '04712275304011'
+  }
 ];
 
 const BASE_URL = process.env.URL || 'https://cnecbiz.com';
