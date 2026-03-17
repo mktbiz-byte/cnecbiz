@@ -479,7 +479,7 @@ export default function PointsChargeManagement() {
             >
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
-                계좌 거래 내역
+                하우파파 입금 내역
               </div>
             </button>
             <button
