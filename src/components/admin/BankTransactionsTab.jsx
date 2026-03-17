@@ -16,7 +16,7 @@ export default function BankTransactionsTab() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all') // all, matched, unmatched
-  const [filterAccount, setFilterAccount] = useState('all') // all, 하우랩, 하우파파
+  const [filterAccount, setFilterAccount] = useState('all') // all (하우파파 전용)
 
   useEffect(() => {
     fetchTransactions()
@@ -139,7 +139,7 @@ export default function BankTransactionsTab() {
       {/* 필터 및 검색 */}
       <Card>
         <CardHeader>
-          <CardTitle>계좌 거래 내역</CardTitle>
+          <CardTitle>하우파파 입금 내역</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -210,29 +210,6 @@ export default function BankTransactionsTab() {
                 미매칭
               </Button>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant={filterAccount === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilterAccount('all')}
-                size="sm"
-              >
-                전체 계좌
-              </Button>
-              <Button
-                variant={filterAccount === '하우랩' ? 'default' : 'outline'}
-                onClick={() => setFilterAccount('하우랩')}
-                size="sm"
-              >
-                하우랩
-              </Button>
-              <Button
-                variant={filterAccount === '하우파파' ? 'default' : 'outline'}
-                onClick={() => setFilterAccount('하우파파')}
-                size="sm"
-              >
-                하우파파
-              </Button>
-            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -250,7 +227,6 @@ export default function BankTransactionsTab() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-3">계좌</th>
                   <th className="text-left p-3">거래일시</th>
                   <th className="text-left p-3">입금자명</th>
                   <th className="text-right p-3">입금액</th>
@@ -262,29 +238,20 @@ export default function BankTransactionsTab() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="text-center p-8 text-gray-500">
+                    <td colSpan="6" className="text-center p-8 text-gray-500">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                       거래 내역을 불러오는 중...
                     </td>
                   </tr>
                 ) : filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center p-8 text-gray-500">
+                    <td colSpan="6" className="text-center p-8 text-gray-500">
                       거래 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map((tx, index) => (
                     <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="p-3">
-                        {tx.accountLabel ? (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${tx.accountLabel === '하우랩' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                            {tx.accountLabel}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                      </td>
                       <td className="p-3">
                         <div className="text-sm">
                           {tx.tradeDate?.slice(0, 4)}-{tx.tradeDate?.slice(4, 6)}-{tx.tradeDate?.slice(6, 8)}

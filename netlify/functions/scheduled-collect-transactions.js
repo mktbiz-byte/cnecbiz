@@ -29,17 +29,12 @@ popbill.config({
 // 팝빌 계좌조회 서비스 객체 생성
 const easyFinBankService = popbill.EasyFinBankService();
 
-// 계좌 정보 (하우랩 + 하우파파 두 계좌, 각각 다른 사업자번호)
+// 하우파파 계좌 정보 (하우랩은 별도 함수 get-howlab-deposits에서 처리)
+const HOWPAPA_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const ACCOUNTS = [
   {
-    label: '하우랩',
-    corpNum: process.env.POPBILL_HAULAB_CORP_NUM || '3768100944',
-    bankCode: '0004', // 국민은행
-    accountNumber: '28800104344172'
-  },
-  {
     label: '하우파파',
-    corpNum: process.env.POPBILL_CORP_NUM,
+    corpNum: HOWPAPA_CORP_NUM,
     bankCode: '0003', // IBK기업은행
     accountNumber: '047-122753-04-011'
   }
