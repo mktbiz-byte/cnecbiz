@@ -127,7 +127,9 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
 
   const handleSceneChange = (sceneIndex, field, value) => {
     const newGuide = { ...editedGuide }
-    newGuide.shooting_scenes[sceneIndex][field] = value
+    const sceneKey = newGuide.shooting_scenes ? 'shooting_scenes' : 'scenes'
+    newGuide[sceneKey] = [...(newGuide[sceneKey] || [])]
+    newGuide[sceneKey][sceneIndex] = { ...newGuide[sceneKey][sceneIndex], [field]: value }
     setEditedGuide(newGuide)
   }
 

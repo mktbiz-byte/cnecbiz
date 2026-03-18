@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { ArrowLeft, Calendar, Edit, Save, X, Plus, Trash2 } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
@@ -8,6 +8,13 @@ import CompanyNavigation from './CompanyNavigation'
 export default function FourWeekChallengeGuideViewer() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  const supabase = region === 'japan'
+    ? getSupabaseClient('japan')
+    : region === 'us'
+      ? getSupabaseClient('us')
+      : (getSupabaseClient('korea') || supabaseBiz)
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editingWeek, setEditingWeek] = useState(null)
