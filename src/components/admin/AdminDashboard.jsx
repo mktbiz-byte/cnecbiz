@@ -6,9 +6,13 @@ import {
   Users, TrendingUp, DollarSign, Package,
   Building2, CheckCircle, Clock, XCircle,
   BarChart3, PieChart, Calendar, ChevronRight,
-  Target, ImageIcon, Eye
+  Target, ImageIcon, Eye, Globe
 } from 'lucide-react'
-import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area
+} from 'recharts'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, supabaseTaiwan, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function AdminDashboard() {
@@ -38,11 +42,15 @@ export default function AdminDashboard() {
   })
   const [monthlyRevenue, setMonthlyRevenue] = useState([])
   const [activeCampaigns, setActiveCampaigns] = useState([])
+  const [creatorSignups, setCreatorSignups] = useState([])
+  const [applicationStats, setApplicationStats] = useState([])
+  const [regionTotals, setRegionTotals] = useState({ korea: 0, japan: 0, us: 0, taiwan: 0 })
 
   useEffect(() => {
     checkAuth()
     fetchStats()
     fetchCampaignStats()
+    fetchRegionalStats()
   }, [])
 
   const checkAuth = async () => {
@@ -217,6 +225,109 @@ export default function AdminDashboard() {
       console.error('캠페인 통계 조회 오류:', error)
     }
   }
+
+  // 나라별 크리에이터 가입 & 캠페인 지원 통계
+  const fetchRegionalStats = async () => {
+    try {
+      const now = new Date()
+      const regions = [
+        { key: 'korea', label: '한국', client: supabaseKorea },
+        { key: 'japan', label: '일본', client: supabaseJapan },
+        { key: 'us', label: '미국', client: supabaseUS },
+        { key: 'taiwan', label: '대만', client: supabaseTaiwan }
+      ].filter(r => r.client)
+
+      // 최근 6개월 월별 데이터 생성
+      const months = []
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        months.push({
+          date: d,
+          label: d.toLocaleDateString('ko-KR', { month: 'short' }),
+          yearMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        })
+      }
+
+      const sixMonthsAgo = months[0].date.toISOString()
+      const totals = { korea: 0, japan: 0, us: 0, taiwan: 0 }
+
+      // 각 리전별 user_profiles(가입자), applications(지원) 조회
+      const regionResults = await Promise.all(
+        regions.map(async (region) => {
+          const [profilesRes, appsRes] = await Promise.all([
+            region.client.from('user_profiles')
+              .select('created_at')
+              .gte('created_at', sixMonthsAgo)
+              .order('created_at', { ascending: true }),
+            region.client.from('applications')
+              .select('created_at, status')
+              .gte('created_at', sixMonthsAgo)
+              .order('created_at', { ascending: true })
+          ])
+
+          // 전체 가입자 수 (전체 기간)
+          const { count: totalCreators } = await region.client
+            .from('user_profiles')
+            .select('id', { count: 'exact', head: true })
+          totals[region.key] = totalCreators || 0
+
+          return {
+            key: region.key,
+            profiles: profilesRes.data || [],
+            applications: appsRes.data || []
+          }
+        })
+      )
+
+      setRegionTotals(totals)
+
+      // 월별 가입자 집계
+      const signupData = months.map(m => {
+        const nextMonth = new Date(m.date.getFullYear(), m.date.getMonth() + 1, 1)
+        const entry = { month: m.label }
+
+        regionResults.forEach(r => {
+          entry[r.key] = r.profiles.filter(p => {
+            const d = new Date(p.created_at)
+            return d >= m.date && d < nextMonth
+          }).length
+        })
+
+        return entry
+      })
+      setCreatorSignups(signupData)
+
+      // 월별 지원 현황 집계
+      const appData = months.map(m => {
+        const nextMonth = new Date(m.date.getFullYear(), m.date.getMonth() + 1, 1)
+        const entry = { month: m.label }
+
+        regionResults.forEach(r => {
+          const monthApps = r.applications.filter(a => {
+            const d = new Date(a.created_at)
+            return d >= m.date && d < nextMonth
+          })
+          entry[r.key] = monthApps.length
+          entry[`${r.key}_selected`] = monthApps.filter(a =>
+            ['selected', 'virtual_selected', 'approved', 'completed'].includes(a.status)
+          ).length
+        })
+
+        return entry
+      })
+      setApplicationStats(appData)
+    } catch (error) {
+      console.error('리전별 통계 조회 오류:', error)
+    }
+  }
+
+  const REGION_COLORS = {
+    korea: '#6C5CE7',
+    japan: '#E17055',
+    us: '#00B894',
+    taiwan: '#0984E3'
+  }
+  const REGION_LABELS = { korea: '한국', japan: '일본', us: '미국', taiwan: '대만' }
 
   // 그래프 최대값 계산
   const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1)
@@ -466,6 +577,118 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 나라별 크리에이터 & 지원 통계 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 나라별 크리에이터 가입 추이 */}
+          <Card className="border-[#DFE6E9] rounded-2xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-[#6C5CE7]" />
+                  나라별 크리에이터 가입 추이
+                </CardTitle>
+                <div className="flex gap-3">
+                  {Object.entries(REGION_LABELS).map(([key, label]) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: REGION_COLORS[key] }} />
+                      <span className="text-xs text-[#636E72]">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {creatorSignups.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <AreaChart data={creatorSignups}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#636E72' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#636E72' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: '1px solid #DFE6E9', fontSize: '13px' }}
+                        formatter={(value, name) => [value + '명', REGION_LABELS[name]]}
+                      />
+                      <Area type="monotone" dataKey="korea" stroke={REGION_COLORS.korea} fill={REGION_COLORS.korea} fillOpacity={0.15} strokeWidth={2} />
+                      <Area type="monotone" dataKey="japan" stroke={REGION_COLORS.japan} fill={REGION_COLORS.japan} fillOpacity={0.15} strokeWidth={2} />
+                      <Area type="monotone" dataKey="us" stroke={REGION_COLORS.us} fill={REGION_COLORS.us} fillOpacity={0.15} strokeWidth={2} />
+                      <Area type="monotone" dataKey="taiwan" stroke={REGION_COLORS.taiwan} fill={REGION_COLORS.taiwan} fillOpacity={0.15} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  {/* 누적 총 가입자 */}
+                  <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#DFE6E9]">
+                    {Object.entries(REGION_LABELS).map(([key, label]) => (
+                      <div key={key} className="text-center">
+                        <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                          {(regionTotals[key] || 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-[#636E72]">{label} 총 가입</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-48 text-[#636E72] text-sm">데이터 로딩 중...</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 나라별 캠페인 지원 현황 */}
+          <Card className="border-[#DFE6E9] rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#6C5CE7]" />
+                나라별 캠페인 지원 현황
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {applicationStats.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={applicationStats} barCategoryGap="20%">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#636E72' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#636E72' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: '1px solid #DFE6E9', fontSize: '13px' }}
+                        formatter={(value, name) => {
+                          const isSelected = name.includes('_selected')
+                          const region = name.replace('_selected', '')
+                          return [value + '명', REGION_LABELS[region] + (isSelected ? ' (선정)' : ' (지원)')]
+                        }}
+                      />
+                      <Bar dataKey="korea" fill={REGION_COLORS.korea} radius={[4, 4, 0, 0]} name="korea" />
+                      <Bar dataKey="japan" fill={REGION_COLORS.japan} radius={[4, 4, 0, 0]} name="japan" />
+                      <Bar dataKey="us" fill={REGION_COLORS.us} radius={[4, 4, 0, 0]} name="us" />
+                      <Bar dataKey="taiwan" fill={REGION_COLORS.taiwan} radius={[4, 4, 0, 0]} name="taiwan" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  {/* 6개월 합계 */}
+                  <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#DFE6E9]">
+                    {Object.entries(REGION_LABELS).map(([key, label]) => {
+                      const total = applicationStats.reduce((sum, m) => sum + (m[key] || 0), 0)
+                      const selected = applicationStats.reduce((sum, m) => sum + (m[`${key}_selected`] || 0), 0)
+                      return (
+                        <div key={key} className="text-center">
+                          <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            {total}
+                          </div>
+                          <div className="text-xs text-[#636E72]">{label} 지원</div>
+                          <div className="text-xs font-medium mt-0.5" style={{ color: REGION_COLORS[key] }}>
+                            선정 {selected}명
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-48 text-[#636E72] text-sm">데이터 로딩 중...</div>
+              )}
             </CardContent>
           </Card>
         </div>
