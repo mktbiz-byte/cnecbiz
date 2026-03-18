@@ -35,6 +35,13 @@ const comparisonRows = [
     experience: '별도 협의',
   },
   {
+    label: '영상 수정',
+    cnec: '1회 무료',
+    agency: '추가 비용',
+    experience: false,
+    cnecHighlight: true,
+  },
+  {
     label: '원본 파일 제공',
     cnec: true,
     agency: '추가 비용',
@@ -179,7 +186,7 @@ export default function PricingCompareSection({ user, navigate }) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#C084FC]/20 bg-[#C084FC]/[0.05] text-[#C084FC] text-sm font-medium mb-6">
             <Shield className="w-4 h-4" />
-            숨겨진 비용 없음 — 기획비, 매칭비, 2차 활용비 모두 포함
+            숨겨진 비용 없음 — 기획비, 매칭비, 2차 활용비, 수정 1회 모두 포함
           </div>
           <div className="block">
             <button
