@@ -49,6 +49,8 @@ import {
   Lock
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
+import StoryProposalReadonly from './StoryProposalReadonly'
+import StorySubmissionReadonly from './StorySubmissionReadonly'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
 
 // US 캠페인 작업을 위한 API 호출 헬퍼 (RLS 우회)
@@ -13389,6 +13391,68 @@ Questions? Contact us.
 
 
         </Tabs>
+
+        {/* 스토리 숏폼 전용 섹션 — 기획안 & 검수 현황 */}
+        {campaign?.campaign_type === 'story_short' && (
+          <div className="space-y-6 mt-6">
+            {/* 스토리 숏폼 가이드 요약 */}
+            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
+                <CardTitle className="flex items-center gap-2 text-gray-800">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  스토리 숏폼 가이드
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-3 text-sm">
+                  {campaign?.story_swipe_link && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">스와이프 링크</span>
+                      <a href={campaign.story_swipe_link} target="_blank" rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline truncate">
+                        {campaign.story_swipe_link}
+                      </a>
+                    </div>
+                  )}
+                  {campaign?.story_hashtags?.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">필수 해시태그</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {campaign.story_hashtags.map((tag, idx) => (
+                          <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {campaign?.story_tone_guide && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">톤/분위기</span>
+                      <span className="text-gray-900">{campaign.story_tone_guide}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-6 pt-2 border-t">
+                    <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_no_revision ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                      {campaign?.story_no_revision ? '수정 불가 (추가 시 +2만원)' : '수정 가능'}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_secondary_use ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}`}>
+                      {campaign?.story_secondary_use ? '2차 활용 포함' : '2차 활용 미포함'}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 기획안 현황 (읽기 전용) */}
+            <StoryProposalReadonly campaignId={id} />
+
+            {/* 스토리 제출 현황 (읽기 전용) */}
+            <StorySubmissionReadonly campaignId={id} />
+          </div>
+        )}
 
         {/* Campaign Details */}
         <Card className="mt-6 border-0 shadow-lg rounded-2xl overflow-hidden">

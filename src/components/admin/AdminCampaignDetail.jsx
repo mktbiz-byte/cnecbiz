@@ -31,6 +31,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import StoryProposalReview from './StoryProposalReview'
+import StorySubmissionReview from './StorySubmissionReview'
 
 export default function AdminCampaignDetail() {
   const { id } = useParams()
@@ -1533,6 +1535,14 @@ export default function AdminCampaignDetail() {
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* 스토리 숏폼 전용 섹션 */}
+          {campaign?.campaign_type === 'story_short' && (
+            <div className="space-y-6 mt-6">
+              <StoryProposalReview campaignId={id} />
+              <StorySubmissionReview campaignId={id} />
+            </div>
+          )}
         </div>
       </div>
 
