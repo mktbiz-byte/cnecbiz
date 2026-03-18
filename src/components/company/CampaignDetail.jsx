@@ -50,6 +50,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import StoryProposalReadonly from './StoryProposalReadonly'
+import StoryGuideEditor from './StoryGuideEditor'
 import StorySubmissionReadonly from './StorySubmissionReadonly'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
 import { parseGuide, prepareGuideForSave, isSceneGuide, isExternalGuide, isTextGuide } from '../../utils/guideParser'
@@ -13493,6 +13494,21 @@ Questions? Contact us.
                 </div>
               </CardContent>
             </Card>
+
+            {/* 스토리 가이드 생성/수정/발송 */}
+            <StoryGuideEditor
+              campaign={campaign}
+              region={region}
+              participants={participants}
+              onGuideUpdated={async (updatedGuide) => {
+                // 캠페인의 story_guide_content 업데이트
+                const client = getSupabaseClient(region)
+                if (client) {
+                  await client.from('campaigns').update({ story_guide_content: updatedGuide }).eq('id', campaign.id)
+                  setCampaign(prev => ({ ...prev, story_guide_content: updatedGuide }))
+                }
+              }}
+            />
 
             {/* 기획안 현황 (읽기 전용) */}
             <StoryProposalReadonly campaignId={id} />
