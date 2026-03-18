@@ -36,7 +36,7 @@ const ACCOUNTS = [
     label: '하우파파',
     corpNum: HOWPAPA_CORP_NUM,
     bankCode: '0003', // IBK기업은행
-    accountNumber: '047-122753-04-011'
+    accountNumber: '04712275304011'
   }
 ];
 

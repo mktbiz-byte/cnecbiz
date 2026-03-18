@@ -26,7 +26,7 @@ const HOWPAPA_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 
 // 하우파파 기업은행 계좌
 const HOWPAPA_BANK_CODE = '0003'; // 기업은행
-const HOWPAPA_ACCOUNT_NUMBER = '047-122753-04-011';
+const HOWPAPA_ACCOUNT_NUMBER = '04712275304011';
 
 /**
  * 수집 작업 상태 확인 (폴링)

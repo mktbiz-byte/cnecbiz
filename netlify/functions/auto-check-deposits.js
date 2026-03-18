@@ -26,7 +26,7 @@ const POPBILL_API_URL = POPBILL_TEST_MODE
 
 // 계좌 정보 (IBK기업은행)
 const BANK_CODE = '0003' // 기업은행
-const BANK_ACCOUNT = '047-122753-04-011'
+const BANK_ACCOUNT = '04712275304011'
 
 exports.handler = async (event, context) => {
   console.log('🔍 자동 입금 확인 시작...')
