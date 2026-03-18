@@ -1323,8 +1323,8 @@ const CampaignCreationKorea = () => {
         // 캐페인 타입에 따라 적절한 페이지로 이동
         setTimeout(() => {
           if (campaignForm.campaign_type === 'story_short') {
-            // 스토리 숏폼은 가이드 생성 없이 결제 페이지로 이동
-            navigate(`/company/campaigns/${campaignId}/invoice?region=korea`)
+            // 스토리 숏폼은 가이드 생성 없이 결제 방법 선택 페이지로 이동
+            navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
           } else if (campaignForm.campaign_type === 'oliveyoung') {
             navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
           } else if (campaignForm.campaign_type === '4week_challenge') {
