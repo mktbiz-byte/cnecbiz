@@ -62,7 +62,7 @@ const CreateCampaignJapan = () => {
     age_requirement: '',
     skin_type_requirement: '',
     offline_visit_requirement: '',
-    package_type: 'junior',
+    package_type: 'basic',
     campaign_type: 'regular',
     total_slots: 10,
     remaining_slots: 10,
@@ -149,7 +149,7 @@ const CreateCampaignJapan = () => {
           age_requirement: data.age_requirement || '',
           skin_type_requirement: data.skin_type_requirement || '',
           offline_visit_requirement: data.offline_visit_requirement || '',
-          package_type: data.package_type || 'junior',
+          package_type: data.package_type || 'basic',
           campaign_type: data.campaign_type || 'regular',
           total_slots: data.max_participants || data.total_slots || 10,
           remaining_slots: data.max_participants || data.remaining_slots || 10,
@@ -197,11 +197,11 @@ const CreateCampaignJapan = () => {
       value: 'regular',
       label: '기획형',
       labelJa: '企画型',
-      price: 300000,
+      price: 200000,
       description: '1개 영상 제작',
       descriptionJa: '1本の動画制作',
-      features: ['맞춤 가이드라인', 'AI 크리에이터 매칭', 'SNS 업로드 URL', '2차 활용권'],
-      featuresJa: ['カスタムガイド', 'AIマッチング', 'SNS URL', '二次利用権'],
+      features: ['맞춤 가이드라인', 'AI 크리에이터 매칭', 'SNS 업로드 URL', '2차 활용권', '수정 1회 무료'],
+      featuresJa: ['カスタムガイド', 'AIマッチング', 'SNS URL', '二次利用権', '修正1回無料'],
       color: 'indigo',
       icon: '📹'
     },
@@ -231,40 +231,49 @@ const CreateCampaignJapan = () => {
     }
   ]
 
-  // 패키지 옵션 (크리에이터 등급) - 10만원씩 증가
+  // 패키지 옵션 (크리에이터 등급)
   const packageOptions = [
+    {
+      value: 'basic',
+      label: '베이직',
+      labelJa: 'ベーシック',
+      priceAddon: 0,
+      description: '팔로워 1만 이하',
+      descriptionJa: 'フォロワー1万以下',
+      rewardYen: 12000
+    },
     {
       value: 'junior',
       label: '초급',
       labelJa: '初級',
-      priceAddon: 0,
+      priceAddon: 100000,
       description: '팔로워 1만~5만',
       descriptionJa: 'フォロワー1万~5万',
-      rewardYen: 12000
+      rewardYen: 18000
     },
     {
       value: 'intermediate',
       label: '중급',
       labelJa: '中級',
-      priceAddon: 100000,
+      priceAddon: 200000,
       description: '팔로워 5만~20만',
       descriptionJa: 'フォロワー5万~20万',
-      rewardYen: 18000
+      rewardYen: 24000
     },
     {
       value: 'senior',
       label: '상급',
       labelJa: '上級',
-      priceAddon: 200000,
+      priceAddon: 300000,
       description: '팔로워 20만 이상',
       descriptionJa: 'フォロワー20万以上',
-      rewardYen: 24000
+      rewardYen: 30000
     },
     {
       value: 'premium',
       label: '프리미엄',
       labelJa: 'プレミアム',
-      priceAddon: 300000,
+      priceAddon: 400000,
       description: '대형 인플루언서',
       descriptionJa: '大型インフルエンサー',
       rewardYen: 36000
