@@ -25,10 +25,13 @@ const { createClient } = require('@supabase/supabase-js');
 
 // US Supabase
 const getSupabaseUS = () => {
-  return createClient(
-    process.env.VITE_SUPABASE_US_URL || process.env.VITE_SUPABASE_US_URL,
-    process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const url = process.env.VITE_SUPABASE_US_URL;
+  const key = process.env.SUPABASE_US_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error('[send-us-notification] US DB 환경변수 누락');
+    throw new Error('US DB 환경변수 미설정 (VITE_SUPABASE_US_URL / SUPABASE_US_SERVICE_ROLE_KEY)');
+  }
+  return createClient(url, key);
 };
 
 // Gemini 번역 (영어)

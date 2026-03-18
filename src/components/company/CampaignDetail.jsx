@@ -5148,6 +5148,7 @@ Questions? Contact us.
           }
         } catch (e) {
           console.error('[handleVideoApproval] video_submissions update error:', e.message)
+          throw new Error(`영상 상태 업데이트 실패: ${e.message}`)
         }
       }
 
