@@ -8584,8 +8584,8 @@ Questions? Contact us.
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
-            {/* 베이직 패키지 안내 (AI 추천 & MUSE 추천 미제공) */}
-            {region === 'korea' && (['basic', 'junior'].includes(campaign?.package_type?.toLowerCase())) && (
+            {/* 베이직 패키지 안내 (AI 추천 & MUSE 추천 미제공) - 스토리 캠페인 제외 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && (['basic', 'junior'].includes(campaign?.package_type?.toLowerCase())) && (
               <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                 <CardContent className="py-6">
                   <div className="flex items-start gap-3">
@@ -8610,8 +8610,8 @@ Questions? Contact us.
               </Card>
             )}
 
-            {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) */}
-            {region === 'korea' && museCreators.length > 0 && (
+            {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) - 스토리 캠페인 제외 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && museCreators.length > 0 && (
               <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -8857,8 +8857,8 @@ Questions? Contact us.
               </Card>
             )}
 
-            {/* MUSE 크리에이터 로딩 중 */}
-            {region === 'korea' && loadingMuseCreators && (
+            {/* MUSE 크리에이터 로딩 중 - 스토리 캠페인 제외 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingMuseCreators && (
               <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <CardContent className="py-8">
                   <div className="flex items-center justify-center gap-2 text-amber-600">
@@ -8869,8 +8869,8 @@ Questions? Contact us.
               </Card>
             )}
 
-            {/* AI 추천 크리에이터 섹션 (글로우~블룸 등급, 확정5 + 랜덤5 = 최대 10명) */}
-            {region === 'korea' && aiCreatorRecs.length > 0 && (
+            {/* AI 추천 크리에이터 섹션 (글로우~블룸 등급, 확정5 + 랜덤5 = 최대 10명) - 스토리 캠페인 제외 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && aiCreatorRecs.length > 0 && (
               <Card className="mb-6 bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-200">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -9156,8 +9156,8 @@ Questions? Contact us.
               </Card>
             )}
 
-            {/* AI 추천 크리에이터 로딩 중 */}
-            {region === 'korea' && loadingAiCreatorRecs && (
+            {/* AI 추천 크리에이터 로딩 중 - 스토리 캠페인 제외 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingAiCreatorRecs && (
               <Card className="mb-6 bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-200">
                 <CardContent className="py-8">
                   <div className="flex items-center justify-center gap-2 text-indigo-600">
