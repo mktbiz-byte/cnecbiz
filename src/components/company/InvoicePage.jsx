@@ -503,6 +503,17 @@ const InvoicePage = () => {
     return generalPrices[packageKey] || 200000
   }
 
+  // 패키지 타입 라벨 매핑
+  const getPackageLabel = (packageType, campaignType) => {
+    const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지' }
+    const packageLabels = { basic: '베이직', junior: '초급', intermediate: '중급', senior: '상급', premium: '프리미엄', standard: '스탠다드', professional: '프로페셔널', enterprise: '엔터프라이즈' }
+    const ctLabel = campaignTypeLabels[campaignType] || campaignType || ''
+    const pkgLabel = packageLabels[packageType?.toLowerCase()] || packageType || ''
+    return `${ctLabel} · ${pkgLabel}`
+  }
+
+  const packageLabel = getPackageLabel(campaign.package_type, campaign.campaign_type)
+
   // 가격 계산 (bonus_amount 포함)
   const recruitmentCount = campaign.total_slots || 1
   const basePackagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
@@ -565,7 +576,7 @@ const InvoicePage = () => {
                 <tbody className="divide-y divide-gray-200">
                   <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium">{campaign.package_type}</div>
+                      <div className="font-medium">{packageLabel}</div>
                       <div className="text-gray-600 text-xs mt-1">{campaign.title}</div>
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
