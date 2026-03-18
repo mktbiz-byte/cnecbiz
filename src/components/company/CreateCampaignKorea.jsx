@@ -7,7 +7,7 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { History, X, Loader2, Package, Download } from 'lucide-react'
+import { History, X, Loader2, Package, Download, Info, Upload } from 'lucide-react'
 
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
@@ -68,15 +68,20 @@ const CampaignCreationKorea = () => {
     bonus_amount: 0,  // 지원율 높이기 추가 금액
     // 스토리 숏폼 전용
     story_swipe_link: '',
-    story_hashtags: [],
     story_tone_guide: '',
-    story_hashtag_input: ''  // 해시태그 입력 임시 값
+    story_required_keyword: '',
+    story_exposure_type: '',
+    story_reference_image_url: '',
+    story_restrictions: '',
+    story_slide_count: '1'
   })
 
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingReferenceImage, setUploadingReferenceImage] = useState(false)
+  const referenceImageRef = useRef(null)
   const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
   const [questionCount, setQuestionCount] = useState(0)
 
@@ -734,7 +739,13 @@ const CampaignCreationKorea = () => {
           week1_sns_deadline: formatDate(data.week1_sns_deadline),
           week2_sns_deadline: formatDate(data.week2_sns_deadline),
           week3_sns_deadline: formatDate(data.week3_sns_deadline),
-          week4_sns_deadline: formatDate(data.week4_sns_deadline)
+          week4_sns_deadline: formatDate(data.week4_sns_deadline),
+          // 스토리 숏폼 필드
+          story_required_keyword: data.story_required_keyword || '',
+          story_exposure_type: data.story_exposure_type || '',
+          story_reference_image_url: data.story_reference_image_url || '',
+          story_restrictions: data.story_restrictions || '',
+          story_slide_count: data.story_slide_count || '1'
         })
 
         // 수정 모드일 때 브랜드 정보 섹션으로 스크롤
@@ -1020,8 +1031,11 @@ const CampaignCreationKorea = () => {
     if (!campaignForm.application_deadline) { setError('모집 마감일을 입력해주세요.'); return }
     // 스토리 숏폼 전용 검증
     if (campaignForm.campaign_type === 'story_short') {
-      if (!campaignForm.story_swipe_link || !campaignForm.story_swipe_link.trim()) { setError('스와이프업 링크를 입력해주세요.'); return }
-      if (!campaignForm.story_hashtags || campaignForm.story_hashtags.length === 0) { setError('해시태그를 1개 이상 입력해주세요.'); return }
+      if (!campaignForm.story_swipe_link || !campaignForm.story_swipe_link.trim()) { setError('구매 링크를 입력해주세요.'); return }
+      if (!campaignForm.story_required_keyword?.trim()) { setError('필수 키워드를 입력해주세요.'); return }
+      if (!campaignForm.story_exposure_type) { setError('제품 노출 방식을 선택해주세요.'); return }
+      if (!campaignForm.story_tone_guide?.trim()) { setError('영상 톤/분위기를 입력해주세요.'); return }
+      if (!campaignForm.story_slide_count) { setError('스토리 장수를 선택해주세요.'); return }
     }
 
     // 동의 모달 표시
@@ -1150,8 +1164,12 @@ const CampaignCreationKorea = () => {
         // 스토리 숏폼 전용 필드
         ...(campaignForm.campaign_type === 'story_short' ? {
           story_swipe_link: campaignForm.story_swipe_link,
-          story_hashtags: campaignForm.story_hashtags,
-          story_tone_guide: campaignForm.story_tone_guide || null,
+          story_required_keyword: campaignForm.story_required_keyword?.trim() || null,
+          story_exposure_type: campaignForm.story_exposure_type,
+          story_tone_guide: campaignForm.story_tone_guide,
+          story_reference_image_url: campaignForm.story_reference_image_url || null,
+          story_restrictions: campaignForm.story_restrictions?.trim() || null,
+          story_slide_count: campaignForm.story_slide_count,
           story_no_revision: true,
           story_secondary_use: true,
           target_region: 'KR'
@@ -4262,90 +4280,160 @@ const CampaignCreationKorea = () => {
                         />
                       </div>
 
-                      {/* 스와이프업 링크 */}
+                      {/* 구매 링크 (스와이프업) */}
                       <div>
                         <Label className="text-sm font-semibold text-gray-700 mb-2 block">스와이프업 링크 *</Label>
                         <Input
                           value={campaignForm.story_swipe_link}
                           onChange={e => setCampaignForm(prev => ({ ...prev, story_swipe_link: e.target.value }))}
-                          placeholder="https://... (크리에이터가 스토리에 첨부할 링크)"
+                          placeholder="https://..."
                           className="h-12"
                           type="url"
                         />
-                        <p className="text-xs text-gray-500 mt-1">크리에이터가 스토리에 반드시 포함할 링크입니다.</p>
+                        <div className="flex items-start gap-2 mt-2 bg-teal-50 border border-teal-200 rounded-lg p-3">
+                          <Info className="w-4 h-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-teal-700">크리에이터별 성과 추적을 위한 <strong>UTM 파라미터가 자동으로 생성</strong> 및 적용됩니다.</p>
+                        </div>
                       </div>
 
-                      {/* 해시태그 */}
+                      {/* 필수 키워드 */}
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">필수 해시태그 * (최대 3개)</Label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {(campaignForm.story_hashtags || []).map((tag, idx) => (
-                            <span key={idx} className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-sm px-3 py-1.5 rounded-lg">
-                              #{tag}
-                              <button
-                                type="button"
-                                onClick={() => setCampaignForm(prev => ({
-                                  ...prev,
-                                  story_hashtags: prev.story_hashtags.filter((_, i) => i !== idx)
-                                }))}
-                                className="text-teal-400 hover:text-teal-600 ml-1"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </span>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">필수 키워드 (1개) *</Label>
+                        <Input
+                          value={campaignForm.story_required_keyword}
+                          onChange={e => setCampaignForm(prev => ({ ...prev, story_required_keyword: e.target.value }))}
+                          placeholder='예: 속건조 끝, 이거 진짜임, 3일 만에 달라짐'
+                          className="h-12"
+                        />
+                        <p className="text-xs text-gray-500 mt-1.5">크리에이터가 영상 내 텍스트로 삽입하거나 직접 말해야 하는 가장 핵심적인 문구 하나를 입력해주세요.</p>
+                      </div>
+
+                      {/* 필수 제품 노출 방식 */}
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">필수 제품 노출 방식 *</Label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { value: 'unboxing', label: '언박싱' },
+                            { value: 'usage_scene', label: '사용 장면' },
+                            { value: 'before_after', label: '비포애프터' }
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setCampaignForm(prev => ({ ...prev, story_exposure_type: opt.value }))}
+                              className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                campaignForm.story_exposure_type === opt.value
+                                  ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
                           ))}
                         </div>
-                        {(campaignForm.story_hashtags || []).length < 3 && (
-                          <div className="flex gap-2">
-                            <Input
-                              value={campaignForm.story_hashtag_input || ''}
-                              onChange={e => setCampaignForm(prev => ({ ...prev, story_hashtag_input: e.target.value.replace(/^#/, '') }))}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault()
-                                  const val = (campaignForm.story_hashtag_input || '').trim()
-                                  if (val && (campaignForm.story_hashtags || []).length < 3) {
-                                    setCampaignForm(prev => ({
-                                      ...prev,
-                                      story_hashtags: [...(prev.story_hashtags || []), val],
-                                      story_hashtag_input: ''
-                                    }))
-                                  }
+                      </div>
+
+                      {/* 영상 톤/분위기 및 레퍼런스 */}
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">영상 톤/분위기 및 레퍼런스 *</Label>
+                        <Textarea
+                          value={campaignForm.story_tone_guide}
+                          onChange={e => setCampaignForm(prev => ({ ...prev, story_tone_guide: e.target.value }))}
+                          placeholder="원하시는 영상의 분위기나 연출 방식을 간략히 적어주세요."
+                          rows={3}
+                        />
+                        <div className="flex items-center justify-between mt-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
+                          <span className="text-sm text-gray-500">말로 설명하기 어렵다면 이미지를 첨부해주세요. (품질 편차 최소화)</span>
+                          <div className="flex items-center gap-2">
+                            {campaignForm.story_reference_image_url && (
+                              <div className="flex items-center gap-2">
+                                <img src={campaignForm.story_reference_image_url} alt="레퍼런스" className="w-10 h-10 rounded object-cover border" />
+                                <button
+                                  type="button"
+                                  onClick={() => setCampaignForm(prev => ({ ...prev, story_reference_image_url: '' }))}
+                                  className="text-red-400 hover:text-red-600"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                            <input
+                              ref={referenceImageRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files[0]
+                                if (!file) return
+                                setUploadingReferenceImage(true)
+                                try {
+                                  const fileExt = file.name.split('.').pop()
+                                  const fileName = `story_reference_${Date.now()}.${fileExt}`
+                                  const client = supabaseKorea || supabaseBiz
+                                  const { error: uploadError } = await client.storage
+                                    .from('campaign-images')
+                                    .upload(fileName, file)
+                                  if (uploadError) throw uploadError
+                                  const { data: { publicUrl } } = client.storage
+                                    .from('campaign-images')
+                                    .getPublicUrl(fileName)
+                                  setCampaignForm(prev => ({ ...prev, story_reference_image_url: publicUrl }))
+                                } catch (err) {
+                                  console.error('레퍼런스 이미지 업로드 실패:', err)
+                                  alert('이미지 업로드에 실패했습니다.')
+                                } finally {
+                                  setUploadingReferenceImage(false)
                                 }
                               }}
-                              placeholder="해시태그 입력 후 Enter"
-                              className="h-10 flex-1"
                             />
                             <Button
                               type="button"
                               variant="outline"
-                              onClick={() => {
-                                const val = (campaignForm.story_hashtag_input || '').trim()
-                                if (val && (campaignForm.story_hashtags || []).length < 3) {
-                                  setCampaignForm(prev => ({
-                                    ...prev,
-                                    story_hashtags: [...(prev.story_hashtags || []), val],
-                                    story_hashtag_input: ''
-                                  }))
-                                }
-                              }}
-                              className="h-10 px-4"
+                              size="sm"
+                              onClick={() => referenceImageRef.current?.click()}
+                              disabled={uploadingReferenceImage}
+                              className="flex items-center gap-1.5"
                             >
-                              추가
+                              {uploadingReferenceImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                              이미지 첨부
                             </Button>
                           </div>
-                        )}
+                        </div>
                       </div>
 
-                      {/* 영상 톤/분위기 */}
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">영상 톤/분위기</Label>
-                        <Textarea
-                          value={campaignForm.story_tone_guide}
-                          onChange={e => setCampaignForm(prev => ({ ...prev, story_tone_guide: e.target.value }))}
-                          placeholder="밝고 친근한 느낌으로, 제품 사용 장면 위주로 촬영해주세요."
-                          rows={3}
-                        />
+                      {/* 금지사항 + 스토리 장수 (side by side) */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700 mb-2 block">금지사항</Label>
+                          <Input
+                            value={campaignForm.story_restrictions}
+                            onChange={e => setCampaignForm(prev => ({ ...prev, story_restrictions: e.target.value }))}
+                            placeholder="예: 타사 경쟁 브랜드 언급 금지"
+                            className="h-12"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700 mb-2 block">스토리 장수 *</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { value: '1', label: '1장 (15초)' },
+                              { value: '2_3', label: '2~3장 연속' }
+                            ].map(opt => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setCampaignForm(prev => ({ ...prev, story_slide_count: opt.value }))}
+                                className={`py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                  campaignForm.story_slide_count === opt.value
+                                    ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       {/* 크리에이터 수 */}
