@@ -17840,10 +17840,12 @@ Questions? Contact us.
                     <input
                       type="date"
                       className="w-full px-3 py-2 border rounded-lg"
-                      defaultValue={(campaign.content_submission_deadline || campaign.start_date)?.split('T')[0] || ''}
+                      defaultValue={(campaign.video_deadline || campaign.content_submission_deadline || campaign.start_date)?.split('T')[0] || ''}
                       onChange={(e) => setDeadlineEditData(prev => ({
                         ...prev,
-                        content_submission_deadline: e.target.value
+                        ...(region === 'japan' || region === 'us'
+                          ? { video_deadline: e.target.value }
+                          : { content_submission_deadline: e.target.value })
                       }))}
                     />
                   </div>
@@ -17852,10 +17854,12 @@ Questions? Contact us.
                     <input
                       type="date"
                       className="w-full px-3 py-2 border rounded-lg"
-                      defaultValue={(campaign.sns_upload_deadline || campaign.end_date)?.split('T')[0] || ''}
+                      defaultValue={(campaign.sns_deadline || campaign.sns_upload_deadline || campaign.end_date)?.split('T')[0] || ''}
                       onChange={(e) => setDeadlineEditData(prev => ({
                         ...prev,
-                        sns_upload_deadline: e.target.value
+                        ...(region === 'japan' || region === 'us'
+                          ? { sns_deadline: e.target.value }
+                          : { sns_upload_deadline: e.target.value })
                       }))}
                     />
                   </div>
