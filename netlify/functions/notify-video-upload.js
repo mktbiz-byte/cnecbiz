@@ -151,16 +151,16 @@ async function sendNaverWorksMessageDirect(channelId, message) {
   }
 }
 
-// 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었는지 확인
+// 중복 알림 방지: 2분 이내 동일 캠페인에 대해 notify-video-upload가 이미 발송했는지 확인
 async function isDuplicateNotification(campaignId) {
   try {
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
     const { data } = await supabaseBiz
       .from('notification_send_logs')
       .select('id')
-      .in('function_name', ['save-video-upload', 'notify-video-upload'])
+      .eq('function_name', 'notify-video-upload')
       .eq('status', 'success')
-      .gte('created_at', fiveMinAgo)
+      .gte('created_at', twoMinAgo)
       .like('message_preview', `%${campaignId}%`)
       .limit(1)
     return data && data.length > 0
