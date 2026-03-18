@@ -13421,29 +13421,65 @@ Questions? Contact us.
                 <div className="space-y-3 text-sm">
                   {campaign?.story_swipe_link && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">스와이프 링크</span>
-                      <a href={campaign.story_swipe_link} target="_blank" rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline truncate">
-                        {campaign.story_swipe_link}
-                      </a>
+                      <span className="text-gray-500 w-28 flex-shrink-0">구매 링크</span>
+                      <div className="flex-1 min-w-0">
+                        <a href={campaign.story_swipe_link} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline truncate block">
+                          {campaign.story_swipe_link}
+                        </a>
+                        <span className="text-xs text-teal-600 mt-0.5 block">UTM 파라미터 자동 적용</span>
+                      </div>
                     </div>
                   )}
-                  {campaign?.story_hashtags?.length > 0 && (
+                  {campaign?.story_required_keyword && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">필수 해시태그</span>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {campaign.story_hashtags.map((tag, idx) => (
-                          <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-gray-500 w-28 flex-shrink-0">필수 키워드</span>
+                      <span className="bg-teal-50 text-teal-700 font-semibold px-3 py-1 rounded-lg">{campaign.story_required_keyword}</span>
+                    </div>
+                  )}
+                  {campaign?.story_exposure_type && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">노출 방식</span>
+                      <span className="text-gray-900 font-medium">
+                        {{ unboxing: '언박싱', usage_scene: '사용 장면', before_after: '비포애프터' }[campaign.story_exposure_type] || campaign.story_exposure_type}
+                      </span>
                     </div>
                   )}
                   {campaign?.story_tone_guide && (
                     <div className="flex items-start gap-2">
                       <span className="text-gray-500 w-28 flex-shrink-0">톤/분위기</span>
                       <span className="text-gray-900">{campaign.story_tone_guide}</span>
+                    </div>
+                  )}
+                  {campaign?.story_reference_image_url && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">레퍼런스</span>
+                      <img src={campaign.story_reference_image_url} alt="레퍼런스 이미지" className="w-24 h-24 rounded-lg object-cover border" />
+                    </div>
+                  )}
+                  {campaign?.story_restrictions && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">금지사항</span>
+                      <span className="text-red-600">{campaign.story_restrictions}</span>
+                    </div>
+                  )}
+                  {campaign?.story_slide_count && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">스토리 장수</span>
+                      <span className="text-gray-900">
+                        {campaign.story_slide_count === '1' ? '1장 (15초)' : campaign.story_slide_count === '2_3' ? '2~3장 연속' : campaign.story_slide_count}
+                      </span>
+                    </div>
+                  )}
+                  {/* 기존 해시태그 호환 (기존 캠페인용) */}
+                  {campaign?.story_hashtags?.length > 0 && !campaign?.story_required_keyword && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-28 flex-shrink-0">해시태그</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {campaign.story_hashtags.map((tag, idx) => (
+                          <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">#{tag}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <div className="flex gap-6 pt-2 border-t">
