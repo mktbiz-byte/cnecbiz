@@ -741,6 +741,8 @@ const CampaignCreationKorea = () => {
           week3_sns_deadline: formatDate(data.week3_sns_deadline),
           week4_sns_deadline: formatDate(data.week4_sns_deadline),
           // 스토리 숏폼 필드
+          story_swipe_link: data.story_swipe_link || '',
+          story_tone_guide: data.story_tone_guide || '',
           story_required_keyword: data.story_required_keyword || '',
           story_exposure_type: data.story_exposure_type || '',
           story_reference_image_url: data.story_reference_image_url || '',
@@ -1322,7 +1324,7 @@ const CampaignCreationKorea = () => {
         setTimeout(() => {
           if (campaignForm.campaign_type === 'story_short') {
             // 스토리 숏폼은 가이드 생성 없이 캠페인 상세로 이동
-            navigate(`/company/campaigns/${campaignId}`)
+            navigate(`/company/campaigns/${campaignId}?region=korea`)
           } else if (campaignForm.campaign_type === 'oliveyoung') {
             navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
           } else if (campaignForm.campaign_type === '4week_challenge') {
@@ -1337,7 +1339,7 @@ const CampaignCreationKorea = () => {
       // 수정 모드일 경우 적절한 페이지로 이동
       if (campaignForm.campaign_type === 'story_short') {
         setSuccess('스토리 숏폼 캠페인이 수정되었습니다!')
-        setTimeout(() => navigate(`/company/campaigns/${editId}`), 1500)
+        setTimeout(() => navigate(`/company/campaigns/${editId}?region=korea`), 1500)
       } else {
         setSuccess('캠페인이 수정되었습니다! 가이드를 확인해주세요.')
         setTimeout(() => {
