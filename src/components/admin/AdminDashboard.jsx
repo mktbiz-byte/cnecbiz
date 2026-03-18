@@ -43,8 +43,12 @@ export default function AdminDashboard() {
   const [monthlyRevenue, setMonthlyRevenue] = useState([])
   const [activeCampaigns, setActiveCampaigns] = useState([])
   const [creatorSignups, setCreatorSignups] = useState([])
+  const [creatorSignupsDaily, setCreatorSignupsDaily] = useState([])
   const [applicationStats, setApplicationStats] = useState([])
+  const [applicationStatsDaily, setApplicationStatsDaily] = useState([])
   const [regionTotals, setRegionTotals] = useState({ korea: 0, japan: 0, us: 0, taiwan: 0 })
+  const [signupViewMode, setSignupViewMode] = useState('monthly') // 'monthly' | 'daily'
+  const [appViewMode, setAppViewMode] = useState('monthly')
 
   useEffect(() => {
     checkAuth()
@@ -316,6 +320,51 @@ export default function AdminDashboard() {
         return entry
       })
       setApplicationStats(appData)
+
+      // 일별 데이터 (최근 30일)
+      const days = []
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
+        days.push({
+          date: d,
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          dateStr: d.toISOString().split('T')[0]
+        })
+      }
+
+      const dailySignupData = days.map(day => {
+        const nextDay = new Date(day.date)
+        nextDay.setDate(nextDay.getDate() + 1)
+        const entry = { month: day.label }
+
+        regionResults.forEach(r => {
+          entry[r.key] = r.profiles.filter(p => {
+            const d = new Date(p.created_at)
+            return d >= day.date && d < nextDay
+          }).length
+        })
+        return entry
+      })
+      setCreatorSignupsDaily(dailySignupData)
+
+      const dailyAppData = days.map(day => {
+        const nextDay = new Date(day.date)
+        nextDay.setDate(nextDay.getDate() + 1)
+        const entry = { month: day.label }
+
+        regionResults.forEach(r => {
+          const dayApps = r.applications.filter(a => {
+            const d = new Date(a.created_at)
+            return d >= day.date && d < nextDay
+          })
+          entry[r.key] = dayApps.length
+          entry[`${r.key}_selected`] = dayApps.filter(a =>
+            ['selected', 'virtual_selected', 'approved', 'completed'].includes(a.status)
+          ).length
+        })
+        return entry
+      })
+      setApplicationStatsDaily(dailyAppData)
     } catch (error) {
       console.error('리전별 통계 조회 오류:', error)
     }
@@ -591,7 +640,18 @@ export default function AdminDashboard() {
                   <Globe className="w-5 h-5 text-[#6C5CE7]" />
                   나라별 크리에이터 가입 추이
                 </CardTitle>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex bg-gray-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setSignupViewMode('monthly')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${signupViewMode === 'monthly' ? 'bg-white text-[#6C5CE7] shadow-sm' : 'text-gray-500'}`}
+                    >월별</button>
+                    <button
+                      onClick={() => setSignupViewMode('daily')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${signupViewMode === 'daily' ? 'bg-white text-[#6C5CE7] shadow-sm' : 'text-gray-500'}`}
+                    >일별</button>
+                  </div>
+                  <div className="h-4 w-px bg-gray-200" />
                   {Object.entries(REGION_LABELS).map(([key, label]) => (
                     <div key={key} className="flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: REGION_COLORS[key] }} />
@@ -605,9 +665,9 @@ export default function AdminDashboard() {
               {creatorSignups.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height={240}>
-                    <AreaChart data={creatorSignups}>
+                    <AreaChart data={signupViewMode === 'daily' ? creatorSignupsDaily : creatorSignups}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#636E72' }} />
+                      <XAxis dataKey="month" tick={{ fontSize: signupViewMode === 'daily' ? 10 : 12, fill: '#636E72' }} interval={signupViewMode === 'daily' ? 4 : 0} />
                       <YAxis tick={{ fontSize: 12, fill: '#636E72' }} allowDecimals={false} />
                       <Tooltip
                         contentStyle={{ borderRadius: '12px', border: '1px solid #DFE6E9', fontSize: '13px' }}
@@ -640,18 +700,30 @@ export default function AdminDashboard() {
           {/* 나라별 캠페인 지원 현황 */}
           <Card className="border-[#DFE6E9] rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#6C5CE7]" />
-                나라별 캠페인 지원 현황
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-[#6C5CE7]" />
+                  나라별 캠페인 지원 현황
+                </CardTitle>
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setAppViewMode('monthly')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${appViewMode === 'monthly' ? 'bg-white text-[#6C5CE7] shadow-sm' : 'text-gray-500'}`}
+                  >월별</button>
+                  <button
+                    onClick={() => setAppViewMode('daily')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${appViewMode === 'daily' ? 'bg-white text-[#6C5CE7] shadow-sm' : 'text-gray-500'}`}
+                  >일별</button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {applicationStats.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={applicationStats} barCategoryGap="20%">
+                    <BarChart data={appViewMode === 'daily' ? applicationStatsDaily : applicationStats} barCategoryGap="20%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#636E72' }} />
+                      <XAxis dataKey="month" tick={{ fontSize: appViewMode === 'daily' ? 10 : 12, fill: '#636E72' }} interval={appViewMode === 'daily' ? 4 : 0} />
                       <YAxis tick={{ fontSize: 12, fill: '#636E72' }} allowDecimals={false} />
                       <Tooltip
                         contentStyle={{ borderRadius: '12px', border: '1px solid #DFE6E9', fontSize: '13px' }}
@@ -667,11 +739,12 @@ export default function AdminDashboard() {
                       <Bar dataKey="taiwan" fill={REGION_COLORS.taiwan} radius={[4, 4, 0, 0]} name="taiwan" />
                     </BarChart>
                   </ResponsiveContainer>
-                  {/* 6개월 합계 */}
+                  {/* 합계 */}
                   <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#DFE6E9]">
                     {Object.entries(REGION_LABELS).map(([key, label]) => {
-                      const total = applicationStats.reduce((sum, m) => sum + (m[key] || 0), 0)
-                      const selected = applicationStats.reduce((sum, m) => sum + (m[`${key}_selected`] || 0), 0)
+                      const statsData = appViewMode === 'daily' ? applicationStatsDaily : applicationStats
+                      const total = statsData.reduce((sum, m) => sum + (m[key] || 0), 0)
+                      const selected = statsData.reduce((sum, m) => sum + (m[`${key}_selected`] || 0), 0)
                       return (
                         <div key={key} className="text-center">
                           <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
