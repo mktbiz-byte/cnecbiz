@@ -164,6 +164,7 @@ import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignInt
 import InvitationLanding from './pages/InvitationLanding'
 import HolidayNotice from './components/HolidayNotice'
 import PackageLanding from './pages/PackageLanding'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminPackageManager from './components/admin/AdminPackageManager'
 import CompanyPackageCampaign from './components/company/CompanyPackageCampaign'
 
@@ -182,6 +183,7 @@ function App() {
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
         <Route path="/package" element={<PackageLanding />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/newsletters" element={<NewsletterShowcase />} />
         <Route path="/newsletter/:id" element={<NewsletterDetail />} />
         <Route path="/us-shipping-info" element={<USShippingInfoForm />} />

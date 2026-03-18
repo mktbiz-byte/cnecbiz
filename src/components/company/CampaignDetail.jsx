@@ -6499,30 +6499,58 @@ Questions? Contact us.
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
 
-      // 한국 크리에이터 선정 알림 발송 (알림톡 + 이메일 + 네이버웍스)
+      // 한국 크리에이터 선정 알림 발송 (알림톡 + 이메일)
       if (region === 'korea') {
+        const campaignName = campaign?.title || '캠페인'
         for (const participantId of selectedParticipants) {
           const participant = participants.find(p => p.id === participantId) ||
                              applications.find(a => a.id === participantId)
           if (participant) {
-            const pPhone = participant.phone || participant.phone_number || participant.creator_phone
+            let pPhone = participant.phone || participant.phone_number || participant.creator_phone
             const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
             const pName = participant.applicant_name || participant.creator_name || '크리에이터'
-            try {
-              await fetch('/.netlify/functions/dispatch-campaign-notification', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  eventType: 'creator_selected',
-                  creatorName: pName,
-                  creatorPhone: pPhone,
-                  creatorEmail: pEmail,
-                  campaignTitle: campaign?.title || '캠페인',
-                  campaignId: id
+
+            // phone이 없으면 user_profiles에서 조회
+            if (!pPhone && participant.user_id) {
+              try {
+                const { data: profile } = await supabase
+                  .from('user_profiles')
+                  .select('phone')
+                  .eq('id', participant.user_id)
+                  .maybeSingle()
+                pPhone = profile?.phone || null
+              } catch (e) { console.error('Phone lookup failed:', e.message) }
+            }
+
+            // 알림톡 발송
+            if (pPhone) {
+              try {
+                const result = await sendCampaignSelectedNotification(pPhone, pName, { campaignName })
+                if (result?.success === false) {
+                  console.error('[Korea] 선정 알림톡 발송 실패:', result)
+                }
+              } catch (notifError) {
+                console.error('[Korea] 선정 알림톡 에러:', notifError.message)
+              }
+            } else {
+              console.warn('[Korea] 선정 알림톡 미발송 - 전화번호 없음:', pName)
+            }
+
+            // 이메일 발송
+            if (pEmail) {
+              try {
+                await fetch('/.netlify/functions/send-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: pEmail,
+                    subject: `[CNEC] ${campaignName} 캠페인 선정 축하드립니다!`,
+                    html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:30px;border-radius:10px 10px 0 0;text-align:center;"><h1 style="color:#fff;margin:0;font-size:24px;">캠페인 선정</h1></div><div style="background:#fff;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;"><p style="font-size:16px;color:#333;">${pName}님, 축하합니다!</p><p style="font-size:14px;color:#666;">지원하신 <strong>${campaignName}</strong> 캠페인에 선정되셨습니다.</p><p style="font-size:14px;color:#666;">크리에이터 대시보드에서 캠페인 상세 정보를 확인하고 준비를 시작해 주세요.</p><div style="text-align:center;margin:30px 0;"><a href="https://cnec.co.kr/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">대시보드 바로가기</a></div><p style="color:#999;font-size:12px;">문의: 1833-6025</p></div></div>`
+                  })
                 })
-              })
-            } catch (notifError) {
-              console.error('[Korea] Selection notification error:', notifError.message)
+              } catch (emailErr) {
+                console.error('[Korea] 선정 이메일 에러:', emailErr.message)
+              }
             }
           }
         }
@@ -10447,10 +10475,24 @@ Questions? Contact us.
                                     }).eq('id', app.id)
                                     if (error) throw error
 
-                                    // 선정 알림 발송 (fire-and-forget)
+                                    // 선정 알림 발송
                                     const pName = app.applicant_name || app.creator_name || '크리에이터'
                                     const pEmail = app.email || app.applicant_email || app.creator_email
-                                    const pPhone = app.phone || app.phone_number || app.creator_phone
+                                    let pPhone = app.phone || app.phone_number || app.creator_phone
+                                    const campaignName = campaign?.title || '캠페인'
+
+                                    // phone이 없으면 user_profiles에서 조회
+                                    if (!pPhone && app.user_id) {
+                                      try {
+                                        const { data: profile } = await supabase
+                                          .from('user_profiles')
+                                          .select('phone')
+                                          .eq('id', app.user_id)
+                                          .maybeSingle()
+                                        pPhone = profile?.phone || null
+                                      } catch (e) { console.error('Phone lookup failed:', e.message) }
+                                    }
+
                                     try {
                                       if (region === 'japan') {
                                         fetch('/.netlify/functions/send-japan-notification', {
@@ -10464,11 +10506,11 @@ Questions? Contact us.
                                             creatorPhone: pPhone,
                                             data: {
                                               creatorName: pName,
-                                              campaignName: campaign?.title || '캠페인',
+                                              campaignName,
                                               brandName: campaign?.brand_name || campaign?.company_name,
                                               reward: campaign?.reward_text || campaign?.compensation || '협의',
                                               deadline: campaign?.content_submission_deadline || '추후 안내',
-                                              guideUrl: `https://cnec.jp/creator/campaigns/${campaignId}`
+                                              guideUrl: `https://cnec.jp/creator/campaigns/${id}`
                                             }
                                           })
                                         }).catch(e => console.error('[Japan] Individual selection notification error:', e.message))
@@ -10486,23 +10528,39 @@ Questions? Contact us.
                                               brandName: campaign?.brand_name || campaign?.company_name,
                                               reward: campaign?.reward_text || campaign?.compensation || 'TBA',
                                               deadline: campaign?.content_submission_deadline || 'TBA',
-                                              guideUrl: `https://cnec.us/creator/campaigns/${campaignId}`
+                                              guideUrl: `https://cnec.us/creator/campaigns/${id}`
                                             }
                                           })
                                         }).catch(e => console.error('[US] Individual selection notification error:', e.message))
                                       } else {
-                                        fetch('/.netlify/functions/dispatch-campaign-notification', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            eventType: 'creator_selected',
-                                            creatorName: pName,
-                                            creatorPhone: pPhone,
-                                            creatorEmail: pEmail,
-                                            campaignTitle: campaign?.title || '캠페인',
-                                            campaignId: campaignId
-                                          })
-                                        }).catch(e => console.error('[Korea] Individual selection notification error:', e.message))
+                                        // 한국: 직접 알림톡 + 이메일 발송 (dispatch 함수 대신 직접 호출)
+                                        if (pPhone) {
+                                          sendCampaignSelectedNotification(
+                                            pPhone,
+                                            pName,
+                                            { campaignName }
+                                          ).then(result => {
+                                            if (result?.success === false) {
+                                              console.error('[Korea] 선정 알림톡 발송 실패:', result)
+                                            } else {
+                                              console.log('[Korea] 선정 알림톡 발송 성공:', pName)
+                                            }
+                                          }).catch(e => console.error('[Korea] 선정 알림톡 에러:', e.message))
+                                        } else {
+                                          console.warn('[Korea] 선정 알림톡 미발송 - 전화번호 없음:', pName, app.user_id)
+                                        }
+                                        // 이메일 발송
+                                        if (pEmail) {
+                                          fetch('/.netlify/functions/send-email', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              to: pEmail,
+                                              subject: `[CNEC] ${campaignName} 캠페인 선정 축하드립니다!`,
+                                              html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:30px;border-radius:10px 10px 0 0;text-align:center;"><h1 style="color:#fff;margin:0;font-size:24px;">캠페인 선정</h1></div><div style="background:#fff;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;"><p style="font-size:16px;color:#333;">${pName}님, 축하합니다!</p><p style="font-size:14px;color:#666;">지원하신 <strong>${campaignName}</strong> 캠페인에 선정되셨습니다.</p><p style="font-size:14px;color:#666;">크리에이터 대시보드에서 캠페인 상세 정보를 확인하고 준비를 시작해 주세요.</p><div style="text-align:center;margin:30px 0;"><a href="https://cnec.co.kr/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">대시보드 바로가기</a></div><p style="color:#999;font-size:12px;">문의: 1833-6025</p></div></div>`
+                                            })
+                                          }).catch(e => console.error('[Korea] 선정 이메일 에러:', e.message))
+                                        }
                                       }
                                     } catch (notifError) {
                                       console.error('Selection notification error:', notifError.message)
