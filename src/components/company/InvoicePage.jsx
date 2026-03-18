@@ -430,9 +430,9 @@ const InvoicePage = () => {
   const getPackagePrice = (packageType, campaignType) => {
     // 일본 캠페인 가격 (캠페인 타입 + 크리에이터 등급 addon)
     if (region === 'japan') {
-      const japanCampaignTypePrices = { regular: 300000, megawari: 400000, '4week_challenge': 600000 }
-      const japanPackageAddon = { junior: 0, intermediate: 100000, senior: 200000, premium: 300000 }
-      const basePrice = japanCampaignTypePrices[campaignType] || 300000
+      const japanCampaignTypePrices = { regular: 200000, megawari: 400000, '4week_challenge': 600000 }
+      const japanPackageAddon = { basic: 0, junior: 100000, intermediate: 200000, senior: 300000, premium: 400000 }
+      const basePrice = japanCampaignTypePrices[campaignType] || 200000
       const addon = japanPackageAddon[packageType?.toLowerCase()] || 0
       return basePrice + addon
     }
