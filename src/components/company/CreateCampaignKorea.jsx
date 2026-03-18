@@ -1036,6 +1036,7 @@ const CampaignCreationKorea = () => {
       if (!campaignForm.story_exposure_type) { setError('제품 노출 방식을 선택해주세요.'); return }
       if (!campaignForm.story_tone_guide?.trim()) { setError('영상 톤/분위기를 입력해주세요.'); return }
       if (!campaignForm.story_slide_count) { setError('스토리 장수를 선택해주세요.'); return }
+      if (!campaignForm.end_date) { setError('스토리 업로드 마감일을 입력해주세요.'); return }
     }
 
     // 동의 모달 표시
@@ -4481,16 +4482,38 @@ const CampaignCreationKorea = () => {
                         <p className="text-xs text-gray-500 mt-2">인원이 많을수록 효과적인 바이럴이 가능합니다.</p>
                       </div>
 
-                      {/* 모집 마감일 */}
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">모집 마감일 *</Label>
-                        <Input
-                          type="date"
-                          value={campaignForm.application_deadline}
-                          onChange={e => autoCalculateSchedule(e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
-                          className="h-12"
-                        />
+                      {/* 모집 마감일 + 업로드 마감일 (side by side) */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700 mb-2 block">모집 마감일 *</Label>
+                          <Input
+                            type="date"
+                            value={campaignForm.application_deadline}
+                            onChange={e => {
+                              const deadline = e.target.value
+                              setCampaignForm(prev => ({ ...prev, application_deadline: deadline }))
+                              // 업로드 마감일이 비어있으면 모집마감 + 7일로 자동 설정
+                              if (!campaignForm.end_date && deadline) {
+                                const d = new Date(deadline)
+                                d.setDate(d.getDate() + 7)
+                                setCampaignForm(prev => ({ ...prev, application_deadline: deadline, end_date: d.toISOString().split('T')[0] }))
+                              }
+                            }}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="h-12"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700 mb-2 block">스토리 업로드 마감일 *</Label>
+                          <Input
+                            type="date"
+                            value={campaignForm.end_date}
+                            onChange={e => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                            min={campaignForm.application_deadline || new Date().toISOString().split('T')[0]}
+                            className="h-12"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">크리에이터가 스토리를 업로드해야 하는 최종 마감일</p>
+                        </div>
                       </div>
 
                       {/* 썸네일 이미지 */}
