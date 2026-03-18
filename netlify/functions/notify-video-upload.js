@@ -220,6 +220,16 @@ exports.handler = async (event) => {
     }
 
     const baseUrl = process.env.URL || 'https://cnecbiz.com'
+    // hint 데이터가 모두 없으면 알림 발송 스킵 (잘못된 호출 방지)
+    if (!hintCampaignTitle && !hintCompanyName && !hintCreatorName) {
+      console.warn('[notify-video-upload] 모든 hint 데이터 없음 — 잘못된 호출로 판단하여 스킵:', { campaignId })
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, skipped: true, reason: 'no_hint_data' })
+      }
+    }
+
     let campaignTitle = hintCampaignTitle || '(캠페인명 없음)'
     let companyName = hintCompanyName || '(기업명 없음)'
     let creatorName = hintCreatorName || '(크리에이터명 없음)'
