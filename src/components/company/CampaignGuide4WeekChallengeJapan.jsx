@@ -148,19 +148,10 @@ export default function CampaignGuide4WeekChallengeJapan() {
     setIsTranslating(true)
     setTranslatingWeek(weekNum)
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const weekKey = `week${weekNum}`
       const wd = guideData[weekKey]
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `다음 한국어 텍스트를 일본어(日本語)로 자연스럽게 번역하고 반드시 JSON 형식으로만 출력하세요.
+      const translatePrompt = `다음 한국어 텍스트를 일본어(日本語)로 자연스럽게 번역하고 반드시 JSON 형식으로만 출력하세요.
 
 번역할 내용:
 - brand: ${guideData.brand}
@@ -172,15 +163,21 @@ export default function CampaignGuide4WeekChallengeJapan() {
 - required_scenes: ${wd.required_scenes}
 
 출력 형식 (JSON만):
-{"brand":"translation","product_name":"translation","product_features":"translation","precautions":"translation","mission":"translation","required_dialogue":"translation","required_scenes":"translation"}` }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096, responseMimeType: 'application/json' }
-          })
-        }
-      )
+{"brand":"translation","product_name":"translation","product_features":"translation","precautions":"translation","mission":"translation","required_dialogue":"translation","required_scenes":"translation"}`
 
-      if (!response.ok) throw new Error(`API Error: ${response.status}`)
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: translatePrompt, responseMimeType: 'application/json', maxOutputTokens: 4096 })
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `API Error: ${response.status}`)
+      }
       const data = await response.json()
-      const parsed = JSON.parse(data.candidates[0]?.content?.parts[0]?.text || '{}')
+      if (!data.success) throw new Error(data.error || '번역 실패')
+      const parsed = JSON.parse(data.translatedText || '{}')
 
       setGuideDataJa(prev => ({
         ...prev,
@@ -209,9 +206,6 @@ export default function CampaignGuide4WeekChallengeJapan() {
     setIsTranslating(true)
     setTranslatingWeek('all')
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const weeksToTranslate = {}
       for (let n = 1; n <= 4; n++) {
         const wd = guideData[`week${n}`]
@@ -228,23 +222,23 @@ export default function CampaignGuide4WeekChallengeJapan() {
         ...weeksToTranslate
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Translate the following JSON values from Korean to natural Japanese (日本語). Keep the keys unchanged. Output ONLY pure JSON:
+      const translateAllPrompt = `Translate the following JSON values from Korean to natural Japanese (日本語). Keep the keys unchanged. Output ONLY pure JSON:
 
-${JSON.stringify(fieldsToTranslate, null, 2)}` }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json' }
-          })
-        }
-      )
+${JSON.stringify(fieldsToTranslate, null, 2)}`
 
-      if (!response.ok) throw new Error(`API Error: ${response.status}`)
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: translateAllPrompt, responseMimeType: 'application/json', maxOutputTokens: 8192 })
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `API Error: ${response.status}`)
+      }
       const data = await response.json()
-      const parsed = JSON.parse(data.candidates[0]?.content?.parts[0]?.text || '{}')
+      if (!data.success) throw new Error(data.error || '번역 실패')
+      const parsed = JSON.parse(data.translatedText || '{}')
 
       const newJa = {
         brand: parsed.brand || '', product_name: parsed.product_name || '',
@@ -280,13 +274,10 @@ ${JSON.stringify(fieldsToTranslate, null, 2)}` }] }],
     }
     setGeneratingWeek(weekNum)
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다.')
-
       const weekKey = `week${weekNum}`
       const wd = guideData[weekKey]
 
-      const prompt = `You are a 4-week challenge campaign guide expert for Japanese beauty/lifestyle creators.
+      const generatePrompt = `You are a 4-week challenge campaign guide expert for Japanese beauty/lifestyle creators.
 
 **Product Info:**
 - Brand: ${guideData.brand || 'TBD'}
@@ -308,21 +299,19 @@ Generate in Korean:
 **Response (JSON only):**
 {"mission":"...","required_dialogue":"1. ...\\n2. ...","required_scenes":"1. ...\\n2. ..."}`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048, responseMimeType: 'application/json' }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: generatePrompt, responseMimeType: 'application/json' })
+      })
 
-      if (!response.ok) throw new Error(`AI API Error: ${response.status}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `AI API Error: ${response.status}`)
+      }
       const result = await response.json()
-      const generated = JSON.parse(result.candidates[0].content.parts[0].text)
+      if (!result.success) throw new Error(result.error || 'AI 생성 실패')
+      const generated = JSON.parse(result.translatedText)
 
       setGuideData(prev => ({
         ...prev,
@@ -350,15 +339,12 @@ Generate in Korean:
     }
     setGeneratingWeek('all')
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다.')
-
       const existingWeeks = [1,2,3,4].map(n => {
         const w = guideData[`week${n}`]
         return w.mission ? `Week ${n} draft: ${w.mission}` : `Week ${n}: auto-generate`
       }).join('\n')
 
-      const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다.
+      const generateAllPrompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다.
 
 **제품 정보:**
 - 브랜드: ${guideData.brand || '미정'}
@@ -388,21 +374,19 @@ ${existingWeeks}
   "week4": { "mission": "...", "required_dialogue": "...", "required_scenes": "..." }
 }`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 4096, responseMimeType: 'application/json' }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: generateAllPrompt, responseMimeType: 'application/json', maxOutputTokens: 4096 })
+      })
 
-      if (!response.ok) throw new Error(`AI API Error: ${response.status}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `AI API Error: ${response.status}`)
+      }
       const result = await response.json()
-      const generated = JSON.parse(result.candidates[0].content.parts[0].text)
+      if (!result.success) throw new Error(result.error || 'AI 생성 실패')
+      const generated = JSON.parse(result.translatedText)
 
       setGuideData(prev => {
         const updated = { ...prev }

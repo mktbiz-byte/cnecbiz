@@ -554,11 +554,11 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (campaignForm.campaign_type === 'story_short') {
-      // 스토리 숏폼: 50,000원 고정 단가
-      const storyPrice = 50000
-      const slots = campaignForm.total_slots || 10
+      // 스토리 숏폼: 20,000원 고정 단가, 최소 5명
+      const storyPrice = 20000
+      const slots = Math.max(5, campaignForm.total_slots || 5)
       const finalCost = Math.round(storyPrice * slots * 1.1)
-      const rewardPoints = 30000  // 크리에이터 지급 포인트 고정
+      const rewardPoints = 12000  // 크리에이터 지급 포인트 고정 (60%)
       setCampaignForm(prev => ({
         ...prev,
         estimated_cost: finalCost,
@@ -596,9 +596,9 @@ const CampaignCreationKorea = () => {
     let newEstimatedCost = 0
 
     if (campaignForm.campaign_type === 'story_short') {
-      // 스토리 숏폼: 50,000원 고정 단가 (보너스 없음)
-      const slots = campaignForm.total_slots || 10
-      newEstimatedCost = Math.round(50000 * slots * 1.1)
+      // 스토리 숏폼: 20,000원 고정 단가 (보너스 없음), 최소 5명
+      const slots = Math.max(5, campaignForm.total_slots || 5)
+      newEstimatedCost = Math.round(20000 * slots * 1.1)
     } else if (campaignForm.campaign_type === '4week_challenge') {
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
       const slots = campaignForm.total_slots || 1
@@ -691,7 +691,7 @@ const CampaignCreationKorea = () => {
         console.log('[loadCampaign] Loaded campaign - bonus_amount:', bonus, 'estimated_cost:', data.estimated_cost)
 
         if (data.campaign_type === 'story_short') {
-          recalculatedCost = Math.round(50000 * slots * 1.1)
+          recalculatedCost = Math.round(20000 * slots * 1.1)
         } else if (data.campaign_type === '4week_challenge') {
           const pkg = fourWeekPackageOptions.find(p => p.value === data.package_type) || fourWeekPackageOptions[0]
           recalculatedCost = Math.round((pkg.price + bonus) * slots * 1.1)
@@ -1073,9 +1073,9 @@ const CampaignCreationKorea = () => {
       // 정확한 estimated_cost 계산 (bonus_amount 포함)
       let calculatedEstimatedCost = campaignForm.estimated_cost
       if (campaignForm.campaign_type === 'story_short') {
-        // 스토리 숏폼: 50,000원 고정 × 인원 × 1.1 (VAT)
-        const slots = campaignForm.total_slots || 10
-        calculatedEstimatedCost = Math.round(50000 * slots * 1.1)
+        // 스토리 숏폼: 20,000원 고정 × 인원 × 1.1 (VAT), 최소 5명
+        const slots = Math.max(5, campaignForm.total_slots || 5)
+        calculatedEstimatedCost = Math.round(20000 * slots * 1.1)
       } else if (campaignForm.campaign_type === 'oliveyoung') {
         // 올리브영: (단가 + 보너스) × 인원 × 1.1 (VAT)
         const basePrice = 400000
@@ -1605,10 +1605,10 @@ const CampaignCreationKorea = () => {
               <div className="mb-4 pt-2">
                 <h3 className="text-base font-bold text-gray-900 mb-1">스토리 숏폼</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl lg:text-3xl font-bold text-gray-900">₩50,000</span>
+                  <span className="text-2xl lg:text-3xl font-bold text-gray-900">₩20,000</span>
                   <span className="text-gray-500 text-sm">/건</span>
                 </div>
-                <p className="text-gray-500 text-xs mt-2 leading-relaxed">간편하게 스토리 콘텐츠를 제작하고 2차 활용까지 가능한 실속 상품</p>
+                <p className="text-gray-500 text-xs mt-2 leading-relaxed">5명부터 진행 가능! 스토리 콘텐츠를 대량 제작하고 2차 활용까지 가능한 실속 상품</p>
               </div>
 
               <button
@@ -4351,18 +4351,18 @@ const CampaignCreationKorea = () => {
                       {/* 크리에이터 수 */}
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명)</Label>
+                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명) <span className="text-xs text-gray-500 font-normal">· 최소 5명</span></Label>
                           <span className="text-teal-600 font-bold text-lg">{campaignForm.total_slots}명</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <input
                             type="range"
-                            min="1"
+                            min="5"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = parseInt(e.target.value)
-                              const cost = Math.round(50000 * slots * 1.1)
+                              const slots = Math.max(5, parseInt(e.target.value))
+                              const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,
                                 total_slots: slots,
@@ -4374,22 +4374,23 @@ const CampaignCreationKorea = () => {
                           />
                           <Input
                             type="number"
-                            min="1"
+                            min="5"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = parseInt(e.target.value) || 1
-                              const cost = Math.round(50000 * slots * 1.1)
+                              const slots = Math.max(5, parseInt(e.target.value) || 5)
+                              const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,
-                                total_slots: Math.min(50, Math.max(1, slots)),
-                                remaining_slots: Math.min(50, Math.max(1, slots)),
+                                total_slots: Math.min(50, slots),
+                                remaining_slots: Math.min(50, slots),
                                 estimated_cost: cost
                               }))
                             }}
                             className="w-20 h-10 text-center"
                           />
                         </div>
+                        <p className="text-xs text-gray-500 mt-2">인원이 많을수록 효과적인 바이럴이 가능합니다.</p>
                       </div>
 
                       {/* 모집 마감일 */}
@@ -4513,7 +4514,7 @@ const CampaignCreationKorea = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400 text-sm">단가</span>
-                          <span className="font-medium">₩50,000/건</span>
+                          <span className="font-medium">₩20,000/건</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400 text-sm">크리에이터 수</span>
@@ -4523,11 +4524,11 @@ const CampaignCreationKorea = () => {
                         <div className="border-t border-slate-700 pt-4">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-gray-400">소계</span>
-                            <span>₩{(50000 * campaignForm.total_slots).toLocaleString()}</span>
+                            <span>₩{(20000 * campaignForm.total_slots).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm mt-2">
                             <span className="text-gray-400">VAT (10%)</span>
-                            <span>₩{Math.round(50000 * campaignForm.total_slots * 0.1).toLocaleString()}</span>
+                            <span>₩{Math.round(20000 * campaignForm.total_slots * 0.1).toLocaleString()}</span>
                           </div>
                         </div>
 

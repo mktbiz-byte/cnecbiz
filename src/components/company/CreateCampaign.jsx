@@ -107,34 +107,27 @@ export default function CreateCampaign() {
 
     setTranslating(true)
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다')
-
       const selectedLang = languages.find(l => l.id === targetLang)
       const targetLangName = selectedLang.label.split(' ')[1]
 
-      // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `다음 한국어 텍스트를 ${targetLangName}로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${sourceText}`
-              }]
-            }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: sourceText,
+          targetLanguage: targetLangName,
+          sourceLanguage: '한국어'
+        })
+      })
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `API 오류: ${response.status}`)
+      }
 
-      const data = await response.json()
-      const translated = data.candidates[0]?.content?.parts[0]?.text || '번역 실패'
-      setTranslatedText(translated.trim())
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '번역 실패')
+      setTranslatedText((result.translatedText || '번역 실패').trim())
     } catch (error) {
       console.error('Translation error:', error)
       alert('번역 중 오류가 발생했습니다: ' + error.message)
@@ -156,9 +149,6 @@ export default function CreateCampaign() {
 
     setBulkTranslating(true)
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다')
-
       // 타겟 언어 결정
       const targetLangMap = {
         'japan': '일본어',
@@ -167,7 +157,7 @@ export default function CreateCampaign() {
         'china': '중국어 간체',
         'korea': '한국어'
       }
-      const targetLang = targetLangMap[formData.region] || '영어'
+      const targetLangName = targetLangMap[formData.region] || '영어'
 
       // 번역할 텍스트 모음
       const textsToTranslate = {
@@ -178,7 +168,7 @@ export default function CreateCampaign() {
       }
 
       // 한번에 모두 번역
-      const prompt = `다음 한국어 텍스트들을 ${targetLang}로 자연스럽게 번역해주세요. JSON 형식으로 반환해주세요.
+      const prompt = `다음 한국어 텍스트들을 ${targetLangName}로 자연스럽게 번역해주세요. JSON 형식으로 반환해주세요.
 
 입력:
 ${JSON.stringify(textsToTranslate, null, 2)}
@@ -191,28 +181,26 @@ ${JSON.stringify(textsToTranslate, null, 2)}
   "target_audience": "번역된 참가조건"
 }`
 
-      // 일괄 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: prompt })
+      })
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `API 오류: ${response.status}`)
+      }
 
-      const data = await response.json()
-      const resultText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '번역 실패')
+
+      const resultText = result.translatedText || ''
 
       // JSON 추출
       const jsonMatch = resultText.match(/\{[\s\S]*\}/)
       if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다')
-      
+
       const translated = JSON.parse(jsonMatch[0])
 
       // 폼 데이터 업데이트
@@ -224,7 +212,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
         target_audience: translated.target_audience || prev.target_audience
       }))
 
-      alert(`번역 완료! ${targetLang}로 변환되었습니다.`)
+      alert(`번역 완료! ${targetLangName}로 변환되었습니다.`)
     } catch (error) {
       console.error('Bulk translation error:', error)
       alert('번역 중 오류가 발생했습니다: ' + error.message)

@@ -360,9 +360,6 @@ const CreateCampaignUS = () => {
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되어 있지 않습니다.')
-
       const fieldsToTranslate = [
         { key: 'title', label: '제목', value: campaignForm.title },
         { key: 'brand', label: '브랜드', value: campaignForm.brand },
@@ -402,23 +399,21 @@ Output format:
 [Requirements]
 (translation result)`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/translate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawPrompt: prompt })
+      })
 
-      if (!response.ok) throw new Error(`API 에러: ${response.status}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `번역 API 에러: ${response.status}`)
+      }
 
-      const data = await response.json()
-      const translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
-      const cleanText = translatedText.replace(/\*\*/g, '').trim()
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '번역 실패')
+
+      const cleanText = (result.translatedText || '').replace(/\*\*/g, '').trim()
 
       console.log('번역 결과:', cleanText)
 
