@@ -76,7 +76,7 @@ exports.handler = async (event) => {
     // Gemini API 호출
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash-lite',
       systemInstruction: fullPrompt
     })
 
@@ -94,7 +94,7 @@ exports.handler = async (event) => {
         data: {
           response: responseText,
           responseTime: `${responseTime}ms`,
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash-lite',
           promptLength: fullPrompt.length,
           guardrailsApplied: guardrails ? guardrails.length : 0,
           faqsIncluded: sampleFaqs ? sampleFaqs.length : 0

@@ -151,19 +151,21 @@ export default function CampaignGuideOliveYoungJapan() {
 ${guideText}`
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
           })
         }
       )
 
       if (!response.ok) throw new Error('번역 API 호출 실패')
       const result = await response.json()
-      const translatedText = result.candidates[0].content.parts[0].text.trim()
+      const translatedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+      if (!translatedText) throw new Error('번역 결과가 비어있습니다.')
 
       if (stepNum === 1) setStep1GuideJa(translatedText)
       else setStep2GuideJa(translatedText)
@@ -201,19 +203,21 @@ ${guideText}`
 \`\`\``
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
           })
         }
       )
 
       if (!response.ok) throw new Error('번역 API 호출 실패')
       const result = await response.json()
-      const text = result.candidates[0].content.parts[0].text
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      if (!text) throw new Error('번역 결과가 비어있습니다.')
 
       const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/)
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text

@@ -84,7 +84,7 @@ async function analyzeCreator(creatorId) {
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,7 +124,7 @@ async function analyzeCreator(creatorId) {
     breakdown: analysis.breakdown || {},
     reasoning: analysis.reasoning || '',
     recommended_action: status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : 'review',
-    model: 'gemini-2.0-flash'
+    model: 'gemini-2.5-flash-lite'
   })
 
   // 크리에이터 업데이트
