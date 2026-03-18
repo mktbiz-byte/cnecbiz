@@ -3,15 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, CheckCircle, XCircle, Clock, FileText } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function StoryProposalReview({ campaignId }) {
   const [proposals, setProposals] = useState([])
+  const [creatorNames, setCreatorNames] = useState({})
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [rejectModal, setRejectModal] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
+
+  const fetchCreatorNames = async (creatorIds) => {
+    if (!creatorIds.length || !supabaseKorea) return
+    try {
+      const { data } = await supabaseKorea
+        .from('user_profiles')
+        .select('id, nickname, instagram_id')
+        .in('id', creatorIds)
+      if (data) {
+        const nameMap = {}
+        data.forEach(p => { nameMap[p.id] = p.nickname || p.instagram_id || p.id?.slice(0, 8) })
+        setCreatorNames(nameMap)
+      }
+    } catch (err) {
+      console.error('Failed to fetch creator names:', err)
+    }
+  }
 
   const fetchProposals = async () => {
     try {
@@ -23,6 +41,10 @@ export default function StoryProposalReview({ campaignId }) {
 
       if (error) throw error
       setProposals(data || [])
+
+      // 크리에이터 이름 조회
+      const creatorIds = [...new Set((data || []).map(p => p.creator_id).filter(Boolean))]
+      if (creatorIds.length) await fetchCreatorNames(creatorIds)
     } catch (err) {
       console.error('Failed to fetch proposals:', err)
     } finally {
@@ -61,15 +83,18 @@ export default function StoryProposalReview({ campaignId }) {
     }
   }
 
-  const filtered = filter === 'all' ? proposals : proposals.filter(p => p.status === filter)
+  const filtered = filter === 'all' ? proposals
+    : filter === 'pending' ? proposals.filter(p => p.status === 'pending' || p.status === 'submitted')
+    : proposals.filter(p => p.status === filter)
 
   const statusBadge = (status) => {
     const map = {
+      pending: { label: '검토중', className: 'bg-yellow-100 text-yellow-800', icon: Clock },
       submitted: { label: '검토중', className: 'bg-yellow-100 text-yellow-800', icon: Clock },
       approved: { label: '승인', className: 'bg-green-100 text-green-800', icon: CheckCircle },
       rejected: { label: '반려', className: 'bg-red-100 text-red-800', icon: XCircle }
     }
-    const s = map[status] || map.submitted
+    const s = map[status] || map.pending
     const Icon = s.icon
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${s.className}`}>
@@ -102,7 +127,7 @@ export default function StoryProposalReview({ campaignId }) {
         <div className="flex gap-2 mb-4">
           {[
             { value: 'all', label: '전체' },
-            { value: 'submitted', label: '검토중' },
+            { value: 'pending', label: '검토중' },
             { value: 'approved', label: '승인' },
             { value: 'rejected', label: '반려' }
           ].map(f => (
@@ -115,7 +140,7 @@ export default function StoryProposalReview({ campaignId }) {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {f.label} ({f.value === 'all' ? proposals.length : proposals.filter(p => p.status === f.value).length})
+              {f.label} ({f.value === 'all' ? proposals.length : f.value === 'pending' ? proposals.filter(p => p.status === 'pending' || p.status === 'submitted').length : proposals.filter(p => p.status === f.value).length})
             </button>
           ))}
         </div>
@@ -132,7 +157,7 @@ export default function StoryProposalReview({ campaignId }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-gray-900 truncate">
-                        크리에이터: {proposal.creator_id?.slice(0, 8)}...
+                        크리에이터: {creatorNames[proposal.creator_id] || proposal.creator_id?.slice(0, 8)}
                       </span>
                       {statusBadge(proposal.status)}
                     </div>
@@ -152,7 +177,7 @@ export default function StoryProposalReview({ campaignId }) {
                     </p>
                   </div>
 
-                  {proposal.status === 'submitted' && (
+                  {(proposal.status === 'pending' || proposal.status === 'submitted') && (
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
                         size="sm"
