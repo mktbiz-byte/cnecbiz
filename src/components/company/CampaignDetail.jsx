@@ -8478,9 +8478,10 @@ Questions? Contact us.
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">패키지</p>
+                  <p className="text-xs sm:text-sm text-gray-600">{campaign.campaign_type === 'story_short' ? '캠페인 타입' : '패키지'}</p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
-                    {campaign.package_type === 'junior' ? '초급' :
+                    {campaign.campaign_type === 'story_short' ? '스토리 숏폼' :
+                     campaign.package_type === 'junior' ? '초급' :
                      campaign.package_type === 'standard' ? '스탠다드' :
                      campaign.package_type === 'intermediate' ? '스탠다드' :
                      campaign.package_type === 'premium' ? '프리미엄' :
@@ -8514,11 +8515,13 @@ Questions? Contact us.
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
-                    {campaign.package_type && campaign.total_slots ?
-                      `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
-                      : campaign.estimated_cost ?
-                        `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
-                        : '-'
+                    {campaign.campaign_type === 'story_short' ?
+                      `₩${Math.round(campaign.estimated_cost || (20000 * (campaign.total_slots || 5) * 1.1)).toLocaleString()}`
+                      : campaign.package_type && campaign.total_slots ?
+                        `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
+                        : campaign.estimated_cost ?
+                          `₩${Math.round(campaign.estimated_cost).toLocaleString()}`
+                          : '-'
                     }
                   </p>
                 </div>

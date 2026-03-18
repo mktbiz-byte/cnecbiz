@@ -298,10 +298,12 @@ const PaymentMethodSelection = () => {
   };
 
   // 패키지 가격 기반으로 정확한 금액 계산 (estimated_cost 대신 사용)
-  const pkgPrice = getPackagePrice(campaign.package_type, campaign.campaign_type);
+  // 스토리 숏폼은 고정 단가 20,000원 × 인원 × 1.1 (VAT)
   const slots = campaign.total_slots || 1;
   const bonus = campaign.bonus_amount || 0;
-  const totalAmount = Math.round((pkgPrice + bonus) * slots * 1.1);
+  const totalAmount = campaign.campaign_type === 'story_short'
+    ? Math.round(campaign.estimated_cost || (20000 * (campaign.total_slots || 5) * 1.1))
+    : Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + bonus) * slots * 1.1);
 
   if (campaign.estimated_cost && campaign.estimated_cost !== totalAmount) {
     console.warn(`[PaymentMethodSelection] estimated_cost 불일치: DB=${campaign.estimated_cost}, 계산값=${totalAmount}, package=${campaign.package_type}, type=${campaign.campaign_type}, region=${region}, slots=${slots}, bonus=${bonus}`);
