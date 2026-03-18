@@ -1315,7 +1315,7 @@ const CampaignCreationKorea = () => {
         // 포인트 시스템 제거: 모든 결제는 계좌이체로 진행
         // 입금 확인 요청은 InvoicePage에서 세금계산서 신청 시에만 생성
         if (campaignForm.campaign_type === 'story_short') {
-          setSuccess('스토리 숏폼 캠페인이 생성되었습니다! 관리자 검수 후 활성화됩니다.')
+          setSuccess('스토리 숏폼 캠페인이 생성되었습니다! 결제를 진행해주세요.')
         } else {
           setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
         }
@@ -1323,8 +1323,8 @@ const CampaignCreationKorea = () => {
         // 캐페인 타입에 따라 적절한 페이지로 이동
         setTimeout(() => {
           if (campaignForm.campaign_type === 'story_short') {
-            // 스토리 숏폼은 가이드 생성 없이 캠페인 상세로 이동
-            navigate(`/company/campaigns/${campaignId}?region=korea`)
+            // 스토리 숏폼은 가이드 생성 없이 결제 페이지로 이동
+            navigate(`/company/campaigns/${campaignId}/invoice?region=korea`)
           } else if (campaignForm.campaign_type === 'oliveyoung') {
             navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
           } else if (campaignForm.campaign_type === '4week_challenge') {
