@@ -35,7 +35,7 @@ exports.handler = async (event) => {
         tone_mood: tone_mood || null,
         description: description || null,
         secondary_use_agreed,
-        status: 'submitted'
+        status: 'pending'
       }])
       .select()
       .single()

@@ -3,15 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, CheckCircle, XCircle, Clock, Image, Download, Film, AlertTriangle } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function StorySubmissionReview({ campaignId }) {
   const [submissions, setSubmissions] = useState([])
+  const [creatorNames, setCreatorNames] = useState({})
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [processing, setProcessing] = useState(false)
   const [revisionModal, setRevisionModal] = useState(null)
   const [adminNote, setAdminNote] = useState('')
+
+  const fetchCreatorNames = async (creatorIds) => {
+    if (!creatorIds.length || !supabaseKorea) return
+    try {
+      const { data } = await supabaseKorea
+        .from('user_profiles')
+        .select('id, nickname, instagram_id')
+        .in('id', creatorIds)
+      if (data) {
+        const nameMap = {}
+        data.forEach(p => { nameMap[p.id] = p.nickname || p.instagram_id || p.id?.slice(0, 8) })
+        setCreatorNames(nameMap)
+      }
+    } catch (err) {
+      console.error('Failed to fetch creator names:', err)
+    }
+  }
 
   const fetchSubmissions = async () => {
     try {
@@ -23,6 +41,10 @@ export default function StorySubmissionReview({ campaignId }) {
 
       if (error) throw error
       setSubmissions(data || [])
+
+      // 크리에이터 이름 조회
+      const creatorIds = [...new Set((data || []).map(s => s.creator_id).filter(Boolean))]
+      if (creatorIds.length) await fetchCreatorNames(creatorIds)
     } catch (err) {
       console.error('Failed to fetch submissions:', err)
     } finally {
@@ -156,7 +178,7 @@ export default function StorySubmissionReview({ campaignId }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-sm font-medium text-gray-900">
-                        크리에이터: {sub.creator_id?.slice(0, 8)}...
+                        크리에이터: {creatorNames[sub.creator_id] || sub.creator_id?.slice(0, 8)}
                       </span>
                       {statusBadge(sub.status)}
                       {sub.revision_count > 0 && (
