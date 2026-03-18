@@ -404,7 +404,8 @@ exports.handler = async (event, context) => {
       'regular': '기획형',
       'oliveyoung': '올리브영',
       '4week_challenge': '4주 챌린지',
-      '4week': '4주 챌린지'
+      '4week': '4주 챌린지',
+      'story_short': '스토리 숏폼'
     }
     const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 
