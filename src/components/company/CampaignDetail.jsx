@@ -5475,7 +5475,8 @@ Questions? Contact us.
     let snsUrl = submission?.sns_upload_url || participant.sns_upload_url || ''
     // sns_upload_url 업데이트 시점 (updated_at 또는 final_confirmed_at)을 시작일로
     const snsUploadDate = submission?.updated_at || submission?.final_confirmed_at || participant.final_confirmed_at || new Date().toISOString()
-    const consentDate = new Date(snsUploadDate).toLocaleDateString('ko-KR')
+    const consentLocale = region === 'japan' ? 'ja-JP' : region === 'us' ? 'en-US' : 'ko-KR'
+    const consentDate = new Date(snsUploadDate).toLocaleDateString(consentLocale)
 
     const html = VideoSecondaryUseConsentTemplate({
       creatorName,
@@ -5484,7 +5485,8 @@ Questions? Contact us.
       campaignTitle: campaign?.title || '',
       companyName: campaign?.brand || '',
       videoCompletionDate: snsUploadDate,
-      consentDate
+      consentDate,
+      region
     })
 
     const printWindow = window.open('', '_blank')
