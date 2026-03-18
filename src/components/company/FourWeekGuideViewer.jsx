@@ -44,11 +44,15 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   const parseWeeklyGuides = () => {
     let aiGuides = null
     try {
-      aiGuides = campaign.challenge_weekly_guides_ai
-        ? (typeof campaign.challenge_weekly_guides_ai === 'string'
-            ? JSON.parse(campaign.challenge_weekly_guides_ai)
-            : campaign.challenge_weekly_guides_ai)
-        : null
+      if (campaign.challenge_weekly_guides_ai) {
+        let raw = campaign.challenge_weekly_guides_ai
+        if (typeof raw === 'string') {
+          raw = JSON.parse(raw)
+          // Handle double-stringified
+          if (typeof raw === 'string') raw = JSON.parse(raw)
+        }
+        aiGuides = raw
+      }
     } catch (e) {
       console.error('[FourWeekGuideViewer] challenge_weekly_guides_ai JSON parse error:', e)
     }

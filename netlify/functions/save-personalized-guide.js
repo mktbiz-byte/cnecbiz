@@ -93,10 +93,44 @@ export async function handler(event) {
       }
     })
 
+    // Convert guide to region-appropriate format
+    // Japan DB: JSONB column → save as object
+    // Korea/US DB: TEXT column → save as string
+    let guideToSave = guide
+
+    // Parse to object first for normalization
+    let guideObj = guide
+    if (typeof guide === 'string') {
+      try {
+        guideObj = JSON.parse(guide)
+        // Handle double-stringified
+        if (typeof guideObj === 'string') {
+          try { guideObj = JSON.parse(guideObj) } catch (_) {}
+        }
+      } catch (_) {
+        guideObj = guide // keep as string if not valid JSON
+      }
+    }
+
+    // Ensure both scenes and shooting_scenes keys exist
+    if (typeof guideObj === 'object' && guideObj !== null) {
+      if (guideObj.scenes && !guideObj.shooting_scenes) guideObj.shooting_scenes = guideObj.scenes
+      if (guideObj.shooting_scenes && !guideObj.scenes) guideObj.scenes = guideObj.shooting_scenes
+    }
+
+    // Convert to region-appropriate format
+    if (region === 'japan') {
+      // JSONB column — save as object
+      guideToSave = typeof guideObj === 'object' ? guideObj : guide
+    } else {
+      // TEXT column (korea, us) — save as string
+      guideToSave = typeof guideObj === 'object' ? JSON.stringify(guideObj) : (typeof guide === 'string' ? guide : JSON.stringify(guide))
+    }
+
     // Update the application with personalized guide
     const { data, error } = await supabase
       .from('applications')
-      .update({ personalized_guide: guide })
+      .update({ personalized_guide: guideToSave })
       .eq('id', applicationId)
       .select()
 
@@ -133,7 +167,7 @@ export async function handler(event) {
         if (app.user_id) {
           await supabase
             .from('campaign_participants')
-            .update({ personalized_guide: guide })
+            .update({ personalized_guide: guideToSave })
             .eq('campaign_id', app.campaign_id)
             .eq('user_id', app.user_id)
         }
@@ -142,7 +176,7 @@ export async function handler(event) {
         if (creatorEmail) {
           await supabase
             .from('campaign_participants')
-            .update({ personalized_guide: guide })
+            .update({ personalized_guide: guideToSave })
             .eq('campaign_id', app.campaign_id)
             .eq('creator_email', creatorEmail)
         }

@@ -52,6 +52,7 @@ import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClien
 import StoryProposalReadonly from './StoryProposalReadonly'
 import StorySubmissionReadonly from './StorySubmissionReadonly'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
+import { parseGuide, prepareGuideForSave, isSceneGuide, isExternalGuide, isTextGuide } from '../../utils/guideParser'
 
 // US 캠페인 작업을 위한 API 호출 헬퍼 (RLS 우회)
 const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
@@ -1172,8 +1173,7 @@ export default function CampaignDetail() {
     // AI 생성 가이드 체크
     if (c.challenge_weekly_guides_ai) {
       try {
-        const parsed = typeof c.challenge_weekly_guides_ai === 'string'
-          ? JSON.parse(c.challenge_weekly_guides_ai) : c.challenge_weekly_guides_ai
+        const parsed = parseGuide(c.challenge_weekly_guides_ai)
         if (parsed && ['week1','week2','week3','week4'].some(w => {
           const d = parsed[w]
           return d && (typeof d === 'string' ? d.trim() : (d.mission?.trim() || (d.required_dialogues?.length > 0) || (d.required_scenes?.length > 0)))
@@ -2938,7 +2938,7 @@ JSON만 출력.`
         } else {
           const { error } = await supabase
             .from('applications')
-            .update({ personalized_guide: guideData })
+            .update({ personalized_guide: prepareGuideForSave(guideData, region) })
             .eq('id', participantId)
 
           if (error) throw error
@@ -3011,9 +3011,7 @@ JSON만 출력.`
 
         try {
           // personalized_guide 파싱
-          const guide = typeof participant.personalized_guide === 'string'
-            ? JSON.parse(participant.personalized_guide)
-            : participant.personalized_guide
+          const guide = parseGuide(participant.personalized_guide)
 
           // 가이드 내용 준비
           const guideContent = {
@@ -3132,11 +3130,11 @@ JSON만 출력.`
               fileName: bulkExternalGuideData.fileName || null,
               title: bulkExternalGuideData.title || ''
             }
-            const guideString = JSON.stringify(guidePayload)
+            const guideSaveValue = prepareGuideForSave(guidePayload, region)
             await supabase
               .from('applications')
               .update({
-                personalized_guide: guideString,
+                personalized_guide: guideSaveValue,
                 status: 'filming',
                 updated_at: new Date().toISOString()
               })
@@ -3148,10 +3146,10 @@ JSON만 출력.`
               try {
                 const pEmail = participant.email || participant.creator_email || participant.applicant_email
                 if (participant.user_id) {
-                  await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('user_id', participant.user_id)
+                  await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('user_id', participant.user_id)
                 }
                 if (pEmail) {
-                  await supabase.from('campaign_participants').update({ personalized_guide: guideString }).eq('campaign_id', id).eq('creator_email', pEmail)
+                  await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('creator_email', pEmail)
                 }
               } catch (syncErr) {
                 console.log('[Guide Sync] campaign_participants 동기화 실패 (무시):', syncErr.message)
@@ -3164,14 +3162,12 @@ JSON만 출력.`
             let emailResponse
             if (deliveryType === 'ai') {
               // AI 가이드 이메일
-              const guide = typeof participant.personalized_guide === 'string'
-                ? JSON.parse(participant.personalized_guide)
-                : participant.personalized_guide
+              const guide = parseGuide(participant.personalized_guide)
 
               // 외부 가이드(PDF/URL)가 personalized_guide에 저장된 경우 → send-external-guide-email로 라우팅
-              const isExternalGuide = guide?.type === 'external_pdf' || guide?.type === 'external_url'
+              const isExternal = guide?.type === 'external_pdf' || guide?.type === 'external_url'
 
-              if (isExternalGuide) {
+              if (isExternal) {
                 // 외부 가이드 이메일 (PDF/슬라이드/URL)
                 emailResponse = await fetch('/.netlify/functions/send-external-guide-email', {
                   method: 'POST',
@@ -4435,7 +4431,7 @@ Questions? Contact us.
           const { error: updateError } = await supabase
             .from('applications')
             .update({ 
-              personalized_guide: JSON.stringify(campaign.ai_generated_guide),
+              personalized_guide: prepareGuideForSave(campaign.ai_generated_guide, region),
               updated_at: new Date().toISOString()
             })
             .eq('id', participant.id)
@@ -4488,8 +4484,7 @@ Questions? Contact us.
     const weekKey = `week${weekNumber}`
     let parsedAiWeekCheck = null
     try {
-      const raw = campaign.challenge_weekly_guides_ai
-      parsedAiWeekCheck = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw)?.[weekKey] : null
+      parsedAiWeekCheck = parseGuide(campaign.challenge_weekly_guides_ai)?.[weekKey] ?? null
     } catch (e) { /* ignore */ }
     const aiHasMission = parsedAiWeekCheck && (typeof parsedAiWeekCheck === 'object' ? !!parsedAiWeekCheck.mission : !!parsedAiWeekCheck)
     const weekHasContent = !!(campaign.challenge_guide_data?.[weekKey]?.mission) ||
@@ -4841,18 +4836,39 @@ Questions? Contact us.
             body: JSON.stringify({
               creatorAnalysis: {
                 platform: participant.main_channel || participant.platform || 'instagram',
-                followers: profile?.instagram_followers || profile?.followers_count || 0,
+                followers: profile?.instagram_followers || profile?.youtube_subscribers || profile?.tiktok_followers || profile?.followers || 0,
+                channelName: profile?.channel_name || participant.creator_name || participant.applicant_name || '',
+                gender: profile?.gender || null,
+                age: profile?.age || null,
+                job: profile?.job || null,
                 skinType: profile?.skin_type || null,
+                skinConcerns: profile?.skin_concerns || [],
+                personalColor: profile?.personal_color || null,
+                skinShade: profile?.skin_shade || null,
+                skinTone: profile?.skin_tone || null,
+                hairType: profile?.hair_type || null,
+                hairConcerns: profile?.hair_concerns || [],
+                nailUsage: profile?.nail_usage || null,
+                circleLensUsage: profile?.circle_lens_usage || null,
+                glassesUsage: profile?.glasses_usage || null,
+                editingLevel: profile?.editing_level || null,
+                shootingLevel: profile?.shooting_level || null,
+                videoLengthStyle: profile?.video_length_style || null,
+                shortformTempo: profile?.shortform_tempo || null,
+                videoStyles: profile?.video_styles || [],
+                uploadFrequency: profile?.upload_frequency || null,
+                childAppearance: profile?.child_appearance || null,
+                offlineVisit: profile?.offline_visit || null,
+                aiProfileText: profile?.ai_profile_text || null,
+                bio: profile?.bio || null,
                 contentAnalysis: {
-                  engagementRate: profile?.engagement_rate || 5,
-                  topHashtags: [],
-                  contentType: 'mixed',
-                  videoRatio: 50
+                  engagementRate: profile?.engagement_rate || null,
+                  avgViews: profile?.avg_views || null,
                 },
                 style: {
-                  tone: profile?.content_style || '친근하고 자연스러운',
-                  topics: [profile?.bio || '라이프스타일', '뷰티'],
-                  videoStyle: 'natural'
+                  tone: null,
+                  topics: profile?.target_interests || [profile?.primary_interest || '뷰티'],
+                  videoStyle: profile?.video_styles?.[0] || null
                 }
               },
               productInfo: {
@@ -4878,8 +4894,8 @@ Questions? Contact us.
           // 생성된 가이드를 applications 테이블에 저장
           const { error: updateError } = await supabase
             .from('applications')
-            .update({ 
-              personalized_guide: guide
+            .update({
+              personalized_guide: prepareGuideForSave(guide, region)
             })
             .eq('id', participant.id)
 
@@ -6303,7 +6319,7 @@ Questions? Contact us.
         await supabase
           .from('applications')
           .update({
-            personalized_guide: personalizedGuide,
+            personalized_guide: prepareGuideForSave(personalizedGuide, region),
             creator_analysis: creatorAnalysis
           })
           .eq('id', participantId)
@@ -7816,10 +7832,7 @@ Questions? Contact us.
                                   // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
                                   let _parsedAiWeek = null
                                   try {
-                                    const _aiRaw = campaign.challenge_weekly_guides_ai
-                                    _parsedAiWeek = _aiRaw
-                                      ? (typeof _aiRaw === 'string' ? JSON.parse(_aiRaw) : _aiRaw)?.[weekKey]
-                                      : null
+                                    _parsedAiWeek = parseGuide(campaign.challenge_weekly_guides_ai)?.[weekKey] ?? null
                                   } catch (e) { /* ignore */ }
                                   // Check actual week-level content (mission exists)
                                   const aiWeekHasMission = _parsedAiWeek && (typeof _parsedAiWeek === 'object' ? !!_parsedAiWeek.mission : !!_parsedAiWeek)
@@ -10644,10 +10657,7 @@ Questions? Contact us.
                                   // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
                                   let _parsedAiWeek2 = null
                                   try {
-                                    const _aiRaw2 = campaign.challenge_weekly_guides_ai
-                                    _parsedAiWeek2 = _aiRaw2
-                                      ? (typeof _aiRaw2 === 'string' ? JSON.parse(_aiRaw2) : _aiRaw2)?.[weekKey]
-                                      : null
+                                    _parsedAiWeek2 = parseGuide(campaign.challenge_weekly_guides_ai)?.[weekKey] ?? null
                                   } catch (e) { /* ignore */ }
                                   // Check actual week-level content (mission exists)
                                   const aiWeekHasMission2 = _parsedAiWeek2 && (typeof _parsedAiWeek2 === 'object' ? !!_parsedAiWeek2.mission : !!_parsedAiWeek2)
@@ -14390,7 +14400,7 @@ Questions? Contact us.
                         const { error } = await supabase
                           .from('applications')
                           .update({
-                            personalized_guide: updatedGuide
+                            personalized_guide: prepareGuideForSave(updatedGuide, region)
                           })
                           .eq('id', selectedGuide.id)
 
@@ -14500,7 +14510,7 @@ Questions? Contact us.
                             await supabase
                               .from('applications')
                               .update({
-                                personalized_guide: guideToSave
+                                personalized_guide: prepareGuideForSave(guideToSave, region)
                               })
                               .eq('id', selectedGuide.id)
                           }
@@ -14800,7 +14810,7 @@ Questions? Contact us.
                     const { error } = await supabase
                       .from('applications')
                       .update({
-                        personalized_guide: regeneratedGuide
+                        personalized_guide: prepareGuideForSave(regeneratedGuide, region)
                       })
                       .eq('id', selectedGuide.id)
 
@@ -16087,7 +16097,7 @@ Questions? Contact us.
                         await supabase
                           .from('applications')
                           .update({
-                            personalized_guide: regeneratedGuide
+                            personalized_guide: prepareGuideForSave(regeneratedGuide, region)
                           })
                           .eq('id', participantId)
 
@@ -16339,10 +16349,11 @@ Questions? Contact us.
                         console.log('[Guide] Saving guide payload:', guidePayload)
 
                         try {
+                          const guideSaveVal = prepareGuideForSave(guidePayload, region)
                           const { error } = await supabase
                             .from('applications')
                             .update({
-                              personalized_guide: JSON.stringify(guidePayload),
+                              personalized_guide: guideSaveVal,
                               updated_at: new Date().toISOString()
                             })
                             .eq('id', selectedParticipantForGuide.id)
@@ -16355,7 +16366,7 @@ Questions? Contact us.
                           // 가이드 확인 모달 열기
                           const updatedParticipant = {
                             ...selectedParticipantForGuide,
-                            personalized_guide: JSON.stringify(guidePayload)
+                            personalized_guide: guideSaveVal
                           }
                           setSelectedGuide(updatedParticipant)
                           setShowGuideModal(true)
@@ -16472,7 +16483,7 @@ Questions? Contact us.
                         const { error } = await supabase
                           .from('applications')
                           .update({
-                            personalized_guide: JSON.stringify(guidePayload),
+                            personalized_guide: prepareGuideForSave(guidePayload, region),
                             updated_at: new Date().toISOString(),
                             status: 'filming'
                           })
@@ -16611,8 +16622,7 @@ Questions? Contact us.
                       // Parse AI guides once
                       let parsedAiBulk = null
                       try {
-                        const rawAi = campaign.challenge_weekly_guides_ai
-                        parsedAiBulk = rawAi ? (typeof rawAi === 'string' ? JSON.parse(rawAi) : rawAi) : null
+                        parsedAiBulk = parseGuide(campaign.challenge_weekly_guides_ai)
                       } catch (e) { /* ignore */ }
 
                       const weekStatuses = [1, 2, 3, 4].map(wn => {
@@ -17282,7 +17292,7 @@ Questions? Contact us.
                     const { error: updateError } = await supabase
                       .from('applications')
                       .update({
-                        personalized_guide: guide,
+                        personalized_guide: prepareGuideForSave(guide, region),
                         updated_at: new Date().toISOString()
                       })
                       .eq('id', selectedParticipantForGuide.id)

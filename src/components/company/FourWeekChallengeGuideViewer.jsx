@@ -56,6 +56,19 @@ export default function FourWeekChallengeGuideViewer() {
 
     // 문자열인 경우 (이전 버전 호환)
     if (typeof guideData === 'string') {
+      // JSON 문자열이면 파싱 시도
+      if (guideData.trim().startsWith('{')) {
+        try {
+          let parsed = JSON.parse(guideData)
+          // Handle double-stringified
+          if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+          if (typeof parsed === 'object' && parsed !== null) {
+            return normalizeGuideData(parsed)
+          }
+        } catch (_) {
+          // JSON 파싱 실패 → 일반 텍스트로 처리
+        }
+      }
       return {
         mission: guideData,
         required_dialogues: [],

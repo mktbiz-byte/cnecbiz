@@ -98,11 +98,34 @@ ${isChildProduct ? '2. ⚠️ 아이 제품이므로: 아이가 반드시 함께
 - **제품 특징**: ${productInfo.product_features || ''}
 - **핵심 포인트**: ${productInfo.product_key_points || ''}
 
-## 크리에이터 분석
+## 크리에이터 프로필 상세
+
+### 기본 정보
 - **플랫폼**: ${creatorAnalysis.platform || 'instagram'}
+- **채널명**: ${creatorAnalysis.channelName || ''}
 - **팔로워**: ${(creatorAnalysis.followers || 0).toLocaleString()}명
-- **콘텐츠 톤**: ${creatorAnalysis.style?.tone || '친근하고 자연스러운'}
-- **주요 토픽**: ${(creatorAnalysis.style?.topics || ['라이프스타일']).join(', ')}
+${creatorAnalysis.gender ? `- **성별**: ${creatorAnalysis.gender}` : ''}
+${creatorAnalysis.age ? `- **연령**: ${creatorAnalysis.age}세` : ''}
+${creatorAnalysis.job ? `- **직업**: ${creatorAnalysis.job}` : ''}
+
+### 뷰티 프로필 (★ 반드시 가이드에 반영!)
+${creatorAnalysis.skinType ? `- **피부 타입**: ${creatorAnalysis.skinType}` : ''}
+${Array.isArray(creatorAnalysis.skinConcerns) && creatorAnalysis.skinConcerns.length > 0 ? `- **피부 고민**: ${JSON.stringify(creatorAnalysis.skinConcerns)}` : ''}
+${creatorAnalysis.personalColor ? `- **퍼스널 컬러**: ${creatorAnalysis.personalColor}` : ''}
+${creatorAnalysis.skinShade ? `- **호수**: ${creatorAnalysis.skinShade}` : ''}
+${creatorAnalysis.hairType ? `- **헤어 타입**: ${creatorAnalysis.hairType}` : ''}
+${Array.isArray(creatorAnalysis.hairConcerns) && creatorAnalysis.hairConcerns.length > 0 ? `- **헤어 고민**: ${JSON.stringify(creatorAnalysis.hairConcerns)}` : ''}
+
+### 영상 역량
+${creatorAnalysis.editingLevel ? `- **편집 레벨**: ${creatorAnalysis.editingLevel}` : ''}
+${creatorAnalysis.shootingLevel ? `- **촬영 레벨**: ${creatorAnalysis.shootingLevel}` : ''}
+${creatorAnalysis.videoLengthStyle ? `- **선호 영상 길이**: ${creatorAnalysis.videoLengthStyle}` : ''}
+${creatorAnalysis.shortformTempo ? `- **숏폼 템포**: ${creatorAnalysis.shortformTempo}` : ''}
+${Array.isArray(creatorAnalysis.videoStyles) && creatorAnalysis.videoStyles.length > 0 ? `- **영상 스타일**: ${JSON.stringify(creatorAnalysis.videoStyles)}` : ''}
+
+${creatorAnalysis.aiProfileText ? `### AI 종합 분석\n"${creatorAnalysis.aiProfileText}"` : ''}
+
+⚠️ 위 프로필을 기반으로 가이드를 개인화하세요.
 
 ${baseGuide ? `## 기본 가이드 (기업 작성 - 반드시 반영할 것!)\n${baseGuide}\n\n⚠️ 위 기본 가이드는 기업이 직접 작성한 내용이므로 반드시 가이드에 반영해주세요.` : ''}
 
@@ -387,13 +410,19 @@ ${additionalNotes}
       guideJson = null
     }
 
+    // Ensure both scenes and shooting_scenes keys exist
+    if (guideJson) {
+      if (guideJson.shooting_scenes && !guideJson.scenes) guideJson.scenes = guideJson.shooting_scenes
+      if (guideJson.scenes && !guideJson.shooting_scenes) guideJson.shooting_scenes = guideJson.scenes
+    }
+
     console.log('[generate-personalized-guide] Guide generation completed successfully')
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        guide: guideJson ? JSON.stringify(guideJson, null, 2) : personalizedGuide,
+        guide: guideJson || personalizedGuide,
         guideJson: guideJson,
         creatorInfo: {
           platform: creatorAnalysis.platform,

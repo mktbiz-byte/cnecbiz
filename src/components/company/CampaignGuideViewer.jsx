@@ -44,7 +44,7 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
   }
 
   // JSON 형식인지 텍스트 형식인지 확인
-  const isJsonGuide = typeof guide === 'object' && guide.shooting_scenes
+  const isJsonGuide = typeof guide === 'object' && (guide.shooting_scenes || guide.scenes)
 
   if (!isJsonGuide) {
     // 기존 텍스트 형식 가이드 표시
@@ -67,7 +67,7 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
     )
   }
 
-  const scenes = editedGuide?.shooting_scenes || []
+  const scenes = editedGuide?.shooting_scenes || editedGuide?.scenes || []
   const currentSceneData = scenes[currentScene]
 
   const handlePrevScene = () => {
