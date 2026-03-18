@@ -25,17 +25,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { text, targetLanguage, sourceLanguage = '한국어' } = JSON.parse(event.body || '{}')
+    const { text, targetLanguage, sourceLanguage = '한국어', rawPrompt, responseMimeType, maxOutputTokens } = JSON.parse(event.body || '{}')
 
-    if (!text) {
+    if (!text && !rawPrompt) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ success: false, error: 'text is required' })
+        body: JSON.stringify({ success: false, error: 'text or rawPrompt is required' })
       }
     }
 
-    if (!targetLanguage) {
+    if (!rawPrompt && !targetLanguage) {
       return {
         statusCode: 400,
         headers,
@@ -55,19 +55,25 @@ exports.handler = async (event) => {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
-    const prompt = `You are a professional translator. Translate the following text from ${sourceLanguage} to ${targetLanguage}.
+    // rawPrompt가 있으면 직접 사용, 없으면 번역 프롬프트 생성
+    const prompt = rawPrompt || `You are a professional translator. Translate the following text from ${sourceLanguage} to ${targetLanguage}.
 Keep the translation natural and accurate. Preserve any formatting, line breaks, and special characters.
 Do not add any explanation or notes - only provide the translated text.
 
 Text to translate:
 ${text}`
 
+    const genConfig = {
+      temperature: 0.3,
+      maxOutputTokens: maxOutputTokens || 2048
+    }
+    if (responseMimeType) {
+      genConfig.responseMimeType = responseMimeType
+    }
+
     const result = await model.generateContent({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048
-      }
+      generationConfig: genConfig
     })
 
     const translatedText = result.response.text().trim()

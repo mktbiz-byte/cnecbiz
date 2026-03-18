@@ -120,31 +120,12 @@ exports.handler = async (event) => {
       console.warn('[notify-video-review-complete] 기업 매칭 실패:', { hintCompanyBizId, hintCompanyId, hintCompanyEmail })
     }
 
-    const results = { kakao: false, email: false }
+    const results = { email: false }
     const notificationPromises = []
 
-    // 카카오 알림톡 (기업 대상 - 영상 검수 완료)
-    if (companyPhone) {
-      notificationPromises.push(
-        fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            receiverNum: companyPhone.replace(/-/g, ''),
-            receiverName: companyName,
-            templateCode: '025100001008',
-            variables: {
-              '회사명': companyName,
-              '캠페인명': campaignTitle,
-              '크리에이터명': creatorName
-            }
-          })
-        }).then(r => r.json()).then(r => {
-          results.kakao = !!r.success
-          console.log('[notify-video-review-complete] 카카오:', r.success ? '성공' : JSON.stringify(r))
-        }).catch(e => console.error('[notify-video-review-complete] 카카오 실패:', e.message))
-      )
-    }
+    // 참고: 025100001008 (영상 촬영 완료 검수 요청) 템플릿은
+    // 크리에이터가 영상을 제출했을 때 기업에게 "검수해주세요"로 보내는 용도이므로
+    // 검수 완료 시에는 발송하지 않음. 기업용 검수 완료 전용 알림톡 템플릿이 없으므로 이메일만 발송.
 
     // 이메일 (기업 대상)
     if (companyEmail) {
