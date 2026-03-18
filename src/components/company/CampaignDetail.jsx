@@ -17816,13 +17816,16 @@ Questions? Contact us.
                       return
                     }
 
-                    const client = getSupabaseClient(region)
-                    const { error } = await client
-                      .from('campaigns')
-                      .update(deadlineEditData)
-                      .eq('id', campaign.id)
-
-                    if (error) throw error
+                    if (region === 'us') {
+                      await callUSCampaignAPI('update_campaign', campaign.id, null, deadlineEditData)
+                    } else {
+                      const client = getSupabaseClient(region)
+                      const { error } = await client
+                        .from('campaigns')
+                        .update(deadlineEditData)
+                        .eq('id', campaign.id)
+                      if (error) throw error
+                    }
 
                     alert('마감일이 수정되었습니다.')
                     setShowDeadlineEditModal(false)
@@ -17981,13 +17984,16 @@ Questions? Contact us.
                       return
                     }
 
-                    const client = getSupabaseClient(region)
-                    const { error } = await client
-                      .from('campaigns')
-                      .update(detailEditData)
-                      .eq('id', campaign.id)
-
-                    if (error) throw error
+                    if (region === 'us') {
+                      await callUSCampaignAPI('update_campaign', campaign.id, null, detailEditData)
+                    } else {
+                      const client = getSupabaseClient(region)
+                      const { error } = await client
+                        .from('campaigns')
+                        .update(detailEditData)
+                        .eq('id', campaign.id)
+                      if (error) throw error
+                    }
 
                     alert('캠페인 상세 정보가 수정되었습니다.')
                     setShowDetailEditModal(false)

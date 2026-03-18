@@ -257,7 +257,7 @@ const CreatorMyPage = () => {
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',
-          skipNotification: false,
+          skipNotification: true,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName
@@ -278,7 +278,23 @@ const CreatorMyPage = () => {
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
       }
 
-      // 알림은 save-video-upload 내부에서 자동 발송 (skipNotification: false)
+      // 알림은 별도 비동기 호출 (업로드 완료를 기다리지 않음 — fire-and-forget)
+      fetch('/.netlify/functions/notify-video-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id,
+          region: uploadRegion,
+          creatorName: hintCreatorName,
+          campaignTitle: hintCampaignTitle,
+          companyName: hintCompanyName,
+          companyBizId: selectedCampaign?.campaigns?.company_biz_id,
+          companyId: selectedCampaign?.campaigns?.company_id,
+          companyEmail: selectedCampaign?.campaigns?.company_email,
+          version: allFiles.length,
+          videoFileCount: allFiles.length
+        })
+      }).catch(e => console.warn('알림 발송 백그라운드 실패 (무시):', e.message))
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)

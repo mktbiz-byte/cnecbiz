@@ -254,6 +254,15 @@ exports.handler = async (event) => {
           .select()
         break
 
+      // 캠페인 정보 업데이트 (마감일, 상세 정보 등)
+      case 'update_campaign':
+        result = await supabaseUS
+          .from('campaigns')
+          .update(data)
+          .eq('id', campaign_id)
+          .select()
+        break
+
       default:
         return {
           statusCode: 400,
