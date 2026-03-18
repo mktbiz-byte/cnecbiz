@@ -278,11 +278,9 @@ const CreatorMyPage = () => {
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
       }
 
-      // 알림은 별도 비동기 호출 (업로드 완료를 기다리지 않음 — fire-and-forget)
-      fetch('/.netlify/functions/notify-video-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // 알림은 sendBeacon으로 발송 (페이지 상태 변경/모달 닫힘에도 전송 보장)
+      try {
+        const notifyPayload = JSON.stringify({
           campaignId: selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id,
           region: uploadRegion,
           creatorName: hintCreatorName,
@@ -294,7 +292,13 @@ const CreatorMyPage = () => {
           version: allFiles.length,
           videoFileCount: allFiles.length
         })
-      }).catch(e => console.warn('알림 발송 백그라운드 실패 (무시):', e.message))
+        navigator.sendBeacon(
+          '/.netlify/functions/notify-video-upload',
+          new Blob([notifyPayload], { type: 'application/json' })
+        )
+      } catch (e) {
+        console.warn('알림 발송 실패 (무시):', e.message)
+      }
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)
