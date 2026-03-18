@@ -289,7 +289,7 @@ const CreateCampaignJapan = () => {
 
     const basePrice = campaignType.price + packageType.priceAddon + (campaignForm.bonus_amount || 0)
     const subtotal = basePrice * campaignForm.total_slots
-    const vat = Math.floor(subtotal * 0.1)
+    const vat = Math.round(subtotal * 0.1)
     const total = subtotal + vat
 
     return {

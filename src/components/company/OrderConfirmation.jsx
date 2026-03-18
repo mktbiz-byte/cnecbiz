@@ -116,19 +116,26 @@ const OrderConfirmation = () => {
 
   const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
-  
+
   const subtotal = packagePrice * recruitmentCount
-  
+
   // 할인 계산 (1천만원 이상 5% 할인)
   let discountRate = 0
   if (subtotal >= 10000000) {
     discountRate = 0.05 // 1천만원 이상: 5% 할인
   }
-  
-  const discountAmount = Math.floor(subtotal * discountRate)
+
+  const discountAmount = Math.round(subtotal * discountRate)
   const afterDiscount = subtotal - discountAmount
-  const vat = Math.floor(afterDiscount * 0.1) // 부가세 10%
+  const vat = Math.round(afterDiscount * 0.1) // 부가세 10%
   const totalCost = afterDiscount + vat
+
+  // 패키지 타입 라벨 매핑
+  const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지' }
+  const packageLabels = { basic: '베이직', junior: '초급', intermediate: '중급', senior: '상급', premium: '프리미엄', standard: '스탠다드', professional: '프로페셔널', enterprise: '엔터프라이즈' }
+  const ctLabel = campaignTypeLabels[campaign.campaign_type] || campaign.campaign_type || ''
+  const pkgLabel = packageLabels[campaign.package_type?.toLowerCase()] || campaign.package_type || ''
+  const packageLabel = `${ctLabel} · ${pkgLabel}`
   
   // 포인트 계산 제거됨 - 계좌 입금만 사용
 
@@ -175,7 +182,7 @@ const OrderConfirmation = () => {
             <div className="bg-blue-50 p-4 lg:p-6 rounded-lg space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">선택 패키지</span>
-                <span className="font-semibold text-blue-600 text-lg">{campaign.package_type}</span>
+                <span className="font-semibold text-blue-600 text-lg">{packageLabel}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">패키지 단가</span>
