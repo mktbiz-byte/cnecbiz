@@ -4539,6 +4539,17 @@ const CampaignCreationKorea = () => {
                         </div>
                       </div>
 
+                      {error && (
+                        <div className="bg-red-500/20 border border-red-400/30 text-red-200 px-4 py-3 rounded-xl text-sm mt-4">
+                          {error}
+                        </div>
+                      )}
+                      {success && (
+                        <div className="bg-green-500/20 border border-green-400/30 text-green-200 px-4 py-3 rounded-xl text-sm mt-4">
+                          {success}
+                        </div>
+                      )}
+
                       <div className="mt-6 space-y-3">
                         <Button
                           type="submit"
