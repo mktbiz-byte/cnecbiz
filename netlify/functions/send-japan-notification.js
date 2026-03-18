@@ -464,7 +464,7 @@ async function sendLineMessage(lineUserId, message) {
 // SMS 발송
 async function sendSms(phoneNumber, message) {
   try {
-    const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const response = await fetch(`${baseUrl}/.netlify/functions/send-sms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -482,7 +482,7 @@ async function sendSms(phoneNumber, message) {
 // 이메일 발송
 async function sendEmail(to, subject, html) {
   try {
-    const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+    const baseUrl = process.env.URL || 'https://cnecbiz.com';
     const response = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -646,7 +646,7 @@ exports.handler = async (event) => {
     // 2-1. LINE 미등록 시 LINE 초대장 발송 (SMS + Email)
     if (!creator.line_user_id && (creator.email || creator.phone)) {
       try {
-        const baseUrl = process.env.URL || 'https://cnecbiz.netlify.app';
+        const baseUrl = process.env.URL || 'https://cnecbiz.com';
         await fetch(`${baseUrl}/.netlify/functions/send-line-invitation-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

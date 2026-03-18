@@ -257,7 +257,7 @@ const CreatorMyPage = () => {
           participantId,
           videoFiles: allFiles,
           videoStatus: 'uploaded',
-          skipNotification: true,
+          skipNotification: false,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName
@@ -278,27 +278,7 @@ const CreatorMyPage = () => {
         if (updateError) throw new Error(`DB 업데이트 실패: ${updateError.message}`)
       }
 
-      // 알림은 sendBeacon으로 발송 (페이지 상태 변경/모달 닫힘에도 전송 보장)
-      try {
-        const notifyPayload = JSON.stringify({
-          campaignId: selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id,
-          region: uploadRegion,
-          creatorName: hintCreatorName,
-          campaignTitle: hintCampaignTitle,
-          companyName: hintCompanyName,
-          companyBizId: selectedCampaign?.campaigns?.company_biz_id,
-          companyId: selectedCampaign?.campaigns?.company_id,
-          companyEmail: selectedCampaign?.campaigns?.company_email,
-          version: allFiles.length,
-          videoFileCount: allFiles.length
-        })
-        navigator.sendBeacon(
-          '/.netlify/functions/notify-video-upload',
-          new Blob([notifyPayload], { type: 'application/json' })
-        )
-      } catch (e) {
-        console.warn('알림 발송 실패 (무시):', e.message)
-      }
+      // 알림은 save-video-upload 내부에서 자동 발송 (skipNotification: false)
 
       alert('영상이 성공적으로 업로드되었습니다!')
       setShowUploadModal(false)

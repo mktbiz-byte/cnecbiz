@@ -4,17 +4,25 @@ const { createClient } = require('@supabase/supabase-js')
 const getRegionClient = (region) => {
   switch (region) {
     case 'japan':
-    case 'jp':
-      return createClient(
-        process.env.VITE_SUPABASE_JAPAN_URL,
-        process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-      )
+    case 'jp': {
+      const url = process.env.VITE_SUPABASE_JAPAN_URL
+      const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      if (!url || !key) {
+        console.error(`[award-campaign-points] Japan DB 환경변수 누락: URL=${!!url}, KEY=${!!key}`)
+        throw new Error('Japan DB 환경변수 미설정 (VITE_SUPABASE_JAPAN_URL / SUPABASE_JAPAN_SERVICE_ROLE_KEY)')
+      }
+      return createClient(url, key)
+    }
     case 'us':
-    case 'usa':
-      return createClient(
-        process.env.VITE_SUPABASE_US_URL,
-        process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-      )
+    case 'usa': {
+      const url = process.env.VITE_SUPABASE_US_URL
+      const key = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      if (!url || !key) {
+        console.error(`[award-campaign-points] US DB 환경변수 누락: URL=${!!url}, KEY=${!!key}`)
+        throw new Error('US DB 환경변수 미설정 (VITE_SUPABASE_US_URL / SUPABASE_US_SERVICE_ROLE_KEY)')
+      }
+      return createClient(url, key)
+    }
     case 'korea':
     case 'kr':
     default:
@@ -237,6 +245,21 @@ exports.handler = async (event) => {
     }
   } catch (error) {
     console.error('[award-campaign-points] Error:', error)
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'award-campaign-points',
+          errorMessage: error.message,
+          context: { body: event.body?.substring(0, 500) }
+        })
+      })
+    } catch (e) { console.error('Error alert failed:', e.message) }
+
     return {
       statusCode: 500,
       headers,
