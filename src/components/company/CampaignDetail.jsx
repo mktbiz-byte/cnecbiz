@@ -914,14 +914,17 @@ export default function CampaignDetail() {
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
-      fetchAIRecommendations()
-      fetchCnecPlusRecommendations()
-      // 한국 캠페인인 경우에만 MUSE 크리에이터 로드 (베이직/주니어 200,000원 패키지는 제외)
-      const isBasicPackage = ['basic', 'junior'].includes(campaign.package_type?.toLowerCase()) ||
-        (campaign.package_type?.toLowerCase() === 'standard' && campaign.campaign_type === 'planned' && getPackagePrice(campaign.package_type, campaign.campaign_type) <= 200000)
-      if (region === 'korea' && !isBasicPackage) {
-        fetchMuseCreators()
-        fetchAiCreatorRecs()
+      // 스토리 숏폼은 AI 추천/MUSE 추천 불필요 (지원으로만 모집)
+      if (campaign.campaign_type !== 'story_short') {
+        fetchAIRecommendations()
+        fetchCnecPlusRecommendations()
+        // 한국 캠페인인 경우에만 MUSE 크리에이터 로드 (베이직/주니어 200,000원 패키지는 제외)
+        const isBasicPackage = ['basic', 'junior'].includes(campaign.package_type?.toLowerCase()) ||
+          (campaign.package_type?.toLowerCase() === 'standard' && campaign.campaign_type === 'planned' && getPackagePrice(campaign.package_type, campaign.campaign_type) <= 200000)
+        if (region === 'korea' && !isBasicPackage) {
+          fetchMuseCreators()
+          fetchAiCreatorRecs()
+        }
       }
     }
   }, [campaign])
@@ -10982,6 +10985,118 @@ Questions? Contact us.
                 </Tabs>
               </CardContent>
             </Card>
+
+            {/* 스토리 숏폼 전용: 가이드 & 기획안 & 검수 현황 (선정 크리에이터 탭 내) */}
+            {campaign?.campaign_type === 'story_short' && (
+              <div className="space-y-6 mt-6">
+                {/* 스토리 숏폼 가이드 요약 */}
+                <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
+                    <CardTitle className="flex items-center gap-2 text-gray-800">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
+                        <FileText className="w-4 h-4 text-white" />
+                      </div>
+                      스토리 숏폼 가이드
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-3 text-sm">
+                      {campaign?.story_swipe_link && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">구매 링크</span>
+                          <div className="flex-1 min-w-0">
+                            <a href={campaign.story_swipe_link} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline truncate block">
+                              {campaign.story_swipe_link}
+                            </a>
+                            <span className="text-xs text-teal-600 mt-0.5 block">UTM 파라미터 자동 적용</span>
+                          </div>
+                        </div>
+                      )}
+                      {campaign?.story_required_keyword && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">필수 키워드</span>
+                          <span className="bg-teal-50 text-teal-700 font-semibold px-3 py-1 rounded-lg">{campaign.story_required_keyword}</span>
+                        </div>
+                      )}
+                      {campaign?.story_exposure_type && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">노출 방식</span>
+                          <span className="text-gray-900 font-medium">
+                            {{ unboxing: '언박싱', usage_scene: '사용 장면', before_after: '비포애프터' }[campaign.story_exposure_type] || campaign.story_exposure_type}
+                          </span>
+                        </div>
+                      )}
+                      {campaign?.story_tone_guide && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">톤/분위기</span>
+                          <span className="text-gray-900">{campaign.story_tone_guide}</span>
+                        </div>
+                      )}
+                      {campaign?.story_reference_image_url && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">레퍼런스</span>
+                          <img src={campaign.story_reference_image_url} alt="레퍼런스 이미지" className="w-24 h-24 rounded-lg object-cover border" />
+                        </div>
+                      )}
+                      {campaign?.story_restrictions && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">금지사항</span>
+                          <span className="text-red-600">{campaign.story_restrictions}</span>
+                        </div>
+                      )}
+                      {campaign?.story_slide_count && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">스토리 장수</span>
+                          <span className="text-gray-900">
+                            {campaign.story_slide_count === '1' ? '1장 (15초)' : campaign.story_slide_count === '2_3' ? '2~3장 연속' : campaign.story_slide_count}
+                          </span>
+                        </div>
+                      )}
+                      {campaign?.story_hashtags?.length > 0 && !campaign?.story_required_keyword && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 flex-shrink-0">해시태그</span>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {campaign.story_hashtags.map((tag, idx) => (
+                              <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">#{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-6 pt-2 border-t">
+                        <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_no_revision ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                          {campaign?.story_no_revision ? '수정 불가 (추가 시 +2만원)' : '수정 가능'}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_secondary_use ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}`}>
+                          {campaign?.story_secondary_use ? '2차 활용 포함' : '2차 활용 미포함'}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 스토리 가이드 생성/수정/발송 */}
+                <StoryGuideEditor
+                  campaign={campaign}
+                  region={region}
+                  participants={participants}
+                  onGuideUpdated={async (updatedGuide) => {
+                    const client = getSupabaseClient(region)
+                    if (client) {
+                      await client.from('campaigns').update({ story_guide_content: updatedGuide }).eq('id', campaign.id)
+                      setCampaign(prev => ({ ...prev, story_guide_content: updatedGuide }))
+                    }
+                  }}
+                />
+
+                {/* 기획안 현황 (읽기 전용) */}
+                <StoryProposalReadonly campaignId={id} />
+
+                {/* 스토리 제출 현황 (읽기 전용) */}
+                <StorySubmissionReadonly campaignId={id} />
+              </div>
+            )}
+
           </TabsContent>
 
           {/* 영상 확인 탭 */}
@@ -13404,119 +13519,6 @@ Questions? Contact us.
 
 
         </Tabs>
-
-        {/* 스토리 숏폼 전용 섹션 — 기획안 & 검수 현황 */}
-        {campaign?.campaign_type === 'story_short' && (
-          <div className="space-y-6 mt-6">
-            {/* 스토리 숏폼 가이드 요약 */}
-            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
-                <CardTitle className="flex items-center gap-2 text-gray-800">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
-                    <FileText className="w-4 h-4 text-white" />
-                  </div>
-                  스토리 숏폼 가이드
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-3 text-sm">
-                  {campaign?.story_swipe_link && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">구매 링크</span>
-                      <div className="flex-1 min-w-0">
-                        <a href={campaign.story_swipe_link} target="_blank" rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline truncate block">
-                          {campaign.story_swipe_link}
-                        </a>
-                        <span className="text-xs text-teal-600 mt-0.5 block">UTM 파라미터 자동 적용</span>
-                      </div>
-                    </div>
-                  )}
-                  {campaign?.story_required_keyword && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">필수 키워드</span>
-                      <span className="bg-teal-50 text-teal-700 font-semibold px-3 py-1 rounded-lg">{campaign.story_required_keyword}</span>
-                    </div>
-                  )}
-                  {campaign?.story_exposure_type && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">노출 방식</span>
-                      <span className="text-gray-900 font-medium">
-                        {{ unboxing: '언박싱', usage_scene: '사용 장면', before_after: '비포애프터' }[campaign.story_exposure_type] || campaign.story_exposure_type}
-                      </span>
-                    </div>
-                  )}
-                  {campaign?.story_tone_guide && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">톤/분위기</span>
-                      <span className="text-gray-900">{campaign.story_tone_guide}</span>
-                    </div>
-                  )}
-                  {campaign?.story_reference_image_url && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">레퍼런스</span>
-                      <img src={campaign.story_reference_image_url} alt="레퍼런스 이미지" className="w-24 h-24 rounded-lg object-cover border" />
-                    </div>
-                  )}
-                  {campaign?.story_restrictions && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">금지사항</span>
-                      <span className="text-red-600">{campaign.story_restrictions}</span>
-                    </div>
-                  )}
-                  {campaign?.story_slide_count && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">스토리 장수</span>
-                      <span className="text-gray-900">
-                        {campaign.story_slide_count === '1' ? '1장 (15초)' : campaign.story_slide_count === '2_3' ? '2~3장 연속' : campaign.story_slide_count}
-                      </span>
-                    </div>
-                  )}
-                  {/* 기존 해시태그 호환 (기존 캠페인용) */}
-                  {campaign?.story_hashtags?.length > 0 && !campaign?.story_required_keyword && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 w-28 flex-shrink-0">해시태그</span>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {campaign.story_hashtags.map((tag, idx) => (
-                          <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">#{tag}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-6 pt-2 border-t">
-                    <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_no_revision ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
-                      {campaign?.story_no_revision ? '수정 불가 (추가 시 +2만원)' : '수정 가능'}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded-md ${campaign?.story_secondary_use ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}`}>
-                      {campaign?.story_secondary_use ? '2차 활용 포함' : '2차 활용 미포함'}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 스토리 가이드 생성/수정/발송 */}
-            <StoryGuideEditor
-              campaign={campaign}
-              region={region}
-              participants={participants}
-              onGuideUpdated={async (updatedGuide) => {
-                // 캠페인의 story_guide_content 업데이트
-                const client = getSupabaseClient(region)
-                if (client) {
-                  await client.from('campaigns').update({ story_guide_content: updatedGuide }).eq('id', campaign.id)
-                  setCampaign(prev => ({ ...prev, story_guide_content: updatedGuide }))
-                }
-              }}
-            />
-
-            {/* 기획안 현황 (읽기 전용) */}
-            <StoryProposalReadonly campaignId={id} />
-
-            {/* 스토리 제출 현황 (읽기 전용) */}
-            <StorySubmissionReadonly campaignId={id} />
-          </div>
-        )}
 
         {/* Campaign Details */}
         <Card className="mt-6 border-0 shadow-lg rounded-2xl overflow-hidden">
