@@ -16,15 +16,29 @@ export default function USJapanGuideViewer({ guide, creator, onSave, region = 'u
   const targetLanguage = region === 'japan' ? '日本語' : 'English'
   const targetLanguageLabel = region === 'japan' ? '일본어' : '영어'
 
-  // Parse guide if it's a string
+  // Parse guide if it's a string, with scenes↔shooting_scenes normalization
   const parseGuide = (guideData) => {
     if (!guideData) return null
-    if (typeof guideData === 'object') return guideData
+    if (typeof guideData === 'object') {
+      if (guideData.scenes && !guideData.shooting_scenes) guideData.shooting_scenes = guideData.scenes
+      if (guideData.shooting_scenes && !guideData.scenes) guideData.scenes = guideData.shooting_scenes
+      return guideData
+    }
     if (typeof guideData === 'string') {
       const trimmed = guideData.trim()
       if (!trimmed || trimmed === '``' || trimmed === '```') return null
       try {
-        return JSON.parse(trimmed)
+        let parsed = JSON.parse(trimmed)
+        // Handle double-stringified JSON
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed) } catch (_) { return null }
+        }
+        if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.scenes && !parsed.shooting_scenes) parsed.shooting_scenes = parsed.scenes
+          if (parsed.shooting_scenes && !parsed.scenes) parsed.scenes = parsed.shooting_scenes
+          return parsed
+        }
+        return null
       } catch (e) {
         console.error('Failed to parse guide as JSON:', e)
         return null

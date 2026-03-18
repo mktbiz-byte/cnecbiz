@@ -254,6 +254,8 @@ export default function SignContract() {
     }
 
     if (contractData.contract_type === 'video_secondary_use') {
+      const consentRegion = contentData.region || 'korea'
+      const consentLocale = consentRegion === 'japan' ? 'ja-JP' : consentRegion === 'us' ? 'en-US' : 'ko-KR'
       return VideoSecondaryUseConsentTemplate({
         creatorName: contentData.creatorName || contractData.recipient_name || '',
         channelName: contentData.channelName || '',
@@ -261,8 +263,9 @@ export default function SignContract() {
         companyName: contentData.companyName || '',
         videoCompletionDate: contentData.videoCompletionDate || '',
         consentDate: contractData.created_at
-          ? new Date(contractData.created_at).toLocaleDateString('ko-KR')
-          : new Date().toLocaleDateString('ko-KR')
+          ? new Date(contractData.created_at).toLocaleDateString(consentLocale)
+          : new Date().toLocaleDateString(consentLocale),
+        region: consentRegion
       })
     }
 

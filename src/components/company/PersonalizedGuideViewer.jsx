@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Edit, Save, X, ExternalLink, Video, Clock, Hash, Lightbulb, CheckCircle, Camera, MessageSquare, Sparkles, Film, Play, User, Instagram, Youtube, FileText, Link as LinkIcon } from 'lucide-react'
 import { Button } from '../ui/button'
+import { parseGuide as parseGuideUtil } from '../../utils/guideParser'
 
 export default function PersonalizedGuideViewer({ guide, creator, onSave, additionalMessage, onSaveMessage }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -10,19 +11,7 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
 
   // Parse guide if it's a string
   const parseGuide = (guideData) => {
-    if (!guideData) return null
-    if (typeof guideData === 'object') return guideData
-    if (typeof guideData === 'string') {
-      const trimmed = guideData.trim()
-      if (!trimmed || trimmed === '``' || trimmed === '```') return null
-      try {
-        return JSON.parse(trimmed)
-      } catch (e) {
-        console.error('Failed to parse guide as JSON:', e)
-        return null
-      }
-    }
-    return null
+    return parseGuideUtil(guideData)
   }
 
   const guideData = parseGuide(guide)
