@@ -1805,16 +1805,16 @@ export default function VideoReview() {
         {/* 오른쪽: 피드백 패널 - Desktop only */}
         {!isMobile && (
         <div className="w-full lg:w-[400px] flex flex-col min-h-0">
-          <div className="bg-slate-800 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+          <div className="bg-white border border-[#DFE6E9] rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* 패널 헤더 */}
-            <div className="p-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+            <div className="p-4 border-b border-[#DFE6E9] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4" />
+                <div className="w-8 h-8 bg-[#F0EDFF] rounded-xl flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-[#6C5CE7]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold">피드백 타임라인</h3>
-                  <p className="text-xs text-slate-400">{comments.length}개의 수정 요청</p>
+                  <h3 className="text-base font-semibold text-[#1A1A2E]">피드백 타임라인</h3>
+                  <p className="text-xs text-[#636E72]">{comments.length}개의 수정 요청</p>
                 </div>
               </div>
             </div>
@@ -1823,20 +1823,20 @@ export default function VideoReview() {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {comments.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare className="w-8 h-8 text-slate-500" />
+                  <div className="w-16 h-16 bg-[#F0EDFF] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="w-8 h-8 text-[#6C5CE7]" />
                   </div>
-                  <p className="text-slate-400 text-sm">아직 피드백이 없습니다</p>
-                  <p className="text-slate-500 text-xs mt-1">영상을 클릭하여 첫 피드백을 추가하세요</p>
+                  <p className="text-[#636E72] text-sm">아직 피드백이 없습니다</p>
+                  <p className="text-[#B2BEC3] text-xs mt-1">영상을 클릭하여 첫 피드백을 추가하세요</p>
                 </div>
               ) : (
                 comments.map((comment, index) => (
                   <div
                     key={comment.id}
-                    className={`rounded-xl p-4 transition-all cursor-pointer ${
+                    className={`rounded-2xl p-4 transition-all cursor-pointer ${
                       selectedFeedback === comment.id
-                        ? 'bg-blue-500/20 border border-blue-500/50 shadow-lg shadow-blue-500/10'
-                        : 'bg-slate-700/50 border border-transparent hover:bg-slate-700 hover:border-slate-600'
+                        ? 'bg-[#F0EDFF] border border-[#6C5CE7]/30 shadow-lg shadow-[#6C5CE7]/10'
+                        : 'bg-[#F8F9FA] border border-transparent hover:bg-[#F0EDFF]/50 hover:border-[#DFE6E9]'
                     }`}
                     onClick={() => {
                       setSelectedFeedback(comment.id)
@@ -1848,18 +1848,18 @@ export default function VideoReview() {
                       <div className="flex items-center gap-2">
                         <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                           selectedFeedback === comment.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-slate-600 text-slate-300'
+                            ? 'bg-[#6C5CE7] text-white'
+                            : 'bg-[#DFE6E9] text-[#636E72]'
                         }`}>
                           {index + 1}
                         </span>
                         <div>
                           <span className={`text-sm font-mono font-semibold ${
-                            selectedFeedback === comment.id ? 'text-blue-400' : 'text-slate-300'
+                            selectedFeedback === comment.id ? 'text-[#6C5CE7]' : 'text-[#636E72]'
                           }`}>
                             {formatTimePrecise(comment.timestamp)}
                           </span>
-                          <p className="text-[10px] text-slate-500">
+                          <p className="text-[10px] text-[#B2BEC3]">
                             {new Date(comment.created_at).toLocaleDateString('ko-KR')}
                           </p>
                         </div>
@@ -1869,7 +1869,7 @@ export default function VideoReview() {
                           e.stopPropagation()
                           deleteComment(comment.id)
                         }}
-                        className="text-slate-500 hover:text-red-400 p-1 hover:bg-red-400/10 rounded transition-colors"
+                        className="text-[#B2BEC3] hover:text-[#FF6B6B] p-1 hover:bg-[rgba(255,107,107,0.1)] rounded transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1880,37 +1880,37 @@ export default function VideoReview() {
                       {/* 원본 (한국어) */}
                       <div>
                         {(region === 'japan' || region === 'us') && (
-                          <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
+                          <p className="text-[10px] text-[#B2BEC3] mb-1 flex items-center gap-1">
                             🇰🇷 한국어
                           </p>
                         )}
-                        <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                        <p className="text-sm text-[#1A1A2E] whitespace-pre-wrap leading-relaxed">
                           {comment.comment}
                         </p>
                       </div>
 
                       {/* 번역본 (일본어/영어) - Japan/US 지역만 */}
                       {(region === 'japan' || region === 'us') && showTranslation && (
-                        <div className="mt-2 pt-2 border-t border-slate-600/50">
-                          <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
+                        <div className="mt-2 pt-2 border-t border-[#DFE6E9]">
+                          <p className="text-[10px] text-[#B2BEC3] mb-1 flex items-center gap-1">
                             {region === 'japan' ? '🇯🇵 日本語' : '🇺🇸 English'}
                             {translating[comment.id] && (
                               <Loader2 className="w-3 h-3 animate-spin" />
                             )}
                           </p>
                           {translations[comment.id] ? (
-                            <p className="text-sm text-blue-200 whitespace-pre-wrap leading-relaxed">
+                            <p className="text-sm text-[#6C5CE7] whitespace-pre-wrap leading-relaxed">
                               {translations[comment.id]}
                             </p>
                           ) : translating[comment.id] ? (
-                            <p className="text-xs text-slate-400 italic">번역 중...</p>
+                            <p className="text-xs text-[#B2BEC3] italic">번역 중...</p>
                           ) : (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 translateComment(comment.id, comment.comment)
                               }}
-                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                              className="text-xs text-[#6C5CE7] hover:text-[#5A4BD1] flex items-center gap-1"
                             >
                               <Languages className="w-3 h-3" />
                               번역하기
@@ -1922,9 +1922,9 @@ export default function VideoReview() {
 
                     {/* 첨부 파일 */}
                     {comment.attachment_url && (
-                      <div className="mt-3 p-2 bg-slate-600/50 rounded-lg">
+                      <div className="mt-3 p-2 bg-[#F8F9FA] rounded-xl border border-[#DFE6E9]">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="flex items-center gap-2 text-xs text-[#636E72]">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                             </svg>
@@ -1935,7 +1935,7 @@ export default function VideoReview() {
                             download={comment.attachment_name}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                            className="text-xs text-[#6C5CE7] hover:text-[#5A4BD1] font-medium"
                             onClick={(e) => e.stopPropagation()}
                           >
                             다운로드
@@ -1945,24 +1945,24 @@ export default function VideoReview() {
                     )}
 
                     {/* 댓글 섹션 */}
-                    <div className="mt-3 pt-3 border-t border-slate-600/50">
+                    <div className="mt-3 pt-3 border-t border-[#DFE6E9]">
                       <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="w-3 h-3 text-slate-500" />
-                        <span className="text-[10px] text-slate-500">
+                        <MessageSquare className="w-3 h-3 text-[#B2BEC3]" />
+                        <span className="text-[10px] text-[#B2BEC3]">
                           댓글 {replies[comment.id]?.length || 0}
                         </span>
                       </div>
 
                       {/* 댓글 목록 */}
                       {replies[comment.id]?.map((reply) => (
-                        <div key={reply.id} className="bg-slate-600/30 rounded-lg p-2 mb-2 text-xs">
+                        <div key={reply.id} className="bg-[#F8F9FA] rounded-xl p-2 mb-2 text-xs border border-[#DFE6E9]">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-300">{reply.author_name}</span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="font-semibold text-[#1A1A2E]">{reply.author_name}</span>
+                            <span className="text-[10px] text-[#B2BEC3]">
                               {new Date(reply.created_at).toLocaleDateString('ko-KR')}
                             </span>
                           </div>
-                          <p className="text-slate-400 mt-1">{reply.reply_text}</p>
+                          <p className="text-[#636E72] mt-1">{reply.reply_text}</p>
                         </div>
                       ))}
 
@@ -1974,19 +1974,19 @@ export default function VideoReview() {
                             value={authorName}
                             onChange={(e) => setAuthorName(e.target.value)}
                             placeholder="이름"
-                            className="w-full px-3 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            className="w-full px-3 py-2 bg-[#F8F9FA] border border-[#DFE6E9] rounded-xl text-xs text-[#1A1A2E] placeholder-[#B2BEC3] focus:outline-none focus:ring-1 focus:ring-[#6C5CE7]"
                           />
                           <textarea
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
                             placeholder="댓글을 입력하세요..."
-                            className="w-full px-3 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                            className="w-full px-3 py-2 bg-[#F8F9FA] border border-[#DFE6E9] rounded-xl text-xs text-[#1A1A2E] placeholder-[#B2BEC3] focus:outline-none focus:ring-1 focus:ring-[#6C5CE7] resize-none"
                             rows={2}
                           />
                           <div className="flex gap-2">
                             <button
                               onClick={() => addReply(comment.id)}
-                              className="flex-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors"
+                              className="flex-1 px-3 py-1.5 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs font-medium rounded-xl transition-colors"
                             >
                               작성
                             </button>
@@ -1996,7 +1996,7 @@ export default function VideoReview() {
                                 setReplyText('')
                                 setAuthorName('')
                               }}
-                              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-slate-300 text-xs rounded-lg transition-colors"
+                              className="px-3 py-1.5 bg-[#F8F9FA] hover:bg-[#DFE6E9] text-[#636E72] text-xs rounded-xl border border-[#DFE6E9] transition-colors"
                             >
                               취소
                             </button>
@@ -2008,7 +2008,7 @@ export default function VideoReview() {
                             e.stopPropagation()
                             setReplyingTo(comment.id)
                           }}
-                          className="w-full mt-2 px-3 py-2 bg-slate-600/30 hover:bg-slate-600/50 text-slate-400 hover:text-slate-300 text-xs rounded-lg transition-colors flex items-center justify-center gap-1"
+                          className="w-full mt-2 px-3 py-2 bg-[#F8F9FA] hover:bg-[#F0EDFF] text-[#636E72] hover:text-[#6C5CE7] text-xs rounded-xl border border-[#DFE6E9] transition-colors flex items-center justify-center gap-1"
                         >
                           <MessageSquare className="w-3 h-3" />
                           댓글 달기
@@ -2034,26 +2034,26 @@ export default function VideoReview() {
           />
 
           {/* Bottom Sheet */}
-          <div className="bg-slate-800 rounded-t-2xl h-[80vh] flex flex-col animate-slide-up">
+          <div className="bg-white rounded-t-2xl h-[80vh] flex flex-col animate-slide-up">
             {/* Handle */}
             <div className="flex justify-center py-3 shrink-0">
-              <div className="w-12 h-1 bg-slate-600 rounded-full" />
+              <div className="w-12 h-1 bg-[#DFE6E9] rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="px-4 pb-3 border-b border-slate-700 flex items-center justify-between shrink-0">
+            <div className="px-4 pb-3 border-b border-[#DFE6E9] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4" />
+                <div className="w-8 h-8 bg-[#F0EDFF] rounded-xl flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-[#6C5CE7]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-white">피드백 목록</h3>
-                  <p className="text-xs text-slate-400">{comments.length}개의 수정 요청</p>
+                  <h3 className="text-base font-semibold text-[#1A1A2E]">피드백 목록</h3>
+                  <p className="text-xs text-[#636E72]">{comments.length}개의 수정 요청</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowMobileFeedback(false)}
-                className="p-2 text-slate-400"
+                className="p-2 text-[#B2BEC3]"
               >
                 <ChevronDown className="w-5 h-5" />
               </button>
@@ -2061,16 +2061,16 @@ export default function VideoReview() {
 
             {/* Active Marker Form - Mobile */}
             {activeMarker && (
-              <div className="p-4 border-b border-amber-400/30 bg-amber-400/10 shrink-0">
+              <div className="p-4 border-b border-[#6C5CE7]/20 bg-[#F0EDFF] shrink-0">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center">
-                    <FileText className="w-3 h-3 text-slate-900" />
+                  <div className="w-6 h-6 bg-[#6C5CE7] rounded-full flex items-center justify-center">
+                    <FileText className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-sm font-semibold text-white">새 피드백</span>
-                  <span className="text-xs text-amber-400 font-mono">{formatTimePrecise(activeMarker.timestamp)}</span>
+                  <span className="text-sm font-semibold text-[#1A1A2E]">새 피드백</span>
+                  <span className="text-xs text-[#6C5CE7] font-mono">{formatTimePrecise(activeMarker.timestamp)}</span>
                   <button
                     onClick={cancelMarker}
-                    className="ml-auto text-slate-400 p-1"
+                    className="ml-auto text-[#B2BEC3] p-1"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -2080,7 +2080,7 @@ export default function VideoReview() {
                   value={currentComment}
                   onChange={(e) => setCurrentComment(e.target.value)}
                   placeholder="수정 요청 내용을 작성하세요..."
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 resize-none"
+                  className="w-full px-3 py-2 bg-white border border-[#DFE6E9] rounded-xl text-sm text-[#1A1A2E] placeholder-[#B2BEC3] focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 resize-none"
                   rows={2}
                   autoFocus
                 />
@@ -2093,14 +2093,14 @@ export default function VideoReview() {
                       onChange={(e) => setAttachmentFile(e.target.files[0])}
                       className="hidden"
                     />
-                    <div className="px-3 py-2 bg-slate-700 text-center rounded-lg text-xs text-slate-300">
+                    <div className="px-3 py-2 bg-white border border-[#DFE6E9] text-center rounded-xl text-xs text-[#636E72]">
                       {attachmentFile ? `📎 ${attachmentFile.name.slice(0, 15)}...` : '📎 파일 첨부'}
                     </div>
                   </label>
                   <Button
                     onClick={addComment}
                     disabled={uploadingFile || !currentComment.trim()}
-                    className="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold text-sm py-2 disabled:opacity-50"
+                    className="flex-1 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-semibold text-sm py-2 disabled:opacity-50"
                   >
                     <Send className="w-4 h-4 mr-1" />
                     {uploadingFile ? '업로드...' : '추가'}
@@ -2113,20 +2113,20 @@ export default function VideoReview() {
             <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
               {comments.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="w-14 h-14 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare className="w-7 h-7 text-slate-500" />
+                  <div className="w-14 h-14 bg-[#F0EDFF] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare className="w-7 h-7 text-[#6C5CE7]" />
                   </div>
-                  <p className="text-slate-400 text-sm">아직 피드백이 없습니다</p>
-                  <p className="text-slate-500 text-xs mt-1">영상을 터치하여 추가하세요</p>
+                  <p className="text-[#636E72] text-sm">아직 피드백이 없습니다</p>
+                  <p className="text-[#B2BEC3] text-xs mt-1">영상을 터치하여 추가하세요</p>
                 </div>
               ) : (
                 comments.map((comment, index) => (
                   <div
                     key={comment.id}
-                    className={`rounded-xl p-3 transition-all ${
+                    className={`rounded-2xl p-3 transition-all ${
                       selectedFeedback === comment.id
-                        ? 'bg-blue-500/20 border border-blue-500/50'
-                        : 'bg-slate-700/50 border border-transparent'
+                        ? 'bg-[#F0EDFF] border border-[#6C5CE7]/30'
+                        : 'bg-[#F8F9FA] border border-transparent'
                     }`}
                     onClick={() => {
                       setSelectedFeedback(comment.id)
@@ -2138,12 +2138,12 @@ export default function VideoReview() {
                       <div className="flex items-center gap-2">
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           selectedFeedback === comment.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-slate-600 text-slate-300'
+                            ? 'bg-[#6C5CE7] text-white'
+                            : 'bg-[#DFE6E9] text-[#636E72]'
                         }`}>
                           {index + 1}
                         </span>
-                        <span className="text-xs font-mono text-blue-400">
+                        <span className="text-xs font-mono text-[#6C5CE7]">
                           {formatTimePrecise(comment.timestamp)}
                         </span>
                       </div>
@@ -2152,16 +2152,16 @@ export default function VideoReview() {
                           e.stopPropagation()
                           deleteComment(comment.id)
                         }}
-                        className="text-slate-500 p-1"
+                        className="text-[#B2BEC3] p-1"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-sm text-slate-200 leading-relaxed">
+                    <p className="text-sm text-[#1A1A2E] leading-relaxed">
                       {comment.comment}
                     </p>
                     {comment.attachment_url && (
-                      <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
+                      <div className="mt-2 text-xs text-[#636E72] flex items-center gap-1">
                         📎 {comment.attachment_name || '첨부파일'}
                       </div>
                     )}
@@ -2172,14 +2172,14 @@ export default function VideoReview() {
 
             {/* Send Button */}
             {comments.length > 0 && (
-              <div className="p-4 border-t border-slate-700 shrink-0">
+              <div className="p-4 border-t border-[#DFE6E9] shrink-0">
                 <Button
                   onClick={() => {
                     sendReviewNotification()
                     setShowMobileFeedback(false)
                   }}
                   disabled={isSending}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3"
+                  className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-semibold py-3"
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
