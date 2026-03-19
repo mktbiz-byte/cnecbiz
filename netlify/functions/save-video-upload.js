@@ -397,7 +397,7 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
   const results = { naverWorks: null, kakao: null, email: null }
   const notificationPromises = []
 
-  // 네이버 웍스 (영상 제출 알림) — 직접 전송 (sendNaverWorksMessageDirect 사용)
+  // 네이버 웍스 (영상 제출 알림) — 별도 Netlify 함수로 호출 (타임아웃 독립 실행)
   {
     const countryFlag = { kr: '🇰🇷 ', jp: '🇯🇵 ', us: '🇺🇸 ' }[countryCode] || ''
     let naverWorksMessage = `${countryFlag}${actionLabel} 알림 (${siteLabel})\n\n`
@@ -411,8 +411,15 @@ async function sendVideoUploadNotifications({ client, campaignId, userId, region
     if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
 
     notificationPromises.push(
-      sendNaverWorksMessageDirect('75c24874-e370-afd5-9da3-72918ba15a3c', naverWorksMessage)
-        .then(r => {
+      fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message: naverWorksMessage
+        })
+      }).then(r => r.json()).then(r => {
           results.naverWorks = r
           console.log('[알림] 네이버 웍스:', r.success ? '성공' : `실패: ${JSON.stringify(r)}`, `(${Date.now() - startTime}ms)`)
         }).catch(e => console.error('[알림] 네이버 웍스 실패:', e.message))
