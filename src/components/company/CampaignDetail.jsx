@@ -10095,21 +10095,15 @@ Questions? Contact us.
                           {/* 스토리 기획안 정보 (story_short 캠페인) */}
                           {app.source === 'story_proposal' && (
                             <div className="mb-2 space-y-1">
-                              {app.video_concept && app.video_concept !== '.' && (
-                                <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
-                                  <span className="font-medium">컨셉:</span> {app.video_concept}
-                                </div>
-                              )}
-                              {app.tone_mood && (
-                                <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
-                                  <span className="font-medium">톤:</span> {app.tone_mood}
-                                </div>
-                              )}
-                              {app.description && app.description !== '.' && (
-                                <div className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
-                                  <span className="font-medium">촬영계획:</span> <span className="line-clamp-2">{app.description}</span>
-                                </div>
-                              )}
+                              <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
+                                <span className="font-medium">컨셉:</span> {app.video_concept || '-'}
+                              </div>
+                              <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
+                                <span className="font-medium">톤:</span> {app.tone_mood || '-'}
+                              </div>
+                              <div className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
+                                <span className="font-medium">구성:</span> <span className="line-clamp-2">{app.description || '-'}</span>
+                              </div>
                               <div className={`text-xs px-2 py-1 rounded text-center font-medium ${
                                 app.proposal_status === 'approved' ? 'bg-green-100 text-green-700' :
                                 app.proposal_status === 'rejected' ? 'bg-red-100 text-red-700' :
