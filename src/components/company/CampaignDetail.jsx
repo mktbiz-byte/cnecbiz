@@ -152,7 +152,6 @@ const formatShippingAddress = (p) => {
   return lines.join('\n')
 }
 
-import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
@@ -637,7 +636,9 @@ export default function CampaignDetail() {
     followerRange: 'all',      // 팔로워 구간
     skinConcerns: [],          // 피부 고민 (다중 선택)
     activityKeywords: [],      // 활동 키워드 (다중 선택)
-    searchText: ''             // 텍스트 검색 (이름, AI 소개글)
+    searchText: '',            // 텍스트 검색 (이름, AI 소개글)
+    isRecommendedOnly: false,  // 추천 필터
+    isActiveOnly: false        // 활동 우수 필터
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false) // 고급 필터 표시 여부
   // 카드에 추가 표시할 항목 (최대 5개) - 기본값: 피부고민
@@ -9526,7 +9527,7 @@ Questions? Contact us.
                         })}
                       </div>
                       <button
-                        onClick={() => setSortOrder && setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                        onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg bg-white transition-all"
                       >
                         <ArrowUpDown className="w-3.5 h-3.5" />
@@ -9563,7 +9564,7 @@ Questions? Contact us.
                                 className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
-                                {Object.entries(PERSONAL_COLORS).map(([key, label]) => (
+                                {Object.entries(PERSONAL_COLORS).map(([key, { label }]) => (
                                   <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
@@ -9577,7 +9578,7 @@ Questions? Contact us.
                                 className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
-                                {Object.entries(SKIN_SHADES).map(([key, label]) => (
+                                {Object.entries(SKIN_SHADES).map(([key, { label }]) => (
                                   <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
@@ -9599,11 +9600,11 @@ Questions? Contact us.
                           </div>
                         </div>
                         {/* 피부 고민 */}
-                        {SKIN_CONCERNS_DISPLAY && (
+                        {SKIN_CONCERNS_LABELS && (
                           <div>
                             <h4 className="text-xs font-bold text-gray-700 mb-2">피부 고민</h4>
                             <div className="flex flex-wrap gap-1.5">
-                              {Object.entries(SKIN_CONCERNS_DISPLAY).map(([key, label]) => {
+                              {Object.entries(SKIN_CONCERNS_LABELS).map(([key, label]) => {
                                 const isSelected = applicantFilters.skinConcerns.includes(key)
                                 return (
                                   <button
@@ -9642,9 +9643,17 @@ Questions? Contact us.
                                 if (applicantFilters.accountStatus !== 'all') {
                                   if (applicantFilters.accountStatus === 'unclassified') {
                                     if (app.account_status) return false
+                                  } else if (applicantFilters.accountStatus === 'checking') {
+                                    if (app.account_status !== 'warning_1' && app.account_status !== 'warning_2') return false
                                   } else {
                                     if (app.account_status !== applicantFilters.accountStatus) return false
                                   }
+                                }
+                                if (applicantFilters.isRecommendedOnly) {
+                                  if (!(app.collaboration_count >= 2 || app.average_rating >= 4)) return false
+                                }
+                                if (applicantFilters.isActiveOnly) {
+                                  if (app.account_status !== 'verified' || !app.collaboration_count) return false
                                 }
                                 if (applicantFilters.skinConcerns.length > 0) {
                                   const appConcerns = app.skin_concerns || []
@@ -9728,9 +9737,20 @@ Questions? Contact us.
                       if (applicantFilters.accountStatus !== 'all') {
                         if (applicantFilters.accountStatus === 'unclassified') {
                           if (app.account_status) return false
+                        } else if (applicantFilters.accountStatus === 'checking') {
+                          // '확인중' 탭 = warning_1 또는 warning_2 상태
+                          if (app.account_status !== 'warning_1' && app.account_status !== 'warning_2') return false
                         } else {
                           if (app.account_status !== applicantFilters.accountStatus) return false
                         }
+                      }
+                      // 추천 필터 (협업 경험 2회 이상 또는 평점 4.0 이상)
+                      if (applicantFilters.isRecommendedOnly) {
+                        if (!(app.collaboration_count >= 2 || app.average_rating >= 4)) return false
+                      }
+                      // 활동 우수 필터 (인증완료 + 협업 경험 있음)
+                      if (applicantFilters.isActiveOnly) {
+                        if (app.account_status !== 'verified' || !app.collaboration_count) return false
                       }
                       // 피부 고민 필터 (복수 선택 - OR 조건)
                       if (applicantFilters.skinConcerns.length > 0) {
