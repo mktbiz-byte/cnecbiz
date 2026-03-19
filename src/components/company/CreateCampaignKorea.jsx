@@ -4417,23 +4417,25 @@ const CampaignCreationKorea = () => {
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-semibold text-gray-700 mb-2 block">스토리 장수 *</Label>
+                          <Label className="text-sm font-semibold text-gray-700 mb-1 block">스토리 장수 *</Label>
+                          <p className="text-xs text-gray-500 mb-2">크리에이터가 업로드할 인스타그램 스토리의 형태를 선택하세요</p>
                           <div className="grid grid-cols-2 gap-2">
                             {[
-                              { value: '1', label: '1장 (15초)' },
-                              { value: '2_3', label: '2~3장 연속' }
+                              { value: '1', label: '1장 스토리', desc: '영상 10초 이상 1개' },
+                              { value: '2_3', label: '2~3장 연속', desc: '사진형 카드 2~3개 연달아' }
                             ].map(opt => (
                               <button
                                 key={opt.value}
                                 type="button"
                                 onClick={() => setCampaignForm(prev => ({ ...prev, story_slide_count: opt.value }))}
-                                className={`py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                className={`py-3 px-3 rounded-xl border-2 text-left transition-all ${
                                   campaignForm.story_slide_count === opt.value
                                     ? 'border-teal-500 bg-teal-50 text-teal-700'
                                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                                 }`}
                               >
-                                {opt.label}
+                                <div className="text-sm font-semibold">{opt.label}</div>
+                                <div className="text-[11px] font-normal text-gray-500 mt-0.5">{opt.desc}</div>
                               </button>
                             ))}
                           </div>
