@@ -438,6 +438,39 @@ const getApplicationStatsDirectFromAllDBs = async (allCampaignIds) => {
     if (app.status === 'completed') stats[app.campaign_id].completed++
   })
 
+  // story_proposals (BIZ DB) 추가 조회 - story_short 캠페인 지원자 포함
+  try {
+    const bizClient = getSupabaseClient('biz')
+    if (bizClient) {
+      const { data: proposals, error: spError } = await bizClient
+        .from('story_proposals')
+        .select('campaign_id, status, creator_id')
+        .in('campaign_id', allCampaignIds)
+
+      if (!spError && proposals && proposals.length > 0) {
+        // applications에 이미 있는 user_id 추적 (중복 방지)
+        const existingCreatorsByCampaign = {}
+        allApplications.forEach(app => {
+          if (app.user_id) {
+            if (!existingCreatorsByCampaign[app.campaign_id]) existingCreatorsByCampaign[app.campaign_id] = new Set()
+            existingCreatorsByCampaign[app.campaign_id].add(app.user_id)
+          }
+        })
+
+        proposals.forEach(p => {
+          if (existingCreatorsByCampaign[p.campaign_id]?.has(p.creator_id)) return
+          if (!stats[p.campaign_id]) stats[p.campaign_id] = { total: 0, selected: 0, video_submitted: 0, sns_uploaded: 0, completed: 0 }
+          stats[p.campaign_id].total++
+          if (p.status === 'approved') stats[p.campaign_id].selected++
+          if (p.status === 'completed') stats[p.campaign_id].completed++
+        })
+        console.log('[Fallback] story_proposals merged:', proposals.length)
+      }
+    }
+  } catch (e) {
+    console.log('[Fallback] story_proposals error:', e.message)
+  }
+
   console.log('[Fallback] Total stats:', Object.keys(stats).length, 'campaigns with applications')
   return stats
 }

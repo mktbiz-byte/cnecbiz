@@ -138,6 +138,28 @@ exports.handler = async (event) => {
 
     const results = await Promise.all(statsPromises)
 
+    // story_proposals (BIZ DB에만 존재) 조회 - story_short 캠페인 지원자 포함
+    let storyProposalResults = []
+    try {
+      const bizClient = getSupabaseClient('biz')
+      if (bizClient) {
+        const { data: proposals, error: spError } = await bizClient
+          .from('story_proposals')
+          .select('campaign_id, status, creator_id')
+          .in('campaign_id', allCampaignIds)
+          .limit(50000)
+
+        if (!spError && proposals && proposals.length > 0) {
+          console.log(`biz/story_proposals: ${proposals.length} proposals found`)
+          storyProposalResults = proposals
+        } else if (spError) {
+          console.log('story_proposals query error:', spError.message)
+        }
+      }
+    } catch (e) {
+      console.log('story_proposals exception:', e.message)
+    }
+
     // 모든 지역의 결과를 합쳐서 캠페인별 통계 집계
     const allStats = {}
     // 중복 방지를 위한 처리된 application ID 추적
@@ -179,6 +201,50 @@ exports.handler = async (event) => {
         }
       })
     })
+
+    // story_proposals 통계 병합 (applications와 중복되지 않는 것만 추가)
+    if (storyProposalResults.length > 0) {
+      // applications 테이블에 이미 있는 creator_id를 캠페인별로 추적
+      const existingCreatorsByCampaign = {}
+      results.forEach(({ data }) => {
+        data.forEach(app => {
+          if (app.user_id) {
+            if (!existingCreatorsByCampaign[app.campaign_id]) {
+              existingCreatorsByCampaign[app.campaign_id] = new Set()
+            }
+            existingCreatorsByCampaign[app.campaign_id].add(app.user_id)
+          }
+        })
+      })
+
+      storyProposalResults.forEach(proposal => {
+        const campaignId = proposal.campaign_id
+        const creatorId = proposal.creator_id
+
+        // 이미 applications에 있는 크리에이터는 스킵
+        if (existingCreatorsByCampaign[campaignId]?.has(creatorId)) return
+
+        if (!allStats[campaignId]) {
+          allStats[campaignId] = {
+            total: 0,
+            selected: 0,
+            video_submitted: 0,
+            sns_uploaded: 0,
+            completed: 0
+          }
+        }
+
+        allStats[campaignId].total++
+
+        if (proposal.status === 'approved') {
+          allStats[campaignId].selected++
+        }
+        if (proposal.status === 'completed') {
+          allStats[campaignId].completed++
+        }
+      })
+      console.log('story_proposals merged:', storyProposalResults.length, 'proposals')
+    }
 
     console.log('Total campaigns with stats:', Object.keys(allStats).length)
     console.log('Stats by table:', results.map(r => `${r.region}/${r.table}: ${r.data?.length || 0}`).join(', '))
