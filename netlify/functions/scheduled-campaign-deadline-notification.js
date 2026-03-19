@@ -480,19 +480,9 @@ exports.handler = async (event, context) => {
             }
           }
 
-          // 3-3. user_profiles에서도 조회
-          if (!companyPhone || !companyEmail) {
-            const { data: profile, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('phone, email')
-              .eq('id', campaign.company_id)
-              .maybeSingle();
-
-            if (!profileError && profile) {
-              companyPhone = companyPhone || profile.phone;
-              companyEmail = companyEmail || profile.email;
-            }
-          }
+          // 3-3. user_profiles fallback 제거 - admin 번호로 잘못 라우팅되는 문제 방지
+          // user_profiles에는 관리자 계정도 포함되어 있어 company_id가 admin ID일 경우
+          // 관리자에게 알림톡이 발송되는 버그가 있었음
         }
 
         // 4. company_email로 지역 DB companies 테이블에서 조회 (일본 등 company_id 없는 경우)
@@ -509,19 +499,10 @@ exports.handler = async (event, context) => {
           }
         }
 
-        // 5. BIZ DB user_profiles에서도 조회 (최후 수단)
-        if (!companyPhone && supabaseBiz && campaign.company_id) {
-          const { data: bizProfile, error: bizProfileError } = await supabaseBiz
-            .from('user_profiles')
-            .select('phone, email')
-            .eq('id', campaign.company_id)
-            .maybeSingle();
-
-          if (!bizProfileError && bizProfile) {
-            companyPhone = companyPhone || bizProfile.phone;
-            companyEmail = companyEmail || bizProfile.email;
-            console.log(`[BIZ DB] user_profiles에서 찾음: 전화번호=${bizProfile.phone}, 이메일=${bizProfile.email}`);
-          }
+        // 5. user_profiles fallback 제거 - admin 번호로 잘못 라우팅되는 문제 방지
+        // companies 테이블에서 찾지 못하면 알림을 발송하지 않는 것이 올바른 동작
+        if (!companyPhone) {
+          console.log(`[경고] companies 테이블에서 기업 연락처를 찾지 못함. campaign_id=${campaign.id}, company_id=${campaign.company_id}. 알림톡 미발송.`);
         }
 
         // 전화번호가 있으면 숫자만 남기기 (미리 정리)
