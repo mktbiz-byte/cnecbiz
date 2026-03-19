@@ -205,13 +205,13 @@ export default function PaymentHistory() {
 
   const getStatusBadge = (status) => {
     const config = {
-      completed: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '완료' },
-      confirmed: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '완료' },
+      completed: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-700', label: '완료' },
+      confirmed: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-700', label: '완료' },
       pending: { bg: 'bg-[rgba(253,203,110,0.15)]', text: 'text-[#E17055]', dot: 'bg-[#E17055]', label: '대기중' },
       failed: { bg: 'bg-[rgba(255,107,107,0.1)]', text: 'text-[#FF6B6B]', dot: 'bg-[#FF6B6B]', label: '실패' },
       refunded: { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: '환불' },
       cancelled: { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: '취소' },
-      issued: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '발급완료' }
+      issued: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-700', label: '발급완료' }
     }
     const cfg = config[status] || { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: status }
     return (
@@ -520,7 +520,7 @@ export default function PaymentHistory() {
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-lg font-bold text-[#6C5CE7] font-['Outfit']">
+                                <p className="text-lg font-bold text-gray-900 font-['Outfit']">
                                   {formatCurrency(request.amount)}
                                 </p>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-[rgba(253,203,110,0.15)] text-[#E17055] font-medium">
@@ -538,9 +538,9 @@ export default function PaymentHistory() {
                   {chargeRequests.filter(r => r.tax_invoice_issued).length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold text-[#1A1A2E] mb-4 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-[#00B894]" />
+                        <CheckCircle className="w-5 h-5 text-gray-600" />
                         발행 완료
-                        <span className="px-2 py-0.5 rounded-md text-xs bg-[rgba(0,184,148,0.1)] text-[#00B894]">
+                        <span className="px-2 py-0.5 rounded-md text-xs bg-gray-900 text-white">
                           {chargeRequests.filter(r => r.tax_invoice_issued).length}건
                         </span>
                       </h3>
@@ -552,8 +552,8 @@ export default function PaymentHistory() {
                               key={request.id}
                               className="flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] bg-white overflow-hidden"
                             >
-                              <div className="w-12 h-12 rounded-xl bg-[rgba(0,184,148,0.1)] flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="w-6 h-6 text-[#00B894]" />
+                              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle className="w-6 h-6 text-gray-600" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-[#1A1A2E] text-sm lg:text-base truncate">
@@ -569,10 +569,10 @@ export default function PaymentHistory() {
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="text-lg font-bold text-[#6C5CE7] font-['Outfit']">
+                                <p className="text-lg font-bold text-gray-900 font-['Outfit']">
                                   {formatCurrency(request.amount)}
                                 </p>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-[rgba(0,184,148,0.1)] text-[#00B894] font-medium">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-gray-900 text-white font-medium">
                                   <CheckCircle className="w-3 h-3" />
                                   발행 완료
                                 </span>
