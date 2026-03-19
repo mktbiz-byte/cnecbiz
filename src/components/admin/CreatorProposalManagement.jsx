@@ -12,10 +12,12 @@ import {
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
-// 캠페인에 "진행"한 것으로 간주하는 신청 상태들
+// 캠페인에 1번이라도 선정된 적 있는 신청 상태들
 const PARTICIPATED_STATUSES = [
-  'selected', 'guide_submitted', 'video_submitted', 'video_approved',
-  'sns_uploaded', 'completed', 'paid'
+  'selected', 'approved', 'virtual_selected', 'filming',
+  'guide_confirmation', 'guide_submitted',
+  'video_submitted', 'video_approved', 'revision_requested',
+  'sns_uploaded', 'completed', 'paid', 'force_cancelled'
 ]
 
 // 페이지당 아이템 수
