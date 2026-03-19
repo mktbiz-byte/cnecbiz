@@ -1986,6 +1986,24 @@ export default function CampaignDetail() {
 
       // 지원자 user_id만 추출하여 필요한 프로필만 조회 (성능 최적화)
       const appUserIds = [...new Set((data || []).map(app => app.user_id).filter(Boolean))]
+
+      // story_short 캠페인: story_proposals의 creator_id도 포함
+      let storyProposalsData = null
+      if (campaignData?.campaign_type === 'story_short') {
+        try {
+          const { data: proposals } = await supabaseBiz
+            .from('story_proposals')
+            .select('creator_id')
+            .eq('campaign_id', id)
+          if (proposals && proposals.length > 0) {
+            const creatorIds = proposals.map(p => p.creator_id).filter(Boolean)
+            creatorIds.forEach(cid => { if (!appUserIds.includes(cid)) appUserIds.push(cid) })
+          }
+        } catch (e) {
+          // 무시
+        }
+      }
+
       let allProfiles = []
       let featuredCreators = []
 
