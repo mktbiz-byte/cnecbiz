@@ -1602,21 +1602,31 @@ export default function CampaignDetail() {
         }
       }
 
-      // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
-      const { data: allProfiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('*')
-
-      if (profilesError) {
-        console.error('Error fetching all profiles:', profilesError)
+      // 참가자 user_id만 추출하여 필요한 프로필만 조회 (성능 최적화)
+      const participantUserIds = [...new Set(combinedData.map(app => app.user_id).filter(Boolean))]
+      let allProfiles = []
+      if (participantUserIds.length > 0) {
+        try {
+          const { data: profileData } = await supabase.from('user_profiles').select('*').in('id', participantUserIds)
+          allProfiles = profileData || []
+          // user_id 컬럼으로도 시도
+          if (allProfiles.length < participantUserIds.length) {
+            const { data: profileData2 } = await supabase.from('user_profiles').select('*').in('user_id', participantUserIds)
+            if (profileData2) {
+              const existingIds = new Set(allProfiles.map(p => p.id))
+              allProfiles = [...allProfiles, ...profileData2.filter(p => !existingIds.has(p.id))]
+            }
+          }
+        } catch (e) {
+          console.error('[fetchParticipants] profiles error:', e)
+        }
       }
 
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
       const enrichedData = combinedData.map((app) => {
         let profile = null
 
-        if (app.user_id && allProfiles && allProfiles.length > 0) {
-          // JavaScript에서 프로필 매칭 (id, user_id, email로 시도)
+        if (app.user_id && allProfiles.length > 0) {
           profile = allProfiles.find(p =>
             p.id === app.user_id ||
             p.user_id === app.user_id ||
@@ -1737,7 +1747,7 @@ export default function CampaignDetail() {
           const { data: cpData, error: cpError } = await supabaseKorea
             .from('campaign_participants')
             .select(`
-              user_id, partnership_code, sns_upload_url,
+              user_id, partnership_code,
               step1_url, step2_url, step3_url,
               step1_partnership_code, step2_partnership_code,
               step1_2_partnership_code, step3_partnership_code,
@@ -1974,46 +1984,53 @@ export default function CampaignDetail() {
         console.log('[fetchApplications] Loaded:', data.length, 'applications')
       }
 
-      // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
-      let allProfiles = null
-      let profilesError = null
-
-      if (region === 'korea') {
-        try {
-          const profileResult = await callKoreaCampaignAPI('get_user_profiles', id)
-          allProfiles = profileResult?.data || []
-        } catch (profileApiErr) {
-          console.error('[fetchApplications] Korea profiles API fallback:', profileApiErr)
-          const result = await supabase.from('user_profiles').select('*')
-          allProfiles = result.data
-          profilesError = result.error
-        }
-      } else {
-        const result = await supabase.from('user_profiles').select('*')
-        allProfiles = result.data
-        profilesError = result.error
-      }
-
-      if (profilesError) {
-        console.error('Error fetching all profiles for applications:', profilesError)
-      } else {
-        console.log('Fetched all profiles for applications count:', allProfiles?.length || 0)
-      }
-
-      // featured_creators에서 등급 정보 가져오기
+      // 지원자 user_id만 추출하여 필요한 프로필만 조회 (성능 최적화)
+      const appUserIds = [...new Set((data || []).map(app => app.user_id).filter(Boolean))]
+      let allProfiles = []
       let featuredCreators = []
-      try {
-        const { data: fcData, error: fcError } = await supabaseKorea
-          .from('featured_creators')
-          .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
-          .eq('is_active', true)
 
-        if (!fcError && fcData) {
-          featuredCreators = fcData
-          console.log('Fetched featured_creators for grades:', fcData.length)
+      if (appUserIds.length > 0) {
+        // user_profiles: 지원자 user_id만 조회 (전체 조회 대신)
+        try {
+          if (region === 'korea') {
+            try {
+              const profileResult = await callKoreaCampaignAPI('get_user_profiles', id)
+              const allRegionProfiles = profileResult?.data || []
+              // API가 전체를 반환하면 필터링
+              allProfiles = allRegionProfiles.filter(p => appUserIds.includes(p.id) || appUserIds.includes(p.user_id))
+              if (allProfiles.length === 0) allProfiles = allRegionProfiles // fallback
+            } catch (profileApiErr) {
+              // Supabase .in() 쿼리로 필요한 것만 조회
+              const { data: profileData } = await supabase.from('user_profiles').select('*').in('id', appUserIds)
+              allProfiles = profileData || []
+            }
+          } else {
+            const { data: profileData } = await supabase.from('user_profiles').select('*').in('id', appUserIds)
+            allProfiles = profileData || []
+            // user_id 컬럼으로도 시도 (region에 따라 다름)
+            if (allProfiles.length < appUserIds.length) {
+              const { data: profileData2 } = await supabase.from('user_profiles').select('*').in('user_id', appUserIds)
+              if (profileData2) {
+                const existingIds = new Set(allProfiles.map(p => p.id))
+                allProfiles = [...allProfiles, ...profileData2.filter(p => !existingIds.has(p.id))]
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[fetchApplications] profiles error:', e)
         }
-      } catch (e) {
-        console.log('featured_creators 테이블 조회 실패:', e)
+
+        // featured_creators: 지원자 user_id만 조회
+        try {
+          const { data: fcData } = await supabaseKorea
+            .from('featured_creators')
+            .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
+            .in('user_id', appUserIds)
+            .eq('is_active', true)
+          if (fcData) featuredCreators = fcData
+        } catch (e) {
+          // 무시
+        }
       }
 
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
@@ -2272,84 +2289,33 @@ export default function CampaignDetail() {
         console.error('API fetch failed, falling back to direct DB query:', apiError.message)
       }
 
-      // API 실패 시 기존 직접 DB 쿼리로 fallback
+      // API 실패 시 해당 region DB만 직접 쿼리 (불필요한 cross-region 쿼리 제거)
       if (allVideoSubmissions.length === 0) {
-        // 1. Korea DB에서 video_submissions 가져오기
-        if (supabaseKorea) {
-          console.log('Fetching video submissions from Korea DB for campaign_id:', id)
-          const { data: koreaData, error: koreaError } = await supabaseKorea
-            .from('video_submissions')
-            .select('*')
-            .eq('campaign_id', id)
-            .order('created_at', { ascending: false })
+        // region에 해당하는 DB + BIZ DB만 쿼리
+        const regionClient = region === 'korea' ? supabaseKorea : region === 'japan' ? supabaseJapan : region === 'us' ? supabaseUS : null
+        const dbsToQuery = [
+          regionClient ? { client: regionClient, name: region } : null,
+          { client: supabaseBiz, name: 'BIZ' }
+        ].filter(Boolean)
 
-          if (koreaError) {
-            console.error('Korea video submissions query error:', koreaError)
-          } else if (koreaData && koreaData.length > 0) {
-            allVideoSubmissions = [...koreaData]
-            console.log('Fetched video submissions from Korea DB:', koreaData.length)
-          }
-        }
+        for (const db of dbsToQuery) {
+          try {
+            const { data: dbData, error: dbError } = await db.client
+              .from('video_submissions')
+              .select('*')
+              .eq('campaign_id', id)
+              .order('created_at', { ascending: false })
 
-        // 2. Japan DB에서 video_submissions 가져오기 (중복 제외)
-        if (supabaseJapan) {
-          console.log('Fetching video submissions from Japan DB for campaign_id:', id)
-          const { data: japanData, error: japanError } = await supabaseJapan
-            .from('video_submissions')
-            .select('*')
-            .eq('campaign_id', id)
-            .order('created_at', { ascending: false })
-
-          if (japanError) {
-            console.error('Japan video submissions query error:', japanError)
-          } else if (japanData && japanData.length > 0) {
-            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-            const newFromJapan = japanData.filter(v => !existingIds.has(v.id))
-            if (newFromJapan.length > 0) {
-              allVideoSubmissions = [...allVideoSubmissions, ...newFromJapan]
-              console.log('Added video submissions from Japan DB:', newFromJapan.length)
+            if (!dbError && dbData && dbData.length > 0) {
+              const existingIds = new Set(allVideoSubmissions.map(v => v.id))
+              const newItems = dbData.filter(v => !existingIds.has(v.id))
+              if (newItems.length > 0) {
+                allVideoSubmissions = [...allVideoSubmissions, ...newItems]
+                console.log(`Fetched video submissions from ${db.name} DB:`, newItems.length)
+              }
             }
-          }
-        }
-
-        // 3. US DB에서 video_submissions 가져오기 (중복 제외)
-        if (supabaseUS) {
-          console.log('Fetching video submissions from US DB for campaign_id:', id)
-          const { data: usData, error: usError } = await supabaseUS
-            .from('video_submissions')
-            .select('*')
-            .eq('campaign_id', id)
-            .order('created_at', { ascending: false })
-
-          if (usError) {
-            console.error('US video submissions query error:', usError)
-          } else if (usData && usData.length > 0) {
-            const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-            const newFromUS = usData.filter(v => !existingIds.has(v.id))
-            if (newFromUS.length > 0) {
-              allVideoSubmissions = [...allVideoSubmissions, ...newFromUS]
-              console.log('Added video submissions from US DB:', newFromUS.length)
-            }
-          }
-        }
-
-        // 4. BIZ DB에서도 video_submissions 가져오기 (중복 제외)
-        console.log('Fetching video submissions from BIZ DB for campaign_id:', id)
-        const { data: bizData, error: bizError } = await supabaseBiz
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', id)
-          .order('created_at', { ascending: false })
-
-        if (bizError) {
-          console.error('BIZ video submissions query error:', bizError)
-        } else if (bizData && bizData.length > 0) {
-          // 중복 제외하고 병합 (id로 체크)
-          const existingIds = new Set(allVideoSubmissions.map(v => v.id))
-          const newFromBiz = bizData.filter(v => !existingIds.has(v.id))
-          if (newFromBiz.length > 0) {
-            allVideoSubmissions = [...allVideoSubmissions, ...newFromBiz]
-            console.log('Added video submissions from BIZ DB:', newFromBiz.length)
+          } catch (e) {
+            console.error(`${db.name} video submissions error:`, e.message)
           }
         }
       }
@@ -2524,25 +2490,27 @@ export default function CampaignDetail() {
         }
 
         // 모든 DB에서 병렬로 fallback 조회
-        const [
-          jpCP, usCP, krCP, bizCP,
-          jpCA, usCA,
-          jpApps, usApps, krApps, bizApps
-        ] = await Promise.all([
-          // campaign_participants (all DBs)
-          fallbackFromCampaignParticipants(supabaseJapan, 'Japan'),
-          fallbackFromCampaignParticipants(supabaseUS, 'US'),
-          fallbackFromCampaignParticipants(supabaseKorea, 'Korea'),
-          fallbackFromCampaignParticipants(supabaseBiz, 'BIZ'),
-          // campaign_applications (Japan/US only)
-          fallbackFromCampaignApplications(supabaseJapan, 'Japan'),
-          fallbackFromCampaignApplications(supabaseUS, 'US'),
-          // applications (all DBs)
-          fallbackFromApps(supabaseJapan, 'Japan'),
-          fallbackFromApps(supabaseUS, 'US'),
-          fallbackFromApps(supabaseKorea, 'Korea'),
-          fallbackFromApps(supabaseBiz, 'BIZ')
-        ])
+        // region 기반으로 필요한 DB만 쿼리 (불필요한 cross-region 쿼리 제거)
+        const fallbackPromises = []
+        const fallbackLabels = []
+
+        // campaign_participants는 Korea DB에만 존재
+        if (region === 'korea' && supabaseKorea) {
+          fallbackPromises.push(fallbackFromCampaignParticipants(supabaseKorea, 'Korea'))
+          fallbackLabels.push('krCP')
+        }
+
+        // campaign_applications는 Japan/US DB에만 존재
+        if (region === 'japan' && supabaseJapan) {
+          fallbackPromises.push(fallbackFromCampaignApplications(supabaseJapan, 'Japan'))
+          fallbackLabels.push('jpCA')
+        } else if (region === 'us' && supabaseUS) {
+          fallbackPromises.push(fallbackFromCampaignApplications(supabaseUS, 'US'))
+          fallbackLabels.push('usCA')
+        }
+
+        const fallbackResults = await Promise.all(fallbackPromises)
+        const allFallbackItems = fallbackResults.flat()
 
         // 우선순위: campaign_participants > campaign_applications > applications
         // 기존 video_submissions에 있는 (user_id, video_number) 조합을 체크
@@ -2550,13 +2518,8 @@ export default function CampaignDetail() {
           allVideoSubmissions.map(v => `${v.user_id}_${v.video_number || v.week_number || 1}_${v.version || 1}`)
         )
         const seenFallbackKeys = new Set()
-        const allFallbacks = [
-          jpCP, usCP, krCP, bizCP,
-          jpCA, usCA,
-          jpApps, usApps, krApps, bizApps
-        ]
-        allFallbacks.forEach(items => {
-          items.forEach(item => {
+        allFallbackItems.forEach(item => {
+          {
             // (user_id, video_number, version) 조합으로 중복 체크 (user_id만으로 건너뛰지 않음)
             const key = `${item.user_id}_${item.video_number || item.week_number || 1}_${item.version || 1}`
             if (existingUserVideoKeys.has(key)) {
@@ -2575,7 +2538,7 @@ export default function CampaignDetail() {
               seenFallbackKeys.add(key)
               allVideoSubmissions.push(item)
             }
-          })
+          }
         })
 
         if (allVideoSubmissions.length > 0) {
