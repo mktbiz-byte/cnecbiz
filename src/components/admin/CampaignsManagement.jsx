@@ -75,8 +75,6 @@ const calculateCreatorPoints = (campaign) => {
     return campaign.creator_points_override
   }
 
-  const campaignType = campaign.campaign_type
-  const totalSlots = campaign.total_slots || campaign.max_participants || 1
   const region = campaign.region || 'korea'
 
   // 일본/미국은 reward_amount 사용 (크리에이터당 보상금액)
@@ -85,29 +83,8 @@ const calculateCreatorPoints = (campaign) => {
     return campaign.reward_amount || 0
   }
 
-  // 한국: 기존 로직 유지
-  if (campaignType === '4week_challenge') {
-    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
-                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
-    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-
-  if (campaignType === 'planned') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.6) / totalSlots)
-  }
-
-  if (campaignType === 'oliveyoung') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-
-  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+  // 한국: reward_points가 이미 1인당 금액 (캠페인 생성 시 packagePrice * 0.6으로 저장됨)
+  return campaign.reward_points || 0
 }
 
 // 상태 뱃지 설정

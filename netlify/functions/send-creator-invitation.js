@@ -44,6 +44,7 @@ const getCampaignTypeLabel = (campaignType) => {
 
 /**
  * 크리에이터 포인트 계산 함수 (프론트엔드 로직과 동일)
+ * 한국: reward_points는 이미 1인당 금액 (캠페인 생성 시 packagePrice * 0.6으로 저장됨)
  */
 const calculateCreatorPoints = (campaign) => {
   if (!campaign) return 0;
@@ -53,35 +54,14 @@ const calculateCreatorPoints = (campaign) => {
     return campaign.creator_points_override;
   }
 
-  const campaignType = campaign.campaign_type;
-  const totalSlots = campaign.total_slots || campaign.max_participants || 1;
-
-  // 4주 챌린지
-  if (campaignType === '4week_challenge' || campaignType === '4week') {
-    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
-                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0);
-    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0);
-    return Math.round((totalReward * 0.7) / totalSlots);
+  // 일본/미국은 reward_amount 사용
+  const region = campaign.region || 'korea';
+  if (region === 'japan' || region === 'us') {
+    return campaign.reward_amount || 0;
   }
 
-  // 기획형
-  if (campaignType === 'planned' || campaignType === 'regular') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0);
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0);
-    return Math.round((totalReward * 0.6) / totalSlots);
-  }
-
-  // 올리브영
-  if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0);
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0);
-    return Math.round((totalReward * 0.7) / totalSlots);
-  }
-
-  // 기본: reward_amount 또는 reward_points 사용
-  return campaign.reward_amount || Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots);
+  // 한국: reward_points가 이미 1인당 금액
+  return campaign.reward_points || 0;
 };
 
 /**

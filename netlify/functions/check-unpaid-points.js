@@ -1,40 +1,20 @@
 const { createClient } = require('@supabase/supabase-js')
 
 // 크리에이터 포인트 계산 함수 (1인당)
+// 한국: reward_points는 이미 1인당 금액 (캠페인 생성 시 packagePrice * 0.6으로 저장됨)
 const calculateCreatorPoints = (campaign) => {
   if (!campaign) return 0
   if (campaign.creator_points_override) return campaign.creator_points_override
 
-  const campaignType = campaign.campaign_type
-  const totalSlots = campaign.total_slots || campaign.max_participants || 1
   const region = campaign.region || 'korea'
 
+  // 일본/미국은 reward_amount 사용
   if (region === 'japan' || region === 'us') {
     return campaign.reward_amount || 0
   }
 
-  if (campaignType === '4week_challenge') {
-    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
-                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
-    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-
-  if (campaignType === 'planned') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.6) / totalSlots)
-  }
-
-  if (campaignType === 'oliveyoung') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) +
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-
-  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
+  // 한국: reward_points가 이미 1인당 금액
+  return campaign.reward_points || 0
 }
 
 // BIZ DB
