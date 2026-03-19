@@ -258,6 +258,9 @@ const CreatorMyPage = () => {
           videoFiles: allFiles,
           videoStatus: 'uploaded',
           skipNotification: false,
+          campaignId: selectedCampaign?.campaigns?.id || selectedCampaign?.campaign_id || null,
+          userId: user?.id || null,
+          creatorEmail: user?.email || null,
           campaignTitle: hintCampaignTitle,
           companyName: hintCompanyName,
           creatorName: hintCreatorName

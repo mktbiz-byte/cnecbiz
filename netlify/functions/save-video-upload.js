@@ -507,7 +507,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { action, region, participantId, videoFiles, videoStatus, fileName, fileBase64, fileMimeType, skipNotification, campaignTitle: hintCampaignTitle, companyName: hintCompanyName, creatorName: hintCreatorName } = body
+    const { action, region, participantId, videoFiles, videoStatus, fileName, fileBase64, fileMimeType, skipNotification, campaignId: directCampaignId, userId: directUserId, creatorEmail: directCreatorEmail, campaignTitle: hintCampaignTitle, companyName: hintCompanyName, creatorName: hintCreatorName } = body
 
     // 리전에 맞는 클라이언트 선택 (기본: korea)
     const client = getRegionClient(region || 'korea')
@@ -627,84 +627,100 @@ exports.handler = async (event) => {
       // 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
       if ((videoStatus === 'uploaded' || !videoStatus) && !skipNotification) {
         try {
-          console.log('[save-video-upload] update_participant 알림 시작:', { participantId, videoStatus, region })
+          console.log('[save-video-upload] update_participant 알림 시작:', { participantId, videoStatus, region, directCampaignId: !!directCampaignId })
 
-          // participant 조회: 모든 리전 DB에서 검색 (select('*')로 스키마 차이 대응)
-          // ★ Japan/US 캠페인의 participant가 해당 리전 DB에만 있을 수 있으므로 모든 리전 체크
-          let participant = null
-          const participantClients = [client]
-          if (client !== supabaseBiz) participantClients.push(supabaseBiz)
-          if (client !== supabaseKorea) participantClients.push(supabaseKorea)
-          const jpClient = getRegionClient('japan')
-          const usClient = getRegionClient('us')
-          if (jpClient && jpClient !== client && jpClient !== supabaseKorea) participantClients.push(jpClient)
-          if (usClient && usClient !== client && usClient !== supabaseKorea) participantClients.push(usClient)
+          const latestFile = videoFiles[videoFiles.length - 1]
+          const version = latestFile?.version || videoFiles.length
 
-          // ★ 병렬 조회로 변경 (순차적 for loop → Promise.all) — 타임아웃 방지
-          const participantResults = await Promise.all(
-            participantClients.map(async (pClient) => {
-              try {
-                const { data: p1 } = await pClient
-                  .from('campaign_participants')
-                  .select('*')
-                  .eq('id', participantId)
-                  .maybeSingle()
-                if (p1) return p1
-
-                // user_id로 fallback 조회
-                const { data: p2 } = await pClient
-                  .from('campaign_participants')
-                  .select('*')
-                  .eq('user_id', participantId)
-                  .limit(1)
-                  .maybeSingle()
-                return p2 || null
-              } catch (e) {
-                console.log('[save-video-upload] participant lookup error:', e.message)
-                return null
-              }
-            })
-          )
-          participant = participantResults.find(p => p !== null) || null
-
-          if (participant) {
-            console.log('[save-video-upload] participant 데이터:', {
-              campaign_id: participant.campaign_id,
-              user_id: participant.user_id,
-              creator_name: participant.creator_name
-            })
-            const latestFile = videoFiles[videoFiles.length - 1]
-            const version = latestFile?.version || videoFiles.length
+          // ★ 프론트엔드에서 campaignId를 직접 전달받으면 비싼 multi-region participant 조회 생략
+          if (directCampaignId) {
+            console.log('[save-video-upload] directCampaignId 사용 — participant 조회 생략:', { directCampaignId, directUserId })
             await sendVideoUploadNotifications({
               client,
-              campaignId: participant.campaign_id,
-              userId: participant.user_id,
+              campaignId: directCampaignId,
+              userId: directUserId || participantId,
               region: region || 'korea',
               version,
               isResubmission: false,
               videoFileCount: videoFiles.length,
-              creatorEmail: participant.creator_email,
-              participantCreatorName: participant.creator_name,
+              creatorEmail: directCreatorEmail,
+              participantCreatorName: hintCreatorName,
               hintCampaignTitle: hintCampaignTitle,
               hintCompanyName: hintCompanyName,
               hintCreatorName: hintCreatorName
             })
           } else {
-            console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })
-            // 에러 알림 채널로 통보 (디버깅용)
-            try {
-              const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
-              await fetch(`${alertBaseUrl}/.netlify/functions/send-naver-works-message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  isAdminNotification: true,
-                  channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
-                  message: `⚠️ [save-video-upload] 영상 알림 실패\n\nparticipantId: ${participantId}\nregion: ${region}\n원인: participant 조회 실패\n검색한 DB: ${participantClients.length}개\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
-                })
+            // Fallback: campaignId가 없으면 기존 방식으로 participant 조회
+            let participant = null
+            const participantClients = [client]
+            if (client !== supabaseBiz) participantClients.push(supabaseBiz)
+            if (client !== supabaseKorea) participantClients.push(supabaseKorea)
+            const jpClient = getRegionClient('japan')
+            const usClient = getRegionClient('us')
+            if (jpClient && jpClient !== client && jpClient !== supabaseKorea) participantClients.push(jpClient)
+            if (usClient && usClient !== client && usClient !== supabaseKorea) participantClients.push(usClient)
+
+            const participantResults = await Promise.all(
+              participantClients.map(async (pClient) => {
+                try {
+                  const { data: p1 } = await pClient
+                    .from('campaign_participants')
+                    .select('*')
+                    .eq('id', participantId)
+                    .maybeSingle()
+                  if (p1) return p1
+
+                  const { data: p2 } = await pClient
+                    .from('campaign_participants')
+                    .select('*')
+                    .eq('user_id', participantId)
+                    .limit(1)
+                    .maybeSingle()
+                  return p2 || null
+                } catch (e) {
+                  console.log('[save-video-upload] participant lookup error:', e.message)
+                  return null
+                }
               })
-            } catch (alertErr) {
-              console.error('[save-video-upload] 에러 알림 발송도 실패:', alertErr.message)
+            )
+            participant = participantResults.find(p => p !== null) || null
+
+            if (participant) {
+              console.log('[save-video-upload] participant 데이터:', {
+                campaign_id: participant.campaign_id,
+                user_id: participant.user_id,
+                creator_name: participant.creator_name
+              })
+              await sendVideoUploadNotifications({
+                client,
+                campaignId: participant.campaign_id,
+                userId: participant.user_id,
+                region: region || 'korea',
+                version,
+                isResubmission: false,
+                videoFileCount: videoFiles.length,
+                creatorEmail: participant.creator_email,
+                participantCreatorName: participant.creator_name,
+                hintCampaignTitle: hintCampaignTitle,
+                hintCompanyName: hintCompanyName,
+                hintCreatorName: hintCreatorName
+              })
+            } else {
+              console.error('[save-video-upload] participant가 null - 알림 발송 불가:', { participantId })
+              try {
+                const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+                await fetch(`${alertBaseUrl}/.netlify/functions/send-naver-works-message`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    isAdminNotification: true,
+                    channelId: '54220a7e-0b14-1138-54ec-a55f62dc8b75',
+                    message: `⚠️ [save-video-upload] 영상 알림 실패\n\nparticipantId: ${participantId}\nregion: ${region}\n원인: participant 조회 실패\n검색한 DB: ${participantClients.length}개\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                  })
+                })
+              } catch (alertErr) {
+                console.error('[save-video-upload] 에러 알림 발송도 실패:', alertErr.message)
+              }
             }
           }
         } catch (notifyError) {
