@@ -97,6 +97,41 @@ const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
   return result
 }
 
+// Korea 리전 서버사이드 API 호출 (Service Role Key로 RLS 우회)
+const callKoreaCampaignAPI = async (action, campaignId, applicationId, data) => {
+  const { data: { session } } = await supabaseBiz.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('인증이 필요합니다')
+  }
+
+  const response = await fetch('/.netlify/functions/korea-campaign-operations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      action,
+      campaign_id: campaignId,
+      application_id: applicationId,
+      data
+    })
+  })
+
+  const responseText = await response.text()
+  let result
+  try {
+    result = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error(`Korea API 응답 파싱 실패: ${responseText.substring(0, 200)}`)
+  }
+
+  if (!result.success) {
+    throw new Error(result.error || `Korea API 실패 (상태: ${response.status})`)
+  }
+  return result
+}
+
 // 국가 코드 → 국기 이모지 변환
 const countryCodeToFlag = (code) => {
   if (!code || code.length !== 2) return '🌍'
@@ -1191,14 +1226,27 @@ export default function CampaignDetail() {
 
   const fetchCampaignDetail = async () => {
     try {
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', id)
-        .single()
+      let data, error
+
+      if (region === 'korea') {
+        try {
+          const apiResult = await callKoreaCampaignAPI('get_campaign', id)
+          data = apiResult?.data
+          error = null
+        } catch (apiErr) {
+          console.error('[fetchCampaignDetail] Korea API fallback:', apiErr)
+          const result = await supabase.from('campaigns').select('*').eq('id', id).single()
+          data = result.data
+          error = result.error
+        }
+      } else {
+        const result = await supabase.from('campaigns').select('*').eq('id', id).single()
+        data = result.data
+        error = result.error
+      }
 
       if (error) throw error
-      
+
       setCampaign(data)
     } catch (error) {
       console.error('Error fetching campaign:', error)
@@ -1209,19 +1257,40 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // BIZ DB에서 applications 가져오기 (sns_uploaded: 4주/올영에서 SNS URL 입력 완료 상태)
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('campaign_id', id)
-        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
-        .order('created_at', { ascending: false })
+      let data, error
+
+      // Korea 리전은 서버사이드 API로 RLS 우회
+      if (region === 'korea') {
+        try {
+          const apiResult = await callKoreaCampaignAPI('get_participants', id)
+          data = apiResult?.data || []
+          error = null
+        } catch (apiErr) {
+          console.error('[fetchParticipants] Korea API fallback:', apiErr)
+          const result = await supabase
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+            .order('created_at', { ascending: false })
+          data = result.data
+          error = result.error
+        }
+      } else {
+        const result = await supabase
+          .from('applications')
+          .select('*')
+          .eq('campaign_id', id)
+          .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+          .order('created_at', { ascending: false })
+        data = result.data
+        error = result.error
+      }
 
       if (error) throw error
 
-      // BIZ DB 결과
       let combinedData = data || []
-      console.log('[fetchParticipants] BIZ DB participants:', combinedData.length)
+      console.log('[fetchParticipants] participants:', combinedData.length)
       if (combinedData.length > 0) {
         console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
       }
@@ -1854,7 +1923,7 @@ export default function CampaignDetail() {
     try {
       let data, error
 
-      // US 리전은 서버사이드 API를 사용하여 RLS 우회 및 전체 결과 반환
+      // 서버사이드 API를 사용하여 RLS 우회 (리전 DB는 anon key로 직접 접근 불가)
       if (region === 'us') {
         try {
           const apiResult = await callUSCampaignAPI('get_applications', id)
@@ -1868,6 +1937,21 @@ export default function CampaignDetail() {
             .eq('campaign_id', id)
             .order('created_at', { ascending: false })
             .limit(1000)
+          data = result.data
+          error = result.error
+        }
+      } else if (region === 'korea') {
+        try {
+          const apiResult = await callKoreaCampaignAPI('get_applications', id)
+          data = apiResult?.data || []
+          error = apiResult?.error || null
+        } catch (apiErr) {
+          console.error('[fetchApplications] Korea API fallback to direct query:', apiErr)
+          const result = await supabase
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .order('created_at', { ascending: false })
           data = result.data
           error = result.error
         }
@@ -1889,17 +1973,29 @@ export default function CampaignDetail() {
       }
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
-      const { data: allProfiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('*')
+      let allProfiles = null
+      let profilesError = null
+
+      if (region === 'korea') {
+        try {
+          const profileResult = await callKoreaCampaignAPI('get_user_profiles', id)
+          allProfiles = profileResult?.data || []
+        } catch (profileApiErr) {
+          console.error('[fetchApplications] Korea profiles API fallback:', profileApiErr)
+          const result = await supabase.from('user_profiles').select('*')
+          allProfiles = result.data
+          profilesError = result.error
+        }
+      } else {
+        const result = await supabase.from('user_profiles').select('*')
+        allProfiles = result.data
+        profilesError = result.error
+      }
 
       if (profilesError) {
         console.error('Error fetching all profiles for applications:', profilesError)
       } else {
         console.log('Fetched all profiles for applications count:', allProfiles?.length || 0)
-        if (allProfiles && allProfiles.length > 0) {
-          console.log('Profile columns available:', Object.keys(allProfiles[0]))
-        }
       }
 
       // featured_creators에서 등급 정보 가져오기
@@ -2900,8 +2996,8 @@ JSON만 출력.`
 
         console.log('[Bulk Guide] 저장 시작 - region:', region, 'participantId:', participantId)
 
-        // US/Japan 캠페인은 API 사용 (RLS 우회)
-        if (region === 'us' || region === 'japan') {
+        // US/Japan/Korea 캠페인은 API 사용 (RLS 우회)
+        if (region === 'us' || region === 'japan' || region === 'korea') {
           const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3735,6 +3831,8 @@ JSON만 출력.`
     try {
       if (region === 'us') {
         await callUSCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
+      } else if (region === 'korea') {
+        await callKoreaCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
       } else {
         const { error } = await supabase
           .from('applications')
@@ -3766,9 +3864,11 @@ JSON만 출력.`
         updateData.main_channel = mainChannel
       }
 
-      // US 캠페인은 API 사용 (RLS 우회)
+      // US/Korea 캠페인은 API 사용 (RLS 우회)
       if (region === 'us') {
         await callUSCampaignAPI('virtual_select', id, applicationId, updateData)
+      } else if (region === 'korea') {
+        await callKoreaCampaignAPI('virtual_select', id, applicationId, updateData)
       } else {
         const { error } = await supabase
           .from('applications')
@@ -3800,9 +3900,11 @@ JSON만 출력.`
   // 선정 크리에이터 채널 변경
   const handleChangeParticipantChannel = async (participantId, newChannel) => {
     try {
-      // US 캠페인은 API 사용 (RLS 우회)
+      // US/Korea 캠페인은 API 사용 (RLS 우회)
       if (region === 'us') {
         await callUSCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
+      } else if (region === 'korea') {
+        await callKoreaCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
       } else {
         const { error } = await supabase
           .from('applications')
@@ -3890,9 +3992,13 @@ JSON만 출력.`
       // applications의 status를 'selected'로 업데이트 (크리에이터 관리 탭과 동일)
       console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
 
-      // US 캠페인은 API 사용 (RLS 우회)
+      // US/Korea 캠페인은 API 사용 (RLS 우회)
       if (region === 'us') {
         await callUSCampaignAPI('confirm_selection', id, null, {
+          application_ids: toAdd.map(app => app.id)
+        })
+      } else if (region === 'korea') {
+        await callKoreaCampaignAPI('confirm_selection', id, null, {
           application_ids: toAdd.map(app => app.id)
         })
       } else {
@@ -4035,9 +4141,11 @@ JSON만 출력.`
     
     try {
       // applications 상태를 pending으로 변경 (삭제하지 않고 상태만 변경)
-      // US 캠페인은 API 사용 (RLS 우회)
+      // US/Korea 캠페인은 API 사용 (RLS 우회)
       if (region === 'us') {
         await callUSCampaignAPI('cancel_selection', id, cancellingApp.id, {})
+      } else if (region === 'korea') {
+        await callKoreaCampaignAPI('cancel_selection', id, cancellingApp.id, {})
       } else {
         const { error: updateError } = await supabase
           .from('applications')
@@ -4706,12 +4814,18 @@ Questions? Contact us.
       const finalGroupName = groupName.trim() || null
       let failCount = 0
       for (const participantId of selectedParticipants) {
-        const { error: updateError } = await supabase
-          .from('applications')
-          .update({ guide_group: finalGroupName })
-          .eq('id', participantId)
-        if (updateError) {
-          console.error('그룹 지정 실패 (id:', participantId, '):', updateError)
+        try {
+          if (region === 'korea') {
+            await callKoreaCampaignAPI('update_application', id, participantId, { guide_group: finalGroupName })
+          } else {
+            const { error: updateError } = await supabase
+              .from('applications')
+              .update({ guide_group: finalGroupName })
+              .eq('id', participantId)
+            if (updateError) throw updateError
+          }
+        } catch (err) {
+          console.error('그룹 지정 실패 (id:', participantId, '):', err)
           failCount++
         }
       }
@@ -6405,14 +6519,22 @@ Questions? Contact us.
   const handlePostSelectionComplete = async (updatedCreator) => {
     try {
       // 상태를 가이드 확인 대기로 변경
-      await supabase
-        .from('applications')
-        .update({
+      if (region === 'korea') {
+        await callKoreaCampaignAPI('update_application', id, updatedCreator.id, {
           status: 'guide_confirmation',
           guide_sent_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', updatedCreator.id)
+      } else {
+        await supabase
+          .from('applications')
+          .update({
+            status: 'guide_confirmation',
+            guide_sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', updatedCreator.id)
+      }
 
       // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
       try {
