@@ -16,6 +16,7 @@ import {
   Save, X as XIcon
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
+import CreatorCategoryGradePanel from './creators/CreatorCategoryGradePanel'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import {
   GRADE_LEVELS,
@@ -96,6 +97,10 @@ export default function FeaturedCreatorManagementPageNew() {
   })
   const [savingProfile, setSavingProfile] = useState(false)
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
+
+  // 카테고리별 등급 관리
+  const [showCategoryGradeDialog, setShowCategoryGradeDialog] = useState(false)
+  const [categoryGradeCreator, setCategoryGradeCreator] = useState(null)
 
   // AI 추천 확정 크리에이터 관리
   const [aiPickSlots, setAiPickSlots] = useState([null, null, null, null, null])
@@ -1612,6 +1617,19 @@ export default function FeaturedCreatorManagementPageNew() {
                                     size="sm"
                                     variant="outline"
                                     className="h-8"
+                                    onClick={() => {
+                                      setCategoryGradeCreator(creator)
+                                      setShowCategoryGradeDialog(true)
+                                    }}
+                                    title="카테고리 등급 관리"
+                                  >
+                                    <Award className="w-3 h-3" />
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8"
                                     onClick={() => handleDelete(creator.id)}
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -2707,6 +2725,32 @@ export default function FeaturedCreatorManagementPageNew() {
                   allowFullScreen
                 />
               </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 카테고리별 등급 관리 모달 */}
+      <Dialog open={showCategoryGradeDialog} onOpenChange={setShowCategoryGradeDialog}>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-purple-500" />
+              카테고리별 등급 관리 — {categoryGradeCreator?.name || categoryGradeCreator?.channel_name}
+            </DialogTitle>
+            <DialogDescription>
+              뷰티 카테고리별로 등급을 지정하고 관리합니다. 국가별 독립 등급 분류가 가능합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-2">
+            {categoryGradeCreator && (
+              <CreatorCategoryGradePanel
+                creatorId={categoryGradeCreator.id}
+                creatorName={categoryGradeCreator.name || categoryGradeCreator.channel_name}
+                countryCode={
+                  (categoryGradeCreator.source_country || categoryGradeCreator.primary_country || 'KR').toUpperCase()
+                }
+              />
             )}
           </div>
         </DialogContent>
