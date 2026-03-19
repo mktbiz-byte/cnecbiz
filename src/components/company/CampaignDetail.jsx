@@ -653,6 +653,9 @@ export default function CampaignDetail() {
     job: { label: '직업', icon: '💼' },
     aiProfile: { label: 'AI 소개글', icon: '✨' }
   }
+  // 세금계산서 발행 상태
+  const [taxInvoiceStatus, setTaxInvoiceStatus] = useState(null) // null | 'none' | 'pending' | 'issued'
+  const [taxInvoiceInfo, setTaxInvoiceInfo] = useState(null)
   // 통합 AI 추천 크리에이터 (MUSE + BLOOM + GLOW 통합)
   const [unifiedRecommendations, setUnifiedRecommendations] = useState([])
   const [loadingUnifiedRecs, setLoadingUnifiedRecs] = useState(false)
@@ -934,6 +937,8 @@ export default function CampaignDetail() {
           fetchUnifiedRecommendations()
         }
       }
+      // 세금계산서 상태 조회 (모든 캠페인)
+      fetchTaxInvoiceStatus(campaign.id)
     }
   }, [campaign])
 
@@ -1813,6 +1818,44 @@ export default function CampaignDetail() {
       setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
+    }
+  }
+
+  // 세금계산서 발행 상태 조회
+  const fetchTaxInvoiceStatus = async (campaignId) => {
+    try {
+      // points_charge_requests에서 해당 캠페인의 결제 요청 조회
+      const { data: chargeRequests, error } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('id, status, tax_invoice_issued, tax_invoice_info, amount, created_at')
+        .eq('related_campaign_id', campaignId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (error) {
+        console.warn('[TaxInvoice] Error:', error.message)
+        setTaxInvoiceStatus('none')
+        return
+      }
+
+      if (!chargeRequests || chargeRequests.length === 0) {
+        setTaxInvoiceStatus('none')
+        return
+      }
+
+      const latest = chargeRequests[0]
+      if (latest.tax_invoice_issued) {
+        setTaxInvoiceStatus('issued')
+        setTaxInvoiceInfo(latest.tax_invoice_info || latest)
+      } else if (latest.status === 'completed' || latest.status === 'approved') {
+        setTaxInvoiceStatus('pending')
+        setTaxInvoiceInfo(latest)
+      } else {
+        setTaxInvoiceStatus('none')
+      }
+    } catch (err) {
+      console.error('[TaxInvoice] Fetch error:', err)
+      setTaxInvoiceStatus('none')
     }
   }
 
@@ -7122,21 +7165,21 @@ Questions? Contact us.
         approved: {
           label: '승인 완료',
           icon: CheckCircle,
-          bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
+          bgClass: 'bg-[#00B894]',
           textClass: 'text-white',
           dotClass: 'bg-green-300'
         },
         completed: {
           label: '완료',
           icon: CheckCircle,
-          bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
+          bgClass: 'bg-[#00B894]',
           textClass: 'text-white',
           dotClass: 'bg-green-300'
         },
         sns_uploaded: {
           label: 'SNS 업로드',
           icon: CheckCircle,
-          bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
+          bgClass: 'bg-[#00B894]',
           textClass: 'text-white',
           dotClass: 'bg-green-300'
         },
@@ -7172,19 +7215,19 @@ Questions? Contact us.
       <>
         {/* 진행 상태 파이프라인 - 개선된 디자인 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mt-4 sm:mt-6 mb-6 sm:mb-8">
-          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-[#6C5CE7] rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-1 lg:mb-2">
                 <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-purple-200" />
-                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-purple-300 animate-pulse shadow-lg shadow-purple-400/50"></div>
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-purple-300 animate-pulse shadow-sm"></div>
               </div>
               <div className="text-xl lg:text-3xl font-bold text-white mb-0.5 lg:mb-1">{statusCounts.guideWaiting}</div>
               <span className="text-xs lg:text-sm font-medium text-purple-200">가이드 확인중</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-[#6C5CE7] rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
@@ -7196,7 +7239,7 @@ Questions? Contact us.
               <span className="text-xs lg:text-sm font-medium text-amber-100">촬영중</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-[#6C5CE7] rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
@@ -7209,7 +7252,7 @@ Questions? Contact us.
             </div>
           </div>
           <div
-            className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
+            className="relative overflow-hidden bg-[#6C5CE7] rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
             onClick={() => setActiveTab('editing')}
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
@@ -7223,7 +7266,7 @@ Questions? Contact us.
               <span className="text-xs lg:text-sm font-medium text-blue-200">영상 제출</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div className="relative overflow-hidden bg-[#00B894] rounded-xl lg:rounded-2xl p-3 lg:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
@@ -7459,7 +7502,7 @@ Questions? Contact us.
                           className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-xl font-bold text-white shadow-md">
+                        <div className="w-12 h-12 rounded-xl bg-[#6C5CE7] flex items-center justify-center text-xl font-bold text-white">
                           {creatorName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -7678,7 +7721,7 @@ Questions? Contact us.
                                     setSelectedGuide(participant)
                                     setShowGuideModal(true)
                                   }}
-                                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs px-3 py-1 h-auto"
+                                  className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
@@ -7743,7 +7786,7 @@ Questions? Contact us.
                                   setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                                   setShowGuideSelectModal(true)
                                 }}
-                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                                className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
                                 가이드 전달
@@ -7764,7 +7807,7 @@ Questions? Contact us.
                                   setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                                   setShowGuideSelectModal(true)
                                 }}
-                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                                className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
                                 가이드 전달
@@ -7820,7 +7863,7 @@ Questions? Contact us.
                                     // 캠페인 레벨 가이드 모달 열기
                                     setShow4WeekGuideModal(true)
                                   }}
-                                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
+                                  className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
@@ -7958,7 +8001,7 @@ Questions? Contact us.
                                   setViewingGuideGroup(participant.guide_group || null)
                                   setShowOliveyoungGuideModal(true)
                                 }}
-                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
+                                className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Eye className="w-3 h-3 mr-1" />
                                 가이드 보기
@@ -8389,7 +8432,7 @@ Questions? Contact us.
             </Button>
             <div className="min-w-0 overflow-hidden">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold line-clamp-2">{campaign.title}</h1>
-              <p className="text-xs lg:text-sm text-gray-600 mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
+              <p className="text-xs lg:text-sm text-[#636E72] mt-1 truncate">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -8434,7 +8477,7 @@ Questions? Contact us.
                 } else {
                   navigate(`/company/campaigns/${id}/invoice?region=${region}`)
                 }
-              }} className="bg-blue-600">
+              }} className="bg-[#6C5CE7] hover:bg-[#5A4BD1]">
                 <Send className="w-4 h-4 mr-2" />
                 결제 요청 하기
               </Button>
@@ -8444,20 +8487,20 @@ Questions? Contact us.
               <Button
                 variant="outline"
                 onClick={() => navigate(`/company/campaigns/payment?id=${id}&region=${region}`)}
-                className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                className="border-[#6C5CE7] text-[#6C5CE7] hover:bg-[#F0EDFF]"
               >
                 <CreditCard className="w-4 h-4 mr-2" />
                 카드 결제하기
               </Button>
             )}
             {campaign.approval_status === 'pending' && (
-              <Button disabled className="bg-blue-100 text-blue-700 cursor-not-allowed">
+              <Button disabled className="bg-[#F0EDFF] text-[#6C5CE7] cursor-not-allowed">
                 <Clock className="w-4 h-4 mr-2" />
                 승인 심사 중
               </Button>
             )}
             {campaign.approval_status === 'approved' && (
-              <Button disabled className="bg-green-100 text-green-700 cursor-not-allowed">
+              <Button disabled className="bg-[rgba(0,184,148,0.1)] text-[#00B894] cursor-not-allowed">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 승인 완료
               </Button>
@@ -8500,7 +8543,7 @@ Questions? Contact us.
               </div>
             )}
             {campaign.is_cancelled && (
-              <Badge className="bg-red-100 text-red-800 text-lg px-4 py-2">
+              <Badge className="bg-[rgba(255,107,107,0.1)] text-[#FF6B6B] text-lg px-4 py-2">
                 취소된 캠페인
               </Badge>
             )}
@@ -8513,7 +8556,7 @@ Questions? Contact us.
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">{campaign.campaign_type === 'story_short' ? '캠페인 타입' : '패키지'}</p>
+                  <p className="text-xs sm:text-sm text-[#636E72]">{campaign.campaign_type === 'story_short' ? '캠페인 타입' : '패키지'}</p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
                     {campaign.campaign_type === 'story_short' ? '스토리 숏폼' :
                      campaign.package_type === 'junior' ? '초급' :
@@ -8536,10 +8579,10 @@ Questions? Contact us.
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">모집 인원</p>
+                  <p className="text-xs sm:text-sm text-[#636E72]">모집 인원</p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2">{campaign.total_slots}명</p>
                 </div>
-                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#6C5CE7]" />
               </div>
             </CardContent>
           </Card>
@@ -8548,7 +8591,7 @@ Questions? Contact us.
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
+                  <p className="text-xs sm:text-sm text-[#636E72]">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
                     {campaign.campaign_type === 'story_short' ?
                       `₩${Math.round(campaign.estimated_cost || (20000 * (campaign.total_slots || 5) * 1.1)).toLocaleString()}`
@@ -8565,49 +8608,81 @@ Questions? Contact us.
           </Card>
         </div>
 
+        {/* 세금계산서 발행 상태 */}
+        {taxInvoiceStatus && taxInvoiceStatus !== 'none' && (
+          <div className="mb-4 sm:mb-6">
+            <div className={`flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 rounded-2xl border ${
+              taxInvoiceStatus === 'issued'
+                ? 'bg-[rgba(0,184,148,0.06)] border-[#DFE6E9]'
+                : 'bg-[rgba(253,203,110,0.08)] border-[#DFE6E9]'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  taxInvoiceStatus === 'issued' ? 'bg-[rgba(0,184,148,0.15)]' : 'bg-[rgba(253,203,110,0.2)]'
+                }`}>
+                  <FileText className={`w-4 h-4 ${taxInvoiceStatus === 'issued' ? 'text-[#00B894]' : 'text-[#E17055]'}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#1A1A2E]">세금계산서</p>
+                  <p className="text-xs text-[#636E72]">
+                    {taxInvoiceStatus === 'issued' ? '발행 완료' : '발행 대기 중 (결제 완료 후 발행 예정)'}
+                  </p>
+                </div>
+              </div>
+              <span className={`px-3 py-1 text-xs font-medium rounded-md ${
+                taxInvoiceStatus === 'issued'
+                  ? 'bg-[rgba(0,184,148,0.1)] text-[#00B894]'
+                  : 'bg-[rgba(253,203,110,0.15)] text-[#E17055]'
+              }`}>
+                {taxInvoiceStatus === 'issued' ? '발행완료' : '대기중'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Tabs - 개선된 디자인 (모바일 스크롤 지원) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-2">
-            <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex min-w-max">
+            <TabsList className="bg-white border border-[#DFE6E9] p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex min-w-max">
               <TabsTrigger
                 value="applications"
-                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">지원 크리에이터</span>
                 <span className="sm:hidden">지원</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.length}</span>
+                <span className="data-[state=active]:bg-white/20 bg-[#F0EDFF] data-[state=active]:text-white text-[#6C5CE7] px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-['Outfit']">{applications.length}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="virtual"
-                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">가상 선정</span>
                 <span className="sm:hidden">가선</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
+                <span className="data-[state=active]:bg-white/20 bg-[#F0EDFF] data-[state=active]:text-white text-[#6C5CE7] px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-['Outfit']">{applications.filter(app => app.virtual_selected).length}명</span>
               </TabsTrigger>
               <TabsTrigger
                 value="confirmed"
-                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">선정 크리에이터</span>
                 <span className="sm:hidden">선정</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.length}</span>
+                <span className="data-[state=active]:bg-white/20 bg-[#F0EDFF] data-[state=active]:text-white text-[#6C5CE7] px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-['Outfit']">{participants.length}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="editing"
-                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">영상 확인</span>
                 <span className="sm:hidden">영상</span>
-                <span className="bg-white/20 data-[state=active]:bg-white/30 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size}명</span>
+                <span className="data-[state=active]:bg-white/20 bg-[#F0EDFF] data-[state=active]:text-white text-[#6C5CE7] px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-['Outfit']">{new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size}명</span>
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
-                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>완료</span>
@@ -9359,7 +9434,7 @@ Questions? Contact us.
                           {/* 스토리 기획안 정보 (story_short 캠페인) */}
                           {app.source === 'story_proposal' && (
                             <div className="mb-2 space-y-1">
-                              <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
+                              <div className="text-xs px-2 py-1 bg-[#F0EDFF] text-[#6C5CE7] rounded">
                                 <span className="font-medium">컨셉:</span> {(app.video_concept && app.video_concept.trim().length >= 1) ? app.video_concept : '-'}
                               </div>
                               <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
@@ -9602,7 +9677,7 @@ Questions? Contact us.
 
             {/* 크넥 플러스 섹션 제거됨 - AI 추천에 통합 */}
             {false && (
-              <Card className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
+              <Card className="mt-6 bg-[#F0EDFF] border border-[#DFE6E9]">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -10236,7 +10311,7 @@ Questions? Contact us.
                                       <div className="flex items-center gap-2 mb-1">
                                         <span className="text-sm font-semibold text-gray-800 truncate">{p.shipping_recipient_name || p.applicant_name || p.creator_name}</span>
                                         {p.shipping_address_confirmed ? (
-                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded border border-emerald-200">확인 완료</span>
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-[rgba(0,184,148,0.1)] text-[#00B894] rounded border border-[#DFE6E9]">확인 완료</span>
                                         ) : (
                                           <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 rounded border border-red-200">미확인</span>
                                         )}
@@ -10280,13 +10355,13 @@ Questions? Contact us.
                   <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl inline-flex gap-1 min-w-max">
                     <TabsTrigger
                       value="all"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-700 data-[state=active]:to-gray-800 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#1A1A2E] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       전체 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.length}</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="youtube"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-red-200 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>📺</span> 유튜브 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -10295,7 +10370,7 @@ Questions? Contact us.
                     </TabsTrigger>
                     <TabsTrigger
                       value="instagram"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-pink-200 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>📸</span> 인스타 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -10304,7 +10379,7 @@ Questions? Contact us.
                     </TabsTrigger>
                     <TabsTrigger
                       value="tiktok"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-800 data-[state=active]:to-black data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#1A1A2E] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>🎵</span> 틱톡 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -10351,9 +10426,9 @@ Questions? Contact us.
               <div className="space-y-6 mt-6">
                 {/* 스토리 숏폼 가이드 요약 */}
                 <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-                  <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
+                  <CardHeader className="bg-[#F0EDFF] border-b border-[#DFE6E9]">
                     <CardTitle className="flex items-center gap-2 text-gray-800">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-[#6C5CE7] flex items-center justify-center shadow-sm">
                         <FileText className="w-4 h-4 text-white" />
                       </div>
                       스토리 숏폼 가이드
@@ -10369,14 +10444,14 @@ Questions? Contact us.
                               className="text-blue-600 hover:text-blue-800 underline truncate block">
                               {campaign.story_swipe_link}
                             </a>
-                            <span className="text-xs text-teal-600 mt-0.5 block">UTM 파라미터 자동 적용</span>
+                            <span className="text-xs text-[#6C5CE7] mt-0.5 block">UTM 파라미터 자동 적용</span>
                           </div>
                         </div>
                       )}
                       {campaign?.story_required_keyword && (
                         <div className="flex items-center gap-2">
                           <span className="text-gray-500 w-28 flex-shrink-0">필수 키워드</span>
-                          <span className="bg-teal-50 text-teal-700 font-semibold px-3 py-1 rounded-lg">{campaign.story_required_keyword}</span>
+                          <span className="bg-[#F0EDFF] text-[#6C5CE7] font-semibold px-3 py-1 rounded-lg">{campaign.story_required_keyword}</span>
                         </div>
                       )}
                       {campaign?.story_exposure_type && (
@@ -10418,7 +10493,7 @@ Questions? Contact us.
                           <span className="text-gray-500 w-28 flex-shrink-0">해시태그</span>
                           <div className="flex gap-1.5 flex-wrap">
                             {campaign.story_hashtags.map((tag, idx) => (
-                              <span key={idx} className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded-md">#{tag}</span>
+                              <span key={idx} className="bg-[#F0EDFF] text-[#6C5CE7] text-xs px-2 py-1 rounded-md">#{tag}</span>
                             ))}
                           </div>
                         </div>
@@ -10498,14 +10573,14 @@ Questions? Contact us.
               </CardHeader>
               <CardContent>
                 {/* 6개월 보관 정책 안내 */}
-                <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <div className="mb-6 p-4 bg-[rgba(253,203,110,0.1)] border-l-4 border-[#E17055] rounded-r-lg">
                   <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-[#E17055] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-bold text-yellow-800 text-lg mb-2">⚠️ 영상 보관 정책 안내</h4>
-                      <div className="text-yellow-700 space-y-1">
+                      <h4 className="font-bold text-[#E17055] text-lg mb-2">⚠️ 영상 보관 정책 안내</h4>
+                      <div className="text-[#636E72] space-y-1">
                         <p className="font-semibold">• 제출된 영상은 <span className="text-red-600 font-bold">검수 완료 후 6개월간 보관</span>됩니다.</p>
                         <p className="font-semibold">• 6개월 후 자동으로 삭제되며, <span className="text-red-600 font-bold">복구가 불가능</span>합니다.</p>
                         <p className="font-semibold">• 필요한 경우 <span className="text-blue-600 font-bold">삭제 전에 반드시 다운로드</span>해주세요.</p>
@@ -10515,14 +10590,14 @@ Questions? Contact us.
                 </div>
 
                 {/* 영상 수정 요청 시 주의사항 */}
-                <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                <div className="mb-6 p-4 bg-[rgba(116,185,255,0.1)] border-l-4 border-[#74B9FF] rounded-r-lg">
                   <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-[#74B9FF] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-bold text-blue-800 text-lg mb-2">📝 영상 수정 요청 시 주의사항</h4>
-                      <div className="text-blue-700 space-y-1">
+                      <h4 className="font-bold text-[#1A1A2E] text-lg mb-2">📝 영상 수정 요청 시 주의사항</h4>
+                      <div className="text-[#636E72] space-y-1">
                         <p className="font-semibold">• 수정은 <span className="text-red-600 font-bold">1회만 가능</span>하며, 가이드에 없는 재촬영 요청은 <span className="text-red-600 font-bold">추가금을 요청</span>할 수 있습니다.</p>
                         <p className="font-semibold">• 수정 1회 요청 후 수정이 안된 부분은 추가 요청이 가능하니 <span className="text-orange-600 font-bold">꼼꼼히 검수</span> 부탁드립니다.</p>
                       </div>
@@ -11098,14 +11173,14 @@ Questions? Contact us.
                                 const cleanUrl = participant?.clean_video_file_url || participant?.clean_video_url || submission.clean_video_url
                                 if (!cleanUrl) return null
                                 return (
-                                  <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
-                                    <p className="text-emerald-700 font-semibold text-xs mb-1">클린본</p>
+                                  <div className="bg-[rgba(0,184,148,0.06)] border border-[#DFE6E9] rounded p-3">
+                                    <p className="text-[#00B894] font-semibold text-xs mb-1">클린본</p>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs text-emerald-600 truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
+                                      <span className="text-xs text-[#00B894] truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-6 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                        className="h-6 px-2 text-xs border-[#DFE6E9] text-[#00B894] hover:bg-[rgba(0,184,148,0.1)]"
                                         onClick={async () => {
                                           try {
                                             const res = await fetch(cleanUrl)
@@ -11127,7 +11202,7 @@ Questions? Contact us.
                                       </Button>
                                     </div>
                                     {participant?.clean_video_uploaded_at && (
-                                      <p className="text-xs text-emerald-500 mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
+                                      <p className="text-xs text-[#00B894] mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
                                     )}
                                   </div>
                                 )
@@ -11273,7 +11348,7 @@ Questions? Contact us.
                       {completedSectionParticipants.length > 0 && (
                     <Button
                       size="sm"
-                      className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md shadow-teal-200 rounded-xl"
+                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white shadow-sm rounded-xl"
                       onClick={async () => {
                         const completedParticipants = completedSectionParticipants
                         const completedSubmissions = videoSubmissions.filter(sub =>
@@ -11564,11 +11639,11 @@ Questions? Contact us.
                         creatorSubmissions.every(sub => sub.final_confirmed_at)
 
                       return (
-                        <div key={participant.id} className="border rounded-xl p-5 bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm">
+                        <div key={participant.id} className="border border-[#DFE6E9] rounded-xl p-5 bg-[rgba(0,184,148,0.06)] shadow-sm">
                           {/* 크리에이터 헤더 */}
-                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-green-200">
+                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#DFE6E9]">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                              <div className="w-12 h-12 bg-[#00B894] rounded-full flex items-center justify-center text-white font-bold text-lg">
                                 {(participant.creator_name || participant.applicant_name || 'C').charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -11576,7 +11651,7 @@ Questions? Contact us.
                                 <p className="text-sm text-gray-600">{participant.creator_platform || '플랫폼 미지정'}</p>
                               </div>
                             </div>
-                            <Badge className="bg-green-600 text-white px-3 py-1">
+                            <Badge className="bg-[#00B894] text-white px-3 py-1">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               완료
                             </Badge>
@@ -11601,11 +11676,11 @@ Questions? Contact us.
                                       return false
                                     })
                                     return editedSubmissions.length > 0 ? (
-                                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                    <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                  <div className="bg-[#F0EDFF] rounded-lg p-4 border border-[#DFE6E9]">
+                                    <h5 className="font-semibold text-[#1A1A2E] mb-3 flex items-center gap-2">
                                       <Video className="w-4 h-4" />
                                       편집본
-                                      <Badge className="bg-blue-600 text-white text-xs">
+                                      <Badge className="bg-[#6C5CE7] text-white text-xs">
                                         {editedSubmissions.length}개
                                       </Badge>
                                     </h5>
@@ -11640,7 +11715,7 @@ Questions? Contact us.
                                         if (!adCode) adCode = participant.partnership_code
 
                                         return (
-                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                             <div className="flex items-center justify-between gap-3">
                                               <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -11743,7 +11818,7 @@ Questions? Contact us.
                                                   ) : (
                                                     <Button
                                                       size="sm"
-                                                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                                                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
                                                       onClick={async () => {
                                                         const phone = participant.phone || participant.phone_number || participant.creator_phone
                                                         const email = participant.email || participant.creator_email || participant.applicant_email
@@ -11834,17 +11909,17 @@ Questions? Contact us.
                                     const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0) + stepCleanVideos.length
 
                                     return (
-                                      <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                        <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                      <div className="bg-[rgba(0,184,148,0.06)] rounded-lg p-4 border border-[#DFE6E9]">
+                                        <h5 className="font-semibold text-[#00B894] mb-3 flex items-center gap-2">
                                           <Video className="w-4 h-4" />
                                           클린본
-                                          <Badge className="bg-emerald-600 text-white text-xs">
+                                          <Badge className="bg-[#00B894] text-white text-xs">
                                             {totalCleanCount}개
                                           </Badge>
                                         </h5>
                                         <div className="space-y-3">
                                           {submissionCleanVideos.map((submission, idx) => (
-                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -11864,7 +11939,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(submission.clean_video_url)
@@ -11893,7 +11968,7 @@ Questions? Contact us.
                                           ))}
                                           {/* applications 테이블에 직접 저장된 클린본 (video_submissions에 없는 경우) */}
                                           {hasParticipantClean && (
-                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -11902,7 +11977,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(participant.clean_video_url)
@@ -11930,7 +12005,7 @@ Questions? Contact us.
                                           )}
                                           {/* step 클린본 (올영 캠페인) */}
                                           {stepCleanVideos.map((stepClean) => (
-                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -11939,7 +12014,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(stepClean.url)
@@ -11978,11 +12053,11 @@ Questions? Contact us.
                                 <>
                                   {/* 편집본 섹션 - video_file_url 또는 SNS URL이 있는 항목 표시 */}
                                   {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length > 0 && (
-                                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                      <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                    <div className="bg-[#F0EDFF] rounded-lg p-4 border border-[#DFE6E9]">
+                                      <h5 className="font-semibold text-[#1A1A2E] mb-3 flex items-center gap-2">
                                         <Video className="w-4 h-4" />
                                         편집본
-                                        <Badge className="bg-blue-600 text-white text-xs">
+                                        <Badge className="bg-[#6C5CE7] text-white text-xs">
                                           {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length}개
                                         </Badge>
                                       </h5>
@@ -11994,7 +12069,7 @@ Questions? Contact us.
                                           const adCode = participant.partnership_code || submission.ad_code || submission.partnership_code
 
                                           return (
-                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12122,18 +12197,18 @@ Questions? Contact us.
                                     if (totalCleanVideos === 0) return null
 
                                     return (
-                                      <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                        <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                      <div className="bg-[rgba(0,184,148,0.06)] rounded-lg p-4 border border-[#DFE6E9]">
+                                        <h5 className="font-semibold text-[#00B894] mb-3 flex items-center gap-2">
                                           <Video className="w-4 h-4" />
                                           클린본
-                                          <Badge className="bg-emerald-600 text-white text-xs">
+                                          <Badge className="bg-[#00B894] text-white text-xs">
                                             {totalCleanVideos}개
                                           </Badge>
                                         </h5>
                                         <div className="space-y-3">
                                           {/* video_submissions의 클린본 */}
                                           {cleanVideosFromSubmissions.map((submission, idx) => (
-                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12150,7 +12225,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(submission.clean_video_url)
@@ -12179,7 +12254,7 @@ Questions? Contact us.
                                           ))}
                                           {/* applications 테이블의 클린본 (video_submissions에 없는 경우만) */}
                                           {hasApplicationCleanVideo && (
-                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12192,7 +12267,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(participant.clean_video_url)
@@ -12430,7 +12505,7 @@ Questions? Contact us.
                                                               window.URL.revokeObjectURL(blobUrl)
                                                             } catch (e) { window.open(latestVideo.clean_video_url, '_blank') }
                                                           }}
-                                                          className="px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600 transition"
+                                                          className="px-2 py-1 text-xs bg-[#00B894] text-white rounded hover:bg-[#00A382] transition"
                                                         >
                                                           클린
                                                         </button>
@@ -12631,11 +12706,11 @@ Questions? Contact us.
 
                                             {/* 클린본 */}
                                             {(videosWithClean.length > 0 || hasParticipantClean) && (
-                                              <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
-                                                <h6 className="font-medium text-emerald-800 mb-2 flex items-center gap-2">
+                                              <div className="bg-[rgba(0,184,148,0.06)] rounded-lg p-3 border border-[#DFE6E9]">
+                                                <h6 className="font-medium text-[#00B894] mb-2 flex items-center gap-2">
                                                   <Video className="w-4 h-4" />
                                                   클린본
-                                                  <Badge className="bg-emerald-600 text-white text-xs">{videosWithClean.length + (hasParticipantClean ? 1 : 0)}개</Badge>
+                                                  <Badge className="bg-[#00B894] text-white text-xs">{videosWithClean.length + (hasParticipantClean ? 1 : 0)}개</Badge>
                                                 </h6>
                                                 <div className="space-y-2">
                                                   {/* video_submissions 테이블의 클린본 */}
@@ -12650,7 +12725,7 @@ Questions? Contact us.
                                                       </div>
                                                       <Button
                                                         size="sm"
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+                                                        className="bg-[#00B894] hover:bg-[#00A382] text-white h-7"
                                                         onClick={async () => {
                                                           try {
                                                             const response = await fetch(video.clean_video_url)
@@ -12678,11 +12753,11 @@ Questions? Contact us.
                                                     <div className="flex items-center justify-between bg-white rounded p-2 text-sm">
                                                       <div className="flex items-center gap-2">
                                                         <span className="text-gray-700">클린본</span>
-                                                        <Badge variant="outline" className="text-xs bg-emerald-100">applications</Badge>
+                                                        <Badge variant="outline" className="text-xs bg-[rgba(0,184,148,0.1)]">applications</Badge>
                                                       </div>
                                                       <Button
                                                         size="sm"
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+                                                        className="bg-[#00B894] hover:bg-[#00A382] text-white h-7"
                                                         onClick={async () => {
                                                           try {
                                                             const response = await fetch(participant.clean_video_url)
@@ -12790,17 +12865,17 @@ Questions? Contact us.
           {/* 뷰수 보고서 탭 */}
           <TabsContent value="views">
             <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100/50">
+              <CardHeader className="bg-[#F8F9FA] border-b border-[#DFE6E9]">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-blue-800">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm">
+                    <div className="w-8 h-8 rounded-xl bg-[#6C5CE7] flex items-center justify-center">
                       <Eye className="w-4 h-4 text-white" />
                     </div>
                     뷰수 보고서
                   </CardTitle>
                   <div className="text-right bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-blue-100/50">
                     <p className="text-xs text-blue-600/80 font-medium">총 조회수</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{totalViews.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-[#6C5CE7] font-['Outfit']">{totalViews.toLocaleString()}</p>
                   </div>
                 </div>
               </CardHeader>
@@ -12812,7 +12887,7 @@ Questions? Contact us.
                 ) : (
                   <div className="overflow-x-auto -mx-3 sm:mx-0">
                     <table className="w-full min-w-[600px]">
-                      <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                      <thead className="bg-[#F8F9FA]">
                         <tr>
                           <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">크리에이터</th>
                           <th className="px-3 sm:px-4 py-3 sm:py-4 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">플랫폼</th>
@@ -12828,7 +12903,7 @@ Questions? Contact us.
                             <td className="px-4 py-4 font-medium text-gray-900">{(participant.creator_name || participant.applicant_name || '크리에이터')}</td>
                             <td className="px-4 py-4"><span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">{participant.creator_platform}</span></td>
                             <td className="px-4 py-4">
-                              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                              <span className="text-lg font-bold text-[#6C5CE7] font-['Outfit']">
                                 {(participant.views || 0).toLocaleString()}
                               </span>
                             </td>
@@ -12852,7 +12927,7 @@ Questions? Contact us.
                             <td className="px-4 py-4">
                               <Button
                                 size="sm"
-                                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm rounded-lg text-xs"
+                                className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white shadow-sm rounded-lg text-xs"
                                 onClick={() => handleRefreshViews(participant)}
                                 disabled={refreshingViews[participant.id]}
                               >
@@ -12873,27 +12948,27 @@ Questions? Contact us.
         </Tabs>
 
         {/* Campaign Details */}
-        <Card className="mt-6 border-0 shadow-lg rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-100/50">
-            <CardTitle className="flex items-center gap-2 text-gray-800">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-600 to-slate-700 flex items-center justify-center shadow-sm">
-                <FileText className="w-4 h-4 text-white" />
+        <Card className="mt-6 bg-white border border-[#DFE6E9] rounded-2xl overflow-hidden">
+          <CardHeader className="bg-white border-b border-[#DFE6E9]">
+            <CardTitle className="flex items-center gap-2 text-[#1A1A2E]">
+              <div className="w-8 h-8 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+                <FileText className="w-4 h-4 text-[#6C5CE7]" />
               </div>
               캠페인 상세 정보
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 p-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-xl p-4 border border-[#DFE6E9] shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                <h3 className="font-semibold text-[#1A1A2E] flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-[#6C5CE7] rounded-full"></span>
                   캠페인 요구사항
                 </h3>
                 {isAdmin && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                     onClick={() => setShowDetailEditModal(true)}
                   >
                     <Edit2 className="w-3 h-3 mr-1" />
@@ -12901,21 +12976,21 @@ Questions? Contact us.
                   </Button>
                 )}
               </div>
-              <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.requirements}</p>
+              <p className="text-[#636E72] whitespace-pre-wrap leading-relaxed">{campaign.requirements}</p>
             </div>
 
             {(campaign.creator_guide || isAdmin) && (
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-xl p-4 border border-[#DFE6E9] shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                  <h3 className="font-semibold text-[#1A1A2E] flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-[#6C5CE7] rounded-full"></span>
                     크리에이터 가이드
                   </h3>
                   {isAdmin && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                      className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                       onClick={() => setShowDetailEditModal(true)}
                     >
                       <Edit2 className="w-3 h-3 mr-1" />
@@ -12923,22 +12998,22 @@ Questions? Contact us.
                     </Button>
                   )}
                 </div>
-                <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{campaign.creator_guide || '(미설정)'}</p>
+                <p className="text-[#636E72] whitespace-pre-wrap leading-relaxed">{campaign.creator_guide || '(미설정)'}</p>
               </div>
             )}
 
             {(campaign.product_name || isAdmin) && (
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-xl p-4 border border-[#DFE6E9] shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  <h3 className="font-semibold text-[#1A1A2E] flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-[#6C5CE7] rounded-full"></span>
                     상품 정보
                   </h3>
                   {isAdmin && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                      className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                       onClick={() => setShowDetailEditModal(true)}
                     >
                       <Edit2 className="w-3 h-3 mr-1" />
@@ -12946,19 +13021,19 @@ Questions? Contact us.
                     </Button>
                   )}
                 </div>
-                <div className="space-y-2 text-gray-600">
+                <div className="space-y-2 text-[#636E72]">
                   <p>
-                    <span className="font-medium text-gray-700">상품명:</span> {campaign.product_name}
+                    <span className="font-medium text-[#1A1A2E]">상품명:</span> {campaign.product_name}
                   </p>
                   {campaign.product_description && (
                     <p>
-                      <span className="font-medium text-gray-700">상품 설명:</span> {campaign.product_description}
+                      <span className="font-medium text-[#1A1A2E]">상품 설명:</span> {campaign.product_description}
                     </p>
                   )}
                   {campaign.product_link && (
                     <p>
-                      <span className="font-medium text-gray-700">상품 링크:</span>{' '}
-                      <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
+                      <span className="font-medium text-[#1A1A2E]">상품 링크:</span>{' '}
+                      <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" className="text-[#6C5CE7] hover:text-[#5A4BD1] hover:underline">
                         {campaign.product_link}
                       </a>
                     </p>
@@ -12967,13 +13042,13 @@ Questions? Contact us.
               </div>
             )}
 
-            <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-100">
+            <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-[#DFE6E9]">
               {isAdmin && (
                 <div className="flex justify-end mb-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                     onClick={() => setShowDetailEditModal(true)}
                   >
                     <Edit2 className="w-3 h-3 mr-1" />
@@ -12982,34 +13057,34 @@ Questions? Contact us.
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-gray-50/50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">모집 마감일</p>
-                  <p className="font-semibold text-gray-900">
+                <div className="bg-[#F8F9FA] rounded-xl p-3">
+                  <p className="text-xs text-[#636E72] font-medium uppercase tracking-wide mb-1">모집 마감일</p>
+                  <p className="font-semibold text-[#1A1A2E]">
                     {campaign.application_deadline
                       ? new Date(campaign.application_deadline).toLocaleDateString()
-                      : <span className="text-red-500">미설정</span>}
+                      : <span className="text-[#FF6B6B]">미설정</span>}
                   </p>
                 </div>
-                <div className="bg-gray-50/50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">캠페인 기간</p>
-                  <p className="font-semibold text-gray-900">
+                <div className="bg-[#F8F9FA] rounded-xl p-3">
+                  <p className="text-xs text-[#636E72] font-medium uppercase tracking-wide mb-1">캠페인 기간</p>
+                  <p className="font-semibold text-[#1A1A2E]">
                     {campaign.start_date && campaign.end_date
                       ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
-                      : <span className="text-red-500">미설정</span>}
+                      : <span className="text-[#FF6B6B]">미설정</span>}
                   </p>
                 </div>
               </div>
             </div>
 
             {/* 영상 제출 마감일 */}
-            <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100/50">
+            <div className="bg-[rgba(253,203,110,0.1)] rounded-xl p-4 border-l-[3px] border-[#E17055]">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-amber-800 font-medium">영상 제출 마감일</p>
+                <p className="text-sm text-[#E17055] font-medium">영상 제출 마감일</p>
                 {isAdmin ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                     onClick={() => setShowDeadlineEditModal(true)}
                   >
                     <Edit2 className="w-3 h-3 mr-1" />
@@ -13020,7 +13095,7 @@ Questions? Contact us.
                     href="http://pf.kakao.com/_FxhqTG/chat"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-gray-400 hover:text-blue-500"
+                    className="text-xs text-gray-400 hover:text-[#6C5CE7]"
                   >
                     수정 요청 →
                   </a>
@@ -13028,79 +13103,79 @@ Questions? Contact us.
               </div>
               {campaign.campaign_type === '4week_challenge' ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <div className="p-2 bg-purple-50 rounded-lg text-center">
-                    <p className="text-xs text-purple-600">1주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">1주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week1_deadline
                         ? new Date(campaign.week1_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-purple-50 rounded-lg text-center">
-                    <p className="text-xs text-purple-600">2주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">2주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week2_deadline
                         ? new Date(campaign.week2_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-purple-50 rounded-lg text-center">
-                    <p className="text-xs text-purple-600">3주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">3주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week3_deadline
                         ? new Date(campaign.week3_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-purple-50 rounded-lg text-center">
-                    <p className="text-xs text-purple-600">4주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">4주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week4_deadline
                         ? new Date(campaign.week4_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
                 </div>
               ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-green-50 rounded-lg text-center">
-                    <p className="text-xs text-green-600">1차 영상</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">1차 영상</p>
                     <p className="font-medium text-sm">
                       {campaign.step1_deadline
                         ? new Date(campaign.step1_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-green-50 rounded-lg text-center">
-                    <p className="text-xs text-green-600">2차 영상</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">2차 영상</p>
                     <p className="font-medium text-sm">
                       {campaign.step2_deadline
                         ? new Date(campaign.step2_deadline).toLocaleDateString()
-                        : <span className="text-red-500">미설정</span>}
+                        : <span className="text-[#FF6B6B]">미설정</span>}
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="p-2 bg-blue-50 rounded-lg text-center w-fit">
-                  <p className="text-xs text-blue-600">영상 제출 마감</p>
+                <div className="p-2 bg-[#F0EDFF] rounded-lg text-center w-fit">
+                  <p className="text-xs text-[#6C5CE7]">영상 제출 마감</p>
                   <p className="font-medium text-sm">
                     {(campaign.content_submission_deadline || campaign.start_date)
                       ? new Date(campaign.content_submission_deadline || campaign.start_date).toLocaleDateString()
-                      : <span className="text-red-500">미설정</span>}
+                      : <span className="text-[#FF6B6B]">미설정</span>}
                   </p>
                 </div>
               )}
             </div>
 
             {/* SNS 업로드 예정일 */}
-            <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
+            <div className="bg-[#F0EDFF] rounded-xl p-4 border border-[#DFE6E9]">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-blue-800 font-medium">SNS 업로드 예정일</p>
+                <p className="text-sm text-[#6C5CE7] font-medium">SNS 업로드 예정일</p>
                 {isAdmin ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    className="h-6 px-2 text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                     onClick={() => setShowDeadlineEditModal(true)}
                   >
                     <Edit2 className="w-3 h-3 mr-1" />
@@ -13111,7 +13186,7 @@ Questions? Contact us.
                     href="http://pf.kakao.com/_FxhqTG/chat"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-gray-400 hover:text-blue-500"
+                    className="text-xs text-gray-400 hover:text-[#6C5CE7]"
                   >
                     수정 요청 →
                   </a>
@@ -13119,32 +13194,32 @@ Questions? Contact us.
               </div>
               {campaign.campaign_type === '4week_challenge' ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">1주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">1주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week1_sns_deadline
                         ? new Date(campaign.week1_sns_deadline).toLocaleDateString()
                         : <span className="text-gray-400">-</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">2주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">2주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week2_sns_deadline
                         ? new Date(campaign.week2_sns_deadline).toLocaleDateString()
                         : <span className="text-gray-400">-</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">3주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">3주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week3_sns_deadline
                         ? new Date(campaign.week3_sns_deadline).toLocaleDateString()
                         : <span className="text-gray-400">-</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">4주차</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">4주차</p>
                     <p className="font-medium text-sm">
                       {campaign.week4_sns_deadline
                         ? new Date(campaign.week4_sns_deadline).toLocaleDateString()
@@ -13154,16 +13229,16 @@ Questions? Contact us.
                 </div>
               ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">1차 SNS</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">1차 SNS</p>
                     <p className="font-medium text-sm">
                       {campaign.step1_sns_deadline
                         ? new Date(campaign.step1_sns_deadline).toLocaleDateString()
                         : <span className="text-gray-400">-</span>}
                     </p>
                   </div>
-                  <div className="p-2 bg-pink-50 rounded-lg text-center">
-                    <p className="text-xs text-pink-600">2차 SNS</p>
+                  <div className="p-2 bg-[#F0EDFF] rounded-lg text-center">
+                    <p className="text-xs text-[#6C5CE7]">2차 SNS</p>
                     <p className="font-medium text-sm">
                       {campaign.step2_sns_deadline
                         ? new Date(campaign.step2_sns_deadline).toLocaleDateString()
@@ -13172,8 +13247,8 @@ Questions? Contact us.
                   </div>
                 </div>
               ) : (
-                <div className="p-2 bg-pink-50 rounded-lg text-center w-fit">
-                  <p className="text-xs text-pink-600">SNS 업로드</p>
+                <div className="p-2 bg-[#F0EDFF] rounded-lg text-center w-fit">
+                  <p className="text-xs text-[#6C5CE7]">SNS 업로드</p>
                   <p className="font-medium text-sm">
                     {(campaign.sns_upload_deadline || campaign.end_date)
                       ? new Date(campaign.sns_upload_deadline || campaign.end_date).toLocaleDateString()
@@ -13191,12 +13266,12 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-2xl">
             <div className="w-20 h-20 mx-auto mb-6 relative">
-              <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
-              <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-purple-600" />
+              <div className="absolute inset-0 border-4 border-[#F0EDFF] rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-[#6C5CE7] rounded-full border-t-transparent animate-spin"></div>
+              <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-[#6C5CE7]" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">크넥 AI 가이드 생성 중</h3>
-            <p className="text-gray-600 mb-4">크리에이터 맞춤형 가이드를 생성하고 있습니다.</p>
+            <h3 className="text-xl font-bold text-[#1A1A2E] mb-2">크넥 AI 가이드 생성 중</h3>
+            <p className="text-[#636E72] mb-4">크리에이터 맞춤형 가이드를 생성하고 있습니다.</p>
             <p className="text-sm text-gray-500">잠시만 기다려주세요... (약 10-20초 소요)</p>
             <div className="mt-6 flex justify-center gap-1">
               <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -14103,7 +14178,7 @@ Questions? Contact us.
       {showAIEditModal && selectedGuide && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-[#F0EDFF]">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-indigo-600" />
                 AI로 가이드 수정하기
@@ -14354,7 +14429,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-[#6C5CE7]">
               <h2 className="text-lg sm:text-2xl font-bold text-white">영상 확인 및 수정 요청</h2>
               <p className="text-blue-100 mt-1">{selectedParticipant.creator_name}</p>
             </div>
@@ -14795,7 +14870,7 @@ Questions? Contact us.
               <div className="px-5 py-4 space-y-5">
                 {/* AI 소개글 (상단 배치 - 가장 중요한 요약) */}
                 {selectedParticipant.ai_profile_text && (
-                  <div className="relative bg-gradient-to-br from-violet-50 to-indigo-50 p-4 rounded-xl border border-violet-100">
+                  <div className="relative bg-[#F0EDFF] p-4 rounded-xl border border-[#DFE6E9]">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Sparkles className="w-3.5 h-3.5 text-violet-500" />
                       <span className="text-[11px] font-bold text-violet-600 uppercase tracking-wider">AI Summary</span>
@@ -14806,10 +14881,10 @@ Questions? Contact us.
 
                 {/* 스토리 기획안 상세 (story_short 캠페인) */}
                 {selectedParticipant.source === 'story_proposal' && (
-                  <div className="relative bg-gradient-to-br from-teal-50 to-cyan-50 p-4 rounded-xl border border-teal-100">
+                  <div className="relative bg-[#F0EDFF] p-4 rounded-xl border border-[#DFE6E9]">
                     <div className="flex items-center gap-1.5 mb-3">
-                      <FileText className="w-3.5 h-3.5 text-teal-500" />
-                      <span className="text-[11px] font-bold text-teal-600 uppercase tracking-wider">기획안</span>
+                      <FileText className="w-3.5 h-3.5 text-[#6C5CE7]" />
+                      <span className="text-[11px] font-bold text-[#6C5CE7] uppercase tracking-wider">기획안</span>
                       <span className={`ml-auto px-2 py-0.5 text-[10px] rounded-md font-semibold ${
                         selectedParticipant.proposal_status === 'approved' ? 'bg-green-100 text-green-700 border border-green-200' :
                         selectedParticipant.proposal_status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
@@ -14821,34 +14896,34 @@ Questions? Contact us.
                     <div className="space-y-2.5 text-sm">
                       {selectedParticipant.video_concept && selectedParticipant.video_concept.trim().length >= 1 ? (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">영상 컨셉</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">영상 컨셉</span>
                           <p className="text-gray-700 mt-0.5">{selectedParticipant.video_concept}</p>
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">영상 컨셉</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">영상 컨셉</span>
                           <p className="text-gray-400 mt-0.5">미입력</p>
                         </div>
                       )}
                       {selectedParticipant.tone_mood && selectedParticipant.tone_mood.trim().length >= 1 ? (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">톤 / 분위기</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">톤 / 분위기</span>
                           <p className="text-gray-700 mt-0.5">{selectedParticipant.tone_mood}</p>
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">톤 / 분위기</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">톤 / 분위기</span>
                           <p className="text-gray-400 mt-0.5">미입력</p>
                         </div>
                       )}
                       {selectedParticipant.description && selectedParticipant.description.trim().length >= 1 ? (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">촬영 계획</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">촬영 계획</span>
                           <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{selectedParticipant.description}</p>
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[11px] font-semibold text-teal-600">촬영 계획</span>
+                          <span className="text-[11px] font-semibold text-[#6C5CE7]">촬영 계획</span>
                           <p className="text-gray-400 mt-0.5">미입력</p>
                         </div>
                       )}
@@ -14924,8 +14999,8 @@ Questions? Contact us.
                         </div>
                       )}
                       {selectedParticipant.ethnicity && (
-                        <div className="bg-teal-50/80 px-3 py-2.5 rounded-lg">
-                          <p className="text-[10px] text-teal-400 font-medium mb-0.5">인종</p>
+                        <div className="bg-[#F0EDFF]/80 px-3 py-2.5 rounded-lg">
+                          <p className="text-[10px] text-[#6C5CE7] font-medium mb-0.5">인종</p>
                           <p className="text-xs font-semibold text-gray-800">{selectedParticipant.ethnicity}</p>
                         </div>
                       )}
@@ -15085,13 +15160,13 @@ Questions? Contact us.
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">활동 정보</p>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedParticipant.child_appearance === '가능' && (
-                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">아이 출연 가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-[#DFE6E9]">아이 출연 가능</span>
                       )}
                       {selectedParticipant.family_appearance === '가능' && (
-                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">가족 출연 가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-[#DFE6E9]">가족 출연 가능</span>
                       )}
                       {selectedParticipant.offline_visit === '가능' && (
-                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">오프라인 촬영 가능</span>
+                        <span className="px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-600 rounded-lg border border-[#DFE6E9]">오프라인 촬영 가능</span>
                       )}
                       {selectedParticipant.collaboration_preferences?.map((pref, idx) => (
                         <span key={`collab-${idx}`} className="px-2.5 py-1 text-[11px] font-medium bg-violet-50 text-violet-600 rounded-lg border border-violet-100">{pref}</span>
@@ -15190,7 +15265,7 @@ Questions? Contact us.
                           <MessageSquare className="w-4 h-4 text-violet-400" />
                           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">지원 한마디</p>
                         </div>
-                        <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
+                        <div className="bg-[#F0EDFF] rounded-xl p-4 border border-[#DFE6E9]">
                           <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedParticipant.additional_info}</p>
                         </div>
                       </div>
@@ -15551,7 +15626,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative sticky top-0">
+            <div className="bg-[#6C5CE7] px-4 sm:px-6 py-4 sm:py-5 text-white relative sticky top-0">
               <button
                 onClick={() => {
                   setShowGuideSelectModal(false)
@@ -15935,7 +16010,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative">
+            <div className="bg-[#6C5CE7] px-4 sm:px-6 py-4 sm:py-5 text-white relative">
               <button
                 onClick={() => {
                   setShowBulkGuideModal(false)
@@ -16417,7 +16492,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden max-h-[95vh] flex flex-col">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative flex-shrink-0">
+            <div className="bg-[#6C5CE7] px-4 sm:px-6 py-4 sm:py-5 text-white relative flex-shrink-0">
               <button
                 onClick={() => {
                   setShowStyleSelectModal(false)
@@ -16678,7 +16753,7 @@ Questions? Contact us.
                   }
                 }}
                 disabled={!selectedGuideStyle || isGeneratingAllGuides}
-                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+                className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
               >
                 {isGeneratingAllGuides ? (
                   <>
@@ -16702,7 +16777,7 @@ Questions? Contact us.
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 text-white relative">
+            <div className="bg-[#6C5CE7] px-4 sm:px-6 py-4 sm:py-5 text-white relative">
               <button
                 onClick={() => setShowCampaignGuidePopup(false)}
                 className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
