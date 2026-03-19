@@ -4422,7 +4422,7 @@ const CampaignCreationKorea = () => {
                           <div className="grid grid-cols-2 gap-2">
                             {[
                               { value: '1', label: '1장 스토리', desc: '영상 10초 이상 1개' },
-                              { value: '2_3', label: '2~3장 연속', desc: '사진형 카드 2~3개 연달아' }
+                              { value: '2_3', label: '2~3장 연속', desc: '사진 카드 2~3장 (영상 아님)' }
                             ].map(opt => (
                               <button
                                 key={opt.value}
