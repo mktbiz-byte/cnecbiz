@@ -390,411 +390,257 @@ export default function CompanyDashboard() {
     <>
       <CompanyNavigation />
       <div className="min-h-screen bg-[#F8F9FA] lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
-        {/* Main Content */}
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            {/* Dashboard Header - 모바일: 컴팩트 / PC: 기존 */}
-            <div className="mb-5 lg:mb-8">
-              <div className="flex items-center gap-3 lg:gap-4">
-                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg lg:text-2xl font-bold text-[#1A1A2E] truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
-                  <p className="text-xs lg:text-sm text-[#636E72] mt-0.5">캠페인 현황을 확인하세요</p>
-                </div>
+            {/* Header: 인사말 + 새 캠페인 등록 */}
+            <div className="flex items-start justify-between mb-6 lg:mb-8">
+              <div>
+                <h1 className="text-xl lg:text-2xl font-bold text-[#1A1A2E]">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님 👋</h1>
+                <p className="text-sm text-[#636E72] mt-1">캠페인 현황을 한눈에 확인하세요</p>
               </div>
+              <Button
+                onClick={() => setShowRegionModal(true)}
+                className="bg-gray-900 hover:bg-gray-800 text-white h-10 px-5 text-sm flex-shrink-0"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                새 캠페인 등록
+              </Button>
             </div>
 
-            {/* Search Bar */}
-            <div className="mb-5 lg:mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="캠페인 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-[#DFE6E9] bg-white shadow-sm focus:border-gray-900 focus:ring-gray-900/10 max-w-2xl"
-                />
-              </div>
-            </div>
-
-            {/* Stats Cards Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-5 lg:mb-8">
-              {/* 진행 예산 */}
-              <button
-                onClick={() => navigate('/company/campaigns?filter=active')}
-                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-[#636E72]">진행 예산</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
-                    <Wallet className="w-[18px] h-[18px] text-gray-600" />
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
+              <button onClick={() => navigate('/company/campaigns?filter=active')} className="bg-white rounded-2xl p-4 lg:p-5 border border-[#DFE6E9] text-left hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-gray-500" />
                   </div>
+                  <span className="text-sm text-[#636E72]">진행 예산</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-gray-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {(stats.totalSpent / 10000).toFixed(0)}
-                  <span className="text-base font-medium text-[#B2BEC3] ml-1">만원</span>
+                <div className="font-bold text-2xl text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {(stats.totalSpent / 10000).toFixed(0)}<span className="text-sm font-medium text-[#B2BEC3] ml-0.5">만원</span>
                 </div>
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
-                  진행 중 캠페인 예산 합계
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                <p className="text-xs text-[#B2BEC3] mt-1">진행 중 캠페인 예산 합계</p>
               </button>
 
-              {/* 진행 캠페인 */}
-              <button
-                onClick={() => navigate('/company/campaigns?filter=active')}
-                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-[#636E72]">진행 캠페인</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
-                    <Play className="w-[18px] h-[18px] text-gray-600" />
+              <button onClick={() => navigate('/company/campaigns?filter=active')} className="bg-white rounded-2xl p-4 lg:p-5 border border-[#DFE6E9] text-left hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-gray-500" />
                   </div>
+                  <span className="text-sm text-[#636E72]">진행 캠페인</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {stats.active}
-                  <span className="text-base font-medium text-[#B2BEC3] ml-1">개</span>
+                <div className="font-bold text-2xl text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.active}<span className="text-sm font-medium text-[#B2BEC3] ml-0.5">개</span>
                 </div>
-                {stats.total > 0 && (
-                  <div className="mt-2">
-                    <div className="h-1.5 rounded-full bg-gray-100">
-                      <div
-                        className="bg-gray-900 h-full rounded-full transition-all"
-                        style={{ width: `${(stats.active / stats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
-                  전체 {stats.total}개 중
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                <p className="text-xs text-[#B2BEC3] mt-1">전체 {stats.total}개 중</p>
               </button>
 
-              {/* 확정 크리에이터 */}
-              <button
-                onClick={() => navigate('/company/campaigns?filter=active')}
-                className="bg-white rounded-2xl p-3.5 lg:p-5 border border-[#DFE6E9] cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs lg:text-sm font-medium text-[#636E72]">확정 크리에이터</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
-                    <UserCheck className="w-[18px] h-[18px] text-gray-600" />
+              <button onClick={() => navigate('/company/campaigns?filter=active')} className="bg-white rounded-2xl p-4 lg:p-5 border border-[#DFE6E9] text-left hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 text-gray-500" />
                   </div>
+                  <span className="text-sm text-[#636E72]">확정 크리에이터</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {stats.confirmedCreators}
-                  <span className="text-base font-medium text-[#B2BEC3] ml-1">명</span>
+                <div className="font-bold text-2xl text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.confirmedCreators}<span className="text-sm font-medium text-[#B2BEC3] ml-0.5">명</span>
                 </div>
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
-                  캠페인 선정 완료
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                <p className="text-xs text-[#B2BEC3] mt-1">캠페인 선정 완료</p>
               </button>
 
-              {/* 확인 필요 */}
-              <button
-                onClick={() => navigate('/company/campaigns?filter=attention')}
-                className={`bg-white rounded-2xl p-3.5 lg:p-5 border cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-left group ${stats.needsAttention > 0 ? 'border-[#E17055]' : 'border-[#DFE6E9]'}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-[#636E72]">확인 필요</span>
-                  <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${stats.needsAttention > 0 ? 'bg-[rgba(225,112,85,0.1)]' : 'bg-gray-100'}`}>
-                    <AlertCircle className={`w-[18px] h-[18px] ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-gray-600'}`} />
+              <button onClick={() => navigate('/company/campaigns?filter=attention')} className={`bg-white rounded-2xl p-4 lg:p-5 border text-left hover:shadow-md transition-all ${stats.needsAttention > 0 ? 'border-[#E17055]' : 'border-[#DFE6E9]'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stats.needsAttention > 0 ? 'bg-[rgba(225,112,85,0.1)]' : 'bg-gray-100'}`}>
+                    <AlertCircle className={`w-5 h-5 ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-gray-500'}`} />
                   </div>
+                  <span className="text-sm text-[#636E72]">확인 필요</span>
                 </div>
-                <div className={`text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#1A1A2E]'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {stats.needsAttention}
-                  <span className="text-base font-medium text-[#B2BEC3] ml-1">건</span>
+                <div className={`font-bold text-2xl ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#1A1A2E]'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {stats.needsAttention}<span className="text-sm font-medium text-[#B2BEC3] ml-0.5">건</span>
                 </div>
-                <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#B2BEC3] group-hover:text-gray-900'}`}>
-                  {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                <p className="text-xs text-[#B2BEC3] mt-1">{stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}</p>
               </button>
             </div>
 
-            {/* Package Campaigns */}
-            {packageApps.length > 0 && (
-              <div className="mb-6">
-                <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 sm:p-5 md:p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
-                    </div>
-                    <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">진행 중인 패키지</h2>
-                  </div>
-                  <div className="space-y-3">
-                    {packageApps.map((app) => (
-                      <div
-                        key={app.id}
-                        className="flex items-center gap-3 p-3 bg-[#F8F9FA] rounded-2xl cursor-pointer hover:shadow-md transition-all"
-                        onClick={() => app.campaign_id && navigate(`/company/package/${app.campaign_id}`)}
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <Package className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">
-                            {app.brand_name || '특가 패키지'}
-                          </p>
-                          <p className="text-xs text-[#636E72]">{app.month} | {app.company_name}</p>
-                        </div>
-                        <Badge className={app.status === 'campaign_created' ? 'bg-gray-900 text-white text-xs' : 'bg-gray-100 text-gray-700 text-xs'}>
-                          {app.status === 'campaign_created' ? '진행중' : '승인됨'}
-                        </Badge>
-                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Recent Campaigns */}
-            <div className="mb-6">
-              <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 sm:p-5 md:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
-                      </div>
-                      <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">최근 캠페인</h2>
-                    </div>
-                    {/* 필터 표시 및 리셋 */}
-                    {statusFilter && (
-                      <button
-                        onClick={() => setStatusFilter(null)}
-                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        {statusFilter === 'all' && '전체'}
-                        {statusFilter === 'completed' && '완료'}
-                        {statusFilter === 'active' && '진행중'}
-                        {statusFilter === 'pending' && '대기중'}
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate('/company/campaigns')}
-                      className="text-[#636E72] border-[#DFE6E9] hover:bg-[#F8F9FA] text-xs sm:text-sm"
-                    >
-                      전체보기
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setShowRegionModal(true)}
-                      className="bg-gray-900 hover:bg-gray-800 text-white text-xs sm:text-sm"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      <span className="hidden xs:inline">새 </span>캠페인
-                    </Button>
-                  </div>
+            {/* 2-Column: 캠페인 테이블 + 사이드 일정 */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 lg:gap-6">
+              {/* 좌측: 최근 캠페인 테이블 */}
+              <div className="bg-white rounded-2xl border border-[#DFE6E9] overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#DFE6E9]">
+                  <h2 className="text-base font-bold text-[#1A1A2E]">최근 캠페인</h2>
+                  <button
+                    onClick={() => navigate('/company/campaigns')}
+                    className="text-sm text-gray-500 hover:text-gray-900 font-medium flex items-center gap-0.5"
+                  >
+                    전체보기 →
+                  </button>
                 </div>
 
                 {campaigns.length === 0 ? (
-                  <div className="text-center py-16 text-gray-500">
-                    <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium text-gray-600 mb-2">아직 생성된 캠페인이 없습니다</p>
-                    <p className="text-sm text-gray-500 mb-6">첫 번째 캠페인을 만들어 크리에이터들과 협업해보세요</p>
-                    <Button
-                      onClick={() => setShowRegionModal(true)}
-                      className="bg-gray-900 hover:bg-gray-800 text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      첫 캠페인 만들기
+                  <div className="text-center py-16 px-6">
+                    <FolderOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm font-medium text-gray-600 mb-1">아직 생성된 캠페인이 없습니다</p>
+                    <p className="text-xs text-gray-400 mb-5">첫 번째 캠페인을 만들어보세요</p>
+                    <Button onClick={() => setShowRegionModal(true)} className="bg-gray-900 hover:bg-gray-800 text-white text-sm h-9">
+                      <Plus className="w-4 h-4 mr-1" /> 첫 캠페인 만들기
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {campaigns
-                      .filter((campaign) => {
-                        // 상태 필터 적용
-                        if (!statusFilter || statusFilter === 'all') return true
+                  <>
+                    {/* 테이블 헤더 - PC */}
+                    <div className="hidden lg:grid grid-cols-[1fr_80px_80px_100px_120px] gap-2 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 border-b border-[#DFE6E9]">
+                      <span>캠페인명</span>
+                      <span className="text-center">타입</span>
+                      <span className="text-center">상태</span>
+                      <span className="text-center">모집/지원</span>
+                      <span className="text-right">예산</span>
+                    </div>
 
-                        const status = campaign.progress_status || campaign.approval_status
-                        if (statusFilter === 'completed') {
-                          return status === 'completed'
-                        }
-                        if (statusFilter === 'active') {
-                          return ['recruiting', 'guide_review', 'in_progress', 'revision', 'guide_confirmation', 'filming', 'editing', 'approved'].includes(status) && campaign.approval_status !== 'pending_approval'
-                        }
-                        if (statusFilter === 'pending') {
-                          return ['draft', 'pending', 'pending_payment'].includes(status) || campaign.approval_status === 'pending_approval'
-                        }
-                        return true
-                      })
-                      .map((campaign) => {
-                      // Use estimated_cost if available, otherwise calculate from max_participants
-                      let totalCost
-                      if (campaign.estimated_cost) {
-                        totalCost = campaign.estimated_cost
-                      } else {
-                        const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
-                        const slots = campaign.max_participants || campaign.total_slots || 0
-                        const subtotal = packagePrice * slots
-                        const vat = Math.floor(subtotal * 0.1)
-                        totalCost = subtotal + vat
-                      }
-                      const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
-                      const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
-                      const statusInfo = getProgressStatusInfo(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)
-                      const typeInfo = getCampaignTypeBadge(campaign.campaign_type)
+                    {/* 캠페인 행 */}
+                    <div className="divide-y divide-[#DFE6E9]">
+                      {campaigns
+                        .filter((campaign) => {
+                          if (!statusFilter || statusFilter === 'all') return true
+                          const status = campaign.progress_status || campaign.approval_status
+                          if (statusFilter === 'completed') return status === 'completed'
+                          if (statusFilter === 'active') return ['recruiting', 'guide_review', 'in_progress', 'revision', 'guide_confirmation', 'filming', 'editing', 'approved'].includes(status) && campaign.approval_status !== 'pending_approval'
+                          if (statusFilter === 'pending') return ['draft', 'pending', 'pending_payment'].includes(status) || campaign.approval_status === 'pending_approval'
+                          return true
+                        })
+                        .slice(0, 6)
+                        .map((campaign) => {
+                          let totalCost
+                          if (campaign.estimated_cost) {
+                            totalCost = campaign.estimated_cost
+                          } else {
+                            const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type, campaign.region)
+                            const slots = campaign.max_participants || campaign.total_slots || 0
+                            const subtotal = packagePrice * slots
+                            totalCost = subtotal + Math.floor(subtotal * 0.1)
+                          }
+                          const participantInfo = participants[campaign.id] || { total: 0, selected: 0 }
+                          const statusInfo = getProgressStatusInfo(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)
+                          const typeInfo = getCampaignTypeBadge(campaign.campaign_type)
 
-                      return (
-                        <div
-                          key={campaign.id}
-                          className="border border-[#DFE6E9] rounded-2xl p-4 hover:border-gray-300 hover:shadow-md cursor-pointer transition-all bg-white"
-                          onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0 overflow-hidden">
-                              {/* Badges */}
-                              <div className="flex flex-wrap items-center gap-1.5 lg:gap-2 mb-2">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${typeInfo.dotColor}`}></span>
+                          return (
+                            <div
+                              key={campaign.id}
+                              className="flex items-center lg:grid lg:grid-cols-[1fr_80px_80px_100px_120px] gap-2 lg:gap-2 px-5 py-3.5 hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
+                            >
+                              {/* 캠페인명 */}
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-500">
+                                  {(campaign.brand || campaign.title || 'C').charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-gray-900 text-sm truncate">{campaign.title}</p>
+                                  <p className="text-xs text-gray-400 truncate">{campaign.product_name || campaign.brand || ''}</p>
+                                </div>
+                              </div>
+
+                              {/* 타입 */}
+                              <div className="hidden lg:flex justify-center">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typeInfo.color}`}>
                                   {typeInfo.label}
                                 </span>
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`}></span>
-                                  {statusInfo.label}
-                                </span>
-                                {recruitmentDays !== null && recruitmentDays >= 0 && (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${recruitmentDays <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-gray-100 text-gray-700'} text-xs font-medium`}>
-                                    D-{recruitmentDays}
-                                  </span>
-                                )}
                               </div>
 
-                              {/* Title */}
-                              <h3 className="font-semibold text-gray-900 text-sm lg:text-base truncate mb-1">{campaign.title}</h3>
+                              {/* 상태 */}
+                              <div className="hidden lg:flex justify-center">
+                                <span className="text-xs text-gray-600">{statusInfo.label}</span>
+                              </div>
 
-                              {/* Meta info */}
-                              <div className="flex flex-wrap items-center gap-2 lg:gap-3 text-xs lg:text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
-                                  {participantInfo.total}/{campaign.max_participants || campaign.total_slots || 0}명
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <UserCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
-                                  확정 {participantInfo.selected}명
+                              {/* 모집/지원 */}
+                              <div className="hidden lg:block text-center text-sm text-gray-600">
+                                {campaign.max_participants || campaign.total_slots || 0}명 / {participantInfo.total}명
+                              </div>
+
+                              {/* 예산 */}
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-sm font-bold text-gray-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  {totalCost.toLocaleString()}원
                                 </span>
                               </div>
                             </div>
-
-                            {/* Price */}
-                            <div className="text-right flex-shrink-0">
-                              <div className="text-base lg:text-xl font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                {totalCost.toLocaleString()}원
-                              </div>
-                              <span className="text-xs text-gray-400">{campaign.package_type}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                          )
+                        })}
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-              {/* Upcoming Schedules - 2 columns */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 lg:p-6">
-                  <div className="flex items-center gap-2 mb-4 lg:mb-5">
-                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-gray-600" />
-                    </div>
-                    <h2 className="text-base lg:text-lg font-bold text-[#1A1A2E]">다가오는 일정</h2>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-[6px] text-xs font-medium">
-                      {upcomingDeadlines.length}개
+              {/* 우측: 다가오는 일정 + 지연된 일정 */}
+              <div className="space-y-4">
+                {/* 다가오는 일정 */}
+                <div className="bg-white rounded-2xl border border-[#DFE6E9] p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-[#1A1A2E] text-sm">다가오는 일정</h3>
+                    <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                      {upcomingDeadlines.length}
                     </span>
                   </div>
 
                   {upcomingDeadlines.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
-                        <Calendar className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-sm text-gray-500">다가오는 일정이 없습니다</p>
-                    </div>
+                    <p className="text-sm text-gray-400 text-center py-6">다가오는 일정이 없습니다</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {upcomingDeadlines.map((item, index) => (
                         <div
                           key={`${item.id}-${index}`}
-                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-2xl border border-[#DFE6E9] hover:border-gray-300 hover:shadow-md cursor-pointer transition-all bg-white"
+                          className="cursor-pointer hover:bg-gray-50 rounded-xl p-2.5 -mx-1 transition-colors"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
-                          <div className={`w-2 h-2 rounded-full ${item.type.dotColor} flex-shrink-0`} />
-                          <div className="flex-1 min-w-0">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.type.color} mb-1`}>
-                              {item.type.label}
-                            </span>
-                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.title}</p>
-                            <p className="text-xs lg:text-sm text-gray-500 truncate">{item.subtitle}</p>
-                            <div className="flex items-center gap-2 mt-1 text-xs lg:text-sm text-gray-400">
-                              <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
-                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-gray-100 text-gray-700'}`}>
-                                D-{item.daysLeft}
-                              </span>
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${item.type.dotColor}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-400">{item.title}</p>
+                              <p className="text-sm font-semibold text-gray-900 truncate">{item.subtitle}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs text-gray-400">
+                                  {new Date(item.date).toLocaleDateString('ko-KR')}
+                                </span>
+                                <span className={`text-xs font-bold ${item.daysLeft <= 3 ? 'text-[#FF6B6B]' : 'text-gray-500'}`}>
+                                  D-{item.daysLeft}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Delayed Items - 1 column */}
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl border border-[#E17055]/30 p-4 lg:p-6">
-                  <div className="flex items-center gap-2 mb-5 text-[#E17055]">
-                    <div className="w-8 h-8 rounded-lg bg-[rgba(225,112,85,0.1)] flex items-center justify-center">
+                {/* 지연된 일정 */}
+                <div className="bg-white rounded-2xl border border-[#E17055]/20 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-1.5">
                       <AlertCircle className="w-4 h-4 text-[#E17055]" />
+                      <h3 className="font-bold text-[#1A1A2E] text-sm">지연된 일정</h3>
                     </div>
-                    <span className="font-bold">지연된 일정</span>
                     {delayedItems.length > 0 && (
-                      <span className="px-2 py-0.5 bg-[rgba(225,112,85,0.1)] text-[#E17055] rounded-[6px] text-xs font-medium">
-                        {delayedItems.length}건
+                      <span className="w-6 h-6 rounded-full bg-[rgba(225,112,85,0.1)] flex items-center justify-center text-xs font-bold text-[#E17055]">
+                        {delayedItems.length}
                       </span>
                     )}
                   </div>
 
                   {delayedItems.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-gray-500" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-600">지연된 일정이 없습니다</p>
-                    </div>
+                    <p className="text-sm text-gray-400 text-center py-4">지연된 일정이 없습니다</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {delayedItems.map((item, index) => (
                         <div
                           key={`delayed-${item.id}-${index}`}
-                          className="flex items-start gap-3 p-3 bg-[#F8F9FA] rounded-2xl cursor-pointer hover:shadow-md transition-all"
+                          className="flex items-start gap-2.5 p-3 bg-red-50/50 rounded-xl cursor-pointer hover:bg-red-50 transition-colors"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-[rgba(225,112,85,0.1)] flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-5 h-5 text-[#E17055]" />
+                          <Calendar className="w-4 h-4 text-[#E17055] flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
+                            <p className="text-xs text-[#E17055]">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
                           </div>
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.title}</p>
-                            <p className="text-xs lg:text-sm text-[#E17055]">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                         </div>
                       ))}
                     </div>
@@ -804,11 +650,7 @@ export default function CompanyDashboard() {
             </div>
           </div>
 
-          {/* Region Select Modal */}
-          <RegionSelectModal
-            open={showRegionModal}
-            onClose={() => setShowRegionModal(false)}
-          />
+          <RegionSelectModal open={showRegionModal} onClose={() => setShowRegionModal(false)} />
         </main>
       </div>
     </>
