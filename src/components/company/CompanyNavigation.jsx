@@ -75,7 +75,7 @@ export default function CompanyNavigation() {
               onClick={() => navigate('/company/dashboard')}
               className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#6C5CE7] flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center shadow-sm">
                 <span className="text-white font-bold text-lg" style={{ fontFamily: "'Outfit', sans-serif" }}>C</span>
               </div>
               <div className="text-left">
@@ -99,14 +99,14 @@ export default function CompanyNavigation() {
                     className={`
                       w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                       ${active
-                        ? 'bg-[#F0EDFF] text-[#6C5CE7] font-semibold border-l-[3px] border-[#6C5CE7]'
+                        ? 'bg-gray-100 text-gray-900 font-semibold border-l-[3px] border-gray-900'
                         : 'text-[#636E72] hover:bg-[#F8F9FA] hover:text-[#1A1A2E]'
                       }
                     `}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-[#6C5CE7]' : ''}`} />
+                    <Icon className={`w-5 h-5 ${active ? 'text-gray-900' : ''}`} />
                     <span className="flex-1 text-left">{item.label}</span>
-                    {active && <ChevronRight className="w-4 h-4 text-[#6C5CE7]" />}
+                    {active && <ChevronRight className="w-4 h-4 text-gray-900" />}
                   </button>
                 )
               })}
@@ -129,7 +129,7 @@ export default function CompanyNavigation() {
                 onClick={() => navigate('/company/campaign-guide')}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
                   location.pathname === '/company/campaign-guide'
-                    ? 'bg-[#F0EDFF] text-[#6C5CE7] font-semibold'
+                    ? 'bg-gray-100 text-gray-900 font-semibold'
                     : 'text-[#636E72] hover:bg-[#F8F9FA] hover:text-[#1A1A2E]'
                 }`}
               >
@@ -169,7 +169,7 @@ export default function CompanyNavigation() {
             onClick={() => navigate('/company/dashboard')}
             className="flex items-center gap-2"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#6C5CE7] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
               <span className="text-white font-bold text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>C</span>
             </div>
             <span className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
@@ -196,13 +196,13 @@ export default function CompanyNavigation() {
                 key={item.label}
                 onClick={() => handleMobileTabClick(item.path)}
                 className={`flex flex-col items-center justify-center gap-0.5 transition-colors relative ${
-                  active ? 'text-[#6C5CE7]' : 'text-[#B2BEC3]'
+                  active ? 'text-gray-900' : 'text-[#B2BEC3]'
                 }`}
               >
                 {active && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-[#6C5CE7]" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-gray-900" />
                 )}
-                <Icon className={`w-5 h-5 ${active ? 'text-[#6C5CE7]' : ''}`} strokeWidth={active ? 2.5 : 2} />
+                <Icon className={`w-5 h-5 ${active ? 'text-gray-900' : ''}`} strokeWidth={active ? 2.5 : 2} />
                 <span className={`text-[10px] ${active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
               </button>
             )
@@ -245,8 +245,8 @@ export default function CompanyNavigation() {
                   onClick={() => { navigate('/company/campaign-guide'); setShowMoreSheet(false) }}
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-indigo-600" />
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-gray-600" />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">캠페인 생성 가이드</p>

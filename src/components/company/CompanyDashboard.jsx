@@ -396,8 +396,8 @@ export default function CompanyDashboard() {
             {/* Dashboard Header - 모바일: 컴팩트 / PC: 기존 */}
             <div className="mb-5 lg:mb-8">
               <div className="flex items-center gap-3 lg:gap-4">
-                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
-                  <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6 text-[#6C5CE7]" />
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h1 className="text-lg lg:text-2xl font-bold text-[#1A1A2E] truncate">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님</h1>
@@ -415,7 +415,7 @@ export default function CompanyDashboard() {
                   placeholder="캠페인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-[#DFE6E9] bg-white shadow-sm focus:border-[#6C5CE7] focus:ring-[#6C5CE7]/20 max-w-2xl"
+                  className="pl-10 lg:pl-12 h-11 lg:h-12 rounded-xl border-[#DFE6E9] bg-white shadow-sm focus:border-gray-900 focus:ring-gray-900/10 max-w-2xl"
                 />
               </div>
             </div>
@@ -429,15 +429,15 @@ export default function CompanyDashboard() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-[#636E72]">진행 예산</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
-                    <Wallet className="w-[18px] h-[18px] text-[#6C5CE7]" />
+                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
+                    <Wallet className="w-[18px] h-[18px] text-gray-600" />
                   </div>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <div className="text-2xl md:text-3xl font-bold text-gray-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   {(stats.totalSpent / 10000).toFixed(0)}
                   <span className="text-base font-medium text-[#B2BEC3] ml-1">만원</span>
                 </div>
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
                   진행 중 캠페인 예산 합계
                   <ChevronRight className="w-3 h-3" />
                 </span>
@@ -450,8 +450,8 @@ export default function CompanyDashboard() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-[#636E72]">진행 캠페인</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
-                    <Play className="w-[18px] h-[18px] text-[#6C5CE7]" />
+                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
+                    <Play className="w-[18px] h-[18px] text-gray-600" />
                   </div>
                 </div>
                 <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -460,15 +460,15 @@ export default function CompanyDashboard() {
                 </div>
                 {stats.total > 0 && (
                   <div className="mt-2">
-                    <div className="h-1.5 rounded-full bg-[#F0EDFF]">
+                    <div className="h-1.5 rounded-full bg-gray-100">
                       <div
-                        className="bg-[#6C5CE7] h-full rounded-full transition-all"
+                        className="bg-gray-900 h-full rounded-full transition-all"
                         style={{ width: `${(stats.active / stats.total) * 100}%` }}
                       />
                     </div>
                   </div>
                 )}
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
                   전체 {stats.total}개 중
                   <ChevronRight className="w-3 h-3" />
                 </span>
@@ -481,15 +481,15 @@ export default function CompanyDashboard() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs lg:text-sm font-medium text-[#636E72]">확정 크리에이터</span>
-                  <div className="w-9 h-9 rounded-[10px] bg-[#F0EDFF] flex items-center justify-center">
-                    <UserCheck className="w-[18px] h-[18px] text-[#6C5CE7]" />
+                  <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center">
+                    <UserCheck className="w-[18px] h-[18px] text-gray-600" />
                   </div>
                 </div>
                 <div className="text-2xl md:text-3xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   {stats.confirmedCreators}
                   <span className="text-base font-medium text-[#B2BEC3] ml-1">명</span>
                 </div>
-                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-[#6C5CE7] transition-colors">
+                <span className="text-xs text-[#B2BEC3] mt-2 flex items-center gap-1 group-hover:text-gray-900 transition-colors">
                   캠페인 선정 완료
                   <ChevronRight className="w-3 h-3" />
                 </span>
@@ -502,15 +502,15 @@ export default function CompanyDashboard() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-[#636E72]">확인 필요</span>
-                  <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${stats.needsAttention > 0 ? 'bg-[rgba(225,112,85,0.1)]' : 'bg-[#F0EDFF]'}`}>
-                    <AlertCircle className={`w-[18px] h-[18px] ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#6C5CE7]'}`} />
+                  <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${stats.needsAttention > 0 ? 'bg-[rgba(225,112,85,0.1)]' : 'bg-gray-100'}`}>
+                    <AlertCircle className={`w-[18px] h-[18px] ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-gray-600'}`} />
                   </div>
                 </div>
                 <div className={`text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#1A1A2E]'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                   {stats.needsAttention}
                   <span className="text-base font-medium text-[#B2BEC3] ml-1">건</span>
                 </div>
-                <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#B2BEC3] group-hover:text-[#6C5CE7]'}`}>
+                <span className={`text-xs mt-2 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-[#E17055]' : 'text-[#B2BEC3] group-hover:text-gray-900'}`}>
                   {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
                   <ChevronRight className="w-3 h-3" />
                 </span>
@@ -522,8 +522,8 @@ export default function CompanyDashboard() {
               <div className="mb-6">
                 <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 sm:p-5 md:p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
-                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#6C5CE7]" />
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
                     </div>
                     <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">진행 중인 패키지</h2>
                   </div>
@@ -534,8 +534,8 @@ export default function CompanyDashboard() {
                         className="flex items-center gap-3 p-3 bg-[#F8F9FA] rounded-2xl cursor-pointer hover:shadow-md transition-all"
                         onClick={() => app.campaign_id && navigate(`/company/package/${app.campaign_id}`)}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
-                          <Package className="w-5 h-5 text-[#6C5CE7]" />
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-gray-600" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900 text-sm truncate">
@@ -543,7 +543,7 @@ export default function CompanyDashboard() {
                           </p>
                           <p className="text-xs text-[#636E72]">{app.month} | {app.company_name}</p>
                         </div>
-                        <Badge className={app.status === 'campaign_created' ? 'bg-[rgba(0,184,148,0.1)] text-[#00B894] text-xs' : 'bg-[#F0EDFF] text-[#6C5CE7] text-xs'}>
+                        <Badge className={app.status === 'campaign_created' ? 'bg-gray-900 text-white text-xs' : 'bg-gray-100 text-gray-700 text-xs'}>
                           {app.status === 'campaign_created' ? '진행중' : '승인됨'}
                         </Badge>
                         <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -560,8 +560,8 @@ export default function CompanyDashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
-                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#6C5CE7]" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
                       </div>
                       <h2 className="text-base sm:text-lg font-bold text-[#1A1A2E]">최근 캠페인</h2>
                     </div>
@@ -569,7 +569,7 @@ export default function CompanyDashboard() {
                     {statusFilter && (
                       <button
                         onClick={() => setStatusFilter(null)}
-                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-[#F0EDFF] text-[#6C5CE7] rounded-full text-xs font-medium hover:bg-[#E8E3FF] transition-colors"
+                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors"
                       >
                         {statusFilter === 'all' && '전체'}
                         {statusFilter === 'completed' && '완료'}
