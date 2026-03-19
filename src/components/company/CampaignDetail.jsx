@@ -46,7 +46,8 @@ import {
   ChevronRight,
   CreditCard,
   Star,
-  Lock
+  Lock,
+  ArrowUpDown
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import StoryProposalReadonly from './StoryProposalReadonly'
@@ -672,6 +673,7 @@ export default function CampaignDetail() {
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
+  const [sortOrder, setSortOrder] = useState('newest') // 'newest' | 'oldest'
   const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved', 'not_submitted'
   const [notSubmittedStep, setNotSubmittedStep] = useState(null) // 미제출자 조회 차수 (올리브영: 1/2, 4주: 1~4)
   const [selectedNotSubmitted, setSelectedNotSubmitted] = useState([]) // 미제출자 선택 (user_id 배열)
@@ -9752,6 +9754,10 @@ Questions? Contact us.
                         if (!matchKeyword) return false
                       }
                       return true
+                    }).sort((a, b) => {
+                      const dateA = new Date(a.created_at || 0)
+                      const dateB = new Date(b.created_at || 0)
+                      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB
                     }).map(app => {
                       const isAlreadyParticipant = participants.some(p => p.user_id && app.user_id && p.user_id === app.user_id)
                       const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
