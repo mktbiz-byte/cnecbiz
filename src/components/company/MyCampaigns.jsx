@@ -385,8 +385,8 @@ export default function MyCampaigns() {
       '4week': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400', icon: '🗓️' },
       oliveyoung: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
       oliveyoung_sale: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
-      planned: { label: '기획형', labelJa: '企画型', color: 'bg-[#F0EDFF] text-[#6C5CE7]', dotColor: 'bg-[#6C5CE7]', icon: '📹' },
-      regular: { label: '기획형', labelJa: '企画型', color: 'bg-[#F0EDFF] text-[#6C5CE7]', dotColor: 'bg-[#6C5CE7]', icon: '📹' },
+      planned: { label: '기획형', labelJa: '企画型', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-500', icon: '📹' },
+      regular: { label: '기획형', labelJa: '企画型', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-500', icon: '📹' },
       // 일본 캠페인 타입
       megawari: { label: '메가와리', labelJa: 'メガ割', color: 'bg-orange-100 text-orange-700', dotColor: 'bg-orange-400', icon: '🎯' }
     }
@@ -420,8 +420,8 @@ export default function MyCampaigns() {
     const regions = {
       korea: { label: '한국', flag: '🇰🇷', color: 'bg-blue-50 text-blue-700' },
       japan: { label: '일본', flag: '🇯🇵', color: 'bg-red-50 text-red-700' },
-      us: { label: '미국', flag: '🇺🇸', color: 'bg-[#F0EDFF] text-[#6C5CE7]' },
-      usa: { label: '미국', flag: '🇺🇸', color: 'bg-[#F0EDFF] text-[#6C5CE7]' },
+      us: { label: '미국', flag: '🇺🇸', color: 'bg-gray-100 text-gray-700' },
+      usa: { label: '미국', flag: '🇺🇸', color: 'bg-gray-100 text-gray-700' },
       taiwan: { label: '대만', flag: '🇹🇼', color: 'bg-green-50 text-green-700' }
     }
     return regions[region] || regions.korea
@@ -792,17 +792,17 @@ export default function MyCampaigns() {
                             </div>
                             {/* Mobile Stats Row */}
                             <div className="flex lg:hidden items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
-                                <Users className="w-3 h-3 text-[#6C5CE7]" />
-                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{campaign.total_slots || 0}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-[11px]">
+                                <Users className="w-3 h-3 text-gray-700" />
+                                <span className="font-bold font-['Outfit'] text-gray-700">{campaign.total_slots || 0}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
-                                <UserCheck className="w-3 h-3 text-[#6C5CE7]" />
-                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.total}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-[11px]">
+                                <UserCheck className="w-3 h-3 text-gray-700" />
+                                <span className="font-bold font-['Outfit'] text-gray-700">{participantInfo.total}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
-                                <CheckCircle className="w-3 h-3 text-[#6C5CE7]" />
-                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.selected}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-[11px]">
+                                <CheckCircle className="w-3 h-3 text-gray-700" />
+                                <span className="font-bold font-['Outfit'] text-gray-700">{participantInfo.selected}</span>
                               </span>
                               {recruitmentDays !== null && recruitmentDays >= 0 && (
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold ${
@@ -818,7 +818,7 @@ export default function MyCampaigns() {
                           <div className="hidden md:flex flex-col items-end justify-between flex-shrink-0">
                             <div className="text-right">
                               <div className="text-xs text-[#B2BEC3] mb-1">예상 비용</div>
-                              <div className="text-2xl font-bold font-['Outfit'] text-[#6C5CE7]">
+                              <div className="text-2xl font-bold font-['Outfit'] text-gray-900">
                                 {totalCost.toLocaleString()}원
                               </div>
                               <div className="text-xs text-[#B2BEC3] mt-1">{campaign.package_type || '패키지 미선택'}</div>
@@ -826,7 +826,7 @@ export default function MyCampaigns() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-[#6C5CE7] hover:text-[#5A4BD1] hover:bg-[#F0EDFF] gap-1"
+                              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 gap-1"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
@@ -842,9 +842,9 @@ export default function MyCampaigns() {
                         <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-[#DFE6E9]">
                           <div>
                             <span className="text-[10px] lg:text-xs text-[#B2BEC3]">예상 비용</span>
-                            <div className="text-base font-bold font-['Outfit'] text-[#6C5CE7]">{totalCost.toLocaleString()}원</div>
+                            <div className="text-base font-bold font-['Outfit'] text-gray-900">{totalCost.toLocaleString()}원</div>
                           </div>
-                          <Button variant="outline" size="sm" className="border-[#DFE6E9] text-[#6C5CE7] hover:bg-[#F0EDFF] h-8 text-xs px-3">
+                          <Button variant="outline" size="sm" className="border-[#DFE6E9] text-gray-700 hover:bg-gray-100 h-8 text-xs px-3">
                             상세보기 <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                           </Button>
                         </div>
@@ -872,15 +872,15 @@ export default function MyCampaigns() {
 
                         {/* 카드 결제 버튼: draft 또는 pending_payment 상태에서 표시 */}
                         {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
-                          <div className="flex items-center justify-between bg-[#F0EDFF] border border-[#6C5CE7]/20 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
-                            <p className="text-xs lg:text-sm text-[#6C5CE7] flex items-center gap-1.5 lg:gap-2 min-w-0">
+                          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
+                            <p className="text-xs lg:text-sm text-gray-700 flex items-center gap-1.5 lg:gap-2 min-w-0">
                               <CreditCard className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
                               <span className="truncate">카드 결제로 빠르게 진행하세요</span>
                             </p>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-[#6C5CE7]/40 text-[#6C5CE7] hover:bg-[#6C5CE7]/10 text-xs flex-shrink-0"
+                              className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs flex-shrink-0"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigate(`/company/campaigns/payment?id=${campaign.id}&region=${campaign.region || 'korea'}`)

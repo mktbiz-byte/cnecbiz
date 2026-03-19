@@ -7,7 +7,7 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { History, X, Loader2, Package, Download, Info, Upload } from 'lucide-react'
+import { History, X, Loader2, Package, Download, Info, Upload, ArrowLeft } from 'lucide-react'
 
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
@@ -108,6 +108,7 @@ const CampaignCreationKorea = () => {
   const [showConsentModal, setShowConsentModal] = useState(false)
   const [consentRefundPolicy, setConsentRefundPolicy] = useState(false)
   const [consentNoDirectContact, setConsentNoDirectContact] = useState(false)
+  const [consentCopyright, setConsentCopyright] = useState(false)
 
   // 현재 단계 (step) 상태
   const [currentStep, setCurrentStep] = useState(1)
@@ -4770,139 +4771,134 @@ const CampaignCreationKorea = () => {
 
       {/* 캠페인 등록 동의 모달 */}
       {showConsentModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl flex flex-col" style={{ maxHeight: 'min(90vh, 680px)' }}>
             {/* 헤더 */}
-            <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">캠페인 이용약관 동의</h2>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowConsentModal(false)} className="text-gray-400 hover:text-gray-600 -ml-1">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">캠페인 등록 동의</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">캠페인 등록 전 아래 내용을 확인해주세요</p>
+                </div>
+              </div>
               <button onClick={() => setShowConsentModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-5">
+            {/* 스크롤 가능한 본문 */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {/* 환불 규정 */}
               <div>
-                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">1</span>
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                  <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">1</span>
                   환불 규정
                 </h3>
-                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-3">
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
-                      <div className="flex-shrink-0 w-12 h-8 bg-green-100 rounded flex items-center justify-center">
-                        <span className="text-green-700 font-bold text-xs">100%</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
-                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
-                      <div className="flex-shrink-0 w-12 h-8 bg-amber-100 rounded flex items-center justify-center">
-                        <span className="text-amber-700 font-bold text-xs">50%</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
-                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
-                      <div className="flex-shrink-0 w-12 h-8 bg-red-100 rounded flex items-center justify-center">
-                        <span className="text-red-700 font-bold text-xs">0%</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">콘텐츠 제출 후</p>
-                        <p className="text-xs text-gray-500">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
-                      </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl border border-green-200 bg-green-50/50">
+                    <span className="flex-shrink-0 text-green-700 font-bold text-sm w-12 text-center">100%</span>
+                    <div className="border-l border-green-200 pl-3">
+                      <p className="font-semibold text-gray-900 text-sm">캠페인 진행 전</p>
+                      <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
-                  <p className="text-xs text-gray-500">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
-                  <p className="text-xs text-gray-500">※ 광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</p>
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50/50">
+                    <span className="flex-shrink-0 text-amber-700 font-bold text-sm w-12 text-center">50%</span>
+                    <div className="border-l border-amber-200 pl-3">
+                      <p className="font-semibold text-gray-900 text-sm">캠페인 진행 후</p>
+                      <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50/50">
+                    <span className="flex-shrink-0 text-gray-500 font-bold text-sm w-12 text-center">0%</span>
+                    <div className="border-l border-gray-200 pl-3">
+                      <p className="font-semibold text-gray-900 text-sm">콘텐츠 제출 후</p>
+                      <p className="text-xs text-gray-500">크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p>
+                    </div>
+                  </div>
                 </div>
+                <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
               </div>
 
               {/* 개별 연락 금지 */}
               <div>
-                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">2</span>
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                  <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">2</span>
                   크리에이터 개별 연락 금지
                 </h3>
-                <div className="bg-red-50 rounded-xl p-4 text-sm text-gray-700 space-y-2 border border-red-100">
-                  <p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 <strong className="text-red-700">직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위</strong>를 해서는 안 됩니다.</p>
-                  <p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p>
-                  <p>본 조항은 <strong>캠페인 종료 후 6개월간</strong> 유효합니다.</p>
-                  <p className="text-red-600 font-semibold">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</p>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2 border border-gray-200">
+                  <p>플랫폼을 통해 매칭된 크리에이터에게 사전 서면 동의 없이 <strong className="text-gray-900">직접 연락(DM, 이메일, 전화 등)하여 별도 거래를 제안하는 행위</strong>를 금지합니다.</p>
+                  <p>본 조항은 <strong className="text-gray-900">캠페인 종료 후 6개월간</strong> 유효합니다.</p>
+                  <p className="text-gray-900 font-medium text-xs pt-1">위반 시 캠페인 결제 금액의 200% 위약금이 청구될 수 있습니다.</p>
                 </div>
               </div>
 
               {/* 콘텐츠 2차 활용 */}
               <div>
-                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs font-bold">3</span>
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                  <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">3</span>
                   콘텐츠 저작권 및 2차 활용
                 </h3>
-                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-2">
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2 border border-gray-200">
                   <p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p>
-                  <p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p>
-                  <p>2차 활용 기간은 크리에이터의 <strong>SNS 업로드일로부터 1년</strong>입니다.</p>
-                </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mt-2">
-                  <p className="font-semibold flex items-center gap-1.5 mb-1">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가</p>
-                  <p>2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 <strong>Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</strong> 기간 만료 후 Meta 광고에 활용하려면 별도의 2차 활용 계약이 필요합니다.</p>
+                  <p>2차 활용 기간은 크리에이터의 <strong className="text-gray-900">SNS 업로드일로부터 1년</strong>입니다.</p>
+                  <p className="text-gray-900 font-medium text-xs pt-1">기간 만료 후 Meta 광고 활용 시 별도 2차 활용 계약이 필요합니다.</p>
                 </div>
               </div>
 
-              {/* 체크박스 */}
-              <div className="space-y-3 pt-2">
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              {/* 체크박스 동의 */}
+              <div className="space-y-2.5 pt-1">
+                <label className="flex items-center gap-3 cursor-pointer p-3.5 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={consentRefundPolicy}
                     onChange={(e) => setConsentRefundPolicy(e.target.checked)}
-                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="w-[18px] h-[18px] rounded border-gray-300 text-gray-900 focus:ring-gray-900/20 flex-shrink-0"
                   />
-                  <span className="text-sm text-gray-700">
-                    <strong className="text-gray-900">환불 규정</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  <span className="text-sm text-gray-600">
+                    <strong className="text-gray-900">환불 규정</strong>에 대해 충분히 <strong className="text-gray-900">이해</strong>하였으며, 이에 동의합니다.
                   </span>
                 </label>
 
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                <label className="flex items-center gap-3 cursor-pointer p-3.5 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={consentNoDirectContact}
                     onChange={(e) => setConsentNoDirectContact(e.target.checked)}
-                    className="mt-0.5 w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="w-[18px] h-[18px] rounded border-gray-300 text-gray-900 focus:ring-gray-900/20 flex-shrink-0"
                   />
-                  <span className="text-sm text-gray-700">
-                    <strong className="text-gray-900">크리에이터 개별 연락 금지 조항</strong>에 대해 충분히 이해하였으며, 이에 동의합니다.
+                  <span className="text-sm text-gray-600">
+                    <strong className="text-gray-900">크리에이터 개별 연락 금지 조항</strong>에 대해 충분히 <strong className="text-gray-900">이해</strong>하였으며, 이에 동의합니다.
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer p-3.5 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={consentCopyright}
+                    onChange={(e) => setConsentCopyright(e.target.checked)}
+                    className="w-[18px] h-[18px] rounded border-gray-300 text-gray-900 focus:ring-gray-900/20 flex-shrink-0"
+                  />
+                  <span className="text-sm text-gray-600">
+                    <strong className="text-gray-900">콘텐츠 저작권 및 2차 활용 조항</strong>에 대해 충분히 <strong className="text-gray-900">이해</strong>하였으며, 이에 동의합니다.
                   </span>
                 </label>
               </div>
             </div>
 
             {/* 하단 버튼 */}
-            <div className="sticky bottom-0 bg-white border-t px-6 py-4 rounded-b-2xl flex items-center justify-between">
-              <button
-                onClick={handleDownloadContract}
-                className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 font-medium"
+            <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100">
+              <Button
+                disabled={!consentRefundPolicy || !consentNoDirectContact || !consentCopyright || processing}
+                onClick={handleSubmitAfterConsent}
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white h-12 rounded-xl text-sm font-semibold disabled:bg-gray-200 disabled:text-gray-400"
               >
-                <Download className="w-4 h-4" />
-                약관 다운로드
-              </button>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => setShowConsentModal(false)}>
-                  취소
-                </Button>
-                <Button
-                  disabled={!consentRefundPolicy || !consentNoDirectContact || processing}
-                  onClick={handleSubmitAfterConsent}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6"
-                >
-                  {processing ? '저장 중...' : '동의 후 등록하기'}
-                </Button>
-              </div>
+                {processing ? '저장 중...' : '동의하고 캠페인 생성하기'}
+              </Button>
             </div>
           </div>
         </div>

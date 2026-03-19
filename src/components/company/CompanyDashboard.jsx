@@ -591,7 +591,7 @@ export default function CompanyDashboard() {
                     <Button
                       size="sm"
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white text-xs sm:text-sm"
+                      className="bg-gray-900 hover:bg-gray-800 text-white text-xs sm:text-sm"
                     >
                       <Plus className="w-4 h-4 mr-1" />
                       <span className="hidden xs:inline">새 </span>캠페인
@@ -606,7 +606,7 @@ export default function CompanyDashboard() {
                     <p className="text-sm text-gray-500 mb-6">첫 번째 캠페인을 만들어 크리에이터들과 협업해보세요</p>
                     <Button
                       onClick={() => setShowRegionModal(true)}
-                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
+                      className="bg-gray-900 hover:bg-gray-800 text-white"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       첫 캠페인 만들기
@@ -651,7 +651,7 @@ export default function CompanyDashboard() {
                       return (
                         <div
                           key={campaign.id}
-                          className="border border-[#DFE6E9] rounded-2xl p-4 hover:border-[#6C5CE7]/30 hover:shadow-md cursor-pointer transition-all bg-white"
+                          className="border border-[#DFE6E9] rounded-2xl p-4 hover:border-gray-300 hover:shadow-md cursor-pointer transition-all bg-white"
                           onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -667,7 +667,7 @@ export default function CompanyDashboard() {
                                   {statusInfo.label}
                                 </span>
                                 {recruitmentDays !== null && recruitmentDays >= 0 && (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${recruitmentDays <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-[#F0EDFF] text-[#6C5CE7]'} text-xs font-medium`}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${recruitmentDays <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-gray-100 text-gray-700'} text-xs font-medium`}>
                                     D-{recruitmentDays}
                                   </span>
                                 )}
@@ -691,7 +691,7 @@ export default function CompanyDashboard() {
 
                             {/* Price */}
                             <div className="text-right flex-shrink-0">
-                              <div className="text-base lg:text-xl font-bold text-[#6C5CE7] whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                              <div className="text-base lg:text-xl font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                 {totalCost.toLocaleString()}원
                               </div>
                               <span className="text-xs text-gray-400">{campaign.package_type}</span>
@@ -711,19 +711,19 @@ export default function CompanyDashboard() {
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-2xl border border-[#DFE6E9] p-4 lg:p-6">
                   <div className="flex items-center gap-2 mb-4 lg:mb-5">
-                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
-                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-[#6C5CE7]" />
+                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                      <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-gray-600" />
                     </div>
                     <h2 className="text-base lg:text-lg font-bold text-[#1A1A2E]">다가오는 일정</h2>
-                    <span className="px-2 py-0.5 bg-[#F0EDFF] text-[#6C5CE7] rounded-[6px] text-xs font-medium">
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-[6px] text-xs font-medium">
                       {upcomingDeadlines.length}개
                     </span>
                   </div>
 
                   {upcomingDeadlines.length === 0 ? (
                     <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-[#F0EDFF] rounded-2xl flex items-center justify-center">
-                        <Calendar className="w-8 h-8 text-[#6C5CE7]" />
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
+                        <Calendar className="w-8 h-8 text-gray-400" />
                       </div>
                       <p className="text-sm text-gray-500">다가오는 일정이 없습니다</p>
                     </div>
@@ -732,7 +732,7 @@ export default function CompanyDashboard() {
                       {upcomingDeadlines.map((item, index) => (
                         <div
                           key={`${item.id}-${index}`}
-                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-2xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md cursor-pointer transition-all bg-white"
+                          className="flex items-center gap-2 lg:gap-3 p-3 lg:p-4 rounded-2xl border border-[#DFE6E9] hover:border-gray-300 hover:shadow-md cursor-pointer transition-all bg-white"
                           onClick={() => navigate(`/company/campaigns/${item.id}`)}
                         >
                           <div className={`w-2 h-2 rounded-full ${item.type.dotColor} flex-shrink-0`} />
@@ -744,7 +744,7 @@ export default function CompanyDashboard() {
                             <p className="text-xs lg:text-sm text-gray-500 truncate">{item.subtitle}</p>
                             <div className="flex items-center gap-2 mt-1 text-xs lg:text-sm text-gray-400">
                               <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
-                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-[#F0EDFF] text-[#6C5CE7]'}`}>
+                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-gray-100 text-gray-700'}`}>
                                 D-{item.daysLeft}
                               </span>
                             </div>
@@ -774,8 +774,8 @@ export default function CompanyDashboard() {
 
                   {delayedItems.length === 0 ? (
                     <div className="text-center py-8">
-                      <div className="w-12 h-12 mx-auto mb-3 bg-[rgba(0,184,148,0.1)] rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-[#00B894]" />
+                      <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-gray-500" />
                       </div>
                       <p className="text-sm font-medium text-gray-600">지연된 일정이 없습니다</p>
                     </div>
