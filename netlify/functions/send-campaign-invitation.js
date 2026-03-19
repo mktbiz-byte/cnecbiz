@@ -112,15 +112,36 @@ exports.handler = async (event) => {
       };
     }
 
-    // 3. 기업 정보 조회
-    const { data: company, error: companyError } = await supabase
-      .from('user_profiles')
-      .select('full_name, company_name')
-      .eq('id', invitedBy)
-      .single();
+    // 3. 기업 정보 조회 (companies 테이블 우선, notification 필드 우선)
+    let company = null;
 
-    if (companyError || !company) {
-      console.error('[ERROR] Company not found:', companyError);
+    // 3-1. companies 테이블에서 user_id로 조회
+    const { data: companyRecord, error: companyError } = await supabase
+      .from('companies')
+      .select('company_name, notification_phone, notification_email, phone, email')
+      .eq('user_id', invitedBy)
+      .maybeSingle();
+
+    if (!companyError && companyRecord) {
+      company = {
+        company_name: companyRecord.company_name,
+        full_name: companyRecord.company_name
+      };
+    } else {
+      // 3-2. companies에서 못 찾으면 user_profiles fallback (company_name만 가져옴)
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('full_name, company_name')
+        .eq('id', invitedBy)
+        .maybeSingle();
+
+      if (!profileError && profileData) {
+        company = profileData;
+      }
+    }
+
+    if (!company) {
+      console.error('[ERROR] Company not found for invitedBy:', invitedBy);
       return {
         statusCode: 404,
         headers,
