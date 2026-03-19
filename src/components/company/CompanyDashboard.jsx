@@ -283,11 +283,16 @@ export default function CompanyDashboard() {
 
   const getCampaignTypeBadge = (campaignType) => {
     const badges = {
-      regular: { label: '기타', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-400' },
+      planned: { label: '기획형', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-400' },
+      regular: { label: '기획형', color: 'bg-gray-100 text-gray-700', dotColor: 'bg-gray-400' },
       oliveyoung: { label: '올영세일', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400' },
-      '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400' }
+      oliveyoung_sale: { label: '올영세일', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400' },
+      '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400' },
+      '4week': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400' },
+      megawari: { label: '메가와리', color: 'bg-orange-100 text-orange-700', dotColor: 'bg-orange-400' },
+      story_short: { label: '스토리', color: 'bg-blue-100 text-blue-700', dotColor: 'bg-blue-400' }
     }
-    return badges[campaignType] || badges.regular
+    return badges[campaignType] || badges.planned
   }
 
   const getProgressStatusInfo = (status, isCancelled) => {
@@ -530,12 +535,25 @@ export default function CompanyDashboard() {
                             >
                               {/* 캠페인명 */}
                               <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-500">
-                                  {(campaign.brand || campaign.title || 'C').charAt(0).toUpperCase()}
+                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden">
+                                  {(campaign.main_image || campaign.thumbnail || campaign.thumbnail_url || campaign.image_url || campaign.product_image || campaign.images?.[0]) ? (
+                                    <img
+                                      src={campaign.main_image || campaign.thumbnail || campaign.thumbnail_url || campaign.image_url || campaign.product_image || campaign.images?.[0]}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                                    />
+                                  ) : null}
+                                  <div className={`w-full h-full items-center justify-center text-sm font-bold text-gray-400 ${(campaign.main_image || campaign.thumbnail || campaign.thumbnail_url || campaign.image_url || campaign.product_image || campaign.images?.[0]) ? 'hidden' : 'flex'}`}>
+                                    {(campaign.brand || campaign.title || 'C').charAt(0).toUpperCase()}
+                                  </div>
                                 </div>
                                 <div className="min-w-0">
                                   <p className="font-semibold text-gray-900 text-sm truncate">{campaign.title}</p>
-                                  <p className="text-xs text-gray-400 truncate">{campaign.product_name || campaign.brand || ''}</p>
+                                  <p className="text-xs text-gray-400 truncate">
+                                    {campaign.region && <span className="mr-1">{({ korea: '🇰🇷', japan: '🇯🇵', us: '🇺🇸', usa: '🇺🇸', taiwan: '🇹🇼' })[campaign.region] || ''}</span>}
+                                    {campaign.product_name || campaign.brand || ''}
+                                  </p>
                                 </div>
                               </div>
 
