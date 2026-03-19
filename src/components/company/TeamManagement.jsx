@@ -107,9 +107,9 @@ export default function TeamManagement() {
 
   const getRoleBadge = (role) => {
     const badges = {
-      owner: 'bg-purple-100 text-purple-700',
-      admin: 'bg-blue-100 text-blue-700',
-      member: 'bg-gray-100 text-gray-700'
+      owner: 'bg-[#F0EDFF] text-[#6C5CE7]',
+      admin: 'bg-[#F0EDFF] text-[#6C5CE7]',
+      member: 'bg-[#F8F9FA] text-[#636E72]'
     }
     const labels = {
       owner: '소유자',
@@ -117,7 +117,7 @@ export default function TeamManagement() {
       member: '멤버'
     }
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badges[role] || 'bg-gray-100 text-gray-700'}`}>
+      <span className={`px-3 py-1 rounded-md text-xs font-medium ${badges[role] || 'bg-[#F8F9FA] text-[#636E72]'}`}>
         {labels[role] || role}
       </span>
     )
@@ -125,9 +125,9 @@ export default function TeamManagement() {
 
   const getStatusBadge = (status) => {
     const badges = {
-      active: 'bg-green-100 text-green-700',
-      pending: 'bg-yellow-100 text-yellow-700',
-      inactive: 'bg-gray-100 text-gray-700'
+      active: 'bg-[rgba(0,184,148,0.1)] text-[#00B894]',
+      pending: 'bg-[rgba(253,203,110,0.15)] text-[#E17055]',
+      inactive: 'bg-[#F8F9FA] text-[#B2BEC3]'
     }
     const labels = {
       active: '활성',
@@ -135,14 +135,14 @@ export default function TeamManagement() {
       inactive: '비활성'
     }
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badges[status] || 'bg-gray-100 text-gray-700'}`}>
+      <span className={`px-3 py-1 rounded-md text-xs font-medium ${badges[status] || 'bg-[#F8F9FA] text-[#636E72]'}`}>
         {labels[status] || status}
       </span>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
+    <div className="min-h-screen bg-[#F8F9FA] pt-14 pb-20 lg:pt-0 lg:pb-0">
       <div className="max-w-4xl mx-auto p-4 lg:p-6">
         <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
@@ -152,14 +152,16 @@ export default function TeamManagement() {
         </div>
 
         <div className="flex items-center gap-3 mb-6 lg:mb-8">
-          <Users className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600" />
-          <h1 className="text-2xl lg:text-3xl font-bold">팀 관리</h1>
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+            <Users className="w-5 h-5 lg:w-6 lg:h-6 text-[#6C5CE7]" />
+          </div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-[#1A1A2E]">팀 관리</h1>
         </div>
 
         {/* Invite Form */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-base lg:text-lg">팀원 초대</CardTitle>
+            <CardTitle className="text-base lg:text-lg text-[#1A1A2E]">팀원 초대</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -175,31 +177,31 @@ export default function TeamManagement() {
                 <select
                   value={newMember.role}
                   onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
-                  className="px-4 py-2 border rounded-lg flex-1 sm:flex-none"
+                  className="px-4 py-2 border border-[#DFE6E9] rounded-xl flex-1 sm:flex-none focus:border-[#6C5CE7] focus:ring-[#6C5CE7]/20 focus:outline-none"
                 >
                   <option value="member">멤버</option>
                   <option value="admin">관리자</option>
                 </select>
-                <Button onClick={handleInvite} disabled={loading} className="flex-1 sm:flex-none">
+                <Button onClick={handleInvite} disabled={loading} className="flex-1 sm:flex-none bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white">
                   <Plus className="w-4 h-4 mr-2" />
                   초대
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-[#636E72] mt-2">
               초대된 팀원은 이메일로 초대 링크를 받게 됩니다
             </p>
           </CardContent>
         </Card>
 
         {/* Team Members List */}
-        <Card>
+        <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-base lg:text-lg">팀원 목록 ({teamMembers.length}명)</CardTitle>
+            <CardTitle className="text-base lg:text-lg text-[#1A1A2E]">팀원 목록 ({teamMembers.length}명)</CardTitle>
           </CardHeader>
           <CardContent>
             {teamMembers.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-[#636E72]">
                 아직 팀원이 없습니다. 위에서 팀원을 초대해보세요!
               </div>
             ) : (
@@ -207,11 +209,11 @@ export default function TeamManagement() {
                 {teamMembers.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-3 lg:p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 lg:p-4 bg-[#F8F9FA] rounded-2xl"
                   >
                     <div className="flex items-center gap-3 lg:gap-4 min-w-0">
-                      <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Mail className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
+                      <div className="w-10 h-10 lg:w-12 lg:h-12 bg-[#F0EDFF] rounded-full flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-5 h-5 lg:w-6 lg:h-6 text-[#6C5CE7]" />
                       </div>
                       <div className="min-w-0">
                         <div className="font-medium text-sm lg:text-base truncate">{member.email}</div>
@@ -239,13 +241,13 @@ export default function TeamManagement() {
         </Card>
 
         {/* Info Card */}
-        <Card className="mt-6">
+        <Card className="mt-6 bg-white border border-[#DFE6E9] rounded-2xl">
           <CardContent className="p-4 lg:p-6">
             <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-blue-600 mt-1" />
+              <Shield className="w-5 h-5 text-[#6C5CE7] mt-1" />
               <div>
-                <h3 className="font-medium mb-2">권한 안내</h3>
-                <ul className="text-sm text-gray-600 space-y-1">
+                <h3 className="font-medium text-[#1A1A2E] mb-2">권한 안내</h3>
+                <ul className="text-sm text-[#636E72] space-y-1">
                   <li>• <strong>소유자:</strong> 모든 권한 (삭제 불가)</li>
                   <li>• <strong>관리자:</strong> 캠페인 생성/수정, 팀원 관리</li>
                   <li>• <strong>멤버:</strong> 캠페인 조회, 댓글 작성</li>

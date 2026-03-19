@@ -478,9 +478,9 @@ export default function CampaignVideoFeedback() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 pt-14 lg:pt-0">
+    <div className="min-h-screen bg-[#F8F9FA] pb-20 pt-14 lg:pt-0">
       {/* Header */}
-      <div className="bg-white border-b sticky top-14 lg:top-0 z-10">
+      <div className="bg-white border-b border-[#DFE6E9] sticky top-14 lg:top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
@@ -489,12 +489,12 @@ export default function CampaignVideoFeedback() {
                 뒤로
               </Button>
               <div>
-                <h1 className="text-lg sm:text-xl font-bold">{campaign.title}</h1>
-                <p className="text-sm text-gray-600">{participant.creator_name}</p>
+                <h1 className="text-lg sm:text-xl font-bold text-[#1A1A2E]">{campaign.title}</h1>
+                <p className="text-sm text-[#636E72]">{participant.creator_name}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className={userRole === 'company' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+              <Badge className={userRole === 'company' ? 'bg-[#F0EDFF] text-[#6C5CE7]' : 'bg-[rgba(0,184,148,0.1)] text-[#00B894]'}>
                 {userRole === 'company' ? '기업' : '크리에이터'}
               </Badge>
               {selectedVersion && (
@@ -528,7 +528,7 @@ export default function CampaignVideoFeedback() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Video Player */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div className="bg-white border border-[#DFE6E9] rounded-2xl overflow-hidden">
               <div ref={containerRef} className="relative bg-black" style={{ aspectRatio: '16/9' }}>
                 <video
                   ref={videoRef}
@@ -595,7 +595,7 @@ export default function CampaignVideoFeedback() {
               </div>
 
               {/* Video Controls */}
-              <div className="p-4 bg-gray-50">
+              <div className="p-4 bg-[#F8F9FA]">
                 <div className="flex items-center gap-3 mb-2">
                   <Button
                     size="sm"
@@ -622,12 +622,12 @@ export default function CampaignVideoFeedback() {
                     }}
                     className="flex-1"
                   />
-                  <span className="text-sm text-gray-600 min-w-[80px] text-right">
+                  <span className="text-sm text-[#636E72] min-w-[80px] text-right">
                     {Math.floor(currentTime)}s / {Math.floor(duration)}s
                   </span>
                 </div>
                 {userRole === 'company' && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-[#636E72] mt-2">
                     💡 영상을 일시정지한 후 드래그하여 피드백 영역을 지정하세요
                   </p>
                 )}
@@ -637,21 +637,21 @@ export default function CampaignVideoFeedback() {
 
           {/* Feedback List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-lg p-4 max-h-[600px] overflow-y-auto">
-              <h2 className="text-lg font-bold mb-4">피드백 목록 ({feedbacks.length})</h2>
+            <div className="bg-white border border-[#DFE6E9] rounded-2xl p-4 max-h-[600px] overflow-y-auto">
+              <h2 className="text-lg font-bold text-[#1A1A2E] mb-4">피드백 목록 ({feedbacks.length})</h2>
               
               {feedbacks.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center py-8">
+                <p className="text-[#636E72] text-sm text-center py-8">
                   아직 피드백이 없습니다
                 </p>
               ) : (
                 <div className="space-y-3">
                   {feedbacks.map((feedback) => (
-                    <div key={feedback.id} className="border rounded-lg p-3 hover:bg-gray-50">
+                    <div key={feedback.id} className="border border-[#DFE6E9] rounded-2xl p-3 hover:bg-[#F8F9FA]">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{feedback.author}</p>
-                          <p className="text-xs text-gray-500">{Math.floor(feedback.timestamp)}초</p>
+                          <p className="text-sm font-medium text-[#1A1A2E]">{feedback.author}</p>
+                          <p className="text-xs text-[#B2BEC3]">{Math.floor(feedback.timestamp)}초</p>
                         </div>
                         {userRole === 'company' && (
                           <Button
@@ -665,7 +665,7 @@ export default function CampaignVideoFeedback() {
                         )}
                       </div>
                       
-                      <p className="text-sm text-gray-700 mb-2">{feedback.comment}</p>
+                      <p className="text-sm text-[#636E72] mb-2">{feedback.comment}</p>
 
                       <Button
                         variant="ghost"
@@ -676,18 +676,18 @@ export default function CampaignVideoFeedback() {
                             videoRef.current.pause()
                           }
                         }}
-                        className="text-xs text-blue-600 hover:text-blue-700"
+                        className="text-xs text-[#6C5CE7] hover:text-[#5A4BD1]"
                       >
                         해당 시간으로 이동
                       </Button>
 
                       {/* Replies */}
                       {feedback.replies && feedback.replies.length > 0 && (
-                        <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
+                        <div className="mt-3 pl-4 border-l-2 border-[#DFE6E9] space-y-2">
                           {feedback.replies.map((reply, idx) => (
                             <div key={idx} className="text-sm">
-                              <p className="font-medium text-xs text-gray-600">{reply.author}</p>
-                              <p className="text-gray-700">{reply.comment}</p>
+                              <p className="font-medium text-xs text-[#636E72]">{reply.author}</p>
+                              <p className="text-[#1A1A2E]">{reply.comment}</p>
                             </div>
                           ))}
                         </div>
@@ -700,14 +700,14 @@ export default function CampaignVideoFeedback() {
                             value={replyComment}
                             onChange={(e) => setReplyComment(e.target.value)}
                             placeholder="댓글을 입력하세요..."
-                            className="w-full px-3 py-2 border rounded-md text-sm"
+                            className="w-full px-3 py-2 border border-[#DFE6E9] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7]"
                             rows={2}
                           />
                           <div className="flex gap-2 mt-2">
                             <Button
                               size="sm"
                               onClick={() => addReply(feedback.id)}
-                              className="flex-1"
+                              className="flex-1 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
                             >
                               <Send className="w-3 h-3 mr-1" />
                               전송
@@ -747,13 +747,13 @@ export default function CampaignVideoFeedback() {
       {/* Comment Modal */}
       {showCommentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-bold mb-4">피드백 작성</h3>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 border border-[#DFE6E9]">
+            <h3 className="text-lg font-bold text-[#1A1A2E] mb-4">피드백 작성</h3>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="수정이 필요한 부분을 설명해주세요..."
-              className="w-full px-3 py-2 border rounded-md mb-4"
+              className="w-full px-3 py-2 border border-[#DFE6E9] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] mb-4"
               rows={4}
               autoFocus
             />
@@ -772,7 +772,7 @@ export default function CampaignVideoFeedback() {
               <Button
                 onClick={saveFeedback}
                 disabled={!comment.trim()}
-                className="flex-1"
+                className="flex-1 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
               >
                 저장
               </Button>

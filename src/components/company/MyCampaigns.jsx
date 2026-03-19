@@ -26,7 +26,7 @@ import CompanyNavigation from './CompanyNavigation'
 
 // Skeleton component for loading state
 const CampaignSkeleton = () => (
-  <div className="border border-gray-100 rounded-xl lg:rounded-2xl p-3 lg:p-5 bg-white animate-pulse">
+  <div className="border border-[#DFE6E9] rounded-2xl p-3 lg:p-5 bg-white animate-pulse">
     <div className="flex gap-3 lg:gap-4">
       <div className="w-20 h-20 md:w-32 md:h-32 bg-gray-200 rounded-lg flex-shrink-0" />
       <div className="flex-1 min-w-0">
@@ -385,8 +385,8 @@ export default function MyCampaigns() {
       '4week': { label: '4주 챌린지', labelJa: '4週チャレンジ', color: 'bg-purple-100 text-purple-700', dotColor: 'bg-purple-400', icon: '🗓️' },
       oliveyoung: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
       oliveyoung_sale: { label: '올영세일', labelJa: 'オリーブヤング', color: 'bg-pink-100 text-pink-700', dotColor: 'bg-pink-400', icon: '🛍️' },
-      planned: { label: '기획형', labelJa: '企画型', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400', icon: '📹' },
-      regular: { label: '기획형', labelJa: '企画型', color: 'bg-indigo-100 text-indigo-700', dotColor: 'bg-indigo-400', icon: '📹' },
+      planned: { label: '기획형', labelJa: '企画型', color: 'bg-[#F0EDFF] text-[#6C5CE7]', dotColor: 'bg-[#6C5CE7]', icon: '📹' },
+      regular: { label: '기획형', labelJa: '企画型', color: 'bg-[#F0EDFF] text-[#6C5CE7]', dotColor: 'bg-[#6C5CE7]', icon: '📹' },
       // 일본 캠페인 타입
       megawari: { label: '메가와리', labelJa: 'メガ割', color: 'bg-orange-100 text-orange-700', dotColor: 'bg-orange-400', icon: '🎯' }
     }
@@ -418,11 +418,11 @@ export default function MyCampaigns() {
 
   const getRegionInfo = useCallback((region) => {
     const regions = {
-      korea: { label: '한국', flag: '🇰🇷', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-      japan: { label: '일본', flag: '🇯🇵', color: 'bg-red-50 text-red-700 border-red-200' },
-      us: { label: '미국', flag: '🇺🇸', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-      usa: { label: '미국', flag: '🇺🇸', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-      taiwan: { label: '대만', flag: '🇹🇼', color: 'bg-green-50 text-green-700 border-green-200' }
+      korea: { label: '한국', flag: '🇰🇷', color: 'bg-blue-50 text-blue-700' },
+      japan: { label: '일본', flag: '🇯🇵', color: 'bg-red-50 text-red-700' },
+      us: { label: '미국', flag: '🇺🇸', color: 'bg-[#F0EDFF] text-[#6C5CE7]' },
+      usa: { label: '미국', flag: '🇺🇸', color: 'bg-[#F0EDFF] text-[#6C5CE7]' },
+      taiwan: { label: '대만', flag: '🇹🇼', color: 'bg-green-50 text-green-700' }
     }
     return regions[region] || regions.korea
   }, [])
@@ -515,20 +515,20 @@ export default function MyCampaigns() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="min-h-screen bg-[#F8F9FA] lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         <div className="p-3 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 lg:gap-4 mb-5 lg:mb-8">
             <div>
-              <h1 className="text-lg lg:text-2xl xl:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
-                <div className="w-9 h-9 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                  <Megaphone className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
+              <h1 className="text-lg lg:text-2xl xl:text-3xl font-bold text-[#1A1A2E] flex items-center gap-2 lg:gap-3">
+                <div className="w-9 h-9 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-[#F0EDFF] flex items-center justify-center">
+                  <Megaphone className="w-4 h-4 lg:w-6 lg:h-6 text-[#6C5CE7]" />
                 </div>
                 내 캠페인
               </h1>
-              <p className="text-gray-500 mt-1 lg:mt-2 text-sm lg:text-base">인플루언서 마케팅 캠페인을 한눈에 관리하세요</p>
+              <p className="text-[#636E72] mt-1 lg:mt-2 text-sm lg:text-base">인플루언서 마케팅 캠페인을 한눈에 관리하세요</p>
             </div>
-            <Button onClick={() => setShowRegionModal(true)} className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/25 h-9 lg:h-11 px-4 lg:px-5 text-sm lg:text-base">
+            <Button onClick={() => setShowRegionModal(true)} className="bg-[#6C5CE7] hover:bg-[#5A4BD1] shadow-lg h-9 lg:h-11 px-4 lg:px-5 text-sm lg:text-base">
               <Plus className="w-4 h-4 lg:w-5 lg:h-5 mr-1.5 lg:mr-2" />
               새 캠페인 등록
             </Button>
@@ -537,36 +537,36 @@ export default function MyCampaigns() {
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-5 lg:mb-8">
             {[
-              { key: 'all', label: '전체 캠페인', value: stats.total, icon: FolderOpen, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
-              { key: 'pending', label: '승인 대기', value: stats.pending, icon: Clock, color: 'amber', gradient: 'from-amber-500 to-orange-500' },
-              { key: 'active', label: '진행중', value: stats.active, icon: Users, color: 'emerald', gradient: 'from-emerald-500 to-teal-500' },
-              { key: 'completed', label: '완료', value: stats.completed, icon: CheckCircle, color: 'violet', gradient: 'from-violet-500 to-purple-600' }
-            ].map(({ key, label, value, icon: Icon, color, gradient }) => (
+              { key: 'all', label: '전체 캠페인', value: stats.total, icon: FolderOpen },
+              { key: 'pending', label: '승인 대기', value: stats.pending, icon: Clock },
+              { key: 'active', label: '진행중', value: stats.active, icon: Users },
+              { key: 'completed', label: '완료', value: stats.completed, icon: CheckCircle }
+            ].map(({ key, label, value, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setStatsFilter(statsFilter === key ? null : key)}
-                className={`relative overflow-hidden bg-white rounded-xl lg:rounded-2xl p-3 lg:p-5 border transition-all duration-300 text-left group ${
+                className={`relative overflow-hidden bg-white rounded-2xl p-3 lg:p-5 border transition-all duration-300 text-left group ${
                   statsFilter === key
-                    ? `ring-2 ring-${color}-400 ring-offset-2 border-${color}-200 shadow-lg`
-                    : 'border-gray-100 hover:border-gray-200 hover:shadow-lg hover:-translate-y-1'
+                    ? 'ring-2 ring-[#6C5CE7] ring-offset-2 border-[#6C5CE7] shadow-lg'
+                    : 'border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-lg hover:-translate-y-1'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2 lg:mb-3">
-                  <span className="text-xs lg:text-sm font-medium text-gray-500">{label}</span>
-                  <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                    <Icon className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+                  <span className="text-xs lg:text-sm font-medium text-[#636E72]">{label}</span>
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+                    <Icon className="w-4 h-4 lg:w-5 lg:h-5 text-[#6C5CE7]" />
                   </div>
                 </div>
-                <div className="text-2xl lg:text-3xl font-bold text-gray-900">{value}</div>
+                <div className="text-2xl lg:text-3xl font-bold text-[#1A1A2E] font-['Outfit']">{value}</div>
                 {statsFilter === key && (
-                  <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`} />
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#6C5CE7]" />
                 )}
               </button>
             ))}
           </div>
 
           {/* Search & Filters */}
-          <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm p-3 lg:p-5 mb-4 lg:mb-6">
+          <div className="bg-white rounded-2xl border border-[#DFE6E9] shadow-sm p-3 lg:p-5 mb-4 lg:mb-6">
             <div className="relative mb-3 lg:mb-5">
               <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
               <Input
@@ -574,13 +574,13 @@ export default function MyCampaigns() {
                 placeholder="캠페인명으로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 lg:pl-12 h-10 lg:h-12 rounded-lg lg:rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/20 text-sm lg:text-base"
+                className="pl-10 lg:pl-12 h-10 lg:h-12 rounded-lg lg:rounded-xl border-[#DFE6E9] focus:border-[#6C5CE7] focus:ring-[#6C5CE7]/20 text-sm lg:text-base"
               />
             </div>
 
             <div className="flex flex-col md:flex-row gap-3 lg:gap-4">
               <div className="flex-1">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 mb-1.5 lg:mb-2 flex items-center gap-2">
+                <p className="text-xs lg:text-sm font-medium text-[#636E72] mb-1.5 lg:mb-2 flex items-center gap-2">
                   <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> 국가
                 </p>
                 <div className="flex overflow-x-auto gap-1.5 lg:gap-2 pb-1 -mx-1 px-1 scrollbar-hide lg:flex-wrap lg:overflow-x-visible lg:pb-0 lg:mx-0 lg:px-0">
@@ -590,8 +590,8 @@ export default function MyCampaigns() {
                       onClick={() => setSelectedRegion(filter.value)}
                       className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-full text-xs lg:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                         selectedRegion === filter.value
-                          ? 'bg-indigo-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-[#F0EDFF] text-[#6C5CE7]'
+                          : 'bg-gray-100 text-[#636E72] hover:bg-gray-200'
                       }`}
                     >
                       {filter.label}
@@ -601,7 +601,7 @@ export default function MyCampaigns() {
               </div>
 
               <div className="flex-1">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 mb-1.5 lg:mb-2">상태</p>
+                <p className="text-xs lg:text-sm font-medium text-[#636E72] mb-1.5 lg:mb-2">상태</p>
                 <div className="flex overflow-x-auto gap-1.5 lg:gap-2 pb-1 -mx-1 px-1 scrollbar-hide lg:flex-wrap lg:overflow-x-visible lg:pb-0 lg:mx-0 lg:px-0">
                   {statusFilters.map(filter => (
                     <button
@@ -609,8 +609,8 @@ export default function MyCampaigns() {
                       onClick={() => setSelectedStatus(filter.value)}
                       className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-full text-xs lg:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                         selectedStatus === filter.value
-                          ? 'bg-indigo-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-[#F0EDFF] text-[#6C5CE7]'
+                          : 'bg-gray-100 text-[#636E72] hover:bg-gray-200'
                       }`}
                     >
                       {filter.label}
@@ -621,8 +621,8 @@ export default function MyCampaigns() {
             </div>
 
             {/* 캠페인 타입 필터 */}
-            <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-gray-100">
-              <p className="text-xs lg:text-sm font-medium text-gray-600 mb-1.5 lg:mb-2 flex items-center gap-2">
+            <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-[#DFE6E9]">
+              <p className="text-xs lg:text-sm font-medium text-[#636E72] mb-1.5 lg:mb-2 flex items-center gap-2">
                 <Megaphone className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> 캠페인 타입
               </p>
               <div className="flex overflow-x-auto gap-1.5 lg:gap-2 pb-1 -mx-1 px-1 scrollbar-hide lg:flex-wrap lg:overflow-x-visible lg:pb-0 lg:mx-0 lg:px-0">
@@ -632,8 +632,8 @@ export default function MyCampaigns() {
                     onClick={() => setSelectedCampaignType(filter.value)}
                     className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-full text-xs lg:text-sm font-medium transition-all flex items-center gap-1 lg:gap-1.5 whitespace-nowrap flex-shrink-0 ${
                       selectedCampaignType === filter.value
-                        ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-[#F0EDFF] text-[#6C5CE7]'
+                        : 'bg-gray-100 text-[#636E72] hover:bg-gray-200'
                     }`}
                   >
                     <span>{filter.icon}</span>
@@ -645,12 +645,12 @@ export default function MyCampaigns() {
           </div>
 
           {/* Campaigns List */}
-          <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-3 lg:px-5 py-3 lg:py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl border border-[#DFE6E9] shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-3 lg:px-5 py-3 lg:py-4 border-b border-[#DFE6E9]">
               <div className="flex items-center gap-2 lg:gap-3">
-                <FolderOpen className="w-4 h-4 lg:w-5 lg:h-5 text-indigo-500" />
-                <h2 className="font-semibold text-gray-900 text-sm lg:text-base">캠페인 목록</h2>
-                <span className="px-2 lg:px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs lg:text-sm font-medium">
+                <FolderOpen className="w-4 h-4 lg:w-5 lg:h-5 text-[#6C5CE7]" />
+                <h2 className="font-semibold text-[#1A1A2E] text-sm lg:text-base">캠페인 목록</h2>
+                <span className="px-2 lg:px-2.5 py-0.5 bg-[#F0EDFF] text-[#6C5CE7] rounded-full text-xs lg:text-sm font-medium font-['Outfit']">
                   {filteredCampaigns.length}개
                 </span>
                 {statsFilter && (
@@ -672,17 +672,17 @@ export default function MyCampaigns() {
                 </div>
               ) : filteredCampaigns.length === 0 ? (
                 <div className="text-center py-12 lg:py-20">
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 mx-auto mb-4 lg:mb-6 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl lg:rounded-2xl flex items-center justify-center">
-                    <FolderOpen className="w-8 h-8 lg:w-10 lg:h-10 text-indigo-400" />
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 mx-auto mb-4 lg:mb-6 bg-[#F0EDFF] rounded-2xl flex items-center justify-center">
+                    <FolderOpen className="w-8 h-8 lg:w-10 lg:h-10 text-[#6C5CE7]" />
                   </div>
-                  <p className="text-base lg:text-xl font-semibold text-gray-700 mb-2">
+                  <p className="text-base lg:text-xl font-semibold text-[#1A1A2E] mb-2">
                     {campaigns.length === 0 ? '아직 등록된 캠페인이 없습니다' : '검색 결과가 없습니다'}
                   </p>
-                  <p className="text-sm lg:text-base text-gray-500 mb-6 lg:mb-8">
+                  <p className="text-sm lg:text-base text-[#636E72] mb-6 lg:mb-8">
                     {campaigns.length === 0 ? '첫 번째 인플루언서 마케팅 캠페인을 시작해보세요' : '다른 검색어나 필터를 시도해보세요'}
                   </p>
                   {campaigns.length === 0 && (
-                    <Button onClick={() => setShowRegionModal(true)} className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 h-11 px-6">
+                    <Button onClick={() => setShowRegionModal(true)} className="bg-[#6C5CE7] hover:bg-[#5A4BD1] h-11 px-6">
                       <Plus className="w-5 h-5 mr-2" />
                       첫 캠페인 등록하기
                     </Button>
@@ -707,12 +707,12 @@ export default function MyCampaigns() {
                     return (
                       <div
                         key={campaign.id}
-                        className="group border border-gray-100 rounded-xl lg:rounded-2xl p-3 lg:p-5 hover:border-indigo-200 hover:shadow-xl cursor-pointer transition-all duration-300 bg-white hover:bg-gradient-to-r hover:from-white hover:to-indigo-50/30 overflow-hidden"
+                        className="group border border-[#DFE6E9] rounded-2xl p-3 lg:p-5 hover:border-[#6C5CE7]/30 hover:shadow-xl cursor-pointer transition-all duration-300 bg-white overflow-hidden"
                         onClick={() => navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)}
                       >
                         <div className="flex gap-3 lg:gap-5">
                           {/* Thumbnail */}
-                          <div className="w-20 h-20 md:w-32 md:h-32 flex-shrink-0 rounded-lg lg:rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-200">
+                          <div className="w-20 h-20 md:w-32 md:h-32 flex-shrink-0 rounded-lg lg:rounded-xl overflow-hidden bg-[#F8F9FA] border border-[#DFE6E9]">
                             {thumbnail ? (
                               <img
                                 src={thumbnail}
@@ -734,24 +734,24 @@ export default function MyCampaigns() {
                           <div className="flex-1 min-w-0">
                             {/* Badges */}
                             <div className="flex flex-wrap items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                              <span className={`inline-flex items-center gap-0.5 lg:gap-1 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-semibold border ${regionInfo.color}`}>
+                              <span className={`inline-flex items-center gap-0.5 lg:gap-1 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-md text-[10px] lg:text-xs font-semibold ${regionInfo.color}`}>
                                 {regionInfo.flag} {regionInfo.label}
                               </span>
-                              <span className={`inline-flex items-center gap-0.5 lg:gap-1.5 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-semibold ${typeInfo.color}`}>
+                              <span className={`inline-flex items-center gap-0.5 lg:gap-1.5 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-md text-[10px] lg:text-xs font-semibold ${typeInfo.color}`}>
                                 <span>{typeInfo.icon}</span>
                                 {typeInfo.label}
                               </span>
-                              <span className={`inline-flex items-center gap-0.5 lg:gap-1.5 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-semibold ${statusInfo.color}`}>
+                              <span className={`inline-flex items-center gap-0.5 lg:gap-1.5 px-1.5 lg:px-2.5 py-0.5 lg:py-1 rounded-md text-[10px] lg:text-xs font-semibold ${statusInfo.color}`}>
                                 <span className={`w-1 h-1 lg:w-1.5 lg:h-1.5 rounded-full ${statusInfo.dotColor} animate-pulse`} />
                                 {statusInfo.label}
                               </span>
                             </div>
 
                             {/* Title & Info */}
-                            <h3 className="font-bold text-gray-900 text-sm lg:text-xl mb-0.5 lg:mb-1 truncate group-hover:text-indigo-600 transition-colors">
+                            <h3 className="font-bold text-[#1A1A2E] text-sm lg:text-xl mb-0.5 lg:mb-1 truncate group-hover:text-[#6C5CE7] transition-colors">
                               {campaign.title}
                             </h3>
-                            <p className="text-xs lg:text-sm text-gray-500 mb-2 lg:mb-3 truncate">
+                            <p className="text-xs lg:text-sm text-[#636E72] mb-2 lg:mb-3 truncate">
                               {campaign.brand && <span className="font-medium">{campaign.brand}</span>}
                               {campaign.brand && campaign.product_name && ' • '}
                               {campaign.product_name}
@@ -759,27 +759,27 @@ export default function MyCampaigns() {
 
                             {/* Stats Row */}
                             <div className="hidden lg:flex flex-wrap items-center gap-2 md:gap-3">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg text-sm">
-                                <Users className="w-4 h-4 text-blue-500" />
-                                <span className="text-gray-600">모집</span>
-                                <span className="font-bold text-blue-600">{campaign.total_slots || 0}명</span>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0EDFF] rounded-lg text-sm">
+                                <Users className="w-4 h-4 text-[#6C5CE7]" />
+                                <span className="text-[#636E72]">모집</span>
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{campaign.total_slots || 0}명</span>
                               </span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   navigate(`/company/campaigns/${campaign.id}?tab=applicants${campaign.region ? `&region=${campaign.region}` : ''}`)
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-sm transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0EDFF] hover:bg-[#E8E3FF] rounded-lg text-sm transition-colors cursor-pointer"
                                 title="지원자 현황 보기"
                               >
-                                <UserCheck className="w-4 h-4 text-emerald-500" />
-                                <span className="text-gray-600">지원</span>
-                                <span className="font-bold text-emerald-600">{participantInfo.total}명</span>
+                                <UserCheck className="w-4 h-4 text-[#6C5CE7]" />
+                                <span className="text-[#636E72]">지원</span>
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.total}명</span>
                               </button>
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 rounded-lg text-sm">
-                                <CheckCircle className="w-4 h-4 text-violet-500" />
-                                <span className="text-gray-600">확정</span>
-                                <span className="font-bold text-violet-600">{participantInfo.selected}명</span>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0EDFF] rounded-lg text-sm">
+                                <CheckCircle className="w-4 h-4 text-[#6C5CE7]" />
+                                <span className="text-[#636E72]">확정</span>
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.selected}명</span>
                               </span>
                               {recruitmentDays !== null && recruitmentDays >= 0 && (
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold ${
@@ -792,17 +792,17 @@ export default function MyCampaigns() {
                             </div>
                             {/* Mobile Stats Row */}
                             <div className="flex lg:hidden items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-md text-[11px]">
-                                <Users className="w-3 h-3 text-blue-500" />
-                                <span className="font-bold text-blue-600">{campaign.total_slots || 0}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
+                                <Users className="w-3 h-3 text-[#6C5CE7]" />
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{campaign.total_slots || 0}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-md text-[11px]">
-                                <UserCheck className="w-3 h-3 text-emerald-500" />
-                                <span className="font-bold text-emerald-600">{participantInfo.total}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
+                                <UserCheck className="w-3 h-3 text-[#6C5CE7]" />
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.total}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-50 rounded-md text-[11px]">
-                                <CheckCircle className="w-3 h-3 text-violet-500" />
-                                <span className="font-bold text-violet-600">{participantInfo.selected}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#F0EDFF] rounded-md text-[11px]">
+                                <CheckCircle className="w-3 h-3 text-[#6C5CE7]" />
+                                <span className="font-bold font-['Outfit'] text-[#6C5CE7]">{participantInfo.selected}</span>
                               </span>
                               {recruitmentDays !== null && recruitmentDays >= 0 && (
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold ${
@@ -817,16 +817,16 @@ export default function MyCampaigns() {
                           {/* Price & Action */}
                           <div className="hidden md:flex flex-col items-end justify-between flex-shrink-0">
                             <div className="text-right">
-                              <div className="text-xs text-gray-400 mb-1">예상 비용</div>
-                              <div className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                              <div className="text-xs text-[#B2BEC3] mb-1">예상 비용</div>
+                              <div className="text-2xl font-bold font-['Outfit'] text-[#6C5CE7]">
                                 {totalCost.toLocaleString()}원
                               </div>
-                              <div className="text-xs text-gray-400 mt-1">{campaign.package_type || '패키지 미선택'}</div>
+                              <div className="text-xs text-[#B2BEC3] mt-1">{campaign.package_type || '패키지 미선택'}</div>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 gap-1"
+                              className="text-[#6C5CE7] hover:text-[#5A4BD1] hover:bg-[#F0EDFF] gap-1"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
@@ -839,12 +839,12 @@ export default function MyCampaigns() {
                         </div>
 
                         {/* Mobile Price */}
-                        <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                        <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-[#DFE6E9]">
                           <div>
-                            <span className="text-[10px] lg:text-xs text-gray-400">예상 비용</span>
-                            <div className="text-base font-bold text-indigo-600">{totalCost.toLocaleString()}원</div>
+                            <span className="text-[10px] lg:text-xs text-[#B2BEC3]">예상 비용</span>
+                            <div className="text-base font-bold font-['Outfit'] text-[#6C5CE7]">{totalCost.toLocaleString()}원</div>
                           </div>
-                          <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 h-8 text-xs px-3">
+                          <Button variant="outline" size="sm" className="border-[#DFE6E9] text-[#6C5CE7] hover:bg-[#F0EDFF] h-8 text-xs px-3">
                             상세보기 <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                           </Button>
                         </div>
@@ -872,15 +872,15 @@ export default function MyCampaigns() {
 
                         {/* 카드 결제 버튼: draft 또는 pending_payment 상태에서 표시 */}
                         {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
-                          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
-                            <p className="text-xs lg:text-sm text-indigo-700 flex items-center gap-1.5 lg:gap-2 min-w-0">
+                          <div className="flex items-center justify-between bg-[#F0EDFF] border border-[#6C5CE7]/20 rounded-lg lg:rounded-xl px-3 lg:px-4 py-2.5 lg:py-3 mt-3 lg:mt-4 overflow-hidden">
+                            <p className="text-xs lg:text-sm text-[#6C5CE7] flex items-center gap-1.5 lg:gap-2 min-w-0">
                               <CreditCard className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" />
                               <span className="truncate">카드 결제로 빠르게 진행하세요</span>
                             </p>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-indigo-400 text-indigo-700 hover:bg-indigo-100 text-xs flex-shrink-0"
+                              className="border-[#6C5CE7]/40 text-[#6C5CE7] hover:bg-[#6C5CE7]/10 text-xs flex-shrink-0"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigate(`/company/campaigns/payment?id=${campaign.id}&region=${campaign.region || 'korea'}`)

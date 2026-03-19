@@ -621,7 +621,6 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState(null)
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
-  const [aiRecommendations, setAiRecommendations] = useState([])
   // 지원자 필터 상태 (고급 검색)
   const [applicantFilters, setApplicantFilters] = useState({
     skinType: 'all',           // 피부 타입
@@ -641,8 +640,8 @@ export default function CampaignDetail() {
     isActiveOnly: false        // 활동 우수 필터
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false) // 고급 필터 표시 여부
-  // 카드에 추가 표시할 항목 (최대 5개) - 기본값: 피부고민
-  const [cardDisplayOptions, setCardDisplayOptions] = useState(['skinConcerns'])
+  // 카드에 추가 표시할 항목 (최대 5개) - 피부고민은 기본 표시되므로 제외
+  const [cardDisplayOptions, setCardDisplayOptions] = useState([])
   const CARD_DISPLAY_OPTIONS = {
     skinConcerns: { label: '피부 고민', icon: '🏷️' },
     personalColor: { label: '퍼스널 컬러', icon: '🎨' },
@@ -654,14 +653,9 @@ export default function CampaignDetail() {
     job: { label: '직업', icon: '💼' },
     aiProfile: { label: 'AI 소개글', icon: '✨' }
   }
-  const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
-  const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
-  const [museCreators, setMuseCreators] = useState([])
-  const [loadingMuseCreators, setLoadingMuseCreators] = useState(false)
-  // AI 추천 크리에이터 (글로우~블룸 등급)
-  const [aiCreatorRecs, setAiCreatorRecs] = useState([])
-  const [loadingAiCreatorRecs, setLoadingAiCreatorRecs] = useState(false)
+  // 통합 AI 추천 크리에이터 (MUSE + BLOOM + GLOW 통합)
+  const [unifiedRecommendations, setUnifiedRecommendations] = useState([])
+  const [loadingUnifiedRecs, setLoadingUnifiedRecs] = useState(false)
   const [showMatchingRequestModal, setShowMatchingRequestModal] = useState(false)
   const [matchingRequestData, setMatchingRequestData] = useState({
     desiredSnsUrl: '',
@@ -931,66 +925,17 @@ export default function CampaignDetail() {
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
-      // 스토리 숏폼은 AI 추천/MUSE 추천 불필요 (지원으로만 모집)
+      // 스토리 숏폼은 AI 추천 불필요 (지원으로만 모집)
       if (campaign.campaign_type !== 'story_short') {
-        fetchAIRecommendations()
-        fetchCnecPlusRecommendations()
-        // 한국 캠페인인 경우에만 MUSE 크리에이터 로드 (베이직/주니어 200,000원 패키지는 제외)
+        // 한국 캠페인 + 베이직/주니어 패키지 제외
         const isBasicPackage = ['basic', 'junior'].includes(campaign.package_type?.toLowerCase()) ||
           (campaign.package_type?.toLowerCase() === 'standard' && campaign.campaign_type === 'planned' && getPackagePrice(campaign.package_type, campaign.campaign_type) <= 200000)
         if (region === 'korea' && !isBasicPackage) {
-          fetchMuseCreators()
-          fetchAiCreatorRecs()
+          fetchUnifiedRecommendations()
         }
       }
     }
   }, [campaign])
-
-  // MUSE 등급 크리에이터 조회 (Korea DB featured_creators)
-  const fetchMuseCreators = async () => {
-    if (region !== 'korea') return
-
-    setLoadingMuseCreators(true)
-    try {
-      const { data, error } = await supabaseKorea
-        .from('featured_creators')
-        .select('*')
-        .eq('cnec_grade_level', 5)
-        .eq('is_active', true)
-        .order('rating', { ascending: false, nullsFirst: false })
-        .limit(20)
-
-      if (error) throw error
-
-      // user_id가 있는 크리에이터의 프로필 사진을 user_profiles에서 가져오기
-      const userIds = (data || []).map(c => c.user_id).filter(Boolean)
-      let profileMap = {}
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabaseKorea
-          .from('user_profiles')
-          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
-          .in('id', userIds)
-        if (profiles) {
-          profiles.forEach(p => {
-            profileMap[p.id] = p.profile_image || p.profile_photo_url || p.profile_image_url || p.avatar_url
-          })
-        }
-      }
-
-      // 크리에이터 프로필 사진 매핑 (user_profiles 우선)
-      const enriched = (data || []).map(c => ({
-        ...c,
-        profile_photo_url: (c.user_id && profileMap[c.user_id]) || c.profile_photo_url || c.profile_image_url
-      }))
-
-      console.log('[MUSE] Found creators from featured_creators:', enriched.length)
-      setMuseCreators(enriched)
-    } catch (error) {
-      console.error('Error fetching MUSE creators:', error)
-    } finally {
-      setLoadingMuseCreators(false)
-    }
-  }
 
   // 배열 셔플 유틸리티
   const shuffleArray = (array) => {
@@ -1002,75 +947,121 @@ export default function CampaignDetail() {
     return shuffled
   }
 
-  // AI 추천 크리에이터 조회 (Korea DB featured_creators: 확정 5명 + 랜덤 5명)
-  const fetchAiCreatorRecs = async () => {
+  // 통합 AI 추천 크리에이터 조회 (MUSE + BLOOM + GLOW → Gemini AI 매칭)
+  const fetchUnifiedRecommendations = async () => {
     if (region !== 'korea') return
 
-    setLoadingAiCreatorRecs(true)
+    setLoadingUnifiedRecs(true)
     try {
-      // Step 1: 확정 5명 조회 (is_ai_pick = true, ai_pick_order 순)
-      const { data: fixedPicks, error: fixedError } = await supabaseKorea
+      // Step 1: 모든 등급 크리에이터 풀 조회 (grade 2~5, active)
+      const { data: allCreators, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
-        .eq('is_ai_pick', true)
+        .in('cnec_grade_level', [2, 3, 4, 5])
         .eq('is_active', true)
-        .order('ai_pick_order', { ascending: true })
-        .limit(5)
+        .order('rating', { ascending: false, nullsFirst: false })
+        .limit(50)
 
-      if (fixedError) throw fixedError
+      if (error) throw error
+      if (!allCreators || allCreators.length === 0) {
+        setUnifiedRecommendations([])
+        return
+      }
 
-      const fixedIds = (fixedPicks || []).map(c => c.id)
-      const museIds = museCreators.map(c => c.id)
-
-      // Step 2: BLOOM + GLOW 크리에이터 풀 (Korea DB featured_creators)
-      const { data: pool, error: poolError } = await supabaseKorea
-        .from('featured_creators')
-        .select('*')
-        .in('cnec_grade_level', [2, 3])
-        .eq('is_active', true)
-
-      if (poolError) throw poolError
-
-      // 확정 5명 및 MUSE와 중복 제외
-      const filteredPool = (pool || []).filter(c =>
-        !fixedIds.includes(c.id) && !museIds.includes(c.id)
-      )
-
-      const randomPicks = shuffleArray(filteredPool).slice(0, 5)
-
-      // Step 3: 확정 5명(is_fixed_pick 마크) + 랜덤 5명 합치기
-      const combined = [
-        ...(fixedPicks || []).filter(c => !museIds.includes(c.id)).map(c => ({ ...c, is_fixed_pick: true })),
-        ...randomPicks.map(c => ({ ...c, is_fixed_pick: false }))
-      ]
-
-      // user_profiles에서 프로필 사진 가져오기
-      const allUserIds = combined.map(c => c.user_id).filter(Boolean)
+      // Step 2: user_profiles에서 프로필 사진 보강
+      const userIds = allCreators.map(c => c.user_id).filter(Boolean)
       let profileMap = {}
-      if (allUserIds.length > 0) {
+      if (userIds.length > 0) {
         const { data: profiles } = await supabaseKorea
           .from('user_profiles')
-          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
-          .in('id', allUserIds)
+          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, age, gender, skin_type, skin_concerns, instagram_followers, youtube_subscribers, tiktok_followers, bio')
+          .in('id', userIds)
         if (profiles) {
           profiles.forEach(p => {
-            profileMap[p.id] = p.profile_image || p.profile_photo_url || p.profile_image_url || p.avatar_url
+            profileMap[p.id] = p
           })
         }
       }
 
-      const enriched = combined.map(c => ({
-        ...c,
-        profile_photo_url: (c.user_id && profileMap[c.user_id]) || c.profile_photo_url || c.profile_image_url
-      }))
+      // Step 3: 크리에이터 정보 보강 (프로필 사진 + 프로필 데이터)
+      const enriched = allCreators.map(c => {
+        const profile = c.user_id ? profileMap[c.user_id] : null
+        return {
+          ...c,
+          profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || c.profile_photo_url || c.profile_image_url,
+          age: profile?.age || c.age,
+          gender: profile?.gender || c.gender,
+          skin_type: profile?.skin_type || c.skin_type,
+          skin_concerns: profile?.skin_concerns || c.skin_concerns,
+          instagram_followers: profile?.instagram_followers || c.instagram_followers || c.followers || 0,
+          youtube_subscribers: profile?.youtube_subscribers || c.youtube_subscribers || 0,
+          tiktok_followers: profile?.tiktok_followers || c.tiktok_followers || 0,
+          bio: profile?.bio || c.bio || c.target_audience
+        }
+      })
 
-      console.log('[AI Creator Rec] Fixed:', fixedPicks?.length || 0, 'Random:', randomPicks.length, 'Total:', enriched.length)
-      setAiCreatorRecs(enriched)
+      // Step 4: Gemini AI 기반 캠페인 매칭 추천 (캐싱 포함)
+      try {
+        const aiResults = await getAIRecommendations(campaign, enriched)
+        if (aiResults && aiResults.length > 0) {
+          // AI 추천 결과와 크리에이터 데이터 매칭
+          const matched = aiResults.map(rec => {
+            const creator = enriched.find(c =>
+              (c.id && c.id === rec.id) ||
+              (c.user_id && c.user_id === rec.id) ||
+              (c.id && c.id === rec.user_id) ||
+              (c.user_id && c.user_id === rec.user_id)
+            )
+            if (!creator) return null
+            return {
+              ...creator,
+              recommendation_score: rec.recommendation_score || 0,
+              recommendation_reason: rec.recommendation_reason || '캠페인 적합도 우수'
+            }
+          }).filter(Boolean)
+
+          if (matched.length > 0) {
+            console.log('[Unified Recs] AI matched:', matched.length)
+            setUnifiedRecommendations(matched.slice(0, 20))
+            return
+          }
+        }
+      } catch (aiError) {
+        console.warn('[Unified Recs] AI recommendation failed, using basic scoring:', aiError.message)
+      }
+
+      // Step 5: AI 실패 시 기본 스코어링 (등급 기반)
+      const basicScored = enriched.map(c => {
+        let score = 0
+        // 등급 점수
+        if (c.cnec_grade_level === 5) score += 50 // MUSE
+        else if (c.cnec_grade_level === 4) score += 40
+        else if (c.cnec_grade_level === 3) score += 30 // BLOOM
+        else if (c.cnec_grade_level === 2) score += 20 // GLOW
+        // 평점 점수
+        score += (c.rating || 0) * 5
+        // 팔로워 점수
+        const totalFollowers = (c.instagram_followers || 0) + (c.youtube_subscribers || 0) + (c.tiktok_followers || 0)
+        if (totalFollowers > 100000) score += 20
+        else if (totalFollowers > 50000) score += 15
+        else if (totalFollowers > 10000) score += 10
+        // AI PICK 보너스
+        if (c.is_ai_pick) score += 10
+        return {
+          ...c,
+          recommendation_score: score,
+          recommendation_reason: c.cnec_grade_level === 5 ? 'TOP 크리에이터' :
+            c.cnec_grade_level >= 3 ? '우수 크리에이터' : '성장형 크리에이터'
+        }
+      }).sort((a, b) => b.recommendation_score - a.recommendation_score)
+
+      console.log('[Unified Recs] Basic scoring applied:', basicScored.length)
+      setUnifiedRecommendations(basicScored.slice(0, 20))
     } catch (error) {
-      console.error('Error fetching AI creator recommendations:', error)
-      setAiCreatorRecs([])
+      console.error('Error fetching unified recommendations:', error)
+      setUnifiedRecommendations([])
     } finally {
-      setLoadingAiCreatorRecs(false)
+      setLoadingUnifiedRecs(false)
     }
   }
 
@@ -1822,115 +1813,6 @@ export default function CampaignDetail() {
       setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
-    }
-  }
-
-  // AI 추천 크리에이터 로드 (featured_creators에서)
-  const fetchAIRecommendations = async () => {
-    setLoadingRecommendations(true)
-    try {
-      const { data: recommendations, error } = await supabaseBiz
-        .from('featured_creators')
-        .select('*')
-        .eq('featured_type', 'ai_recommended')
-        .eq('is_active', true)
-        .order('evaluation_score', { ascending: false })
-        .limit(10)
-
-      if (error) throw error
-      
-      // Transform to match expected format
-      const transformed = recommendations?.map(creator => {
-        const followers = creator.followers || 0
-        let mainChannel = '플랫폼 정보 없음'
-        
-        if (creator.platform === 'youtube') mainChannel = `유튜브 ${followers.toLocaleString()}`
-        else if (creator.platform === 'instagram') mainChannel = `인스타그램 ${followers.toLocaleString()}`
-        else if (creator.platform === 'tiktok') mainChannel = `틱톡 ${followers.toLocaleString()}`
-        
-        return {
-          id: creator.id,
-          name: creator.channel_name,
-          profile_photo_url: creator.profile_image,
-          youtube_subscribers: creator.platform === 'youtube' ? followers : 0,
-          instagram_followers: creator.platform === 'instagram' ? followers : 0,
-          tiktok_followers: creator.platform === 'tiktok' ? followers : 0,
-          youtube_url: creator.platform === 'youtube' ? creator.channel_url : null,
-          instagram_url: creator.platform === 'instagram' ? creator.channel_url : null,
-          tiktok_url: creator.platform === 'tiktok' ? creator.channel_url : null,
-          bio: creator.target_audience,
-          age: null,
-          score: creator.evaluation_score || 0,
-          main_channel: mainChannel,
-          user_id: creator.user_id  // For matching
-        }
-      }) || []
-      
-      setAiRecommendations(transformed)
-      console.log('[CampaignDetail] Loaded AI recommendations:', transformed.length)
-    } catch (error) {
-      console.error('AI 추천 로드 오류:', error)
-      setAiRecommendations([])
-    } finally {
-      setLoadingRecommendations(false)
-    }
-  }
-
-  // 크넥 플러스 AI 추천 크리에이터 로드 (추가금 필요)
-  const fetchCnecPlusRecommendations = async () => {
-    setLoadingCnecPlus(true)
-    try {
-      const { data: creators, error } = await supabaseBiz
-        .from('featured_creators')
-        .select('*')
-        .eq('featured_type', 'cnec_plus')
-        .eq('is_active', true)
-        .order('evaluation_score', { ascending: false })
-        .limit(5)
-      
-      if (error) throw error
-      
-      if (!creators || creators.length === 0) {
-        console.log('[CampaignDetail] No CNEC Plus creators available')
-        setCnecPlusRecommendations([])
-        return
-      }
-      
-      // Transform to match expected format
-      const transformed = creators.map(creator => {
-        const followers = creator.followers || 0
-        let mainChannel = '플랫폼 정보 없음'
-        
-        if (creator.platform === 'youtube') mainChannel = `유튜브 ${followers.toLocaleString()}`
-        else if (creator.platform === 'instagram') mainChannel = `인스타그램 ${followers.toLocaleString()}`
-        else if (creator.platform === 'tiktok') mainChannel = `틱톡 ${followers.toLocaleString()}`
-        
-        return {
-          id: creator.id,
-          name: creator.channel_name,
-          profile_photo_url: creator.profile_image,
-          youtube_subscribers: creator.platform === 'youtube' ? followers : 0,
-          instagram_followers: creator.platform === 'instagram' ? followers : 0,
-          tiktok_followers: creator.platform === 'tiktok' ? followers : 0,
-          youtube_url: creator.platform === 'youtube' ? creator.channel_url : null,
-          instagram_url: creator.platform === 'instagram' ? creator.channel_url : null,
-          tiktok_url: creator.platform === 'tiktok' ? creator.channel_url : null,
-          bio: creator.target_audience,
-          age: null,
-          score: creator.evaluation_score || 0,
-          main_channel: mainChannel,
-          user_id: creator.user_id,
-          upgrade_price: creator.upgrade_price || 0  // 추가금
-        }
-      })
-      
-      setCnecPlusRecommendations(transformed)
-      console.log('[CampaignDetail] Loaded CNEC Plus recommendations:', transformed.length)
-    } catch (error) {
-      console.error('크넥 플러스 추천 로드 오류:', error)
-      setCnecPlusRecommendations([])
-    } finally {
-      setLoadingCnecPlus(false)
     }
   }
 
@@ -8745,22 +8627,22 @@ Questions? Contact us.
           <TabsContent value="applications">
             {/* 베이직 패키지 안내 (AI 추천 & MUSE 추천 미제공) - 스토리 캠페인 제외 */}
             {region === 'korea' && campaign?.campaign_type !== 'story_short' && (['basic', 'junior'].includes(campaign?.package_type?.toLowerCase())) && (
-              <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <Card className="mb-6 bg-[#F0EDFF] border border-[#DFE6E9] rounded-2xl">
                 <CardContent className="py-6">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-10 h-10 bg-[#6C5CE7] rounded-full flex items-center justify-center">
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 text-sm mb-1">
-                        AI 추천 크리에이터 & MUSE 추천 크리에이터
+                      <h4 className="font-semibold text-[#1A1A2E] text-sm mb-1">
+                        AI 추천 크리에이터
                       </h4>
-                      <p className="text-sm text-gray-600 leading-relaxed">
+                      <p className="text-sm text-[#636E72] leading-relaxed">
                         더 높은 퀄리티의 크리에이터 매칭을 원하시나요?
                         <br />
-                        <span className="text-indigo-600 font-medium">스탠다드(30만원) 이상 패키지</span>부터 AI가 분석한 맞춤 추천 크리에이터와 최상위 MUSE 크리에이터를 만나보실 수 있습니다.
+                        <span className="text-[#6C5CE7] font-medium">스탠다드(30만원) 이상 패키지</span>부터 AI가 분석한 맞춤 추천 크리에이터를 만나보실 수 있습니다.
                       </p>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-[#B2BEC3] mt-2">
                         패키지 업그레이드는 새 캠페인 등록 시 선택하실 수 있습니다.
                       </p>
                     </div>
@@ -8769,524 +8651,170 @@ Questions? Contact us.
               </Card>
             )}
 
-            {/* MUSE 추천 크리에이터 섹션 (한국 캠페인 전용) - 스토리 캠페인 제외 */}
-            {region === 'korea' && campaign?.campaign_type !== 'story_short' && museCreators.length > 0 && (
-              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-                <CardHeader>
+            {/* 통합 AI 추천 크리에이터 섹션 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && unifiedRecommendations.length > 0 && (
+              <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl shadow-sm">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <span className="text-amber-500">👑</span>
-                        MUSE 추천 크리에이터
-                        <Badge className="bg-amber-500 text-white">{museCreators.length}명</Badge>
-                      </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">
-                        크넥 최상위 등급 크리에이터 · 초대장 발송으로 우선 섭외하세요
-                      </p>
-                    </div>
-                  </div>
-                  {/* 초대장 발송 안내 배너 */}
-                  {campaign.approval_status === 'approved' ? (
-                    <div className="mt-4 p-3 bg-gradient-to-r from-violet-100 to-purple-100 rounded-lg border border-violet-200">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-violet-500 rounded-full flex items-center justify-center">
-                          <Mail className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-violet-800 text-sm mb-1">
-                            초대장을 발송하면 알림톡으로 지원 소식을 받아보세요!
-                          </h4>
-                          <p className="text-xs text-violet-600 leading-relaxed">
-                            크리에이터에게 초대장을 발송하면, 크리에이터가 <strong>캠페인에 지원할 때 카카오 알림톡</strong>으로 즉시 알려드립니다.
-                            <br />빠른 섭외를 위해 MUSE 크리에이터에게 초대장을 발송해보세요!
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500 text-white text-xs font-medium rounded-full">
-                            <Sparkles className="w-3 h-3" />
-                            지원 시 즉시 알림
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 p-3 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg border border-gray-300">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
-                          <AlertCircle className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-700 text-sm mb-1">
-                            캠페인 활성화 후 초대장 발송 가능
-                          </h4>
-                          <p className="text-xs text-gray-600 leading-relaxed">
-                            캠페인이 <strong>승인(활성화)</strong>되면 MUSE 크리에이터에게 초대장을 발송할 수 있습니다.
-                            <br />결제를 완료하고 캠페인을 활성화해주세요.
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-400 text-white text-xs font-medium rounded-full">
-                            발송 대기 중
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {museCreators.map((creator, index) => {
-                      const reviews = creator.company_reviews || []
-                      const avgRating = reviews.length > 0
-                        ? reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
-                        : parseFloat(creator.rating) || 0
-                      const getYtThumb = (url) => {
-                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
-                      }
-
-                      return (
-                        <div key={creator.id || index} className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow border-2 border-amber-200">
-                          <div className="flex flex-col items-center text-center">
-                            {/* 프로필 사진 + MUSE 뱃지 */}
-                            <div className="relative mb-1.5">
-                              <img
-                                src={creator.profile_photo_url || creator.profile_image_url || '/default-avatar.png'}
-                                alt={creator.name}
-                                className="w-14 h-14 rounded-full object-cover border-2 border-amber-400"
-                              />
-                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[9px] rounded-full px-1.5 py-0.5 font-bold">
-                                MUSE
-                              </div>
-                            </div>
-                            <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{creator.name}</h4>
-                            <p className="text-[10px] text-gray-400">크리에이터</p>
-
-                            {/* 소개글 */}
-                            {creator.bio && (
-                              <p className="text-[10px] text-gray-600 leading-relaxed line-clamp-2 text-left w-full mt-1" title={creator.bio}>
-                                {creator.bio}
-                              </p>
-                            )}
-
-                            {/* 평점 + 후기 수 */}
-                            {avgRating > 0 && (
-                              <div className="w-full mt-1 flex items-center gap-1">
-                                <div className="flex items-center gap-0.5">
-                                  {[1, 2, 3, 4, 5].map(s => (
-                                    <Star key={s} className={`w-2.5 h-2.5 ${s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
-                                  ))}
-                                </div>
-                                <span className="text-[10px] font-medium text-amber-600">{avgRating.toFixed(1)}</span>
-                                {reviews.length > 0 && <span className="text-[9px] text-gray-400">({reviews.length}건)</span>}
-                              </div>
-                            )}
-
-                            {/* 기업 후기 (최신 1건) */}
-                            {reviews.length > 0 && (
-                              <div className="w-full mt-1 bg-amber-50 rounded p-1.5">
-                                <p className="text-[9px] text-amber-700 font-medium">{reviews[reviews.length - 1].company_name}</p>
-                                <p className="text-[9px] text-gray-600 line-clamp-2 leading-relaxed">&ldquo;{reviews[reviews.length - 1].review_text}&rdquo;</p>
-                              </div>
-                            )}
-
-                            {/* 대표영상 썸네일 */}
-                            {creator.representative_videos?.length > 0 && (
-                              <div className="w-full mt-1.5 pt-1.5 border-t border-amber-100">
-                                <p className="text-[9px] text-red-400 mb-1 text-left font-medium">▶ 대표영상 ({creator.representative_videos.length})</p>
-                                <div className="flex gap-1 overflow-x-auto">
-                                  {creator.representative_videos.slice(0, 3).map((url, vi) => {
-                                    const thumb = getYtThumb(url)
-                                    return thumb ? (
-                                      <a key={vi} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
-                                        <img src={thumb} alt="" className="w-14 h-20 rounded object-cover border border-gray-200 group-hover:border-amber-400 transition-colors" />
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <div className="w-4 h-4 bg-black/60 rounded-full flex items-center justify-center">
-                                            <svg className="w-2 h-2 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                          </div>
-                                        </div>
-                                      </a>
-                                    ) : null
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 크넥협업 개수만 표시 */}
-                            {creator.cnec_collab_videos?.length > 0 && (
-                              <div className="w-full mt-1 text-center">
-                                <span className="text-[9px] text-blue-400 font-medium">★ 크넥협업 {creator.cnec_collab_videos.length}건</span>
-                              </div>
-                            )}
-
-                            {/* 버튼 영역 */}
-                            <div className="flex flex-col gap-1 w-full mt-1.5 pt-1.5 border-t border-amber-100">
-                              <Button
-                                size="sm"
-                                className={`w-full text-[10px] h-7 ${campaign.approval_status === 'approved' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                                disabled={campaign.approval_status !== 'approved'}
-                                onClick={async () => {
-                                  if (campaign.approval_status !== 'approved') {
-                                    alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
-                                    return
-                                  }
-                                  try {
-                                    const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
-                                    if (!currentUser) { alert('로그인이 필요합니다.'); return }
-
-                                    const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
-                                      `크리에이터: ${creator.name}\n` +
-                                      `캠페인: ${campaign?.title || ''}\n\n` +
-                                      `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
-
-                                    if (!confirm(warningMsg)) return
-
-                                    const response = await fetch('/.netlify/functions/send-creator-invitation', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        campaignId: id,
-                                        creatorId: creator.user_id || creator.id,
-                                        invitedBy: currentUser.id,
-                                        companyEmail: currentUser.email
-                                      })
-                                    })
-                                    const result = await response.json()
-                                    if (result.success) {
-                                      alert('초대장을 성공적으로 발송했습니다!')
-                                      setMuseCreators(prev => prev.filter(c => c.id !== creator.id))
-                                    } else {
-                                      alert(result.error || '초대장 발송에 실패했습니다.')
-                                    }
-                                  } catch (error) {
-                                    console.error('Error sending invitation:', error)
-                                    alert('초대장 발송 중 오류가 발생했습니다.')
-                                  }
-                                }}
-                              >
-                                <Send className="w-3 h-3 mr-1" />
-                                초대장 발송
-                              </Button>
-                              {/* SNS 팔로워 수 */}
-                              <div className="flex items-center justify-center gap-2 text-[9px] text-gray-500">
-                                {creator.instagram_followers > 0 && (
-                                  <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-pink-500">
-                                    <Instagram className="w-2.5 h-2.5" />
-                                    <span>{creator.instagram_followers.toLocaleString()}</span>
-                                  </a>
-                                )}
-                                {creator.youtube_subscribers > 0 && (
-                                  <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-red-500">
-                                    <Youtube className="w-2.5 h-2.5" />
-                                    <span>{creator.youtube_subscribers.toLocaleString()}</span>
-                                  </a>
-                                )}
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="w-full text-[10px] h-5"
-                                onClick={async () => {
-                                  try {
-                                    let profile = null
-                                    const userId = creator.user_id
-                                    if (userId) {
-                                      const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', userId).maybeSingle()
-                                      if (p1) profile = p1
-                                    }
-                                    const photoUrl = creator.profile_photo_url || creator.profile_image_url || profile?.profile_photo_url
-                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl, company_reviews: reviews })
-                                    setShowProfileModal(true)
-                                  } catch (error) {
-                                    console.error('Error fetching profile:', error)
-                                    setSelectedParticipant({ ...creator, company_reviews: reviews })
-                                    setShowProfileModal(true)
-                                  }
-                                }}
-                              >
-                                프로필 보기
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* MUSE 크리에이터 로딩 중 - 스토리 캠페인 제외 */}
-            {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingMuseCreators && (
-              <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-                <CardContent className="py-8">
-                  <div className="flex items-center justify-center gap-2 text-amber-600">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>MUSE 크리에이터 로딩 중...</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* AI 추천 크리에이터 섹션 (글로우~블룸 등급, 확정5 + 랜덤5 = 최대 10명) - 스토리 캠페인 제외 */}
-            {region === 'korea' && campaign?.campaign_type !== 'story_short' && aiCreatorRecs.length > 0 && (
-              <Card className="mb-6 bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-200">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-indigo-500" />
+                      <CardTitle className="text-lg font-bold text-[#1A1A2E] flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-[#6C5CE7]" />
                         AI 추천 크리에이터
-                        <Badge className="bg-indigo-500 text-white">{aiCreatorRecs.length}명</Badge>
+                        <span className="px-2 py-0.5 text-xs font-medium bg-[#F0EDFF] text-[#6C5CE7] rounded-md">{unifiedRecommendations.length}명</span>
                       </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">
-                        AI가 캠페인에 어울리는 그로우~블룸 등급 크리에이터를 추천합니다
-                      </p>
+                      <p className="text-sm text-[#636E72] mt-1">캠페인에 맞는 크리에이터를 AI가 분석하여 추천합니다</p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-indigo-300 text-indigo-600 hover:bg-indigo-100"
-                      onClick={() => setShowMatchingRequestModal(true)}
-                    >
-                      <MessageSquare className="w-4 h-4 mr-1" />
-                      담당자에게 매칭 요청
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowMatchingRequestModal(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#6C5CE7] bg-[#F0EDFF] hover:bg-[#6C5CE7] hover:text-white rounded-xl transition-all"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        담당자에게 매칭 요청
+                      </button>
+                    </div>
                   </div>
-                  {/* 초대장 발송 안내 배너 */}
-                  {campaign.approval_status === 'approved' ? (
-                    <div className="mt-4 p-3 bg-gradient-to-r from-indigo-100 to-cyan-100 rounded-lg border border-indigo-200">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center">
-                          <Mail className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-indigo-800 text-sm mb-1">
-                            AI가 캠페인과 어울리는 크리에이터를 추천했습니다!
-                          </h4>
-                          <p className="text-xs text-indigo-600 leading-relaxed">
-                            진행 건수, 등급, 프로필을 종합 분석하여 추천된 크리에이터입니다.
-                            <br />마음에 드는 크리에이터에게 초대장을 발송해보세요!
-                          </p>
-                          <p className="text-[11px] text-orange-600 font-semibold mt-1.5 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            초대장 발송 전 카카오채널 등록을 꼭 완료해주세요! (알림톡 수신 필수)
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full">
-                            <Sparkles className="w-3 h-3" />
-                            AI 추천
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 p-3 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg border border-gray-300">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
-                          <AlertCircle className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-700 text-sm mb-1">
-                            캠페인 활성화 후 초대장 발송 가능
-                          </h4>
-                          <p className="text-xs text-gray-600 leading-relaxed">
-                            캠페인이 <strong>승인(활성화)</strong>되면 추천 크리에이터에게 초대장을 발송할 수 있습니다.
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-400 text-white text-xs font-medium rounded-full">
-                            발송 대기 중
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </CardHeader>
                 <CardContent>
+                  {/* 캠페인 미승인 시 안내 */}
+                  {campaign?.approval_status !== 'approved' && (
+                    <div className="mb-4 p-3 bg-[#F8F9FA] rounded-xl flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-[#636E72] mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-[#636E72]">
+                        캠페인이 활성화되면 초대장 발송이 가능합니다. 현재는 추천 목록만 확인할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
+                  {/* 승인된 캠페인 안내 */}
+                  {campaign?.approval_status === 'approved' && (
+                    <div className="mb-4 p-3 bg-[rgba(0,184,148,0.06)] rounded-xl flex items-start gap-2">
+                      <Mail className="w-4 h-4 text-[#00B894] mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-[#636E72]">
+                        마음에 드는 크리에이터에게 초대장을 발송해보세요. 카카오톡 알림이 전달됩니다.
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {aiCreatorRecs.map((creator, index) => {
-                      const gradeLevel = creator.cnec_grade_level
-                      const gradeName = creator.cnec_grade_name || (gradeLevel === 3 ? 'BLOOM' : gradeLevel === 2 ? 'GLOW' : '')
-                      const isFixedPick = creator.is_fixed_pick
-                      const totalFollowers = (creator.instagram_followers || 0) + (creator.youtube_subscribers || 0) + (creator.tiktok_followers || 0)
-                      const isTopPerformer = (creator.total_campaigns || 0) >= 5
-
-                      // YouTube URL에서 썸네일 추출
-                      const getYtThumb = (url) => {
-                        const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-                        return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
-                      }
+                    {unifiedRecommendations.map((creator, index) => {
+                      const gradeLabel = creator.cnec_grade_level === 5 ? 'MUSE' :
+                        creator.cnec_grade_level === 4 ? 'STAR' :
+                        creator.cnec_grade_level === 3 ? 'BLOOM' : 'GLOW'
+                      const gradeColor = creator.cnec_grade_level === 5 ? 'bg-amber-100 text-amber-700' :
+                        creator.cnec_grade_level === 4 ? 'bg-purple-100 text-purple-700' :
+                        creator.cnec_grade_level === 3 ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
+                      const matchPercent = creator.recommendation_score ? Math.min(Math.round(creator.recommendation_score), 99) : null
 
                       return (
-                        <div key={creator.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border border-indigo-200 relative">
-                          {/* PICK 뱃지 (확정 크리에이터) */}
-                          {isFixedPick && (
-                            <div className="absolute -top-2 -left-2 z-10">
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] font-bold rounded-full shadow-sm">
-                                <Star className="w-2.5 h-2.5 fill-current" />
-                                PICK
-                              </span>
+                        <div key={creator.id || index} className="bg-white border border-[#DFE6E9] rounded-2xl p-4 hover:shadow-md hover:border-[#6C5CE7]/20 transition-all relative group">
+                          {/* 매치율 뱃지 */}
+                          {matchPercent && (
+                            <div className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold bg-[#F0EDFF] text-[#6C5CE7] rounded-full font-['Outfit']">
+                              {matchPercent}%
                             </div>
                           )}
-                          {/* Top Performer 마크 */}
-                          {!isFixedPick && isTopPerformer && (
-                            <div className="absolute -top-2 -left-2 z-10">
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[9px] font-bold rounded-full shadow-sm">
-                                <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                                다건 진행
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex flex-col items-center text-center">
+
+                          {/* 프로필 */}
+                          <div className="flex flex-col items-center text-center mb-3">
                             <div className="relative mb-2">
                               <img
-                                src={creator.profile_photo_url || creator.profile_image_url || '/default-avatar.png'}
-                                alt={creator.name}
-                                className={`w-16 h-16 rounded-full object-cover border-2 ${gradeLevel === 3 ? 'border-violet-400' : 'border-blue-400'}`}
+                                src={creator.profile_photo_url || '/default-avatar.png'}
+                                alt={creator.name || creator.channel_name}
+                                className="w-16 h-16 rounded-full object-cover border-2 border-[#DFE6E9]"
+                                onError={(e) => { e.target.src = '/default-avatar.png' }}
                               />
-                              {gradeName && (
-                                <div className={`absolute -top-1 -right-1 ${gradeLevel === 3 ? 'bg-violet-500' : 'bg-blue-500'} text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold`}>
-                                  {gradeName}
-                                </div>
+                              {/* 등급 뱃지 */}
+                              <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[9px] font-bold rounded-full whitespace-nowrap ${gradeColor}`}>
+                                {gradeLabel}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-[#1A1A2E] mt-1 truncate w-full">{creator.name || creator.channel_name}</h4>
+                            {creator.bio && (
+                              <p className="text-[11px] text-[#636E72] line-clamp-2 mt-1 leading-relaxed">{creator.bio}</p>
+                            )}
+                          </div>
+
+                          {/* AI 추천 이유 */}
+                          {creator.recommendation_reason && (
+                            <div className="mb-3 px-2 py-1.5 bg-[#F0EDFF] rounded-lg">
+                              <p className="text-[10px] text-[#6C5CE7] font-medium line-clamp-2">{creator.recommendation_reason}</p>
+                            </div>
+                          )}
+
+                          {/* 평점 & 리뷰 */}
+                          {(creator.rating || creator.company_reviews?.length > 0) && (
+                            <div className="flex items-center justify-center gap-1 mb-2">
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                              <span className="text-xs font-medium text-[#1A1A2E] font-['Outfit']">{creator.rating?.toFixed(1) || '0.0'}</span>
+                              {creator.company_reviews?.length > 0 && (
+                                <span className="text-[10px] text-[#B2BEC3]">({creator.company_reviews.length})</span>
                               )}
                             </div>
-                            <h4 className="font-semibold text-xs mb-0.5 truncate w-full">{creator.name || '크리에이터'}</h4>
-                            {/* 소개글 */}
-                            {creator.bio && (
-                              <p className="text-[10px] text-gray-500 mb-0.5 line-clamp-2 w-full text-left">
-                                {creator.bio}
-                              </p>
-                            )}
-                            {/* 평점 + 후기 */}
-                            {(() => {
-                              const reviews = creator.company_reviews || []
-                              const avgRating = reviews.length > 0
-                                ? reviews.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / reviews.length
-                                : parseFloat(creator.rating) || 0
-                              return avgRating > 0 ? (
-                                <div className="w-full flex items-center gap-1 mb-0.5">
-                                  <div className="flex items-center gap-0.5">
-                                    {[1, 2, 3, 4, 5].map(s => (
-                                      <Star key={s} className={`w-2.5 h-2.5 ${s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
-                                    ))}
-                                  </div>
-                                  <span className="text-[10px] font-medium text-amber-600">{avgRating.toFixed(1)}</span>
-                                  {reviews.length > 0 && <span className="text-[9px] text-gray-400">({reviews.length})</span>}
-                                </div>
-                              ) : null
-                            })()}
-                            {totalFollowers > 0 && (
-                              <p className="text-[10px] text-indigo-600 font-medium mb-0.5">
-                                팔로워 {totalFollowers.toLocaleString()}
-                              </p>
-                            )}
-                            {/* 확정 크리에이터 대표영상 썸네일 (1개) */}
-                            {isFixedPick && creator.representative_videos?.length > 0 && (() => {
-                              const thumb = getYtThumb(creator.representative_videos[0])
-                              return thumb ? (
-                                <a href={creator.representative_videos[0]} target="_blank" rel="noopener noreferrer" className="w-full mb-1.5 block group relative">
-                                  <img src={thumb} alt="대표영상" className="w-full h-16 rounded object-cover border border-gray-200 group-hover:border-indigo-400 transition-colors" />
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="w-6 h-6 bg-black/60 rounded-full flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                    </div>
-                                  </div>
-                                </a>
-                              ) : null
-                            })()}
-                            <div className="flex flex-col gap-1.5 w-full">
-                              <Button
-                                size="sm"
-                                className={`w-full text-xs h-8 ${campaign.approval_status === 'approved' ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                                disabled={campaign.approval_status !== 'approved'}
-                                onClick={async () => {
-                                  if (campaign.approval_status !== 'approved') {
-                                    alert('캠페인이 활성화되면 초대장을 발송할 수 있습니다.')
-                                    return
-                                  }
-                                  try {
-                                    const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
-                                    if (!currentUser) { alert('로그인이 필요합니다.'); return }
+                          )}
 
-                                    const warningMsg = `[초대장 발송 = 100% 선정 확정]\n\n` +
-                                      `크리에이터: ${creator.name}\n` +
-                                      `등급: ${gradeName || 'N/A'}\n` +
-                                      `캠페인: ${campaign?.title || ''}\n\n` +
-                                      `초대장 수락 시 자동 선정됩니다.\n신중하게 확인 후 발송해주세요.`
-
-                                    if (!confirm(warningMsg)) return
-
-                                    const response = await fetch('/.netlify/functions/send-creator-invitation', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        campaignId: id,
-                                        creatorId: creator.user_id || creator.id,
-                                        invitedBy: currentUser.id,
-                                        companyEmail: currentUser.email
-                                      })
-                                    })
-                                    const result = await response.json()
-                                    if (result.success) {
-                                      alert('초대장을 성공적으로 발송했습니다!')
-                                      setAiCreatorRecs(prev => prev.filter(r => r.id !== creator.id))
-                                    } else {
-                                      alert(result.error || '초대장 발송에 실패했습니다.')
-                                    }
-                                  } catch (error) {
-                                    console.error('Error sending invitation:', error)
-                                    alert('초대장 발송 중 오류가 발생했습니다.')
-                                  }
-                                }}
-                              >
-                                <Send className="w-3 h-3 mr-1" />
-                                초대장 발송
-                              </Button>
-                              {/* SNS 팔로워 수 */}
-                              <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
-                                {creator.instagram_followers > 0 && (
-                                  <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-pink-500">
-                                    <Instagram className="w-3 h-3" />
-                                    <span>{creator.instagram_followers.toLocaleString()}</span>
-                                  </a>
-                                )}
-                                {creator.youtube_subscribers > 0 && (
-                                  <a href={creator.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-red-500">
-                                    <Youtube className="w-3 h-3" />
-                                    <span>{creator.youtube_subscribers.toLocaleString()}</span>
-                                  </a>
-                                )}
-                                {creator.tiktok_followers > 0 && (
-                                  <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-black">
-                                    <span>TT {creator.tiktok_followers.toLocaleString()}</span>
-                                  </a>
-                                )}
+                          {/* SNS 팔로워 */}
+                          <div className="space-y-1 mb-3">
+                            {(creator.instagram_followers > 0 || creator.instagram_url) && (
+                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                                <span className="flex items-center gap-1 text-[#636E72]">
+                                  <svg className="w-3 h-3 text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                                  Instagram
+                                </span>
+                                <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.instagram_followers || 0).toLocaleString()}</span>
                               </div>
+                            )}
+                            {(creator.youtube_subscribers > 0 || creator.youtube_url) && (
+                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                                <span className="flex items-center gap-1 text-[#636E72]">
+                                  <svg className="w-3 h-3 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                  YouTube
+                                </span>
+                                <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.youtube_subscribers || 0).toLocaleString()}</span>
+                              </div>
+                            )}
+                            {(creator.tiktok_followers > 0 || creator.tiktok_url) && (
+                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                                <span className="flex items-center gap-1 text-[#636E72]">
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                                  TikTok
+                                </span>
+                                <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.tiktok_followers || 0).toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 액션 버튼 */}
+                          <div className="space-y-1.5">
+                            <Button
+                              size="sm"
+                              className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white rounded-xl text-xs h-8"
+                              onClick={() => handleSendInvitation(creator)}
+                              disabled={campaign?.approval_status !== 'approved'}
+                            >
+                              <Mail className="w-3 h-3 mr-1" />
+                              초대장 발송
+                            </Button>
+                            <div className="flex gap-1.5">
+                              {(creator.instagram_url || creator.youtube_url || creator.channel_url) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 rounded-xl text-[10px] h-7 border-[#DFE6E9] text-[#636E72] hover:text-[#1A1A2E]"
+                                  onClick={() => window.open(creator.instagram_url || creator.youtube_url || creator.channel_url, '_blank')}
+                                >
+                                  <ExternalLink className="w-3 h-3 mr-0.5" />
+                                  SNS
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="w-full text-[10px] h-6"
-                                onClick={async () => {
-                                  try {
-                                    let profile = null
-                                    const userId = creator.user_id
-                                    if (userId) {
-                                      const { data: p1 } = await supabaseKorea.from('user_profiles').select('*').eq('id', userId).maybeSingle()
-                                      if (p1) profile = p1
-                                    }
-                                    const photoUrl = creator.profile_photo_url || creator.profile_image_url || profile?.profile_photo_url
-                                    setSelectedParticipant({ ...creator, ...profile, profile_photo_url: photoUrl })
-                                    setShowProfileModal(true)
-                                  } catch (error) {
-                                    console.error('Error fetching profile:', error)
-                                    setSelectedParticipant(creator)
-                                    setShowProfileModal(true)
-                                  }
+                                variant="outline"
+                                className="flex-1 rounded-xl text-[10px] h-7 border-[#DFE6E9] text-[#636E72] hover:text-[#1A1A2E]"
+                                onClick={() => {
+                                  setSelectedCreatorProfile(creator)
+                                  setShowProfileModal(true)
                                 }}
                               >
-                                프로필 보기
+                                프로필
                               </Button>
                             </div>
                           </div>
@@ -9294,34 +8822,17 @@ Questions? Contact us.
                       )
                     })}
                   </div>
-                  {/* 매칭 요청 안내 */}
-                  <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-indigo-500" />
-                        <span className="text-sm text-gray-700">추천 크리에이터가 마음에 안 드시나요?</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-indigo-300 text-indigo-600 hover:bg-indigo-100 text-xs"
-                        onClick={() => setShowMatchingRequestModal(true)}
-                      >
-                        담당자에게 매칭 요청하기
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* AI 추천 크리에이터 로딩 중 - 스토리 캠페인 제외 */}
-            {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingAiCreatorRecs && (
-              <Card className="mb-6 bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-200">
+            {/* AI 추천 로딩 중 */}
+            {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingUnifiedRecs && (
+              <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl">
                 <CardContent className="py-8">
-                  <div className="flex items-center justify-center gap-2 text-indigo-600">
+                  <div className="flex items-center justify-center gap-2 text-[#6C5CE7]">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>AI 추천 크리에이터 분석 중...</span>
+                    <span>AI가 캠페인에 맞는 크리에이터를 분석 중...</span>
                   </div>
                 </CardContent>
               </Card>
@@ -9333,7 +8844,7 @@ Questions? Contact us.
                 <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-indigo-500" />
+                      <MessageSquare className="w-5 h-5 text-[#6C5CE7]" />
                       크리에이터 매칭 상담 신청
                     </h3>
                     <button
@@ -9358,7 +8869,7 @@ Questions? Contact us.
                       <input
                         type="text"
                         placeholder="예: https://www.instagram.com/example_creator"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6C5CE7] focus:border-[#6C5CE7]"
                         value={matchingRequestData.desiredSnsUrl}
                         onChange={(e) => setMatchingRequestData(prev => ({ ...prev, desiredSnsUrl: e.target.value }))}
                       />
@@ -9373,7 +8884,7 @@ Questions? Contact us.
                       <input
                         type="text"
                         placeholder="예: https://www.youtube.com/watch?v=..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6C5CE7] focus:border-[#6C5CE7]"
                         value={matchingRequestData.desiredVideoStyleUrl}
                         onChange={(e) => setMatchingRequestData(prev => ({ ...prev, desiredVideoStyleUrl: e.target.value }))}
                       />
@@ -9387,7 +8898,7 @@ Questions? Contact us.
                       </label>
                       <textarea
                         placeholder="원하는 크리에이터 스타일, 콘텐츠 방향, 예산 등 자유롭게 작성해주세요"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 h-28 resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6C5CE7] focus:border-[#6C5CE7] h-28 resize-none"
                         value={matchingRequestData.requestMessage}
                         onChange={(e) => setMatchingRequestData(prev => ({ ...prev, requestMessage: e.target.value }))}
                       />
@@ -9403,7 +8914,7 @@ Questions? Contact us.
                       취소
                     </Button>
                     <Button
-                      className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white"
+                      className="flex-1 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
                       onClick={handleMatchingRequest}
                       disabled={sendingMatchingRequest}
                     >
@@ -9432,25 +8943,25 @@ Questions? Contact us.
             )}
 
             {/* 지원한 크리에이터 섹션 - 개편된 UI */}
-            <Card className="border-0 shadow-sm">
+            <Card className="bg-white border border-[#DFE6E9] rounded-2xl shadow-sm">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl font-bold text-gray-900">지원자 관리</CardTitle>
-                    <p className="text-sm text-gray-400 mt-0.5">캠페인에 지원한 인플루언서를 확인하고 선택하세요</p>
+                    <CardTitle className="text-xl font-bold text-[#1A1A2E]">지원자 관리</CardTitle>
+                    <p className="text-sm text-[#636E72] mt-0.5">캠페인에 지원한 인플루언서를 확인하고 선택하세요</p>
                   </div>
                   <div className="flex items-center gap-8 text-right">
                     <div>
-                      <p className="text-xs text-gray-400 mb-0.5">전체 지원</p>
-                      <p className="text-3xl font-bold text-gray-900">{applications.length}</p>
+                      <p className="text-xs text-[#B2BEC3] mb-0.5">전체 지원</p>
+                      <p className="text-3xl font-bold text-[#1A1A2E] font-['Outfit']">{applications.length}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400 mb-0.5">인증완료</p>
-                      <p className="text-3xl font-bold text-emerald-500">{applications.filter(a => a.account_status === 'verified').length}</p>
+                      <p className="text-xs text-[#B2BEC3] mb-0.5">인증완료</p>
+                      <p className="text-3xl font-bold text-[#00B894] font-['Outfit']">{applications.filter(a => a.account_status === 'verified').length}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400 mb-0.5">가상 선택</p>
-                      <p className="text-3xl font-bold text-blue-500">{applications.filter(a => a.virtual_selected).length}</p>
+                      <p className="text-xs text-[#B2BEC3] mb-0.5">가상 선택</p>
+                      <p className="text-3xl font-bold text-[#6C5CE7] font-['Outfit']">{applications.filter(a => a.virtual_selected).length}</p>
                     </div>
                   </div>
                 </div>
@@ -10089,8 +9600,8 @@ Questions? Contact us.
               </CardContent>
             </Card>
 
-            {/* 크넥 플러스 AI 추천 크리에이터 섹션 */}
-            {cnecPlusRecommendations.length > 0 && (
+            {/* 크넥 플러스 섹션 제거됨 - AI 추천에 통합 */}
+            {false && (
               <Card className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
                 <CardHeader>
                   <div className="flex items-center justify-between">

@@ -413,7 +413,7 @@ const InvoicePage = () => {
   if (loading) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <div className="text-center py-12">로딩 중...</div>
+        <div className="text-center py-12 text-[#636E72]">로딩 중...</div>
       </div>
     )
   }
@@ -421,7 +421,7 @@ const InvoicePage = () => {
   if (error && !campaign) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <div className="text-center py-12 text-red-600">{error}</div>
+        <div className="text-center py-12 text-red-500">{error}</div>
       </div>
     )
   }
@@ -545,20 +545,20 @@ const InvoicePage = () => {
         결제 방법 선택으로 돌아가기
       </Button>
 
-      <Card className="printable-area">
+      <Card className="printable-area bg-white border border-[#DFE6E9] rounded-2xl">
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-xl lg:text-2xl">견적서 및 입금 안내</CardTitle>
+            <CardTitle className="text-xl lg:text-2xl text-[#1A1A2E]">견적서 및 입금 안내</CardTitle>
             {isPaymentConfirmed ? (
-              <Badge variant="success" className="text-sm bg-green-600 text-white">
+              <Badge variant="success" className="text-sm bg-[#6C5CE7] text-white">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 입금 확인 완료
               </Badge>
             ) : (
-              <Badge variant="secondary" className="text-sm">입금 대기</Badge>
+              <Badge variant="secondary" className="text-sm bg-[#F0EDFF] text-[#6C5CE7]">입금 대기</Badge>
             )}
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-[#636E72] mt-2">
             캠페인 견적서를 확인하고 입금을 진행해주세요
           </p>
         </CardHeader>
@@ -566,49 +566,49 @@ const InvoicePage = () => {
         <CardContent className="space-y-6">
           {/* 견적서 정보 */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">견적 내역</h3>
-            <div className="border rounded-lg overflow-x-auto">
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">견적 내역</h3>
+            <div className="border border-[#DFE6E9] rounded-2xl overflow-x-auto">
               <table className="w-full min-w-[500px]">
-                <thead className="bg-gray-50">
+                <thead className="bg-[#F8F9FA]">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">항목</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">단가</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">수량</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">금액</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1A1A2E]">항목</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-[#1A1A2E]">단가</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-[#1A1A2E]">수량</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-[#1A1A2E]">금액</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  <tr className="hover:bg-gray-50">
+                <tbody className="divide-y divide-[#DFE6E9]">
+                  <tr className="hover:bg-[#F8F9FA]">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium">{packageLabel}</div>
-                      <div className="text-gray-600 text-xs mt-1">{campaign.title}</div>
+                      <div className="font-medium text-[#1A1A2E]">{packageLabel}</div>
+                      <div className="text-[#636E72] text-xs mt-1">{campaign.title}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right font-['Outfit'] text-[#1A1A2E]">
                       {packagePrice.toLocaleString()}원
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right font-['Outfit'] text-[#1A1A2E]">
                       {recruitmentCount}명
                     </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium">
+                    <td className="px-4 py-3 text-sm text-right font-medium font-['Outfit'] text-[#1A1A2E]">
                       {subtotal.toLocaleString()}원
                     </td>
                   </tr>
-                  <tr className="bg-gray-50">
-                    <td colSpan="3" className="px-4 py-3 text-sm text-right text-gray-700 font-medium">
+                  <tr className="bg-[#F8F9FA]">
+                    <td colSpan="3" className="px-4 py-3 text-sm text-right text-[#636E72] font-medium">
                       부가세 (10%)
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 font-medium">
+                    <td className="px-4 py-3 text-sm text-right text-[#636E72] font-medium font-['Outfit']">
                       +{vat.toLocaleString()}원
                     </td>
                   </tr>
                 </tbody>
-                <tfoot className="bg-blue-50">
+                <tfoot className="bg-[#F0EDFF]">
                   <tr>
-                    <td colSpan="3" className="px-4 py-4 text-right font-semibold">
+                    <td colSpan="3" className="px-4 py-4 text-right font-semibold text-[#1A1A2E]">
                       총 결제 금액
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <span className="text-2xl font-bold text-blue-600">
+                      <span className="text-2xl font-bold text-[#6C5CE7] font-['Outfit']">
                         {totalCost.toLocaleString()}원
                       </span>
                     </td>
@@ -621,17 +621,17 @@ const InvoicePage = () => {
           {/* 입금 계좌 정보 */}
           {paymentAccount ? (
             <div>
-              <h3 className="font-semibold text-lg mb-4">입금 계좌 정보</h3>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 lg:p-6 rounded-lg border-2 border-blue-200">
+              <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">입금 계좌 정보</h3>
+              <div className="bg-[#F0EDFF] p-4 lg:p-6 rounded-2xl border border-[#DFE6E9]">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">은행명</p>
-                    <p className="text-xl font-semibold">{paymentAccount.bank_name}</p>
+                    <p className="text-sm text-[#636E72] mb-1">은행명</p>
+                    <p className="text-xl font-semibold text-[#1A1A2E]">{paymentAccount.bank_name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">계좌번호</p>
+                    <p className="text-sm text-[#636E72] mb-1">계좌번호</p>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-lg lg:text-2xl font-bold text-blue-600 tracking-wider">
+                      <p className="text-lg lg:text-2xl font-bold text-[#6C5CE7] font-['Outfit'] tracking-wider">
                         {paymentAccount.account_number}
                       </p>
                       <Button
@@ -655,12 +655,12 @@ const InvoicePage = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">예금주</p>
-                    <p className="text-lg font-medium">{paymentAccount.account_holder}</p>
+                    <p className="text-sm text-[#636E72] mb-1">예금주</p>
+                    <p className="text-lg font-medium text-[#1A1A2E]">{paymentAccount.account_holder}</p>
                   </div>
-                  <div className="pt-3 border-t border-blue-200">
-                    <p className="text-sm text-gray-600 mb-1">입금 금액</p>
-                    <p className="text-xl lg:text-2xl font-bold text-blue-600">
+                  <div className="pt-3 border-t border-[#DFE6E9]">
+                    <p className="text-sm text-[#636E72] mb-1">입금 금액</p>
+                    <p className="text-xl lg:text-2xl font-bold text-[#6C5CE7] font-['Outfit']">
                       {totalCost.toLocaleString()}원
                     </p>
                   </div>
@@ -668,18 +668,18 @@ const InvoicePage = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="bg-[#F8F9FA] border border-[#DFE6E9] p-4 rounded-2xl">
+              <p className="text-sm text-[#636E72]">
                 입금 계좌 정보가 등록되지 않았습니다. 관리자에게 문의해주세요.
               </p>
             </div>
           )}
 
           {/* 입금자명 입력 */}
-          <div className="border-t pt-6 mt-6">
-            <h3 className="font-semibold text-lg mb-4">입금자명 *</h3>
-            <div className="bg-blue-50 p-4 rounded-lg mb-4">
-              <p className="text-sm text-gray-700">입금하실 때 사용할 입금자명을 입력해주세요. (회사명 또는 담당자명)</p>
+          <div className="border-t border-[#DFE6E9] pt-6 mt-6">
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">입금자명 *</h3>
+            <div className="bg-[#F0EDFF] p-4 rounded-2xl mb-4">
+              <p className="text-sm text-[#636E72]">입금하실 때 사용할 입금자명을 입력해주세요. (회사명 또는 담당자명)</p>
             </div>
             <Input
               value={depositorName}
@@ -691,19 +691,19 @@ const InvoicePage = () => {
           </div>
 
           {/* 세금계산서 정보 */}
-          <div className="border-t pt-6 mt-6">
-            <h3 className="font-semibold text-lg mb-4">세금계산서 정보 (선택사항)</h3>
-            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+          <div className="border-t border-[#DFE6E9] pt-6 mt-6">
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">세금계산서 정보 (선택사항)</h3>
+            <div className="bg-[#F0EDFF] p-4 rounded-2xl mb-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={needsTaxInvoice}
                   onChange={(e) => setNeedsTaxInvoice(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-[#6C5CE7] rounded focus:ring-[#6C5CE7]"
                 />
-                <span className="text-sm font-medium text-gray-700">세금계산서 발행 필요</span>
+                <span className="text-sm font-medium text-[#1A1A2E]">세금계산서 발행 필요</span>
               </label>
-              <p className="text-sm text-gray-600 mt-2">세금계산서 발행을 원하시는 경우 체크하고 아래 정보를 입력해주세요.</p>
+              <p className="text-sm text-[#636E72] mt-2">세금계산서 발행을 원하시는 경우 체크하고 아래 정보를 입력해주세요.</p>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -804,9 +804,9 @@ const InvoicePage = () => {
           </div>
 
           {/* 입금 안내 */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-sm mb-3">입금 안내사항</h4>
-            <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
+          <div className="bg-[#F8F9FA] p-4 rounded-2xl border border-[#DFE6E9]">
+            <h4 className="font-semibold text-sm mb-3 text-[#1A1A2E]">입금 안내사항</h4>
+            <ul className="text-sm text-[#636E72] space-y-2 list-disc list-inside">
               <li>위 계좌로 총 결제 금액을 입금해주세요</li>
               <li>입금자명은 회사명 또는 담당자명으로 해주세요</li>
               <li>세금계산서가 필요한 경우 위 정보를 입력해주세요</li>
@@ -818,45 +818,45 @@ const InvoicePage = () => {
 
           {/* 캠페인 정보 요약 */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">캠페인 정보</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">캠페인 정보</h3>
+            <div className="bg-[#F8F9FA] p-4 rounded-2xl border border-[#DFE6E9] space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">캠페인명</span>
-                <span className="font-medium">{campaign.title}</span>
+                <span className="text-[#636E72]">캠페인명</span>
+                <span className="font-medium text-[#1A1A2E]">{campaign.title}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">브랜드</span>
-                <span>{campaign.brand}</span>
+                <span className="text-[#636E72]">브랜드</span>
+                <span className="text-[#1A1A2E]">{campaign.brand}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">제품명</span>
-                <span>{campaign.product_name}</span>
+                <span className="text-[#636E72]">제품명</span>
+                <span className="text-[#1A1A2E]">{campaign.product_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">모집 인원</span>
-                <span>{recruitmentCount}명</span>
+                <span className="text-[#636E72]">모집 인원</span>
+                <span className="text-[#1A1A2E] font-['Outfit']">{recruitmentCount}명</span>
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-green-600 text-sm">
               {success}
             </div>
           )}
 
           {/* 액션 버튼 */}
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="flex gap-3 pt-4 border-t border-[#DFE6E9]">
             <Button
               onClick={() => window.print()}
               variant="outline"
-              className="flex-1"
+              className="flex-1 border-[#DFE6E9] text-[#636E72] hover:bg-[#F8F9FA]"
             >
               <Download className="w-4 h-4 mr-2" />
               견적서 출력
@@ -864,7 +864,7 @@ const InvoicePage = () => {
             <Button
               onClick={handleConfirmPayment}
               disabled={confirming || isPaymentConfirmed}
-              className="flex-1"
+              className="flex-1 bg-[#6C5CE7] hover:bg-[#5A4BD1]"
             >
               {confirming ? (
                 '처리 중...'
@@ -880,8 +880,8 @@ const InvoicePage = () => {
           </div>
 
           {isPaymentConfirmed && (
-            <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
-              <p className="text-sm text-green-700">
+            <div className="bg-[#F0EDFF] border border-[#DFE6E9] p-4 rounded-2xl text-center">
+              <p className="text-sm text-[#6C5CE7]">
                 입금이 확인되었습니다. 관리자 승인 후 캠페인이 시작됩니다.
               </p>
             </div>

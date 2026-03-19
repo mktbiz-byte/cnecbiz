@@ -21,7 +21,7 @@ export async function getAIRecommendations(campaign, availableCreators) {
       .select('*')
       .eq('campaign_id', campaign.id)
       .order('recommendation_score', { ascending: false })
-      .limit(10)
+      .limit(20)
 
     if (existingRecommendations && existingRecommendations.length > 0) {
       console.log('Using cached recommendations')
@@ -100,7 +100,7 @@ async function generateRecommendationsWithGemini(campaign, creators) {
     }))
 
     // Gemini API 호출
-    const prompt = `당신은 인플루언서 마케팅 전문가입니다. 다음 캠페인에 가장 적합한 크리에이터 10명을 추천해주세요.
+    const prompt = `당신은 인플루언서 마케팅 전문가입니다. 다음 캠페인에 가장 적합한 크리에이터 20명을 추천해주세요.
 
 **캠페인 정보:**
 ${JSON.stringify(campaignSummary, null, 2)}
@@ -124,7 +124,7 @@ ${JSON.stringify(creatorsSummary, null, 2)}
   }
 ]
 
-상위 10명만 추천하고, 점수가 높은 순으로 정렬해주세요.`
+상위 20명을 추천하고, 점수가 높은 순으로 정렬해주세요.`
 
     // AI 추천: 단순 분석 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
     const response = await fetch(
@@ -185,7 +185,7 @@ ${JSON.stringify(creatorsSummary, null, 2)}
         }
       })
       .filter(Boolean)
-      .slice(0, 10)
+      .slice(0, 20)
 
     console.log('AI recommendations generated:', recommendations.length)
     return recommendations
@@ -255,7 +255,7 @@ function getBasicRecommendations(campaign, creators) {
   // 점수 순으로 정렬하여 상위 10명 반환
   return scoredCreators
     .sort((a, b) => b.recommendation_score - a.recommendation_score)
-    .slice(0, 10)
+    .slice(0, 20)
 }
 
 /**

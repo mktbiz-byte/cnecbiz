@@ -237,10 +237,10 @@ const PaymentMethodSelection = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">캠페인 정보를 불러오는 중...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6C5CE7] mx-auto mb-4"></div>
+          <p className="text-[#636E72]">캠페인 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -248,11 +248,11 @@ const PaymentMethodSelection = () => {
 
   if (error || !campaign) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="bg-white border border-[#DFE6E9] rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-red-600 mb-4">오류</h2>
-          <p className="text-gray-700 mb-6">{error || '캠페인을 찾을 수 없습니다.'}</p>
+          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-4">오류</h2>
+          <p className="text-[#636E72] mb-6">{error || '캠페인을 찾을 수 없습니다.'}</p>
           <Button onClick={() => navigate('/company/campaigns')}>
             캠페인 목록으로 돌아가기
           </Button>
@@ -310,7 +310,7 @@ const PaymentMethodSelection = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-14 pb-20 lg:pt-0 lg:pb-0">
+    <div className="min-h-screen bg-[#F8F9FA] pt-14 pb-20 lg:pt-0 lg:pb-0">
       <div className="max-w-4xl mx-auto p-4 lg:p-6">
         <div className="mb-4 lg:mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
@@ -318,22 +318,22 @@ const PaymentMethodSelection = () => {
           </Button>
         </div>
 
-        <Card className="mb-6 border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 p-4 lg:p-6">
+        <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl shadow-lg">
+          <CardHeader className="bg-[#F0EDFF] border-b border-[#DFE6E9] p-4 lg:p-6">
             <CardTitle className="text-xl lg:text-3xl flex items-center gap-2">
-              <CreditCard className="h-6 w-6 lg:h-7 lg:w-7 text-blue-600" />
+              <CreditCard className="h-6 w-6 lg:h-7 lg:w-7 text-[#6C5CE7]" />
               결제 방법 선택
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4 lg:p-6 mb-6">
+            <div className="bg-[#F0EDFF] border border-[#DFE6E9] rounded-2xl p-4 lg:p-6 mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <Info className="h-5 w-5 text-blue-600" />
-                <h3 className="font-bold text-base lg:text-xl text-gray-900">{campaign.title}</h3>
+                <Info className="h-5 w-5 text-[#6C5CE7]" />
+                <h3 className="font-bold text-base lg:text-xl text-[#1A1A2E]">{campaign.title}</h3>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t-2 border-blue-200">
-                <span className="text-sm lg:text-base font-semibold text-gray-700">예상 결제 금액</span>
-                <span className="text-2xl lg:text-3xl font-bold text-blue-600">
+              <div className="flex justify-between items-center pt-3 border-t border-[#DFE6E9]">
+                <span className="text-sm lg:text-base font-semibold text-[#636E72]">예상 결제 금액</span>
+                <span className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit']">
                   ₩{totalAmount.toLocaleString()}
                 </span>
               </div>
@@ -341,24 +341,24 @@ const PaymentMethodSelection = () => {
 
             {!paymentMethod && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">결제 방법을 선택해주세요</h3>
+                <h3 className="text-lg font-semibold text-[#1A1A2E] mb-4">결제 방법을 선택해주세요</h3>
 
                 {/* 카드 결제 옵션 */}
                 <button
                   onClick={() => setPaymentMethod('card')}
-                  className="w-full p-4 lg:p-6 border-2 border-blue-300 rounded-xl hover:border-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
+                  className="w-full p-4 lg:p-6 border border-[#DFE6E9] rounded-2xl hover:border-[#6C5CE7] hover:bg-[#F0EDFF] transition-all duration-200 text-left group shadow-md hover:shadow-lg"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 lg:gap-4">
-                      <div className="bg-blue-100 p-2 lg:p-3 rounded-full group-hover:bg-blue-200 transition-colors">
-                        <CreditCard className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
+                      <div className="bg-[#F0EDFF] p-2 lg:p-3 rounded-full group-hover:bg-[#F0EDFF] transition-colors">
+                        <CreditCard className="h-6 w-6 lg:h-8 lg:w-8 text-[#6C5CE7]" />
                       </div>
                       <div>
-                        <h4 className="text-base lg:text-xl font-bold text-gray-800 group-hover:text-blue-600">카드 결제</h4>
-                        <p className="text-xs lg:text-sm text-gray-600">신용카드, 체크카드로 즉시 결제</p>
+                        <h4 className="text-base lg:text-xl font-bold text-[#1A1A2E] group-hover:text-[#6C5CE7]">카드 결제</h4>
+                        <p className="text-xs lg:text-sm text-[#636E72]">신용카드, 체크카드로 즉시 결제</p>
                       </div>
                     </div>
-                    <div className="text-blue-600 font-bold text-lg hidden sm:block">선택 →</div>
+                    <div className="text-[#6C5CE7] font-bold text-lg hidden sm:block">선택 →</div>
                   </div>
                 </button>
 
@@ -367,49 +367,49 @@ const PaymentMethodSelection = () => {
                   <button
                     onClick={() => voucherBalance >= Math.round(totalAmount / 1.1) && setPaymentMethod('voucher')}
                     disabled={voucherBalance < Math.round(totalAmount / 1.1)}
-                    className={`w-full p-6 border-2 rounded-xl transition-all duration-200 text-left group shadow-md hover:shadow-lg ${
+                    className={`w-full p-6 border rounded-2xl transition-all duration-200 text-left group shadow-md hover:shadow-lg ${
                       voucherBalance >= Math.round(totalAmount / 1.1)
-                        ? 'border-purple-300 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
-                        : 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                        ? 'border-[#DFE6E9] hover:border-[#6C5CE7] hover:bg-[#F0EDFF]'
+                        : 'border-[#DFE6E9] bg-[#F8F9FA] cursor-not-allowed'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 lg:gap-4">
                         <div className={`p-2 lg:p-3 rounded-full transition-colors ${
                           voucherBalance >= Math.round(totalAmount / 1.1)
-                            ? 'bg-purple-100 group-hover:bg-purple-200'
-                            : 'bg-gray-200'
+                            ? 'bg-[#F0EDFF]'
+                            : 'bg-[#F8F9FA]'
                         }`}>
                           <Wallet className={`h-6 w-6 lg:h-8 lg:w-8 ${
-                            voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                            voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-[#6C5CE7]' : 'text-[#B2BEC3]'
                           }`} />
                         </div>
                         <div>
                           <h4 className={`text-base lg:text-xl font-bold ${
                             voucherBalance >= Math.round(totalAmount / 1.1)
-                              ? 'text-gray-800 group-hover:text-purple-600'
-                              : 'text-gray-500'
+                              ? 'text-[#1A1A2E] group-hover:text-[#6C5CE7]'
+                              : 'text-[#B2BEC3]'
                           }`}>
                             수출바우처 결제
                           </h4>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm text-gray-600">
-                              잔액: <span className={`font-bold ${voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-red-500'}`}>
+                            <p className="text-sm text-[#636E72]">
+                              잔액: <span className={`font-bold font-['Outfit'] ${voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-[#6C5CE7]' : 'text-[#B2BEC3]'}`}>
                                 {voucherBalance.toLocaleString()}원
                               </span>
-                              <span className="text-gray-400 text-xs ml-1">(VAT 별도)</span>
+                              <span className="text-[#B2BEC3] text-xs ml-1">(VAT 별도)</span>
                             </p>
                             {voucherBalance < Math.round(totalAmount / 1.1) && (
-                              <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">잔액 부족</span>
+                              <span className="px-2 py-0.5 bg-red-50 text-red-500 text-xs rounded-md">잔액 부족</span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            필요 금액: {Math.round(totalAmount / 1.1).toLocaleString()}원 (VAT 별도)
+                          <p className="text-xs text-[#B2BEC3] mt-1">
+                            필요 금액: <span className="font-['Outfit']">{Math.round(totalAmount / 1.1).toLocaleString()}</span>원 (VAT 별도)
                           </p>
                         </div>
                       </div>
                       <div className={`font-bold text-lg hidden sm:block ${
-                        voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-purple-600' : 'text-gray-400'
+                        voucherBalance >= Math.round(totalAmount / 1.1) ? 'text-[#6C5CE7]' : 'text-[#B2BEC3]'
                       }`}>
                         선택 →
                       </div>
@@ -420,55 +420,55 @@ const PaymentMethodSelection = () => {
                 {/* 무통장 입금 옵션 */}
                 <button
                   onClick={handleBankTransfer}
-                  className="w-full p-4 lg:p-6 border-2 border-green-300 rounded-xl hover:border-green-600 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 text-left group shadow-md hover:shadow-lg"
+                  className="w-full p-4 lg:p-6 border border-[#DFE6E9] rounded-2xl hover:border-[#6C5CE7] hover:bg-[#F0EDFF] transition-all duration-200 text-left group shadow-md hover:shadow-lg"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 lg:gap-4">
-                      <div className="bg-green-100 p-2 lg:p-3 rounded-full group-hover:bg-green-200 transition-colors">
-                        <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-green-600" />
+                      <div className="bg-[#F0EDFF] p-2 lg:p-3 rounded-full group-hover:bg-[#F0EDFF] transition-colors">
+                        <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-[#6C5CE7]" />
                       </div>
                       <div>
-                        <h4 className="text-base lg:text-xl font-bold text-gray-800 group-hover:text-green-600">무통장 입금</h4>
-                        <p className="text-xs lg:text-sm text-gray-600">계좌이체 후 입금 확인 (세금계산서 발행 가능)</p>
+                        <h4 className="text-base lg:text-xl font-bold text-[#1A1A2E] group-hover:text-[#6C5CE7]">무통장 입금</h4>
+                        <p className="text-xs lg:text-sm text-[#636E72]">계좌이체 후 입금 확인 (세금계산서 발행 가능)</p>
                       </div>
                     </div>
-                    <div className="text-green-600 font-bold text-lg hidden sm:block">선택 →</div>
+                    <div className="text-[#6C5CE7] font-bold text-lg hidden sm:block">선택 →</div>
                   </div>
                 </button>
 
                 {/* 환불 규정 */}
-                <div className="mt-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+                <div className="mt-8 bg-[#F0EDFF] border border-[#DFE6E9] rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
-                    <ShieldCheck className="h-5 w-5 text-amber-600" />
-                    <h4 className="font-bold text-gray-800">환불 규정</h4>
+                    <ShieldCheck className="h-5 w-5 text-[#6C5CE7]" />
+                    <h4 className="font-bold text-[#1A1A2E]">환불 규정</h4>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-start gap-3 bg-white/60 rounded-lg p-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <span className="text-green-600 font-bold text-sm">100%</span>
+                      <div className="flex-shrink-0 w-8 h-8 bg-[#F0EDFF] rounded-full flex items-center justify-center">
+                        <span className="text-[#6C5CE7] font-bold text-sm font-['Outfit']">100%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
-                        <p className="text-sm text-gray-600">전액 환불 가능</p>
+                        <p className="font-semibold text-[#1A1A2E]">캠페인 진행 전</p>
+                        <p className="text-sm text-[#636E72]">전액 환불 가능</p>
                       </div>
                     </div>
 
                     <div className="flex items-start gap-3 bg-white/60 rounded-lg p-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                        <span className="text-amber-600 font-bold text-sm">50%</span>
+                      <div className="flex-shrink-0 w-8 h-8 bg-[#F0EDFF] rounded-full flex items-center justify-center">
+                        <span className="text-[#6C5CE7] font-bold text-sm font-['Outfit']">50%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
-                        <p className="text-sm text-gray-600">50% 환불 가능</p>
+                        <p className="font-semibold text-[#1A1A2E]">캠페인 진행 후</p>
+                        <p className="text-sm text-[#636E72]">50% 환불 가능</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-amber-200">
+                  <div className="mt-4 pt-3 border-t border-[#DFE6E9]">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-gray-600">
+                      <AlertCircle className="h-4 w-4 text-[#6C5CE7] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#636E72]">
                         <span className="font-medium">캠페인 진행 기준:</span> 크리에이터 선정 완료 시점
                       </p>
                     </div>
@@ -511,43 +511,43 @@ const PaymentMethodSelection = () => {
                   ← 결제 방법 다시 선택
                 </Button>
 
-                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-6">
+                <div className="bg-[#F0EDFF] border-2 border-[#6C5CE7] rounded-2xl p-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-purple-100 p-3 rounded-full">
-                      <Wallet className="h-8 w-8 text-purple-600" />
+                    <div className="bg-[#F0EDFF] p-3 rounded-full">
+                      <Wallet className="h-8 w-8 text-[#6C5CE7]" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">수출바우처 결제</h3>
-                      <p className="text-sm text-gray-600">VAT 별도 금액으로 결제됩니다</p>
+                      <h3 className="text-xl font-bold text-[#1A1A2E]">수출바우처 결제</h3>
+                      <p className="text-sm text-[#636E72]">VAT 별도 금액으로 결제됩니다</p>
                     </div>
                   </div>
 
                   <div className="space-y-4 mb-6">
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-2xl p-4 border border-[#DFE6E9]">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">현재 바우처 잔액</span>
-                        <span className="text-xl font-bold text-purple-600">
+                        <span className="text-[#636E72]">현재 바우처 잔액</span>
+                        <span className="text-xl font-bold text-[#6C5CE7] font-['Outfit']">
                           {voucherBalance.toLocaleString()}원
                         </span>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-2xl p-4 border border-[#DFE6E9]">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">결제 금액 (VAT 별도)</span>
-                        <span className="text-xl font-bold text-red-600">
+                        <span className="text-[#636E72]">결제 금액 (VAT 별도)</span>
+                        <span className="text-xl font-bold text-[#6C5CE7] font-['Outfit']">
                           -{Math.round(totalAmount / 1.1).toLocaleString()}원
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 text-right">
+                      <p className="text-xs text-[#B2BEC3] mt-1 text-right">
                         VAT 포함 시: {totalAmount.toLocaleString()}원
                       </p>
                     </div>
 
-                    <div className="bg-purple-100 rounded-lg p-4 border border-purple-200">
+                    <div className="bg-[#F0EDFF] rounded-2xl p-4 border border-[#DFE6E9]">
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold text-purple-800">결제 후 잔액</span>
-                        <span className="text-2xl font-bold text-purple-700">
+                        <span className="font-semibold text-[#1A1A2E]">결제 후 잔액</span>
+                        <span className="text-2xl font-bold text-[#6C5CE7] font-['Outfit']">
                           {(voucherBalance - Math.round(totalAmount / 1.1)).toLocaleString()}원
                         </span>
                       </div>
@@ -557,7 +557,7 @@ const PaymentMethodSelection = () => {
                   <Button
                     onClick={handleVoucherPayment}
                     disabled={processingVoucher}
-                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                    className="w-full h-14 text-lg font-bold bg-[#6C5CE7] hover:bg-[#5A4BD1]"
                   >
                     {processingVoucher ? (
                       <>

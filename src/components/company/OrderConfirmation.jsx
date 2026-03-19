@@ -80,7 +80,7 @@ const OrderConfirmation = () => {
   if (error || !campaign) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <div className="text-center py-12 text-red-600">{error || '캠페인을 찾을 수 없습니다.'}</div>
+        <div className="text-center py-12 text-[#FF6B6B]">{error || '캠페인을 찾을 수 없습니다.'}</div>
       </div>
     )
   }
@@ -161,16 +161,16 @@ const OrderConfirmation = () => {
         가이드 확인으로 돌아가기
       </Button>
 
-      <Card>
+      <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl lg:text-2xl">주문서 확인</CardTitle>
-            <Badge variant="secondary" className="text-sm">
+            <CardTitle className="text-xl lg:text-2xl text-[#1A1A2E]">주문서 확인</CardTitle>
+            <Badge className="bg-[#F0EDFF] text-[#6C5CE7] text-sm rounded-md">
               <CreditCard className="w-3 h-3 mr-1" />
               결제 대기
             </Badge>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-[#636E72] mt-2">
             패키지 정보를 확인하고 결제 방법을 선택하세요
           </p>
         </CardHeader>
@@ -178,38 +178,38 @@ const OrderConfirmation = () => {
         <CardContent className="space-y-6">
           {/* 패키지 및 비용 정보 */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">패키지 및 비용</h3>
-            <div className="bg-blue-50 p-4 lg:p-6 rounded-lg space-y-4">
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">패키지 및 비용</h3>
+            <div className="bg-[#F0EDFF] p-4 lg:p-6 rounded-2xl space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-700">선택 패키지</span>
-                <span className="font-semibold text-blue-600 text-lg">{packageLabel}</span>
+                <span className="text-[#636E72]">선택 패키지</span>
+                <span className="font-semibold text-[#6C5CE7] text-lg" style={{ fontFamily: "'Outfit', sans-serif" }}>{packageLabel}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-700">패키지 단가</span>
+                <span className="text-[#636E72]">패키지 단가</span>
                 <span className="font-medium">{packagePrice.toLocaleString()}원</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-700">모집 인원</span>
+                <span className="text-[#636E72]">모집 인원</span>
                 <span className="font-medium">{recruitmentCount}명</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-700">소계</span>
+                <span className="text-[#636E72]">소계</span>
                 <span className="font-medium">{subtotal.toLocaleString()}원</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between items-center text-green-600">
+                <div className="flex justify-between items-center text-[#00B894]">
                   <span className="font-medium">할인 ({discountRate * 100}%)</span>
                   <span className="font-medium">-{discountAmount.toLocaleString()}원</span>
                 </div>
               )}
-              <div className="flex justify-between items-center text-gray-600 mt-2">
+              <div className="flex justify-between items-center text-[#636E72] mt-2">
                 <span className="font-medium">부가세 (10%)</span>
                 <span className="font-medium">+{vat.toLocaleString()}원</span>
               </div>
-              <div className="border-t border-blue-200 pt-4 mt-4">
+              <div className="border-t border-[#DFE6E9] pt-4 mt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-base lg:text-xl font-semibold">예상 총 비용</span>
-                  <span className="text-2xl lg:text-3xl font-bold text-blue-600">
+                  <span className="text-base lg:text-xl font-semibold text-[#1A1A2E]">예상 총 비용</span>
+                  <span className="text-2xl lg:text-3xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>
                     {totalCost.toLocaleString()}원
                   </span>
                 </div>
@@ -221,14 +221,13 @@ const OrderConfirmation = () => {
 
           {/* 결제 방법 선택 */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">결제 방법 선택</h3>
+            <h3 className="font-semibold text-lg mb-4 text-[#1A1A2E]">결제 방법 선택</h3>
             <div className="space-y-3">
               {/* 계좌 입금 버튼 */}
               <Button
                 onClick={handlePayAdditional}
                 disabled={processing}
-                className="w-full h-auto py-4 flex items-center justify-between"
-                variant="default"
+                className="w-full h-auto py-4 flex items-center justify-between bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
               >
                 <div className="flex items-center gap-3">
                   <Wallet className="w-5 h-5" />
@@ -262,9 +261,9 @@ const OrderConfirmation = () => {
           </div>
 
           {/* 안내 메시지 */}
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-            <h4 className="font-semibold text-sm mb-2">결제 안내</h4>
-            <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+          <div className="bg-[rgba(253,203,110,0.15)] border border-[#DFE6E9] p-4 rounded-2xl">
+            <h4 className="font-semibold text-sm mb-2 text-[#E17055]">결제 안내</h4>
+            <ul className="text-sm text-[#636E72] space-y-1 list-disc list-inside">
               <li>계좌 입금하기를 클릭하여 견적서 페이지로 이동합니다</li>
               <li>견적서에서 입금 계좌 정보를 확인하고 입금해주세요</li>
               <li>입금자명을 입력하고 입금 요청을 완료해주세요</li>
