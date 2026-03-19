@@ -184,6 +184,52 @@ exports.handler = async (event) => {
         }
       }
 
+      case 'delete': {
+        const { slot_ids } = body
+
+        if (!slot_ids || slot_ids.length === 0) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'slot_ids required' })
+          }
+        }
+
+        // Check for active bookings
+        const { data: activeBookings, error: checkErr } = await supabase
+          .from('meeting_bookings')
+          .select('id')
+          .or(`confirmed_slot_id.in.(${slot_ids.join(',')}),slot_id.in.(${slot_ids.join(',')})`)
+          .in('status', ['pending', 'confirmed'])
+
+        if (checkErr) throw checkErr
+
+        if ((activeBookings || []).length > 0) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: `예약이 있는 슬롯은 삭제할 수 없습니다 (${activeBookings.length}건)` })
+          }
+        }
+
+        const { error: deleteErr } = await supabase
+          .from('meeting_slots')
+          .delete()
+          .in('id', slot_ids)
+
+        if (deleteErr) throw deleteErr
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            deleted: slot_ids.length,
+            message: `${slot_ids.length}개 슬롯이 삭제되었습니다`
+          })
+        }
+      }
+
       default:
         return {
           statusCode: 400,
