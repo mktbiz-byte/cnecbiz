@@ -80,7 +80,7 @@ export default function AdminNavigation() {
         { path: '/admin/creators', icon: Users, label: '소속 크리에이터' },
         { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
         { path: '/admin/creator-proposals', icon: Send, label: '소속 제안 관리' },
-        { path: '/admin/meeting-schedule', icon: Calendar, label: '미팅 스케줄' },
+        { path: '/admin/program-consultations', icon: Calendar, label: '프로그램 상담' },
         { path: '/admin/youtuber-search', icon: Youtube, label: '유튜버 검색 & 섭외' },
       ]
     },

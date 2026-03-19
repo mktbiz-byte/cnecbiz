@@ -154,6 +154,7 @@ import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagemen
 import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
 import ChatbotPromptManagement from './components/admin/chatbot/ChatbotPromptManagement'
 import MeetingSchedulePage from './components/admin/meeting/MeetingSchedulePage'
+import ProgramConsultationPage from './components/admin/consultation/ProgramConsultationPage'
 import NewsletterShowcase from './pages/NewsletterShowcase'
 import NewsletterDetail from './pages/NewsletterDetail'
 
@@ -346,6 +347,7 @@ function App() {
         <Route path="/admin/creator-mapping" element={<CreatorMappingManagement />} />
         <Route path="/admin/creator-proposals" element={<CreatorProposalManagement />} />
         <Route path="/admin/meeting-schedule" element={<MeetingSchedulePage />} />
+        <Route path="/admin/program-consultations" element={<ProgramConsultationPage />} />
 
         {/* Creator Routes */}
         <Route path="/creator/mypage" element={<CreatorMyPage />} />

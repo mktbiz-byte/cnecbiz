@@ -19,12 +19,29 @@ exports.handler = async (event) => {
 
   try {
     const params = event.queryStringParameters || {}
-    const { date, from, to } = params
+    const { date, from, to, status, search, limit, offset } = params
 
     let query = supabase
       .from('meeting_bookings')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
+
+    // Status filter
+    if (status && status !== 'all') {
+      query = query.eq('status', status)
+    }
+
+    // Search filter (name or phone)
+    if (search) {
+      query = query.or(`creator_name.ilike.%${search}%,creator_phone.ilike.%${search}%`)
+    }
+
+    // Pagination
+    if (limit) {
+      const l = parseInt(limit)
+      const o = parseInt(offset || '0')
+      query = query.range(o, o + l - 1)
+    }
 
     if (date) {
       // Fetch bookings for a specific date
@@ -129,15 +146,15 @@ exports.handler = async (event) => {
       }
     }
 
-    // Default: return all bookings
-    const { data: bookings, error } = await query
+    // Default: return all bookings (with filters applied above)
+    const { data: bookings, error, count } = await query
 
     if (error) throw error
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, bookings: bookings || [] })
+      body: JSON.stringify({ success: true, bookings: bookings || [], total: count })
     }
 
   } catch (error) {
