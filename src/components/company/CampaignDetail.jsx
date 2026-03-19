@@ -9428,108 +9428,123 @@ Questions? Contact us.
               </div>
             )}
 
-            {/* 지원한 크리에이터 섹션 - 컴팩트 그리드 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
-                <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
+            {/* 지원한 크리에이터 섹션 - 개편된 UI */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-bold text-gray-900">지원자 관리</CardTitle>
+                    <p className="text-sm text-gray-400 mt-0.5">캠페인에 지원한 인플루언서를 확인하고 선택하세요</p>
+                  </div>
+                  <div className="flex items-center gap-8 text-right">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">전체 지원</p>
+                      <p className="text-3xl font-bold text-gray-900">{applications.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">인증완료</p>
+                      <p className="text-3xl font-bold text-emerald-500">{applications.filter(a => a.account_status === 'verified').length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">가상 선택</p>
+                      <p className="text-3xl font-bold text-blue-500">{applications.filter(a => a.virtual_selected).length}</p>
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                {/* 고급 검색 필터 섹션 */}
+                {/* 검색 + 필터 탭 + 정렬 */}
                 {applications.length > 0 && (
-                  <div className="mb-6 space-y-4">
-                    {/* 카드 표시 항목 선택 (필터 밖) */}
-                    <div className="p-3 bg-violet-50 rounded-xl border border-violet-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-xs font-bold text-violet-700 flex items-center gap-1.5">
-                          📋 카드에 표시할 정보 선택
-                          <span className="text-[10px] font-normal text-violet-500">(기본: 나이, 피부타입 표시)</span>
-                        </h4>
-                        {cardDisplayOptions.length > 0 && (
-                          <span className="text-[10px] px-2 py-0.5 bg-violet-200 text-violet-700 rounded-full">
-                            {cardDisplayOptions.length}/5 선택
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Object.entries(CARD_DISPLAY_OPTIONS).map(([key, { label, icon }]) => {
-                          const isSelected = cardDisplayOptions.includes(key)
-                          const isDisabled = !isSelected && cardDisplayOptions.length >= 5
-                          return (
-                            <button
-                              key={key}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setCardDisplayOptions(prev => prev.filter(k => k !== key))
-                                } else if (cardDisplayOptions.length < 5) {
-                                  setCardDisplayOptions(prev => [...prev, key])
-                                }
-                              }}
-                              disabled={isDisabled}
-                              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all ${
-                                isSelected
-                                  ? 'bg-violet-600 text-white'
-                                  : isDisabled
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-white text-violet-700 border border-violet-300 hover:bg-violet-100'
-                              }`}
-                            >
-                              <span className="text-[10px]">{icon}</span>
-                              {label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 검색창 + 필터 토글 */}
-                    <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                  <div className="mb-5 space-y-3">
+                    {/* 검색창 + 고급 필터 토글 */}
+                    <div className="flex items-center gap-2">
                       <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="크리에이터 이름 또는 키워드 검색..."
+                          placeholder="이름으로 검색"
                           value={applicantFilters.searchText}
                           onChange={(e) => setApplicantFilters(prev => ({ ...prev, searchText: e.target.value }))}
-                          className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
                         />
                       </div>
                       <button
                         onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
                           showAdvancedFilters
-                            ? 'bg-purple-600 text-white shadow-md'
-                            : 'bg-white text-purple-700 border border-purple-300 hover:bg-purple-50'
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                         }`}
                       >
-                        <Filter className="w-4 h-4" />
-                        고급 필터
+                        <Filter className="w-3.5 h-3.5" />
+                        필터
                         {(applicantFilters.skinType !== 'all' || applicantFilters.personalColor !== 'all' ||
                           applicantFilters.skinShade !== 'all' || applicantFilters.skinConcerns.length > 0) && (
-                          <span className="ml-1 w-5 h-5 bg-pink-500 text-white text-xs rounded-full flex items-center justify-center">
-                            !
-                          </span>
+                          <span className="w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">!</span>
                         )}
                       </button>
                     </div>
-
-                    {/* 고급 필터 패널 */}
+                    {/* 필터 탭 버튼 + 정렬 */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {[
+                          { key: 'all', label: '전체' },
+                          { key: 'verified', label: '인증완료' },
+                          { key: 'active', label: '활동 우수' },
+                          { key: 'checking', label: '확인중' },
+                          { key: 'recommended', label: '추천' },
+                        ].map(tab => {
+                          const isActive = (applicantFilters.accountStatus === tab.key) ||
+                            (tab.key === 'all' && applicantFilters.accountStatus === 'all' && !applicantFilters.isRecommendedOnly && !applicantFilters.isActiveOnly) ||
+                            (tab.key === 'recommended' && applicantFilters.isRecommendedOnly) ||
+                            (tab.key === 'active' && applicantFilters.isActiveOnly)
+                          return (
+                            <button
+                              key={tab.key}
+                              onClick={() => {
+                                if (tab.key === 'all') {
+                                  setApplicantFilters(prev => ({ ...prev, accountStatus: 'all', isRecommendedOnly: false, isActiveOnly: false }))
+                                } else if (tab.key === 'recommended') {
+                                  setApplicantFilters(prev => ({ ...prev, accountStatus: 'all', isRecommendedOnly: !prev.isRecommendedOnly, isActiveOnly: false }))
+                                } else if (tab.key === 'active') {
+                                  setApplicantFilters(prev => ({ ...prev, accountStatus: 'all', isActiveOnly: !prev.isActiveOnly, isRecommendedOnly: false }))
+                                } else {
+                                  setApplicantFilters(prev => ({ ...prev, accountStatus: tab.key === applicantFilters.accountStatus ? 'all' : tab.key, isRecommendedOnly: false, isActiveOnly: false }))
+                                }
+                              }}
+                              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${
+                                isActive
+                                  ? 'bg-gray-900 text-white'
+                                  : 'bg-transparent text-gray-500 hover:text-gray-800'
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setSortOrder && setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg bg-white transition-all"
+                      >
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                        정렬
+                      </button>
+                    </div>
+                    {/* 고급 필터 패널 (토글) */}
                     {showAdvancedFilters && (
-                      <div className="p-3 sm:p-5 bg-white rounded-xl border-2 border-purple-200 shadow-lg space-y-4 sm:space-y-5">
+                      <div className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-4">
                         {/* BEAUTY SPEC 필터 */}
                         <div>
-                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gradient-to-br from-pink-400 to-purple-400 rounded-lg flex items-center justify-center text-white text-xs">✨</span>
-                            BEAUTY SPEC
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+                          <h4 className="text-xs font-bold text-gray-700 mb-2">BEAUTY SPEC</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {/* 피부 타입 */}
                             <div>
                               <label className="text-xs text-gray-500 mb-1 block">피부 타입</label>
                               <select
                                 value={applicantFilters.skinType}
                                 onChange={(e) => setApplicantFilters(prev => ({ ...prev, skinType: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
                                 {Object.entries(SKIN_TYPES).map(([key, label]) => (
@@ -9543,354 +9558,117 @@ Questions? Contact us.
                               <select
                                 value={applicantFilters.personalColor}
                                 onChange={(e) => setApplicantFilters(prev => ({ ...prev, personalColor: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
-                                {Object.entries(PERSONAL_COLORS).map(([key, { label }]) => (
+                                {Object.entries(PERSONAL_COLORS).map(([key, label]) => (
                                   <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
                             </div>
-                            {/* 피부 톤 (호수) */}
+                            {/* 피부 톤 */}
                             <div>
-                              <label className="text-xs text-gray-500 mb-1 block">호수</label>
+                              <label className="text-xs text-gray-500 mb-1 block">피부 톤</label>
                               <select
                                 value={applicantFilters.skinShade}
                                 onChange={(e) => setApplicantFilters(prev => ({ ...prev, skinShade: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
-                                {Object.entries(SKIN_SHADES).map(([key, { label }]) => (
+                                {Object.entries(SKIN_SHADES).map(([key, label]) => (
                                   <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
                             </div>
-                            {/* 모발 타입 */}
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">헤어</label>
-                              <select
-                                value={applicantFilters.hairType}
-                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, hairType: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                              >
-                                <option value="all">전체</option>
-                                {Object.entries(HAIR_TYPES).map(([key, label]) => (
-                                  <option key={key} value={key}>{label}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 피부 고민 CONCERNS 키워드 필터 */}
-                        <div>
-                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gradient-to-br from-rose-400 to-pink-400 rounded-lg flex items-center justify-center text-white text-xs">🏷️</span>
-                            CONCERNS (복수 선택)
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {SKIN_CONCERNS_LIST.map(concern => (
-                              <button
-                                key={concern}
-                                onClick={() => {
-                                  setApplicantFilters(prev => ({
-                                    ...prev,
-                                    skinConcerns: prev.skinConcerns.includes(concern)
-                                      ? prev.skinConcerns.filter(c => c !== concern)
-                                      : [...prev.skinConcerns, concern]
-                                  }))
-                                }}
-                                className={`px-3 py-1.5 text-xs rounded-full transition-all ${
-                                  applicantFilters.skinConcerns.includes(concern)
-                                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
-                                    : 'bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100'
-                                }`}
-                              >
-                                {SKIN_CONCERNS_LABELS[concern] || concern}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 채널 & 기타 필터 */}
-                        <div>
-                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center text-white text-xs">📺</span>
-                            채널 & 기타
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
                             {/* 나이대 */}
                             <div>
                               <label className="text-xs text-gray-500 mb-1 block">나이대</label>
                               <select
                                 value={applicantFilters.ageRange}
                                 onChange={(e) => setApplicantFilters(prev => ({ ...prev, ageRange: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-300"
                               >
                                 <option value="all">전체</option>
-                                {Object.entries(AGE_RANGES).map(([key, { label }]) => (
-                                  <option key={key} value={key}>{label}</option>
+                                {Object.entries(AGE_RANGES).filter(([k]) => k !== 'all').map(([key, range]) => (
+                                  <option key={key} value={key}>{range.label || key}</option>
                                 ))}
-                              </select>
-                            </div>
-                            {/* 성별 */}
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">성별</label>
-                              <select
-                                value={applicantFilters.gender}
-                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, gender: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                              >
-                                <option value="all">전체</option>
-                                {Object.entries(GENDERS).map(([key, label]) => (
-                                  <option key={key} value={key}>{label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {/* 편집 레벨 */}
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">편집</label>
-                              <select
-                                value={applicantFilters.editingLevel}
-                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, editingLevel: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                              >
-                                <option value="all">전체</option>
-                                {Object.entries(SKILL_LEVELS).map(([key, { label }]) => (
-                                  <option key={key} value={key}>{label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {/* 촬영 레벨 */}
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">촬영</label>
-                              <select
-                                value={applicantFilters.shootingLevel}
-                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, shootingLevel: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                              >
-                                <option value="all">전체</option>
-                                {Object.entries(SKILL_LEVELS).map(([key, { label }]) => (
-                                  <option key={key} value={key}>{label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {/* 계정 상태 */}
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">계정 상태</label>
-                              <select
-                                value={applicantFilters.accountStatus}
-                                onChange={(e) => setApplicantFilters(prev => ({ ...prev, accountStatus: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                              >
-                                <option value="all">전체</option>
-                                <option value="verified">인증완료</option>
-                                <option value="warning_1">확인중</option>
-                                <option value="warning_2">확인필요</option>
-                                <option value="warning_3">가계정 의심</option>
-                                <option value="unclassified">검증중</option>
                               </select>
                             </div>
                           </div>
                         </div>
-
-                        {/* 계정 상태 설명 */}
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                            <Info className="w-4 h-4 text-gray-500" />
-                            계정 상태 안내
-                          </h4>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                              <span className="font-medium text-emerald-700">인증완료</span>
-                              <span className="text-gray-500">- 활동 이력 확인됨</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                              <span className="font-medium text-blue-700">확인중</span>
-                              <span className="text-gray-500">- 일부 지표 검토중</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                              <span className="font-medium text-yellow-700">확인필요</span>
-                              <span className="text-gray-500">- 추가 검토 권장</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                              <span className="font-medium text-red-700">가계정 의심</span>
-                              <span className="text-gray-500">- 가계정 가능성 높음</span>
-                            </div>
-                            <div className="flex items-center gap-2 col-span-2">
-                              <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                              <span className="font-medium text-gray-600">검증중</span>
-                              <span className="text-gray-500">- 아직 분류되지 않음</span>
+                        {/* 피부 고민 */}
+                        {SKIN_CONCERNS_DISPLAY && (
+                          <div>
+                            <h4 className="text-xs font-bold text-gray-700 mb-2">피부 고민</h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {Object.entries(SKIN_CONCERNS_DISPLAY).map(([key, label]) => {
+                                const isSelected = applicantFilters.skinConcerns.includes(key)
+                                return (
+                                  <button
+                                    key={key}
+                                    onClick={() => setApplicantFilters(prev => ({
+                                      ...prev,
+                                      skinConcerns: isSelected
+                                        ? prev.skinConcerns.filter(k => k !== key)
+                                        : [...prev.skinConcerns, key]
+                                    }))}
+                                    className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
+                                      isSelected
+                                        ? 'bg-gray-900 text-white border-gray-900'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                )
+                              })}
                             </div>
                           </div>
-                        </div>
-
-                        {/* 활동 키워드 */}
-                        <div>
-                          <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center text-white text-xs">🎬</span>
-                            활동 (복수 선택)
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {ACTIVITY_KEYWORDS.map(keyword => (
-                              <button
-                                key={keyword}
-                                onClick={() => {
-                                  setApplicantFilters(prev => ({
-                                    ...prev,
-                                    activityKeywords: prev.activityKeywords.includes(keyword)
-                                      ? prev.activityKeywords.filter(k => k !== keyword)
-                                      : [...prev.activityKeywords, keyword]
-                                  }))
-                                }}
-                                className={`px-3 py-1.5 text-xs rounded-full transition-all ${
-                                  applicantFilters.activityKeywords.includes(keyword)
-                                    ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md'
-                                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                                }`}
-                              >
-                                {keyword}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 필터 초기화 버튼 */}
-                        <div className="flex justify-end pt-3 border-t border-gray-100">
-                          <button
-                            onClick={() => {
-                              setApplicantFilters({
-                                skinType: 'all', ageRange: 'all', accountStatus: 'all',
-                                personalColor: 'all', skinShade: 'all', hairType: 'all',
-                                editingLevel: 'all', shootingLevel: 'all', gender: 'all',
-                                followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: ''
-                              })
-                            }}
-                            className="text-sm text-gray-500 hover:text-purple-600 underline"
-                          >
-                            필터 초기화
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 필터 결과 카운트 */}
-                    {(() => {
-                      const hasActiveFilters = applicantFilters.skinType !== 'all' ||
-                        applicantFilters.ageRange !== 'all' ||
-                        applicantFilters.accountStatus !== 'all' ||
-                        applicantFilters.personalColor !== 'all' ||
-                        applicantFilters.skinShade !== 'all' ||
-                        applicantFilters.hairType !== 'all' ||
-                        applicantFilters.editingLevel !== 'all' ||
-                        applicantFilters.shootingLevel !== 'all' ||
-                        applicantFilters.gender !== 'all' ||
-                        applicantFilters.skinConcerns.length > 0 ||
-                        applicantFilters.activityKeywords.length > 0 ||
-                        applicantFilters.searchText !== ''
-
-                      if (!hasActiveFilters) return null
-
-                      const filteredCount = applications.filter(app => {
-                        // 텍스트 검색
-                        if (applicantFilters.searchText) {
-                          const searchLower = applicantFilters.searchText.toLowerCase()
-                          const nameMatch = (app.applicant_name || '').toLowerCase().includes(searchLower)
-                          const bioMatch = (app.bio || '').toLowerCase().includes(searchLower)
-                          const aiMatch = (app.ai_profile_text || '').toLowerCase().includes(searchLower)
-                          if (!nameMatch && !bioMatch && !aiMatch) return false
-                        }
-                        // 피부 타입 필터
-                        if (applicantFilters.skinType !== 'all') {
-                          const normalizedSkinType = normalizeSkinType(app.skin_type)
-                          if (normalizedSkinType !== applicantFilters.skinType) return false
-                        }
-                        // 퍼스널 컬러 필터
-                        if (applicantFilters.personalColor !== 'all') {
-                          if (app.personal_color !== applicantFilters.personalColor) return false
-                        }
-                        // 피부 톤 (호수) 필터
-                        if (applicantFilters.skinShade !== 'all') {
-                          if (app.skin_shade !== applicantFilters.skinShade) return false
-                        }
-                        // 모발 타입 필터
-                        if (applicantFilters.hairType !== 'all') {
-                          if (app.hair_type !== applicantFilters.hairType) return false
-                        }
-                        // 나이대 필터
-                        if (applicantFilters.ageRange !== 'all') {
-                          if (!app.age) return false
-                          const range = AGE_RANGES[applicantFilters.ageRange]
-                          if (app.age < range.min || app.age > range.max) return false
-                        }
-                        // 성별 필터
-                        if (applicantFilters.gender !== 'all') {
-                          if (app.gender !== applicantFilters.gender) return false
-                        }
-                        // 편집 레벨 필터
-                        if (applicantFilters.editingLevel !== 'all') {
-                          if (app.editing_level !== applicantFilters.editingLevel) return false
-                        }
-                        // 촬영 레벨 필터
-                        if (applicantFilters.shootingLevel !== 'all') {
-                          if (app.shooting_level !== applicantFilters.shootingLevel) return false
-                        }
-                        // 계정 상태 필터
-                        if (applicantFilters.accountStatus !== 'all') {
-                          if (applicantFilters.accountStatus === 'unclassified') {
-                            if (app.account_status) return false
-                          } else {
-                            if (app.account_status !== applicantFilters.accountStatus) return false
-                          }
-                        }
-                        // 피부 고민 필터 (복수 선택 - OR 조건)
-                        if (applicantFilters.skinConcerns.length > 0) {
-                          const appConcerns = app.skin_concerns || []
-                          const hasMatchingConcern = applicantFilters.skinConcerns.some(concern =>
-                            appConcerns.includes(concern)
-                          )
-                          if (!hasMatchingConcern) return false
-                        }
-                        // 활동 키워드 필터 (복수 선택)
-                        if (applicantFilters.activityKeywords.length > 0) {
-                          const hasChildAppearance = app.child_appearance === '가능' || app.child_appearance === 'possible'
-                          const hasFamilyAppearance = app.family_appearance === '가능' || app.family_appearance === 'possible'
-                          const hasOfflineVisit = app.offline_visit === '가능' || app.offline_visit === 'possible'
-
-                          const matchKeyword = applicantFilters.activityKeywords.every(keyword => {
-                            if (keyword === '아이출연가능') return hasChildAppearance
-                            if (keyword === '가족출연가능') return hasFamilyAppearance
-                            if (keyword === '오프라인촬영가능') return hasOfflineVisit
-                            return true
-                          })
-                          if (!matchKeyword) return false
-                        }
-                        return true
-                      }).length
-
-                      return (
-                        <div className="flex items-center justify-between text-sm px-4 py-2 bg-purple-50 rounded-lg">
-                          <span className="text-gray-600">
-                            필터 결과: <strong className="text-purple-600">{filteredCount}명</strong> / 전체 {applications.length}명
+                        )}
+                        {/* 필터 초기화 */}
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                          <span className="text-xs text-gray-500">
+                            {(() => {
+                              const filteredCount = applications.filter(app => {
+                                if (applicantFilters.searchText) {
+                                  const searchLower = applicantFilters.searchText.toLowerCase()
+                                  const nameMatch = (app.applicant_name || '').toLowerCase().includes(searchLower)
+                                  const bioMatch = (app.bio || '').toLowerCase().includes(searchLower)
+                                  if (!nameMatch && !bioMatch) return false
+                                }
+                                if (applicantFilters.skinType !== 'all' && app.skin_type !== applicantFilters.skinType) return false
+                                if (applicantFilters.accountStatus !== 'all') {
+                                  if (applicantFilters.accountStatus === 'unclassified') {
+                                    if (app.account_status) return false
+                                  } else {
+                                    if (app.account_status !== applicantFilters.accountStatus) return false
+                                  }
+                                }
+                                if (applicantFilters.skinConcerns.length > 0) {
+                                  const appConcerns = app.skin_concerns || []
+                                  const hasMatchingConcern = applicantFilters.skinConcerns.some(concern => appConcerns.includes(concern))
+                                  if (!hasMatchingConcern) return false
+                                }
+                                return true
+                              }).length
+                              return `필터 결과: ${filteredCount}명 / 전체 ${applications.length}명`
+                            })()}
                           </span>
                           <button
                             onClick={() => setApplicantFilters({
                               skinType: 'all', ageRange: 'all', accountStatus: 'all',
                               personalColor: 'all', skinShade: 'all', hairType: 'all',
                               editingLevel: 'all', shootingLevel: 'all', gender: 'all',
-                              followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: ''
+                              followerRange: 'all', skinConcerns: [], activityKeywords: [], searchText: '',
+                              isRecommendedOnly: false, isActiveOnly: false
                             })}
-                            className="text-xs text-gray-500 hover:text-purple-600 underline"
+                            className="text-xs text-gray-400 hover:text-gray-700 underline"
                           >
                             필터 초기화
                           </button>
                         </div>
-                      )
-                    })()}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -9899,7 +9677,7 @@ Questions? Contact us.
                     아직 지원자가 없습니다.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {applications.filter(app => {
                       // 텍스트 검색
                       if (applicantFilters.searchText) {
@@ -9982,95 +9760,63 @@ Questions? Contact us.
                       const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
 
                       return (
-                        <div key={app.id} className={`relative bg-white rounded-xl border-2 p-3 hover:shadow-lg transition-all ${
-                          app.virtual_selected ? 'border-purple-400 bg-purple-50' :
-                          app.status === 'selected' ? 'border-green-400 bg-green-50' :
+                        <div key={app.id} className={`relative bg-white rounded-2xl border p-4 hover:shadow-md transition-all ${
+                          app.virtual_selected ? 'border-blue-300' :
+                          app.status === 'selected' ? 'border-green-300' :
                           'border-gray-200 hover:border-gray-300'
                         }`}>
-                          {/* 상태 배지 */}
-                          {(app.virtual_selected || app.status === 'selected') && (
-                            <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              app.status === 'selected' ? 'bg-green-500 text-white' : 'bg-purple-500 text-white'
-                            }`}>
-                              {app.status === 'selected' ? '선정' : '가상'}
-                            </div>
-                          )}
-
-                          {/* 프로필 이미지 - 네모 */}
-                          <div className="flex justify-center mb-2">
-                            <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                          {/* 상단: 프로필 이미지 + 이름/나이 + 배지 */}
+                          <div className="flex items-start gap-3 mb-3">
+                            {/* 프로필 이미지 - 원형 */}
+                            <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-2xl font-bold text-white">
-                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* 계정 인증 상태 배지 - 항상 표시 */}
-                          {(() => {
-                            const status = app.account_status && ACCOUNT_STATUS[app.account_status] ? app.account_status : 'unclassified'
-                            const statusInfo = ACCOUNT_STATUS[status]
-                            return (
-                              <div
-                                className={`mb-2 px-2 py-1 rounded-md text-center flex items-center justify-center gap-1 ${statusInfo.lightBg} border ${statusInfo.borderClass}`}
-                                title={statusInfo.description}
-                              >
-                                {status === 'verified' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
-                                {status === 'warning_1' && <Search className="w-3.5 h-3.5 text-blue-600" />}
-                                {status === 'warning_2' && <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />}
-                                {status === 'warning_3' && <ShieldX className="w-3.5 h-3.5 text-red-600" />}
-                                {status === 'unclassified' && <Clock className="w-3.5 h-3.5 text-gray-500" />}
-                                <span className={`text-xs font-bold ${statusInfo.lightText}`}>
-                                  {statusInfo.name}
-                                </span>
-                              </div>
-                            )
-                          })()}
-
-                          {/* 등급 추천 배지 - 항상 표시 */}
-                          {(() => {
-                            const gradeRec = getGradeRecommendation(app.cnec_grade_level)
-                            if (!gradeRec) return null
-                            return (
-                              <div className={`mb-2 px-2 py-1 rounded-md text-center ${gradeRec.bgClass}`} title={gradeRec.description}>
-                                <span className={`text-xs font-bold ${gradeRec.textClass}`}>
-                                  {gradeRec.emoji} {gradeRec.text}
-                                </span>
-                              </div>
-                            )
-                          })()}
-
-                          {/* US 크리에이터: 국가 + 프로필 완성도 배지 */}
-                          {region === 'us' && (
-                            <div className="mb-2 space-y-1">
-                              {app.shipping_country && (
-                                <div className="flex items-center justify-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">
-                                  <span>{countryCodeToFlag(app.shipping_country)}</span>
-                                  <span className="font-medium">{app.shipping_country}</span>
-                                </div>
-                              )}
-                              <div className={`flex items-center justify-center gap-1 text-xs px-2 py-1 rounded ${
-                                app.profile_completed ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                              }`}>
-                                {app.profile_completed ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                <span className="font-medium">{app.profile_completed ? '프로필 완성' : '프로필 미완성'}</span>
-                              </div>
-                              {app.shipping_city && app.shipping_state && ['selected', 'approved', 'virtual_selected', 'filming', 'guide_sent', 'product_shipped', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(app.status) && (
-                                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
-                                  <MapPin className="w-2.5 h-2.5" />
-                                  <span>{app.shipping_city}, {app.shipping_state}</span>
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                                  <span className="text-lg font-bold text-gray-500">
+                                    {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                  </span>
                                 </div>
                               )}
                             </div>
-                          )}
-
-                          {/* 이름 & 나이 */}
-                          <div className="text-center mb-2">
-                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
-                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                            {/* 이름/나이 + 배지 */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-bold text-gray-900 text-sm truncate">{app.applicant_name || '-'}</p>
+                                {/* 등급 추천 배지 */}
+                                {(() => {
+                                  const gradeRec = getGradeRecommendation(app.cnec_grade_level)
+                                  if (!gradeRec) return null
+                                  return (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${gradeRec.bgClass} ${gradeRec.textClass}`}>
+                                      {gradeRec.text}
+                                    </span>
+                                  )
+                                })()}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">{app.age ? `${app.age}세` : ''}{app.skin_type ? ` · ${skinTypeKorean}` : ''}</p>
+                              {/* 계정 인증 상태 배지 */}
+                              {(() => {
+                                const status = app.account_status && ACCOUNT_STATUS[app.account_status] ? app.account_status : null
+                                if (!status) return null
+                                const statusInfo = ACCOUNT_STATUS[status]
+                                return (
+                                  <div className="flex items-center gap-0.5 mt-1">
+                                    {status === 'verified' && <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-0.5"><ShieldCheck className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_1' && <span className="text-[10px] font-medium text-blue-600 flex items-center gap-0.5"><Search className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_2' && <span className="text-[10px] font-medium text-yellow-600 flex items-center gap-0.5"><AlertCircle className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_3' && <span className="text-[10px] font-medium text-red-600 flex items-center gap-0.5"><ShieldX className="w-3 h-3" />{statusInfo.name}</span>}
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                            {/* 가상선택/선정 상태 표시 */}
+                            {app.virtual_selected && (
+                              <span className="flex-shrink-0 text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">가상</span>
+                            )}
+                            {app.status === 'selected' && (
+                              <span className="flex-shrink-0 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">선정</span>
+                            )}
                           </div>
 
                           {/* 스토리 기획안 정보 (story_short 캠페인) */}
@@ -10095,171 +9841,154 @@ Questions? Contact us.
                             </div>
                           )}
 
-                          {/* 선택된 추가 표시 항목 */}
+                          {/* 피부 고민 태그 - 기본 표시 */}
+                          {app.skin_concerns && app.skin_concerns.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {app.skin_concerns.slice(0, 4).map((concern, idx) => (
+                                <span key={idx} className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded-full font-medium">
+                                  {SKIN_CONCERNS_LABELS[concern] || concern}
+                                </span>
+                              ))}
+                              {app.skin_concerns.length > 4 && (
+                                <span className="text-[10px] text-gray-400 px-1">+{app.skin_concerns.length - 4}</span>
+                              )}
+                            </div>
+                          )}
+                          {/* 추가 표시 항목 (cardDisplayOptions) */}
                           {cardDisplayOptions.length > 0 && (
                             <div className="mb-2 space-y-1">
                               {cardDisplayOptions.includes('personalColor') && app.personal_color && (
-                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
-                                  PERSONAL_COLORS[app.personal_color]?.color || 'bg-gray-100 text-gray-700'
-                                }`}>
-                                  <span>🎨 퍼스널컬러</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">퍼스널컬러</span>
                                   <span className="font-medium">{PERSONAL_COLOR_MAP[app.personal_color] || app.personal_color}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('skinShade') && app.skin_shade && (
-                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded">
-                                  <span>💄 호수</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">호수</span>
                                   <span className="font-medium">{SKIN_SHADE_MAP[app.skin_shade] || app.skin_shade}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('hairType') && app.hair_type && (
-                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded">
-                                  <span>💇 헤어</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">헤어</span>
                                   <span className="font-medium">{HAIR_TYPE_MAP[app.hair_type] || app.hair_type}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('editingLevel') && app.editing_level && (
-                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
-                                  SKILL_LEVELS[app.editing_level]?.color || 'bg-gray-100 text-gray-600'
-                                }`}>
-                                  <span>🎬 편집</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">편집</span>
                                   <span className="font-medium">{SKILL_LEVEL_MAP[app.editing_level] || app.editing_level}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('shootingLevel') && app.shooting_level && (
-                                <div className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
-                                  SKILL_LEVELS[app.shooting_level]?.color || 'bg-gray-100 text-gray-600'
-                                }`}>
-                                  <span>📷 촬영</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">촬영</span>
                                   <span className="font-medium">{SKILL_LEVEL_MAP[app.shooting_level] || app.shooting_level}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('skinConcerns') && app.skin_concerns && app.skin_concerns.length > 0 && (
-                                <div className="flex flex-wrap gap-1 px-1 py-1">
+                                <div className="flex flex-wrap gap-1">
                                   {app.skin_concerns.slice(0, 3).map((concern, idx) => (
-                                    <span key={idx} className="px-1.5 py-0.5 text-[10px] bg-pink-100 text-pink-700 rounded-full">
+                                    <span key={idx} className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded-full">
                                       {SKIN_CONCERNS_LABELS[concern] || concern}
                                     </span>
                                   ))}
-                                  {app.skin_concerns.length > 3 && (
-                                    <span className="text-[10px] text-gray-400">+{app.skin_concerns.length - 3}</span>
-                                  )}
                                 </div>
                               )}
                               {cardDisplayOptions.includes('gender') && app.gender && (
-                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
-                                  <span>👤 성별</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">성별</span>
                                   <span className="font-medium">{GENDER_MAP[app.gender] || app.gender}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('job') && app.job && (
-                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
-                                  <span>💼 직업</span>
+                                <div className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-lg">
+                                  <span className="text-gray-500">직업</span>
                                   <span className="font-medium truncate max-w-[80px]">{app.job}</span>
                                 </div>
                               )}
                               {cardDisplayOptions.includes('aiProfile') && app.ai_profile_text && (
-                                <div className="text-xs px-2 py-1 bg-violet-50 text-violet-700 rounded">
+                                <div className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded-lg">
                                   <p className="line-clamp-2">{app.ai_profile_text}</p>
                                 </div>
                               )}
                             </div>
                           )}
 
-                          {/* 채널 & 팔로워 - 클릭하면 채널 설정 */}
-                          <div className="space-y-1 mb-2">
-                            {/* 업로드 채널 선택 라벨 */}
-                            {!isAlreadyParticipant && app.status !== 'selected' && (
-                              <p className="text-[10px] text-purple-600 font-semibold text-center mb-1">⬇️ 업로드 채널 선택</p>
-                            )}
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1.5 mb-3">
                             {app.instagram_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition-all ${
                                 app.main_channel === 'instagram'
-                                  ? 'bg-pink-200 ring-2 ring-pink-400'
-                                  : 'bg-pink-50 hover:bg-pink-100'
+                                  ? 'bg-pink-50 ring-1 ring-pink-300'
+                                  : 'bg-gray-50 hover:bg-gray-100'
                               }`}>
                                 <button
                                   onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'instagram')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
-                                  <span className="text-pink-600">📷 Instagram</span>
-                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
+                                  <span className="flex items-center gap-1.5 text-gray-600">
+                                    <svg className="w-3.5 h-3.5 text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                                    Instagram
+                                  </span>
+                                  <span className="font-semibold text-gray-800">{formatFollowers(app.instagram_followers)}</span>
                                 </button>
-                                <a
-                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
-                                  title="인스타그램 바로가기"
-                                >
-                                  🔗
+                                <a href={normalizeSnsUrl(app.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="ml-1.5 text-gray-400 hover:text-gray-600" title="인스타그램 바로가기">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                 </a>
                               </div>
                             )}
                             {app.youtube_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition-all ${
                                 app.main_channel === 'youtube'
-                                  ? 'bg-red-200 ring-2 ring-red-400'
-                                  : 'bg-red-50 hover:bg-red-100'
+                                  ? 'bg-red-50 ring-1 ring-red-300'
+                                  : 'bg-gray-50 hover:bg-gray-100'
                               }`}>
                                 <button
                                   onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'youtube')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
-                                  <span className="text-red-600">▶️ YouTube</span>
-                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
+                                  <span className="flex items-center gap-1.5 text-gray-600">
+                                    <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                    YouTube
+                                  </span>
+                                  <span className="font-semibold text-gray-800">{formatFollowers(app.youtube_subscribers)}</span>
                                 </button>
-                                <a
-                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
-                                  title="유튜브 바로가기"
-                                >
-                                  🔗
+                                <a href={normalizeSnsUrl(app.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="ml-1.5 text-gray-400 hover:text-gray-600" title="유튜브 바로가기">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                 </a>
                               </div>
                             )}
                             {app.tiktok_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition-all ${
                                 app.main_channel === 'tiktok'
-                                  ? 'bg-gray-300 ring-2 ring-gray-500'
-                                  : 'bg-gray-100 hover:bg-gray-200'
+                                  ? 'bg-gray-200 ring-1 ring-gray-400'
+                                  : 'bg-gray-50 hover:bg-gray-100'
                               }`}>
                                 <button
                                   onClick={() => !isAlreadyParticipant && app.status !== 'selected' && handleSetApplicationChannel(app.id, 'tiktok')}
                                   disabled={isAlreadyParticipant || app.status === 'selected'}
                                   className="flex-1 flex items-center justify-between disabled:opacity-50"
                                 >
-                                  <span className="text-gray-700">🎵 TikTok</span>
-                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
+                                  <span className="flex items-center gap-1.5 text-gray-600">
+                                    <svg className="w-3.5 h-3.5 text-gray-700" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"/></svg>
+                                    TikTok
+                                  </span>
+                                  <span className="font-semibold text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
                                 </button>
-                                <a
-                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
-                                  title="틱톡 바로가기"
-                                >
-                                  🔗
+                                <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="ml-1.5 text-gray-400 hover:text-gray-600" title="틱톡 바로가기">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                 </a>
                               </div>
                             )}
                           </div>
-
-                          {/* 지원일 */}
-                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
-
-                          {/* 버튼들 */}
-                          <div className="space-y-1.5">
+                          {/* 지원일 + 지원서 + 선택 버튼 - 이미지처럼 하단 배치 */}
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                            <span className="text-xs text-gray-400">{formatDate(app.created_at) ? `${formatDate(app.created_at)} 지원` : ''}</span>
+                            <div className="flex items-center gap-1.5">
                             {/* 지원서 보기 버튼 */}
                             <button
                               onClick={async () => {
@@ -10280,9 +10009,10 @@ Questions? Contact us.
                                   console.error('Error:', error)
                                 }
                               }}
-                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
+                              className="px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 font-medium transition-colors flex items-center gap-1"
                             >
-                              📋 지원서 보기
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                              지원서
                             </button>
 
                             {/* 가상선택/선정 버튼 */}
@@ -10296,31 +10026,34 @@ Questions? Contact us.
                                     (app.tiktok_url ? 'tiktok' : null)
                                   handleVirtualSelect(app.id, !app.virtual_selected, channel)
                                 }}
-                                className={`w-full py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                                className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center gap-1 ${
                                   app.virtual_selected
-                                    ? 'bg-purple-500 hover:bg-purple-600 text-white'
-                                    : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    : 'bg-gray-900 hover:bg-gray-700 text-white'
                                 }`}
                               >
-                                {app.virtual_selected ? '✓ 가상선택됨' : '⭐ 가상 선택'}
+                                <svg className="w-3 h-3" fill={app.virtual_selected ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                                {app.virtual_selected ? '선택됨' : '선택'}
                               </button>
                             )}
                             {app.status === 'selected' && (
                               <>
-                                <div className="w-full py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium text-center">
-                                  ✓ 선정 완료
+                                <div className="px-2.5 py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium flex items-center gap-1">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  선정됨
                                 </div>
                                 <button
                                   onClick={() => {
                                     setCancellingApp(app)
                                     setCancelModalOpen(true)
                                   }}
-                                  className="w-full py-1.5 text-xs bg-red-100 hover:bg-red-200 rounded-lg text-red-600 font-medium transition-colors"
+                                  className="px-2.5 py-1.5 text-xs bg-red-100 hover:bg-red-200 rounded-lg text-red-600 font-medium transition-colors"
                                 >
-                                  ✕ 선정 취소
+                                  취소
                                 </button>
                               </>
                             )}
+                            </div>
                           </div>
                         </div>
                       )
@@ -10458,323 +10191,242 @@ Questions? Contact us.
 
           {/* 가상 선정 탭 */}
           <TabsContent value="virtual">
-            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100/50">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-purple-800">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-sm">
-                      <CheckCircle className="w-4 h-4 text-white" />
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-2xl font-bold text-gray-900">가상 선정 크리에이터</CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">임시 선정 목록입니다. 최종 확정 전 자유롭게 변경하세요.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">가상 선택</p>
+                      <p className="text-2xl font-bold text-blue-500">{applications.filter(app => app.virtual_selected).length}</p>
                     </div>
-                    가상 선정한 크리에이터
-                  </CardTitle>
-                  <p className="text-sm text-purple-600/80 mt-1">
-                    임시로 기업이 선정한 크리에이터 입니다. 확정 선정이 아니니 자유롭게 최종 선정하여 확정하여 주세요.
-                  </p>
+                    <Button
+                      onClick={handleBulkConfirm}
+                      disabled={applications.filter(app => app.virtual_selected).length === 0}
+                      className="bg-gray-900 hover:bg-gray-700 text-white rounded-xl px-5"
+                    >
+                      전체 선정 확정
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  onClick={handleBulkConfirm}
-                  disabled={applications.filter(app => app.virtual_selected).length === 0}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md shadow-purple-200 rounded-xl"
-                >
-                  가상 선정한 크리에이터 한번에 선정하기
-                </Button>
               </CardHeader>
               <CardContent>
                 {applications.filter(app => app.virtual_selected).length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    아직 가상 선정한 크리에이터가 없습니다.
+                  <div className="text-center py-16 text-gray-400">
+                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    <p className="text-sm">아직 가상 선정한 크리에이터가 없습니다.</p>
+                    <p className="text-xs text-gray-400 mt-1">지원자 탭에서 크리에이터를 선택하세요.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {applications.filter(app => app.virtual_selected).map(app => {
                       const isAlreadyParticipant = participants.some(p => (p.creator_name || p.applicant_name) === app.applicant_name)
                       const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
                       const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
                       const formatFollowers = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '0')
                       const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
-
                       return (
-                        <div key={app.id} className="relative bg-white rounded-xl border-2 border-purple-400 bg-purple-50 p-3 hover:shadow-lg transition-all">
-                          {/* 가상선택 배지 */}
-                          <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500 text-white">
-                            가상선택
-                          </div>
-
-                          {/* 프로필 이미지 - 네모 */}
-                          <div className="flex justify-center mb-2">
-                            <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                        <div key={app.id} className="relative bg-white rounded-2xl border border-blue-200 ring-1 ring-blue-100 p-4 hover:shadow-md transition-all">
+                          {/* 상단 프로필 + 이름 */}
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-2xl font-bold text-white">
-                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
-                                </span>
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                                  <span className="text-lg font-bold text-gray-500">
+                                    {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
                               )}
                             </div>
-                          </div>
-
-                          {/* 등급 추천 배지 */}
-                          {(() => {
-                            const gradeRec = getGradeRecommendation(app.cnec_grade_level)
-                            if (!gradeRec) return null
-                            return (
-                              <div className={`mb-2 px-2 py-1 rounded-md text-center ${gradeRec.bgClass}`} title={gradeRec.description}>
-                                <span className={`text-xs font-bold ${gradeRec.textClass}`}>
-                                  {gradeRec.emoji} {gradeRec.text}
-                                </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-gray-900 text-sm truncate">{app.applicant_name || '-'}</span>
+                                {(() => {
+                                  const gradeRec = getGradeRecommendation(app.cnec_grade_level)
+                                  if (!gradeRec) return null
+                                  return (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${gradeRec.bgClass} ${gradeRec.textClass}`}>
+                                      {gradeRec.text}
+                                    </span>
+                                  )
+                                })()}
                               </div>
-                            )
-                          })()}
-
-                          {/* 이름 & 나이 */}
-                          <div className="text-center mb-2">
-                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
-                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{app.age ? `${app.age}세` : ''}{app.skin_type ? ` · ${skinTypeKorean}` : ''}</p>
+                              {(() => {
+                                const status = app.account_status && ACCOUNT_STATUS[app.account_status] ? app.account_status : null
+                                if (!status) return null
+                                const statusInfo = ACCOUNT_STATUS[status]
+                                return (
+                                  <div className="flex items-center gap-0.5 mt-1">
+                                    {status === 'verified' && <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-0.5"><ShieldCheck className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_1' && <span className="text-[10px] font-medium text-blue-600 flex items-center gap-0.5"><Search className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_2' && <span className="text-[10px] font-medium text-yellow-600 flex items-center gap-0.5"><AlertCircle className="w-3 h-3" />{statusInfo.name}</span>}
+                                    {status === 'warning_3' && <span className="text-[10px] font-medium text-red-600 flex items-center gap-0.5"><ShieldX className="w-3 h-3" />{statusInfo.name}</span>}
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                            <span className="flex-shrink-0 text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">가상</span>
                           </div>
-
-                          {/* 채널 & 팔로워 - 클릭하면 채널 변경 */}
-                          <div className="space-y-1 mb-2">
+                          {/* 피부 고민 태그 */}
+                          {app.skin_concerns && app.skin_concerns.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {app.skin_concerns.slice(0, 4).map((concern, idx) => (
+                                <span key={idx} className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded-full font-medium">
+                                  {SKIN_CONCERNS_LABELS[concern] || concern}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1.5 mb-3">
                             {app.instagram_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.main_channel === 'instagram'
-                                  ? 'bg-pink-200 ring-2 ring-pink-400'
-                                  : 'bg-pink-50 hover:bg-pink-100'
-                              }`}>
-                                <button
-                                  onClick={() => handleVirtualSelect(app.id, true, 'instagram')}
-                                  className="flex-1 flex items-center justify-between"
-                                >
-                                  <span className="text-pink-600">📷 Instagram</span>
-                                  <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
-                                  {app.main_channel === 'instagram' && <span className="ml-1 text-pink-600">✓</span>}
-                                </button>
-                                <a
-                                  href={normalizeSnsUrl(app.instagram_url, 'instagram')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded text-[10px] font-medium border border-pink-300"
-                                  title="인스타그램 바로가기"
-                                >
-                                  🔗
-                                </a>
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg ${app.main_channel === 'instagram' ? 'bg-pink-50 ring-1 ring-pink-300' : 'bg-gray-50'}`}>
+                                <span className="flex items-center gap-1.5 text-gray-600">
+                                  <svg className="w-3.5 h-3.5 text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                                  Instagram
+                                </span>
+                                <span className="font-semibold text-gray-800">{formatFollowers(app.instagram_followers)}</span>
                               </div>
                             )}
                             {app.youtube_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.main_channel === 'youtube'
-                                  ? 'bg-red-200 ring-2 ring-red-400'
-                                  : 'bg-red-50 hover:bg-red-100'
-                              }`}>
-                                <button
-                                  onClick={() => handleVirtualSelect(app.id, true, 'youtube')}
-                                  className="flex-1 flex items-center justify-between"
-                                >
-                                  <span className="text-red-600">▶️ YouTube</span>
-                                  <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
-                                  {app.main_channel === 'youtube' && <span className="ml-1 text-red-600">✓</span>}
-                                </button>
-                                <a
-                                  href={normalizeSnsUrl(app.youtube_url, 'youtube')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-[10px] font-medium border border-red-300"
-                                  title="유튜브 바로가기"
-                                >
-                                  🔗
-                                </a>
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg ${app.main_channel === 'youtube' ? 'bg-red-50 ring-1 ring-red-300' : 'bg-gray-50'}`}>
+                                <span className="flex items-center gap-1.5 text-gray-600">
+                                  <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                  YouTube
+                                </span>
+                                <span className="font-semibold text-gray-800">{formatFollowers(app.youtube_subscribers)}</span>
                               </div>
                             )}
                             {app.tiktok_url && (
-                              <div className={`flex items-center text-xs px-2 py-1.5 rounded transition-all ${
-                                app.main_channel === 'tiktok'
-                                  ? 'bg-gray-300 ring-2 ring-gray-500'
-                                  : 'bg-gray-100 hover:bg-gray-200'
-                              }`}>
-                                <button
-                                  onClick={() => handleVirtualSelect(app.id, true, 'tiktok')}
-                                  className="flex-1 flex items-center justify-between"
-                                >
-                                  <span className="text-gray-700">🎵 TikTok</span>
-                                  <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
-                                  {app.main_channel === 'tiktok' && <span className="ml-1 text-gray-700">✓</span>}
-                                </button>
-                                <a
-                                  href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ml-2 px-1.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[10px] font-medium border border-gray-400"
-                                  title="틱톡 바로가기"
-                                >
-                                  🔗
-                                </a>
+                              <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg ${app.main_channel === 'tiktok' ? 'bg-gray-200 ring-1 ring-gray-400' : 'bg-gray-50'}`}>
+                                <span className="flex items-center gap-1.5 text-gray-600">
+                                  <svg className="w-3.5 h-3.5 text-gray-700" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"/></svg>
+                                  TikTok
+                                </span>
+                                <span className="font-semibold text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
                               </div>
                             )}
                           </div>
-
-                          {/* 지원일 */}
-                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
-
-                          {/* 버튼들 */}
-                          <div className="space-y-1.5">
-                            {/* 지원서 보기 */}
-                            <button
-                              onClick={async () => {
-                                try {
-                                  let profile = null
-                                  const { data: p1 } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
-                                  if (p1) {
-                                    profile = p1
-                                  } else {
-                                    const { data: p2 } = await supabase.from('user_profiles').select('*').eq('user_id', app.user_id).maybeSingle()
-                                    profile = p2
-                                  }
-                                  // profile_photo_url은 app에서 우선 사용 (profile에서 null로 덮어쓰기 방지)
-                                  const photoUrl = app.profile_photo_url || profile?.profile_photo_url
-                                  setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
-                                  setShowProfileModal(true)
-                                } catch (error) {
-                                  console.error('Error:', error)
-                                }
-                              }}
-                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
-                            >
-                              📋 지원서 보기
-                            </button>
-
-                            {/* 가상선택 취소 */}
-                            <button
-                              onClick={() => handleVirtualSelect(app.id, false, app.main_channel)}
-                              className="w-full py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
-                            >
-                              ✕ 가상선택 취소
-                            </button>
-
-                            {/* 확정하기 */}
-                            {!isAlreadyParticipant && (
+                          {/* 하단 버튼 */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-xs text-gray-400">{formatDate(app.created_at) ? `${formatDate(app.created_at)} 지원` : ''}</span>
+                            <div className="flex items-center gap-1.5">
                               <button
                                 onClick={async () => {
-                                  // 모집인원 제한 체크
-                                  const totalSlots = campaign?.total_slots || 0
-                                  const currentSelectedCount = participants.length
-                                  if (totalSlots > 0 && currentSelectedCount >= totalSlots) {
-                                    alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 선정 크리에이터: ${currentSelectedCount}명`)
-                                    return
-                                  }
-                                  if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                                   try {
-                                    const { error } = await supabase.from('applications').update({
-                                      status: 'selected',
-                                      virtual_selected: false,
-                                      main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
-                                    }).eq('id', app.id)
-                                    if (error) throw error
-
-                                    // 선정 알림 발송
-                                    const pName = app.applicant_name || app.creator_name || '크리에이터'
-                                    const pEmail = app.email || app.applicant_email || app.creator_email
-                                    let pPhone = app.phone || app.phone_number || app.creator_phone
-                                    const campaignName = campaign?.title || '캠페인'
-
-                                    // phone이 없으면 user_profiles에서 조회
-                                    if (!pPhone && app.user_id) {
-                                      try {
-                                        const { data: profile } = await supabase
-                                          .from('user_profiles')
-                                          .select('phone')
-                                          .eq('id', app.user_id)
-                                          .maybeSingle()
-                                        pPhone = profile?.phone || null
-                                      } catch (e) { console.error('Phone lookup failed:', e.message) }
+                                    let profile = null
+                                    const { data: p1 } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                    if (p1) { profile = p1 } else {
+                                      const { data: p2 } = await supabase.from('user_profiles').select('*').eq('user_id', app.user_id).maybeSingle()
+                                      profile = p2
                                     }
-
+                                    const photoUrl = app.profile_photo_url || profile?.profile_photo_url
+                                    setSelectedParticipant({ ...app, ...profile, profile_photo_url: photoUrl })
+                                    setShowProfileModal(true)
+                                  } catch (error) { console.error('Error:', error) }
+                                }}
+                                className="px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 font-medium transition-colors flex items-center gap-1"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                지원서
+                              </button>
+                              <button
+                                onClick={() => handleVirtualSelect(app.id, false, app.main_channel)}
+                                className="px-2.5 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-600 font-medium transition-colors"
+                              >
+                                취소
+                              </button>
+                              {!isAlreadyParticipant && (
+                                <button
+                                  onClick={async () => {
+                                    const totalSlots = campaign?.total_slots || 0
+                                    const currentSelectedCount = participants.length
+                                    if (totalSlots > 0 && currentSelectedCount >= totalSlots) {
+                                      alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 선정 크리에이터: ${currentSelectedCount}명`)
+                                      return
+                                    }
+                                    if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                                     try {
-                                      if (region === 'japan') {
-                                        fetch('/.netlify/functions/send-japan-notification', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            type: 'campaign_selected',
-                                            creatorId: app.user_id,
-                                            lineUserId: app.line_user_id,
-                                            creatorEmail: pEmail,
-                                            creatorPhone: pPhone,
-                                            data: {
-                                              creatorName: pName,
-                                              campaignName,
-                                              brandName: campaign?.brand_name || campaign?.company_name,
-                                              reward: campaign?.reward_text || campaign?.compensation || '협의',
-                                              deadline: campaign?.content_submission_deadline || '추후 안내',
-                                              guideUrl: `https://cnec.jp/creator/campaigns/${id}`
-                                            }
-                                          })
-                                        }).catch(e => console.error('[Japan] Individual selection notification error:', e.message))
-                                      } else if (region === 'us') {
-                                        fetch('/.netlify/functions/send-us-notification', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            type: 'campaign_selected',
-                                            creatorEmail: pEmail,
-                                            creatorPhone: pPhone,
-                                            data: {
-                                              creatorName: pName,
-                                              campaignName: campaign?.title || 'Campaign',
-                                              brandName: campaign?.brand_name || campaign?.company_name,
-                                              reward: campaign?.reward_text || campaign?.compensation || 'TBA',
-                                              deadline: campaign?.content_submission_deadline || 'TBA',
-                                              guideUrl: `https://cnec.us/creator/campaigns/${id}`
-                                            }
-                                          })
-                                        }).catch(e => console.error('[US] Individual selection notification error:', e.message))
-                                      } else {
-                                        // 한국: 직접 알림톡 + 이메일 발송 (dispatch 함수 대신 직접 호출)
-                                        if (pPhone) {
-                                          sendCampaignSelectedNotification(
-                                            pPhone,
-                                            pName,
-                                            { campaignName }
-                                          ).then(result => {
-                                            if (result?.success === false) {
-                                              console.error('[Korea] 선정 알림톡 발송 실패:', result)
-                                            } else {
-                                              console.log('[Korea] 선정 알림톡 발송 성공:', pName)
-                                            }
-                                          }).catch(e => console.error('[Korea] 선정 알림톡 에러:', e.message))
-                                        } else {
-                                          console.warn('[Korea] 선정 알림톡 미발송 - 전화번호 없음:', pName, app.user_id)
-                                        }
-                                        // 이메일 발송
-                                        if (pEmail) {
-                                          fetch('/.netlify/functions/send-email', {
+                                      const { error } = await supabase.from('applications').update({
+                                        status: 'selected',
+                                        virtual_selected: false,
+                                        main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
+                                      }).eq('id', app.id)
+                                      if (error) throw error
+                                      const pName = app.applicant_name || app.creator_name || '크리에이터'
+                                      const pEmail = app.email || app.applicant_email || app.creator_email
+                                      let pPhone = app.phone || app.phone_number || app.creator_phone
+                                      const campaignName = campaign?.title || '캠페인'
+                                      if (!pPhone && app.user_id) {
+                                        try {
+                                          const { data: profile } = await supabase.from('user_profiles').select('phone').eq('id', app.user_id).maybeSingle()
+                                          pPhone = profile?.phone || null
+                                        } catch (e) { console.error('Phone lookup failed:', e.message) }
+                                      }
+                                      try {
+                                        if (region === 'japan') {
+                                          fetch('/.netlify/functions/send-japan-notification', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
-                                              to: pEmail,
-                                              subject: `[CNEC] ${campaignName} 캠페인 선정 축하드립니다!`,
-                                              html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:30px;border-radius:10px 10px 0 0;text-align:center;"><h1 style="color:#fff;margin:0;font-size:24px;">캠페인 선정</h1></div><div style="background:#fff;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;"><p style="font-size:16px;color:#333;">${pName}님, 축하합니다!</p><p style="font-size:14px;color:#666;">지원하신 <strong>${campaignName}</strong> 캠페인에 선정되셨습니다.</p><p style="font-size:14px;color:#666;">크리에이터 대시보드에서 캠페인 상세 정보를 확인하고 준비를 시작해 주세요.</p><div style="text-align:center;margin:30px 0;"><a href="https://cnec.co.kr/creator/mypage" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">대시보드 바로가기</a></div><p style="color:#999;font-size:12px;">문의: 1833-6025</p></div></div>`
+                                              type: 'campaign_selected',
+                                              creatorId: app.user_id,
+                                              lineUserId: app.line_user_id,
+                                              creatorEmail: pEmail,
+                                              creatorPhone: pPhone,
+                                              data: {
+                                                creatorName: pName,
+                                                campaignName,
+                                                brandName: campaign?.brand_name || campaign?.company_name,
+                                                reward: campaign?.reward_text || campaign?.compensation || '협의',
+                                                deadline: campaign?.content_submission_deadline || '추후 안내',
+                                                guideUrl: `https://cnec.jp/creator/campaigns/${id}`
+                                              }
                                             })
-                                          }).catch(e => console.error('[Korea] 선정 이메일 에러:', e.message))
+                                          }).catch(e => console.error('[Japan] 선정 이메일 에러:', e.message))
+                                        } else {
+                                          if (pPhone) {
+                                            fetch('/.netlify/functions/send-sms', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ to: pPhone, message: `[CNEC] ${pName}님, ${campaignName} 캠페인에 선정되셨습니다! 크리에이터 대시보드에서 확인해주세요.` })
+                                            }).catch(e => console.error('[Korea] SMS 에러:', e.message))
+                                          }
+                                          if (pEmail) {
+                                            fetch('/.netlify/functions/send-email', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({
+                                                to: pEmail,
+                                                subject: `[CNEC] ${campaignName} 캠페인 선정 축하드립니다!`,
+                                                html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:30px;border-radius:10px 10px 0 0;text-align:center;"><h1 style="color:#fff;margin:0;font-size:24px;">캠페인 선정</h1></div><div style="background:#fff;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;"><p style="font-size:16px;color:#333;">${pName}님, 축하합니다!</p><p style="font-size:14px;color:#666;">지원하신 <strong>${campaignName}</strong> 캠페인에 선정되셨습니다.</p><p style="font-size:14px;color:#666;">크리에이터 대시보드에서 캠페인 상세 정보를 확인하고 준비를 시작해 주세요.</p><div style="text-align:center;margin:30px 0;"><a href="https://cnec.co.kr/creator/campaigns/${id}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">대시보드 바로가기</a></div><p style="color:#999;font-size:12px;">문의: 1833-6025</p></div></div>`
+                                              })
+                                            }).catch(e => console.error('[Korea] 선정 이메일 에러:', e.message))
+                                          }
                                         }
+                                      } catch (notifError) {
+                                        console.error('Selection notification error:', notifError.message)
                                       }
-                                    } catch (notifError) {
-                                      console.error('Selection notification error:', notifError.message)
+                                      await fetchApplications()
+                                      await fetchParticipants()
+                                      setActiveTab('confirmed')
+                                    } catch (error) {
+                                      alert('확정 처리 실패: ' + error.message)
                                     }
-
-                                    await fetchApplications()
-                                    await fetchParticipants()
-                                    setActiveTab('confirmed')
-                                  } catch (error) {
-                                    alert('확정 처리 실패: ' + error.message)
-                                  }
-                                }}
-                                className="w-full py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
-                              >
-                                ✓ 확정하기
-                              </button>
-                            )}
+                                  }}
+                                  className="px-2.5 py-1.5 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors flex items-center gap-1"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  확정
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )
@@ -10784,18 +10436,14 @@ Questions? Contact us.
               </CardContent>
             </Card>
           </TabsContent>
-
           {/* 선정 크리에이터 탭 */}
           <TabsContent value="confirmed">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl border-b">
-                <div className="flex items-center justify-between">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-green-800">
-                      <CheckCircle className="w-5 h-5" />
-                      선정 크리에이터 관리
-                    </CardTitle>
-                    <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
+                    <CardTitle className="text-2xl font-bold text-gray-900">선정 크리에이터</CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* 4주 챌린지: 가이드 발송 버튼 */}
@@ -11276,48 +10924,38 @@ Questions? Contact us.
 
           {/* 영상 확인 탭 */}
           <TabsContent value="editing">
-            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100/50">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <CardTitle className="flex items-center gap-2 text-amber-800">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    영상 제출 및 검토
-                  </CardTitle>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle className="text-2xl font-bold text-gray-900">영상 제출 및 검토</CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">크리에이터가 제출한 영상을 검토하고 승인하세요</p>
+                  </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant={videoReviewFilter === 'all' ? 'default' : 'outline'}
-                      className={videoReviewFilter === 'all' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
+                    <button
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                       onClick={() => setVideoReviewFilter('all')}
                     >
                       전체 ({new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={videoReviewFilter === 'pending' ? 'default' : 'outline'}
-                      className={videoReviewFilter === 'pending' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}
+                    </button>
+                    <button
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'pending' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                       onClick={() => setVideoReviewFilter('pending')}
                     >
                       검수 미완료 ({new Set(videoSubmissions.filter(v => v.status === 'pending' || v.status === 'submitted' || v.status === 'revision_requested').map(v => v.user_id)).size})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={videoReviewFilter === 'approved' ? 'default' : 'outline'}
-                      className={videoReviewFilter === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-300 text-green-700 hover:bg-green-50'}
+                    </button>
+                    <button
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                       onClick={() => setVideoReviewFilter('approved')}
                     >
                       검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status)).map(v => v.user_id)).size})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={videoReviewFilter === 'not_submitted' ? 'default' : 'outline'}
-                      className={videoReviewFilter === 'not_submitted' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
+                    </button>
+                    <button
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'not_submitted' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                       onClick={() => setVideoReviewFilter('not_submitted')}
                     >
                       미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url).length})
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </CardHeader>
@@ -12045,8 +11683,8 @@ Questions? Contact us.
 
           {/* 완료 탭 */}
           <TabsContent value="completed">
-            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-teal-100/50">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-4">
                 {(() => {
                   // 멀티비디오 캠페인 여부 체크 (리전별)
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
@@ -12083,17 +11721,19 @@ Questions? Contact us.
                   })
 
                   return (
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-teal-800">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
-                      <CheckCircle className="w-4 h-4 text-white" />
-                    </div>
-                    완료된 크리에이터
-                    <Badge className="bg-teal-100 text-teal-700 ml-2 rounded-full px-3">
-                      {completedSectionParticipants.length}명
-                    </Badge>
-                  </CardTitle>
-                  {completedSectionParticipants.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-2xl font-bold text-gray-900">완료된 크리에이터</CardTitle>
+                          <p className="text-sm text-gray-500 mt-1">캠페인을 완료한 크리에이터 목록입니다</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-gray-100 text-gray-700 ml-2 rounded-full px-3">
+                            {completedSectionParticipants.length}명
+                          </Badge>
+                        </div>
+                      </div>
+                      {completedSectionParticipants.length > 0 && (
                     <Button
                       size="sm"
                       className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md shadow-teal-200 rounded-xl"
@@ -12143,7 +11783,7 @@ Questions? Contact us.
                       전체 영상 다운로드
                     </Button>
                   )}
-                </div>
+                    </>
                   )
                 })()}
               </CardHeader>
