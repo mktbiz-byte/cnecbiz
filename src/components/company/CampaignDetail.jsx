@@ -10060,7 +10060,7 @@ Questions? Contact us.
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* 4주 챌린지: 가이드 발송 버튼 */}
                     {campaign.campaign_type === '4week_challenge' && (
-                      <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                         {/* 가이드 존재 여부 확인 */}
                         {(() => {
                           const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai ||
@@ -10078,7 +10078,7 @@ Questions? Contact us.
                                 size="sm"
                                 onClick={() => handleDeliverOliveYoung4WeekGuide()}
                                 disabled={participants.length === 0}
-                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-7"
+                                className="bg-gray-900 hover:bg-gray-800 text-white text-xs px-3 py-1 h-7"
                               >
                                 <Send className="w-3 h-3 mr-1" />
                                 {selectedParticipants.length > 0
@@ -10090,7 +10090,7 @@ Questions? Contact us.
 
                               {/* 주차별 보내기 */}
                               <div className="flex items-center gap-1">
-                                <span className="text-xs text-purple-700 font-medium">주차별:</span>
+                                <span className="text-xs text-gray-600 font-medium">주차별:</span>
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
                                   // challenge_weekly_guides_ai is TEXT (JSON string) - parse for indexing
@@ -10114,8 +10114,8 @@ Questions? Contact us.
                                       onClick={() => handleDeliver4WeekGuideByWeek(weekNum)}
                                       className={`text-xs px-2 py-1 h-7 ${
                                         hasWeekGuide
-                                          ? 'border-purple-400 text-purple-700 hover:bg-purple-100'
-                                          : 'border-gray-300 text-gray-400'
+                                          ? 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                                          : 'border-gray-200 text-gray-400'
                                       }`}
                                     >
                                       {weekNum}주
@@ -10131,7 +10131,7 @@ Questions? Contact us.
 
                     {/* 올영/메가와리 캠페인: 가이드 발송 버튼 */}
                     {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
-                      <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                         {(() => {
                           const hasGuide = campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide ||
                                            campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide ||
@@ -10146,7 +10146,7 @@ Questions? Contact us.
                               size="sm"
                               onClick={() => handleDeliverOliveYoung4WeekGuide()}
                               disabled={participants.length === 0}
-                              className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-7"
+                              className="bg-gray-900 hover:bg-gray-800 text-white text-xs px-3 py-1 h-7"
                             >
                               <Send className="w-3 h-3 mr-1" />
                               {selectedParticipants.length > 0
@@ -10160,7 +10160,7 @@ Questions? Contact us.
 
                     {/* 기획형 캠페인: 체크박스 선택 후 가이드 일괄 전달 */}
                     {campaign.campaign_type === 'planned' && selectedParticipants.length > 0 && (
-                      <div className="flex items-center gap-2 bg-pink-50 p-2 rounded-lg border border-pink-200">
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                         <Button
                           size="sm"
                           onClick={async () => {
@@ -10179,7 +10179,7 @@ Questions? Contact us.
                             await handleGuideApproval(selectedWithGuide.map(p => p.id))
                             setSelectedParticipants([])
                           }}
-                          className="bg-pink-600 hover:bg-pink-700 text-white text-xs px-3 py-1 h-7"
+                          className="bg-gray-900 hover:bg-gray-800 text-white text-xs px-3 py-1 h-7"
                         >
                           <Send className="w-3 h-3 mr-1" />
                           선택된 {selectedParticipants.length}명에게 가이드 전달
@@ -10193,7 +10193,7 @@ Questions? Contact us.
                       <Button
                         variant="outline"
                         onClick={handleRequestShippingInfo}
-                        className="bg-white border-orange-200 hover:bg-orange-50 text-orange-700"
+                        className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                         disabled={participants.length === 0 || requestingShippingInfo}
                       >
                         <Mail className="w-4 h-4 mr-2" />
@@ -10205,7 +10205,7 @@ Questions? Contact us.
                     <Button
                       variant="outline"
                       onClick={exportShippingInfo}
-                      className="bg-white border-green-200 hover:bg-green-50 text-green-700"
+                      className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                       disabled={participants.length === 0}
                     >
                       <Download className="w-4 h-4 mr-2" />
@@ -10216,7 +10216,7 @@ Questions? Contact us.
                     <Button
                       variant="outline"
                       onClick={downloadTrackingTemplate}
-                      className="bg-white border-blue-200 hover:bg-blue-50 text-blue-700"
+                      className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                       disabled={participants.length === 0}
                     >
                       <Download className="w-4 h-4 mr-2" />
@@ -10238,7 +10238,7 @@ Questions? Contact us.
                       />
                       <Button
                         variant="outline"
-                        className="bg-white border-purple-200 hover:bg-purple-50 text-purple-700"
+                        className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                         disabled={participants.length === 0}
                         asChild
                       >
@@ -10361,7 +10361,7 @@ Questions? Contact us.
                     </TabsTrigger>
                     <TabsTrigger
                       value="youtube"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>📺</span> 유튜브 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -10370,7 +10370,7 @@ Questions? Contact us.
                     </TabsTrigger>
                     <TabsTrigger
                       value="instagram"
-                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
+                      className="flex items-center gap-1.5 sm:gap-2 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-all duration-200 whitespace-nowrap"
                     >
                       <span>📸</span> 인스타 <span className="bg-gray-200/80 data-[state=active]:bg-white/20 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
@@ -10545,25 +10545,25 @@ Questions? Contact us.
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <button
-                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`px-4 py-2 text-sm rounded-full font-medium transition-colors ${videoReviewFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                       onClick={() => setVideoReviewFilter('all')}
                     >
                       전체 ({new Set(videoSubmissions.filter(v => v.status !== 'rejected').map(v => v.user_id)).size})
                     </button>
                     <button
-                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'pending' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`px-4 py-2 text-sm rounded-full font-medium transition-colors ${videoReviewFilter === 'pending' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                       onClick={() => setVideoReviewFilter('pending')}
                     >
                       검수 미완료 ({new Set(videoSubmissions.filter(v => v.status === 'pending' || v.status === 'submitted' || v.status === 'revision_requested').map(v => v.user_id)).size})
                     </button>
                     <button
-                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`px-4 py-2 text-sm rounded-full font-medium transition-colors ${videoReviewFilter === 'approved' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                       onClick={() => setVideoReviewFilter('approved')}
                     >
                       검수 완료 ({new Set(videoSubmissions.filter(v => ['approved', 'sns_uploaded', 'final_confirmed', 'completed', 'confirmed'].includes(v.status)).map(v => v.user_id)).size})
                     </button>
                     <button
-                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${videoReviewFilter === 'not_submitted' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`px-4 py-2 text-sm rounded-full font-medium transition-colors ${videoReviewFilter === 'not_submitted' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                       onClick={() => setVideoReviewFilter('not_submitted')}
                     >
                       미제출 ({participants.filter(p => !videoSubmissions.some(v => v.user_id === p.user_id) && !p.video_file_url).length})
@@ -10573,33 +10573,33 @@ Questions? Contact us.
               </CardHeader>
               <CardContent>
                 {/* 6개월 보관 정책 안내 */}
-                <div className="mb-6 p-4 bg-[rgba(253,203,110,0.1)] border-l-4 border-[#E17055] rounded-r-lg">
+                <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                   <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-[#E17055] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-bold text-[#E17055] text-lg mb-2">⚠️ 영상 보관 정책 안내</h4>
-                      <div className="text-[#636E72] space-y-1">
-                        <p className="font-semibold">• 제출된 영상은 <span className="text-red-600 font-bold">검수 완료 후 6개월간 보관</span>됩니다.</p>
-                        <p className="font-semibold">• 6개월 후 자동으로 삭제되며, <span className="text-red-600 font-bold">복구가 불가능</span>합니다.</p>
-                        <p className="font-semibold">• 필요한 경우 <span className="text-blue-600 font-bold">삭제 전에 반드시 다운로드</span>해주세요.</p>
+                      <h4 className="font-semibold text-gray-900 text-sm mb-1.5">영상 보관 정책 안내</h4>
+                      <div className="text-gray-600 space-y-0.5 text-sm">
+                        <p>• 제출된 영상은 <strong>검수 완료 후 6개월간 보관</strong>됩니다.</p>
+                        <p>• 6개월 후 자동으로 삭제되며, <strong>복구가 불가능</strong>합니다.</p>
+                        <p>• 필요한 경우 <strong>삭제 전에 반드시 다운로드</strong>해주세요.</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* 영상 수정 요청 시 주의사항 */}
-                <div className="mb-6 p-4 bg-[rgba(116,185,255,0.1)] border-l-4 border-[#74B9FF] rounded-r-lg">
+                <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                   <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-[#74B9FF] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-bold text-[#1A1A2E] text-lg mb-2">📝 영상 수정 요청 시 주의사항</h4>
-                      <div className="text-[#636E72] space-y-1">
-                        <p className="font-semibold">• 수정은 <span className="text-red-600 font-bold">1회만 가능</span>하며, 가이드에 없는 재촬영 요청은 <span className="text-red-600 font-bold">추가금을 요청</span>할 수 있습니다.</p>
-                        <p className="font-semibold">• 수정 1회 요청 후 수정이 안된 부분은 추가 요청이 가능하니 <span className="text-orange-600 font-bold">꼼꼼히 검수</span> 부탁드립니다.</p>
+                      <h4 className="font-semibold text-gray-900 text-sm mb-1.5">영상 수정 요청 시 주의사항</h4>
+                      <div className="text-gray-600 space-y-0.5 text-sm">
+                        <p>• 수정은 <strong>1회만 가능</strong>하며, 가이드에 없는 재촬영 요청은 <strong>추가금을 요청</strong>할 수 있습니다.</p>
+                        <p>• 수정 1회 요청 후 수정이 안된 부분은 추가 요청이 가능하니 <strong>꼼꼼히 검수</strong> 부탁드립니다.</p>
                       </div>
                     </div>
                   </div>
@@ -10779,8 +10779,8 @@ Questions? Contact us.
                     <div className="space-y-4">
                       {/* 차수 선택 버튼 (올리브영/4주 챌린지) */}
                       {isMultiStep && stepOptions.length > 0 && (
-                        <div className="flex items-center gap-2 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <span className="text-sm font-medium text-purple-800 mr-2">차수 선택:</span>
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                          <span className="text-sm font-medium text-gray-700 mr-2">차수 선택:</span>
                           <div className="flex gap-2 flex-wrap">
                             {stepOptions.map((step) => {
                               const stepNotSubmitted = participants.filter(p => {
@@ -10796,8 +10796,8 @@ Questions? Contact us.
                                   size="sm"
                                   variant={currentStepNumber === step.num ? 'default' : 'outline'}
                                   className={currentStepNumber === step.num
-                                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                                    : 'border-purple-300 text-purple-700 hover:bg-purple-50'}
+                                    ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'}
                                   onClick={() => handleStepChange(step.num)}
                                 >
                                   {step.label}
@@ -10826,20 +10826,20 @@ Questions? Contact us.
                           <div className="text-sm text-gray-600">
                             {isMultiStep && currentStepNumber ? (
                               <>
-                                <span className="font-bold text-purple-600">{currentStepInfo?.label || `${currentStepNumber}차 영상`}</span>
+                                <span className="font-bold text-gray-900">{currentStepInfo?.label || `${currentStepNumber}차 영상`}</span>
                                 <span className="mx-1">·</span>
                                 <span className="text-gray-500">마감일: {currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'}</span>
                                 <span className="mx-2">|</span>
                               </>
                             ) : null}
-                            선정된 크리에이터 <span className="font-bold text-amber-600">{participants.length}명</span> 중
-                            <span className="font-bold text-red-600 ml-1">{notSubmittedParticipants.length}명</span>이 미제출
+                            선정된 크리에이터 <span className="font-bold text-gray-900">{participants.length}명</span> 중
+                            <span className="font-bold text-gray-900 ml-1">{notSubmittedParticipants.length}명</span>이 미제출
                           </div>
                         </div>
                         <Button
                           onClick={handleSendAlimtalk}
                           disabled={selectedNotSubmitted.length === 0 || sendingAlimtalk}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-white flex items-center gap-2"
+                          className="bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
                         >
                           {sendingAlimtalk ? (
                             <>
@@ -10857,7 +10857,7 @@ Questions? Contact us.
                         </Button>
                       </div>
                       {selectedNotSubmitted.length > 0 && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
                           <strong>{selectedNotSubmitted.length}명</strong> 선택됨 ·
                           {isMultiStep && currentStepNumber
                             ? ` [${currentStepInfo?.label || `${currentStepNumber}차`}] 마감일: ${currentStepDeadline ? new Date(currentStepDeadline).toLocaleDateString('ko-KR') : '미정'} `
@@ -10883,8 +10883,8 @@ Questions? Contact us.
                             key={participant.id}
                             className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
                               selectedNotSubmitted.includes(participant.user_id)
-                                ? 'border-yellow-400 ring-2 ring-yellow-200'
-                                : 'border-red-200'
+                                ? 'border-gray-900 ring-1 ring-gray-900/10'
+                                : 'border-gray-200'
                             }`}
                             onClick={() => handleSelectOne(participant.user_id, !selectedNotSubmitted.includes(participant.user_id))}
                           >
@@ -10897,12 +10897,12 @@ Questions? Contact us.
                                   handleSelectOne(participant.user_id, e.target.checked)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
                               />
                               <img
                                 src={participant.profile_photo_url || participant.creator_profile_photo || '/default-avatar.png'}
                                 alt={participant.creator_name || participant.applicant_name}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-red-200"
+                                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
                               />
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold text-gray-900 truncate">
@@ -10924,7 +10924,7 @@ Questions? Contact us.
                                 )}
                               </div>
                               <div className="flex flex-col items-end gap-1">
-                                <Badge className="bg-red-100 text-red-700 text-xs">미제출</Badge>
+                                <Badge className="bg-gray-100 text-gray-700 text-xs">미제출</Badge>
                                 {getPhone(participant) ? (
                                   <span className="text-xs text-green-600 flex items-center gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
@@ -11038,10 +11038,10 @@ Questions? Contact us.
                                   <button
                                     key={step}
                                     onClick={() => setSelectedVideoSteps(prev => ({ ...prev, [userId]: step }))}
-                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                                       selectedStep === step
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                        ? 'bg-gray-900 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                                   >
                                     {is4WeekChallenge ? `${step}주차` : isMegawari ? `動画 ${step}` : `영상 ${step}`}
@@ -11057,10 +11057,10 @@ Questions? Contact us.
                                   <button
                                     key={index}
                                     onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [versionKey]: index }))}
-                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                                       selectedVersion === index
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        ? 'bg-gray-900 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                                   >
                                     v{sub.version || (index + 1)}
@@ -11072,11 +11072,11 @@ Questions? Contact us.
                             {/* 현재 선택된 주차/버전 표시 */}
                             <div className="flex gap-2 mb-3">
                               {isMultiStepCampaign && (
-                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md">
                                   {is4WeekChallenge ? `${selectedStep}주차` : `영상 ${selectedStep}`}
                                 </span>
                               )}
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md font-semibold">
                                 V{submission.version || 1}
                               </span>
                             </div>
@@ -11118,11 +11118,11 @@ Questions? Contact us.
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
                               {submission.status === 'approved' ? (
-                                <Badge className="bg-green-100 text-green-700">검수 완료</Badge>
+                                <Badge className="bg-gray-900 text-white">검수 완료</Badge>
                               ) : submission.status === 'submitted' ? (
-                                <Badge className="bg-blue-100 text-blue-700">검토 대기</Badge>
+                                <Badge className="bg-gray-100 text-gray-700">검토 대기</Badge>
                               ) : (
-                                <Badge className="bg-yellow-100 text-yellow-700">수정 요청됨</Badge>
+                                <Badge className="bg-gray-100 text-gray-700">수정 요청됨</Badge>
                               )}
                             </div>
                             
@@ -11133,12 +11133,12 @@ Questions? Contact us.
                               </div>
                               
                               {submission.approved_at && (
-                                <div className="bg-red-50 border border-red-200 rounded p-3">
-                                  <p className="text-red-600 font-semibold text-xs mb-1">⚠️ 삭제 예정일</p>
-                                  <p className="text-red-700 font-bold">
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                  <p className="text-gray-600 font-semibold text-xs mb-1">삭제 예정일</p>
+                                  <p className="text-gray-900 font-bold">
                                     {new Date(new Date(submission.approved_at).getTime() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}
                                   </p>
-                                  <p className="text-xs text-red-600 mt-1">검수 완료 후 6개월 후 자동 삭제</p>
+                                  <p className="text-xs text-gray-500 mt-1">검수 완료 후 6개월 후 자동 삭제</p>
                                 </div>
                               )}
                               
@@ -11173,14 +11173,14 @@ Questions? Contact us.
                                 const cleanUrl = participant?.clean_video_file_url || participant?.clean_video_url || submission.clean_video_url
                                 if (!cleanUrl) return null
                                 return (
-                                  <div className="bg-[rgba(0,184,148,0.06)] border border-[#DFE6E9] rounded p-3">
-                                    <p className="text-[#00B894] font-semibold text-xs mb-1">클린본</p>
+                                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                    <p className="text-gray-600 font-semibold text-xs mb-1">클린본</p>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs text-[#00B894] truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
+                                      <span className="text-xs text-gray-600 truncate flex-1">{participant?.clean_video_file_name || 'clean_video.mp4'}</span>
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-6 px-2 text-xs border-[#DFE6E9] text-[#00B894] hover:bg-[rgba(0,184,148,0.1)]"
+                                        className="h-6 px-2 text-xs border-gray-200 text-gray-700 hover:bg-gray-100"
                                         onClick={async () => {
                                           try {
                                             const res = await fetch(cleanUrl)
@@ -11202,7 +11202,7 @@ Questions? Contact us.
                                       </Button>
                                     </div>
                                     {participant?.clean_video_uploaded_at && (
-                                      <p className="text-xs text-[#00B894] mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
+                                      <p className="text-xs text-gray-500 mt-1">업로드: {new Date(participant.clean_video_uploaded_at).toLocaleDateString('ko-KR')}</p>
                                     )}
                                   </div>
                                 )
@@ -11212,8 +11212,7 @@ Questions? Contact us.
                             <div className="flex flex-col gap-2 pt-4">
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                                className="w-full bg-gray-900 hover:bg-gray-800 text-white"
                                 onClick={async () => {
                                   try {
                                     // Cross-origin 다운로드를 위해 blob으로 fetch
@@ -11265,7 +11264,7 @@ Questions? Contact us.
                                   </Button>
                                   <Button
                                     size="sm"
-                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                    className="w-full bg-gray-900 hover:bg-gray-800 text-white"
                                     onClick={async () => {
                                       if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
                                       await handleVideoApproval(submission)
@@ -11276,7 +11275,7 @@ Questions? Contact us.
                                 </>
                               )}
                               {submission.status === 'approved' && (
-                                <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
+                                <div className="text-center text-sm text-gray-700 font-medium py-2 bg-gray-50 rounded-lg">
                                   ✓ 이 영상은 검수 완료되었습니다
                                 </div>
                               )}
@@ -11400,11 +11399,11 @@ Questions? Contact us.
                 })()}
               </CardHeader>
               {/* 영상 다운로드 재생 안내 */}
-              <div className="mx-6 mt-2 mb-0 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-                <p className="font-medium mb-1">영상 재생이 안 될 경우 안내</p>
-                <ul className="list-disc list-inside space-y-0.5 text-amber-700 text-xs">
-                  <li>Windows: <a href="https://www.gomlab.com/gomplayerplus/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">곰플레이어</a> 또는 <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">VLC</a> 설치 후 재생해 주세요</li>
-                  <li>Mac: <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">VLC</a> 또는 <a href="https://iina.io/" target="_blank" rel="noopener noreferrer" className="underline text-amber-900 font-medium">IINA</a> 플레이어를 추천합니다</li>
+              <div className="mx-6 mt-2 mb-0 p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
+                <p className="font-medium mb-1 text-gray-900">영상 재생이 안 될 경우 안내</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-600 text-xs">
+                  <li>Windows: <a href="https://www.gomlab.com/gomplayerplus/" target="_blank" rel="noopener noreferrer" className="underline text-gray-900 font-medium">곰플레이어</a> 또는 <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-gray-900 font-medium">VLC</a> 설치 후 재생해 주세요</li>
+                  <li>Mac: <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener noreferrer" className="underline text-gray-900 font-medium">VLC</a> 또는 <a href="https://iina.io/" target="_blank" rel="noopener noreferrer" className="underline text-gray-900 font-medium">IINA</a> 플레이어를 추천합니다</li>
                   <li>기본 동영상 플레이어에서 재생 불가 시 코덱 미지원이 원인이며, 위 플레이어 설치로 해결됩니다</li>
                 </ul>
               </div>
@@ -11639,22 +11638,22 @@ Questions? Contact us.
                         creatorSubmissions.every(sub => sub.final_confirmed_at)
 
                       return (
-                        <div key={participant.id} className="border border-[#DFE6E9] rounded-xl p-5 bg-[rgba(0,184,148,0.06)] shadow-sm">
+                        <div key={participant.id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
                           {/* 크리에이터 헤더 */}
-                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#DFE6E9]">
+                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-[#00B894] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-base">
                                 {(participant.creator_name || participant.applicant_name || 'C').charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <h4 className="font-bold text-lg text-gray-900">{participant.creator_name || participant.applicant_name || '크리에이터'}</h4>
-                                <p className="text-sm text-gray-600">{participant.creator_platform || '플랫폼 미지정'}</p>
+                                <h4 className="font-semibold text-base text-gray-900">{participant.creator_name || participant.applicant_name || '크리에이터'}</h4>
+                                <p className="text-sm text-gray-500">{participant.creator_platform || '플랫폼 미지정'}</p>
                               </div>
                             </div>
-                            <Badge className="bg-[#00B894] text-white px-3 py-1">
-                              <CheckCircle className="w-3 h-3 mr-1" />
+                            <span className="text-sm text-gray-500 font-medium flex items-center gap-1">
+                              <span className="w-2 h-2 bg-gray-900 rounded-full inline-block"></span>
                               완료
-                            </Badge>
+                            </span>
                           </div>
 
                           {/* 영상 목록 */}
@@ -11676,13 +11675,13 @@ Questions? Contact us.
                                       return false
                                     })
                                     return editedSubmissions.length > 0 ? (
-                                  <div className="bg-[#F0EDFF] rounded-lg p-4 border border-[#DFE6E9]">
-                                    <h5 className="font-semibold text-[#1A1A2E] mb-3 flex items-center gap-2">
+                                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                    <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                       <Video className="w-4 h-4" />
                                       편집본
-                                      <Badge className="bg-[#6C5CE7] text-white text-xs">
+                                      <span className="text-xs text-gray-500 font-medium">
                                         {editedSubmissions.length}개
-                                      </Badge>
+                                      </span>
                                     </h5>
                                     <div className="space-y-3">
                                       {editedSubmissions.map((submission, idx) => {
@@ -11715,7 +11714,7 @@ Questions? Contact us.
                                         if (!adCode) adCode = participant.partnership_code
 
                                         return (
-                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                             <div className="flex items-center justify-between gap-3">
                                               <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -11747,7 +11746,7 @@ Questions? Contact us.
                                                 {adCode && (
                                                   <div className="flex items-center gap-2 text-sm mt-1">
                                                     <Hash className="w-3 h-3 text-orange-500" />
-                                                    <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
+                                                    <code className="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{adCode}</code>
                                                     <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
                                                       <Copy className="w-3 h-3" />
                                                     </Button>
@@ -11762,7 +11761,7 @@ Questions? Contact us.
                                                 {submission.video_file_url && (
                                                 <Button
                                                   size="sm"
-                                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
@@ -11788,21 +11787,21 @@ Questions? Contact us.
                                                 </Button>
                                                 )}
                                                 {snsUrl && (
-                                                  <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
+                                                  <Button size="sm" variant="outline" className="text-gray-700 border-gray-200 hover:bg-gray-50" onClick={() => window.open(snsUrl, '_blank')}>
                                                     <ExternalLink className="w-4 h-4 mr-1" />
                                                     SNS 보기
                                                   </Button>
                                                 )}
                                                 {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
                                                   <>
-                                                    <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                    <Badge className="px-2 py-1 text-xs bg-gray-900 text-white">
                                                       <CheckCircle className="w-3 h-3 mr-1" />
                                                       {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                     </Badge>
                                                     <Button
                                                       size="sm"
                                                       variant="outline"
-                                                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                      className="text-gray-700 border-gray-200 hover:bg-gray-50"
                                                       onClick={() => handleSecondaryUseConsent(participant, submission)}
                                                     >
                                                       <FileText className="w-4 h-4 mr-1" />
@@ -11811,14 +11810,14 @@ Questions? Contact us.
                                                   </>
                                                 ) : submission.status === 'approved' && (
                                                   snsUrl ? (
-                                                    <Badge className="bg-green-100 text-green-700 px-2 py-1 text-xs">
+                                                    <Badge className="bg-gray-100 text-gray-700 px-2 py-1 text-xs">
                                                       <CheckCircle className="w-3 h-3 mr-1" />
                                                       SNS 업로드됨
                                                     </Badge>
                                                   ) : (
                                                     <Button
                                                       size="sm"
-                                                      className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
+                                                      className="bg-gray-900 hover:bg-gray-800 text-white"
                                                       onClick={async () => {
                                                         const phone = participant.phone || participant.phone_number || participant.creator_phone
                                                         const email = participant.email || participant.creator_email || participant.applicant_email
@@ -11909,17 +11908,17 @@ Questions? Contact us.
                                     const totalCleanCount = submissionCleanVideos.length + (hasParticipantClean ? 1 : 0) + stepCleanVideos.length
 
                                     return (
-                                      <div className="bg-[rgba(0,184,148,0.06)] rounded-lg p-4 border border-[#DFE6E9]">
-                                        <h5 className="font-semibold text-[#00B894] mb-3 flex items-center gap-2">
+                                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                        <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                           <Video className="w-4 h-4" />
                                           클린본
-                                          <Badge className="bg-[#00B894] text-white text-xs">
+                                          <span className="text-xs text-gray-500 font-medium">
                                             {totalCleanCount}개
-                                          </Badge>
+                                          </span>
                                         </h5>
                                         <div className="space-y-3">
                                           {submissionCleanVideos.map((submission, idx) => (
-                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -11939,7 +11938,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(submission.clean_video_url)
@@ -11968,7 +11967,7 @@ Questions? Contact us.
                                           ))}
                                           {/* applications 테이블에 직접 저장된 클린본 (video_submissions에 없는 경우) */}
                                           {hasParticipantClean && (
-                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -11977,7 +11976,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(participant.clean_video_url)
@@ -12005,7 +12004,7 @@ Questions? Contact us.
                                           )}
                                           {/* step 클린본 (올영 캠페인) */}
                                           {stepCleanVideos.map((stepClean) => (
-                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div key={`step-clean-${stepClean.stepNum}`} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12014,7 +12013,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(stepClean.url)
@@ -12053,13 +12052,13 @@ Questions? Contact us.
                                 <>
                                   {/* 편집본 섹션 - video_file_url 또는 SNS URL이 있는 항목 표시 */}
                                   {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length > 0 && (
-                                    <div className="bg-[#F0EDFF] rounded-lg p-4 border border-[#DFE6E9]">
-                                      <h5 className="font-semibold text-[#1A1A2E] mb-3 flex items-center gap-2">
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                      <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                         <Video className="w-4 h-4" />
                                         편집본
-                                        <Badge className="bg-[#6C5CE7] text-white text-xs">
+                                        <span className="text-xs text-gray-500 font-medium">
                                           {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).length}개
-                                        </Badge>
+                                        </span>
                                       </h5>
                                       <div className="space-y-3">
                                         {creatorSubmissions.filter(s => s.video_file_url || s.sns_upload_url || participant.sns_upload_url).map((submission, idx) => {
@@ -12069,7 +12068,7 @@ Questions? Contact us.
                                           const adCode = participant.partnership_code || submission.ad_code || submission.partnership_code
 
                                           return (
-                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12099,7 +12098,7 @@ Questions? Contact us.
                                                   {adCode && (
                                                     <div className="flex items-center gap-2 text-sm mt-1">
                                                       <Hash className="w-3 h-3 text-orange-500" />
-                                                      <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
+                                                      <code className="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{adCode}</code>
                                                       <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
                                                         <Copy className="w-3 h-3" />
                                                       </Button>
@@ -12114,7 +12113,7 @@ Questions? Contact us.
                                                   {submission.video_file_url && (
                                                   <Button
                                                     size="sm"
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                    className="bg-gray-900 hover:bg-gray-800 text-white"
                                                     onClick={async () => {
                                                       try {
                                                         const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
@@ -12140,21 +12139,21 @@ Questions? Contact us.
                                                   </Button>
                                                   )}
                                                   {snsUrl && (
-                                                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
+                                                    <Button size="sm" variant="outline" className="text-gray-700 border-gray-200 hover:bg-gray-50" onClick={() => window.open(snsUrl, '_blank')}>
                                                       <ExternalLink className="w-4 h-4 mr-1" />
                                                       SNS 보기
                                                     </Button>
                                                   )}
                                                   {submission.final_confirmed_at || paidCreatorUserIds.has(submission.user_id) ? (
                                                     <>
-                                                      <Badge className={`px-2 py-1 text-xs ${paidCreatorUserIds.has(submission.user_id) && !submission.final_confirmed_at ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                      <Badge className="px-2 py-1 text-xs bg-gray-900 text-white">
                                                         <CheckCircle className="w-3 h-3 mr-1" />
                                                         {paidCreatorUserIds.has(submission.user_id) ? '지급완료' : '확정'}
                                                       </Badge>
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                        className="text-gray-700 border-gray-200 hover:bg-gray-50"
                                                         onClick={() => handleSecondaryUseConsent(participant, submission)}
                                                       >
                                                         <FileText className="w-4 h-4 mr-1" />
@@ -12164,7 +12163,7 @@ Questions? Contact us.
                                                   ) : submission.status === 'approved' && (
                                                     <Button
                                                       size="sm"
-                                                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                                                      className="bg-gray-900 hover:bg-gray-800 text-white"
                                                       onClick={async () => {
                                                         if (!snsUrl) {
                                                           setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
@@ -12197,18 +12196,18 @@ Questions? Contact us.
                                     if (totalCleanVideos === 0) return null
 
                                     return (
-                                      <div className="bg-[rgba(0,184,148,0.06)] rounded-lg p-4 border border-[#DFE6E9]">
-                                        <h5 className="font-semibold text-[#00B894] mb-3 flex items-center gap-2">
+                                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                        <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                           <Video className="w-4 h-4" />
                                           클린본
-                                          <Badge className="bg-[#00B894] text-white text-xs">
+                                          <span className="text-xs text-gray-500 font-medium">
                                             {totalCleanVideos}개
-                                          </Badge>
+                                          </span>
                                         </h5>
                                         <div className="space-y-3">
                                           {/* video_submissions의 클린본 */}
                                           {cleanVideosFromSubmissions.map((submission, idx) => (
-                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
@@ -12225,7 +12224,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(submission.clean_video_url)
@@ -12254,12 +12253,12 @@ Questions? Contact us.
                                           ))}
                                           {/* applications 테이블의 클린본 (video_submissions에 없는 경우만) */}
                                           {hasApplicationCleanVideo && (
-                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-[#DFE6E9]">
+                                            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
                                               <div className="flex items-center justify-between gap-3">
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium text-gray-800">클린본</span>
-                                                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">applications</Badge>
+                                                    <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500">applications</Badge>
                                                   </div>
                                                   <div className="text-xs text-gray-500">
                                                     {participant.applicant_name || participant.creator_name || '크리에이터'}
@@ -12267,7 +12266,7 @@ Questions? Contact us.
                                                 </div>
                                                 <Button
                                                   size="sm"
-                                                  className="bg-[#00B894] hover:bg-[#00A382] text-white"
+                                                  className="bg-gray-900 hover:bg-gray-800 text-white"
                                                   onClick={async () => {
                                                     try {
                                                       const response = await fetch(participant.clean_video_url)
@@ -12313,15 +12312,15 @@ Questions? Contact us.
                                         const label = is4WeekChallenge ? `${status.week}주차` : `STEP${status.step}`
                                         return (
                                           <div key={i} className="flex items-center gap-1">
-                                            <span className={status.url ? 'text-green-600' : 'text-gray-400'}>
+                                            <span className={status.url ? 'text-gray-900' : 'text-gray-400'}>
                                               {status.url ? <CheckCircle className="w-3 h-3 inline" /> : <Clock className="w-3 h-3 inline" />}
                                               <span className="ml-1">{label}</span>
                                             </span>
-                                            <span className={`ml-1 ${status.url ? 'text-green-600' : 'text-orange-500'}`}>
-                                              {status.url ? '✓URL' : '⚠URL없음'}
+                                            <span className={`ml-1 ${status.url ? 'text-gray-700' : 'text-gray-400'}`}>
+                                              {status.url ? '✓URL' : 'URL없음'}
                                             </span>
-                                            <span className={`ml-1 ${status.code ? 'text-green-600' : 'text-orange-500'}`}>
-                                              {status.code ? '✓코드' : '⚠코드없음'}
+                                            <span className={`ml-1 ${status.code ? 'text-gray-700' : 'text-gray-400'}`}>
+                                              {status.code ? '✓코드' : '코드없음'}
                                             </span>
                                           </div>
                                         )
@@ -12331,16 +12330,16 @@ Questions? Contact us.
                                     <div className="mt-2 pt-2 border-t border-gray-200 text-xs">
                                       {is4WeekChallenge ? (
                                         <div className="space-y-1">
-                                          <p className={participant.week1_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          <p className={participant.week1_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                             1주차 광고코드: {participant.week1_partnership_code || '미등록'}
                                           </p>
-                                          <p className={participant.week2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          <p className={participant.week2_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                             2주차 광고코드: {participant.week2_partnership_code || '미등록'}
                                           </p>
-                                          <p className={participant.week3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          <p className={participant.week3_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                             3주차 광고코드: {participant.week3_partnership_code || '미등록'}
                                           </p>
-                                          <p className={participant.week4_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          <p className={participant.week4_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                             4주차 광고코드: {participant.week4_partnership_code || '미등록'}
                                           </p>
                                         </div>
@@ -12348,19 +12347,19 @@ Questions? Contact us.
                                         <div className="space-y-1">
                                           {participant.step1_partnership_code || participant.step2_partnership_code ? (
                                             <>
-                                              <p className={participant.step1_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                              <p className={participant.step1_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                                 STEP1 광고코드: {participant.step1_partnership_code || '미등록'}
                                               </p>
-                                              <p className={participant.step2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                              <p className={participant.step2_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                                 STEP2 광고코드: {participant.step2_partnership_code || '미등록'}
                                               </p>
                                             </>
                                           ) : (
-                                            <p className={(participant.step1_2_partnership_code || participant.partnership_code || participant.ad_code) ? 'text-green-600' : 'text-orange-500'}>
+                                            <p className={(participant.step1_2_partnership_code || participant.partnership_code || participant.ad_code) ? 'text-gray-700' : 'text-gray-400'}>
                                               STEP1~2 광고코드: {participant.step1_2_partnership_code || participant.partnership_code || participant.ad_code || '미등록'}
                                             </p>
                                           )}
-                                          <p className={participant.step3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          <p className={participant.step3_partnership_code ? 'text-gray-700' : 'text-gray-400'}>
                                             STEP3 광고코드: {participant.step3_partnership_code || '미등록'}
                                           </p>
                                         </div>
@@ -12371,7 +12370,7 @@ Questions? Contact us.
                                   {/* 전체 최종 확정 버튼 */}
                                   {allVideosHaveSnsUrl ? (
                                     <Button
-                                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                                      className="w-full bg-gray-900 hover:bg-gray-800 text-white"
                                       onClick={async () => {
                                         // 광고코드 체크 (campaign_participants 기준)
                                         if (!allVideosHaveAdCode) {
@@ -12395,12 +12394,12 @@ Questions? Contact us.
                                       전체 최종 확정
                                     </Button>
                                   ) : (
-                                    <div className="text-center text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                                      ⚠️ 모든 {is4WeekChallenge ? '주차' : 'STEP'}에 SNS URL이 등록되어야 최종 확정이 가능합니다.
+                                    <div className="text-center text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">
+                                      모든 {is4WeekChallenge ? '주차' : 'STEP'}에 SNS URL이 등록되어야 최종 확정이 가능합니다.
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="mt-2 text-blue-600 border-blue-300"
+                                        className="mt-2 text-gray-700 border-gray-200"
                                         onClick={() => {
                                           // 기존 값들을 미리 채워서 모달 열기
                                           const editData = {
@@ -12440,7 +12439,7 @@ Questions? Contact us.
                               {/* 멀티비디오 전체 확정 완료 표시 */}
                               {isMultiVideoCampaign && allVideosConfirmed && (
                                 <div className="mt-4 pt-4 border-t border-gray-200">
-                                  <Badge className="w-full justify-center bg-purple-100 text-purple-700 py-2">
+                                  <Badge className="w-full justify-center bg-gray-900 text-white py-2">
                                     <CheckCircle className="w-4 h-4 mr-2" />
                                     전체 영상 최종 확정 완료 ({requiredVideoCount}개)
                                   </Badge>
@@ -12505,7 +12504,7 @@ Questions? Contact us.
                                                               window.URL.revokeObjectURL(blobUrl)
                                                             } catch (e) { window.open(latestVideo.clean_video_url, '_blank') }
                                                           }}
-                                                          className="px-2 py-1 text-xs bg-[#00B894] text-white rounded hover:bg-[#00A382] transition"
+                                                          className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 transition"
                                                         >
                                                           클린
                                                         </button>
@@ -12528,7 +12527,7 @@ Questions? Contact us.
                                                               window.URL.revokeObjectURL(blobUrl)
                                                             } catch (e) { window.open(signedVideoUrls[latestVideo.id] || latestVideo.video_file_url, '_blank') }
                                                           }}
-                                                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                                          className="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition"
                                                         >
                                                           편집
                                                         </button>
@@ -12549,14 +12548,14 @@ Questions? Contact us.
                                                       <span className="truncate max-w-[120px]">링크</span>
                                                     </a>
                                                   ) : (
-                                                    <span className="text-orange-500">미등록</span>
+                                                    <span className="text-gray-400">미등록</span>
                                                   )}
                                                 </td>
                                                 <td className="px-3 py-2">
                                                   {code ? (
                                                     <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{code}</code>
                                                   ) : (
-                                                    <span className="text-orange-500">미등록</span>
+                                                    <span className="text-gray-400">미등록</span>
                                                   )}
                                                 </td>
                                               </tr>
@@ -12572,7 +12571,7 @@ Questions? Contact us.
                                     {allVideosHaveSnsUrl ? (
                                       <Button
                                         size="sm"
-                                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                                        className="flex-1 bg-gray-900 hover:bg-gray-800 text-white"
                                         onClick={async () => {
                                           if (!allVideosHaveAdCode) {
                                             if (!confirm('일부 광고코드가 없습니다. 계속하시겠습니까?')) return
@@ -12585,7 +12584,7 @@ Questions? Contact us.
                                         최종 확정
                                       </Button>
                                     ) : (
-                                      <div className="flex-1 text-center text-xs text-orange-600 bg-orange-50 py-2 px-3 rounded-lg">
+                                      <div className="flex-1 text-center text-xs text-gray-600 bg-gray-50 py-2 px-3 rounded-lg">
                                         모든 SNS URL 등록 필요
                                       </div>
                                     )}
