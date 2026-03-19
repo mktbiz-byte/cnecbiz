@@ -280,8 +280,8 @@ export default function PaymentHistory() {
               </Button>
             </div>
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
-                <Receipt className="w-5 h-5 lg:w-7 lg:h-7 text-[#6C5CE7]" />
+              <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Receipt className="w-5 h-5 lg:w-7 lg:h-7 text-gray-600" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg lg:text-2xl md:text-3xl font-bold text-[#1A1A2E]">결제 내역</h1>
@@ -296,11 +296,11 @@ export default function PaymentHistory() {
             <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-[#636E72]">총 결제 금액</span>
-                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
-                  <Wallet className="w-5 h-5 text-[#6C5CE7]" />
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-gray-600" />
                 </div>
               </div>
-              <div className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit']">
+              <div className="text-2xl lg:text-3xl font-bold text-gray-900 font-['Outfit']">
                 {(totalPayments / 10000).toFixed(0)}
                 <span className="text-base lg:text-lg font-medium text-[#B2BEC3] ml-1">만원</span>
               </div>
@@ -311,8 +311,8 @@ export default function PaymentHistory() {
             <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-[#636E72]">총 결제 건수</span>
-                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-[#6C5CE7]" />
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-gray-600" />
                 </div>
               </div>
               <div className="text-2xl lg:text-3xl font-bold text-[#1A1A2E] font-['Outfit']">
@@ -326,11 +326,11 @@ export default function PaymentHistory() {
             <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-[#636E72]">수출바우처 승인 금액</span>
-                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-[#6C5CE7]" />
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-gray-600" />
                 </div>
               </div>
-              <div className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit']">
+              <div className="text-2xl lg:text-3xl font-bold text-gray-900 font-['Outfit']">
                 {currentVoucherBalance.toLocaleString()}
                 <span className="text-base lg:text-lg font-medium text-[#B2BEC3] ml-1">원</span>
               </div>
@@ -349,7 +349,7 @@ export default function PaymentHistory() {
                     onClick={() => setSelectedTab(tab.key)}
                     className={`flex-1 flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-3 lg:py-4 font-medium text-xs lg:text-sm transition-all ${
                       selectedTab === tab.key
-                        ? 'text-[#6C5CE7] bg-[#F0EDFF]/50 border-b-2 border-[#6C5CE7]'
+                        ? 'text-gray-900 bg-gray-50 border-b-2 border-gray-900'
                         : 'text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA]'
                     }`}
                   >
@@ -357,7 +357,7 @@ export default function PaymentHistory() {
                     {tab.label}
                     <span className={`px-2 py-0.5 rounded-md text-xs ${
                       selectedTab === tab.key
-                        ? 'bg-[#F0EDFF] text-[#6C5CE7]'
+                        ? 'bg-gray-100 text-gray-900'
                         : 'bg-[#F8F9FA] text-[#636E72]'
                     }`}>
                       {tab.count}
@@ -384,16 +384,16 @@ export default function PaymentHistory() {
                       {chargeRequests.map((request) => (
                         <div
                           key={request.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-gray-300 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
                         >
-                          <div className="w-12 h-12 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
-                            <CreditCard className="w-6 h-6 text-[#6C5CE7]" />
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <CreditCard className="w-6 h-6 text-gray-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {getStatusBadge(request.status)}
                               {request.needs_tax_invoice && (
-                                <span className="px-2 py-0.5 rounded-md text-xs bg-[#F0EDFF] text-[#6C5CE7] font-medium">
+                                <span className="px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700 font-medium">
                                   세금계산서
                                 </span>
                               )}
@@ -407,7 +407,7 @@ export default function PaymentHistory() {
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-base lg:text-xl font-bold text-[#6C5CE7] font-['Outfit']">
+                            <p className="text-base lg:text-xl font-bold text-gray-900 font-['Outfit']">
                               {formatCurrency(request.amount)}
                             </p>
                             <p className="text-xs text-[#B2BEC3]">VAT 포함</p>
@@ -435,19 +435,19 @@ export default function PaymentHistory() {
                       {pointUsages.map((transaction) => (
                         <div
                           key={transaction.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-gray-300 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
                         >
-                          <div className="w-12 h-12 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
-                            <TrendingUp className="w-6 h-6 text-[#6C5CE7]" />
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <TrendingUp className="w-6 h-6 text-gray-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-[#F0EDFF] text-[#6C5CE7]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#6C5CE7]" />
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
                                 바우처 사용
                               </span>
                               {transaction.package_type && (
-                                <span className="px-2 py-0.5 rounded-md text-xs bg-[#F0EDFF] text-[#6C5CE7] font-medium">
+                                <span className="px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700 font-medium">
                                   {getPackageLabel(transaction.package_type)}
                                 </span>
                               )}
@@ -461,7 +461,7 @@ export default function PaymentHistory() {
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-base lg:text-xl font-bold text-[#6C5CE7] font-['Outfit']">
+                            <p className="text-base lg:text-xl font-bold text-gray-900 font-['Outfit']">
                               -{Math.abs(transaction.amount).toLocaleString()}원
                             </p>
                           </div>
@@ -476,9 +476,9 @@ export default function PaymentHistory() {
               {selectedTab === 'invoices' && (
                 <>
                   {/* Tip Box */}
-                  <div className="mb-6 p-4 rounded-xl bg-[#F0EDFF] border border-[#6C5CE7]/20">
+                  <div className="mb-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-[#6C5CE7] flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
