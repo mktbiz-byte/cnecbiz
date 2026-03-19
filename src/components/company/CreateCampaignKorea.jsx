@@ -4772,7 +4772,7 @@ const CampaignCreationKorea = () => {
       {/* 캠페인 등록 동의 모달 */}
       {showConsentModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl flex flex-col" style={{ maxHeight: 'min(90vh, 680px)' }}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
             {/* 헤더 */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -4830,10 +4830,13 @@ const CampaignCreationKorea = () => {
                   <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">2</span>
                   크리에이터 개별 연락 금지
                 </h3>
-                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2 border border-gray-200">
-                  <p>플랫폼을 통해 매칭된 크리에이터에게 사전 서면 동의 없이 <strong className="text-gray-900">직접 연락(DM, 이메일, 전화 등)하여 별도 거래를 제안하는 행위</strong>를 금지합니다.</p>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-3 border border-gray-200">
+                  <p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 <strong className="text-gray-900">직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위</strong>를 해서는 안 됩니다.</p>
+                  <p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p>
                   <p>본 조항은 <strong className="text-gray-900">캠페인 종료 후 6개월간</strong> 유효합니다.</p>
-                  <p className="text-gray-900 font-medium text-xs pt-1">위반 시 캠페인 결제 금액의 200% 위약금이 청구될 수 있습니다.</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-1">
+                    <p className="text-amber-800 font-semibold text-xs">⚠ 위반 시 해당 캠페인 결제 금액의 <strong>200%</strong>에 해당하는 위약금이 청구될 수 있습니다.</p>
+                  </div>
                 </div>
               </div>
 
@@ -4845,8 +4848,12 @@ const CampaignCreationKorea = () => {
                 </h3>
                 <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2 border border-gray-200">
                   <p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p>
+                  <p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p>
                   <p>2차 활용 기간은 크리에이터의 <strong className="text-gray-900">SNS 업로드일로부터 1년</strong>입니다.</p>
-                  <p className="text-gray-900 font-medium text-xs pt-1">기간 만료 후 Meta 광고 활용 시 별도 2차 활용 계약이 필요합니다.</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mt-2">
+                  <p className="font-semibold mb-1">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가</p>
+                  <p className="text-xs">2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 <strong>Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</strong> 기간 만료 후 Meta 광고에 활용하려면 별도의 2차 활용 계약이 필요합니다.</p>
                 </div>
               </div>
 
