@@ -655,11 +655,20 @@ exports.handler = async (event, context) => {
           });
         }
 
-        // Access Token 발급 및 메시지 전송
-        const accessToken = await getNaverWorksAccessToken(clientId, clientSecret, serviceAccount);
-        await sendNaverWorksMessage(accessToken, botId, channelId, reportMessage);
-        console.log('네이버 웍스 보고서 전송 완료');
-      } else if (!clientId || !clientSecret || !botId || !channelId) {
+        // 별도 Netlify 함수로 호출 (타임아웃 독립 실행)
+        const nwBaseUrl = process.env.URL || 'https://cnecbiz.com'
+        const nwRes = await fetch(`${nwBaseUrl}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: channelId,
+            message: reportMessage
+          })
+        })
+        const nwResult = await nwRes.json()
+        console.log('네이버 웍스 보고서 전송:', nwResult.success ? '완료' : `실패: ${JSON.stringify(nwResult)}`);
+      } else if (!channelId) {
         console.log('네이버 웍스 설정이 없어 보고서 전송 생략');
       } else {
         console.log('처리된 캠페인이 없어 네이버 웍스 보고서 전송 생략');
