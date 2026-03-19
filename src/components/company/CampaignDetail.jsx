@@ -881,6 +881,120 @@ export default function CampaignDetail() {
     }
   }, [campaign, user, isAdmin])
 
+  // story_short 캠페인: story_proposals(BIZ DB)를 applications로 변환하여 지원자 탭에 표시
+  useEffect(() => {
+    if (!campaign || campaign.campaign_type !== 'story_short') return
+
+    const fetchStoryProposalsAsApplications = async () => {
+      try {
+        // 1. BIZ DB에서 story_proposals 조회
+        const { data: proposals, error: proposalError } = await supabaseBiz
+          .from('story_proposals')
+          .select('*')
+          .eq('campaign_id', campaign.id)
+          .order('created_at', { ascending: false })
+
+        if (proposalError) {
+          console.error('[fetchStoryProposals] Error:', proposalError)
+          return
+        }
+
+        if (!proposals || proposals.length === 0) {
+          console.log('[fetchStoryProposals] No story proposals found')
+          return
+        }
+
+        console.log('[fetchStoryProposals] Found', proposals.length, 'story proposals')
+
+        // 2. Korea DB에서 creator 프로필 조회
+        const creatorIds = proposals.map(p => p.creator_id).filter(Boolean)
+        let profiles = []
+        if (creatorIds.length > 0) {
+          try {
+            const profileResult = await callKoreaCampaignAPI('get_user_profiles', campaign.id)
+            profiles = profileResult?.data || []
+          } catch (apiErr) {
+            console.error('[fetchStoryProposals] Korea profiles API fallback:', apiErr)
+            const koreaClient = supabaseKorea || supabaseBiz
+            const { data: profileData } = await koreaClient.from('user_profiles').select('*')
+            profiles = profileData || []
+          }
+        }
+
+        // 3. featured_creators에서 등급 정보
+        let featuredCreators = []
+        try {
+          const { data: fcData } = await (supabaseKorea || supabaseBiz)
+            .from('featured_creators')
+            .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
+            .eq('is_active', true)
+          if (fcData) featuredCreators = fcData
+        } catch (e) {
+          console.log('[fetchStoryProposals] featured_creators fetch failed:', e)
+        }
+
+        // 4. story_proposals → application 호환 형태로 변환
+        const convertedApplications = proposals.map(proposal => {
+          const profile = profiles.find(p => p.id === proposal.creator_id) || {}
+          const fc = featuredCreators.find(f => f.user_id === proposal.creator_id) || {}
+
+          return {
+            id: proposal.id,
+            campaign_id: proposal.campaign_id,
+            user_id: proposal.creator_id,
+            status: proposal.status === 'approved' ? 'selected' : 'pending',
+            applicant_name: profile.name || profile.nickname || profile.display_name || '크리에이터',
+            profile_photo_url: profile.profile_photo_url || profile.profile_image_url || null,
+            age: profile.age || null,
+            skin_type: profile.skin_type || null,
+            gender: profile.gender || null,
+            personal_color: profile.personal_color || null,
+            skin_shade: profile.skin_shade || null,
+            hair_type: profile.hair_type || null,
+            skin_concerns: profile.skin_concerns || [],
+            bio: profile.bio || null,
+            job: profile.job || null,
+            email: profile.email || null,
+            phone: profile.phone || null,
+            instagram_url: profile.instagram_url || null,
+            instagram_followers: profile.instagram_followers || null,
+            youtube_url: profile.youtube_url || null,
+            tiktok_url: profile.tiktok_url || null,
+            created_at: proposal.created_at,
+            updated_at: proposal.updated_at,
+            // story proposal 전용 필드
+            video_concept: proposal.video_concept,
+            tone_mood: proposal.tone_mood,
+            description: proposal.description,
+            secondary_use_agreed: proposal.secondary_use_agreed,
+            proposal_status: proposal.status,
+            reject_reason: proposal.reject_reason,
+            source: 'story_proposal',
+            // 등급 정보
+            cnec_grade_level: fc.cnec_grade_level || null,
+            cnec_grade_name: fc.cnec_grade_name || null,
+            is_cnec_recommended: fc.is_cnec_recommended || false,
+            virtual_selected: false,
+            account_status: null,
+          }
+        })
+
+        console.log('[fetchStoryProposals] Converted', convertedApplications.length, 'proposals to applications')
+        setApplications(prev => {
+          // 기존 applications에 story proposals가 이미 있으면 중복 방지
+          const existingIds = new Set(prev.map(a => a.id))
+          const newProposals = convertedApplications.filter(a => !existingIds.has(a.id))
+          if (prev.length === 0) return convertedApplications
+          return [...prev, ...newProposals]
+        })
+      } catch (error) {
+        console.error('[fetchStoryProposals] Error:', error)
+      }
+    }
+
+    fetchStoryProposalsAsApplications()
+  }, [campaign?.id, campaign?.campaign_type])
+
   // 캠페인 자동 완료 체크: 페이지 로드 시 / 참가자 데이터 변경 시 모든 선정 크리에이터가 completed인지 확인
   useEffect(() => {
     if (campaign && campaign.status !== 'completed' && participants.length > 0) {
@@ -10023,6 +10137,29 @@ Questions? Contact us.
                             <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
                             <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
                           </div>
+
+                          {/* 스토리 기획안 정보 (story_short 캠페인) */}
+                          {app.source === 'story_proposal' && (
+                            <div className="mb-2 space-y-1">
+                              {app.video_concept && (
+                                <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
+                                  <span className="font-medium">컨셉:</span> <span className="truncate">{app.video_concept}</span>
+                                </div>
+                              )}
+                              {app.tone_mood && (
+                                <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
+                                  <span className="font-medium">톤:</span> {app.tone_mood}
+                                </div>
+                              )}
+                              <div className={`text-xs px-2 py-1 rounded text-center font-medium ${
+                                app.proposal_status === 'approved' ? 'bg-green-100 text-green-700' :
+                                app.proposal_status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {app.proposal_status === 'approved' ? '승인' : app.proposal_status === 'rejected' ? '반려' : '검토중'}
+                              </div>
+                            </div>
+                          )}
 
                           {/* 선택된 추가 표시 항목 */}
                           {cardDisplayOptions.length > 0 && (
