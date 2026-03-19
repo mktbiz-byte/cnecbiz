@@ -10096,13 +10096,13 @@ Questions? Contact us.
                           {app.source === 'story_proposal' && (
                             <div className="mb-2 space-y-1">
                               <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
-                                <span className="font-medium">컨셉:</span> {app.video_concept || '-'}
+                                <span className="font-medium">컨셉:</span> {(app.video_concept && app.video_concept.trim().length >= 2) ? app.video_concept : '-'}
                               </div>
                               <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
-                                <span className="font-medium">톤:</span> {app.tone_mood || '-'}
+                                <span className="font-medium">톤:</span> {(app.tone_mood && app.tone_mood.trim().length >= 1) ? app.tone_mood : '-'}
                               </div>
                               <div className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
-                                <span className="font-medium">구성:</span> <span className="line-clamp-2">{app.description || '-'}</span>
+                                <span className="font-medium">구성:</span> <span className="line-clamp-2">{(app.description && app.description.trim().length >= 2) ? app.description : '-'}</span>
                               </div>
                               <div className={`text-xs px-2 py-1 rounded text-center font-medium ${
                                 app.proposal_status === 'approved' ? 'bg-green-100 text-green-700' :
@@ -15661,22 +15661,37 @@ Questions? Contact us.
                       </span>
                     </div>
                     <div className="space-y-2.5 text-sm">
-                      {selectedParticipant.video_concept && (
+                      {selectedParticipant.video_concept && selectedParticipant.video_concept.trim().length >= 2 ? (
                         <div>
                           <span className="text-[11px] font-semibold text-teal-600">영상 컨셉</span>
                           <p className="text-gray-700 mt-0.5">{selectedParticipant.video_concept}</p>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">영상 컨셉</span>
+                          <p className="text-gray-400 mt-0.5">미입력</p>
+                        </div>
                       )}
-                      {selectedParticipant.tone_mood && (
+                      {selectedParticipant.tone_mood && selectedParticipant.tone_mood.trim().length >= 1 ? (
                         <div>
                           <span className="text-[11px] font-semibold text-teal-600">톤 / 분위기</span>
                           <p className="text-gray-700 mt-0.5">{selectedParticipant.tone_mood}</p>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">톤 / 분위기</span>
+                          <p className="text-gray-400 mt-0.5">미입력</p>
+                        </div>
                       )}
-                      {selectedParticipant.description && (
+                      {selectedParticipant.description && selectedParticipant.description.trim().length >= 2 ? (
                         <div>
                           <span className="text-[11px] font-semibold text-teal-600">촬영 계획</span>
                           <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{selectedParticipant.description}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">촬영 계획</span>
+                          <p className="text-gray-400 mt-0.5">미입력</p>
                         </div>
                       )}
                       <div className="flex items-center gap-3 pt-1 text-xs text-gray-500">

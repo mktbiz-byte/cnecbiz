@@ -12,10 +12,15 @@ exports.handler = async (event) => {
   try {
     const { campaign_id, creator_id, video_concept, tone_mood, description, secondary_use_agreed } = JSON.parse(event.body)
 
-    if (!campaign_id || !creator_id || !video_concept) {
+    // 공백/특수문자만 입력된 경우 제거
+    const trimmedConcept = (video_concept || '').trim()
+    const trimmedToneMood = (tone_mood || '').trim()
+    const trimmedDescription = (description || '').trim()
+
+    if (!campaign_id || !creator_id || !trimmedConcept || trimmedConcept.length < 2) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ success: false, error: 'campaign_id, creator_id, video_concept are required' })
+        body: JSON.stringify({ success: false, error: '영상 컨셉을 2자 이상 입력해주세요.' })
       }
     }
 
@@ -31,9 +36,9 @@ exports.handler = async (event) => {
       .insert([{
         campaign_id,
         creator_id,
-        video_concept,
-        tone_mood: tone_mood || null,
-        description: description || null,
+        video_concept: trimmedConcept,
+        tone_mood: trimmedToneMood || null,
+        description: trimmedDescription || null,
         secondary_use_agreed,
         status: 'pending'
       }])
