@@ -1128,10 +1128,10 @@ export default function VideoReview() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
+      <div className="flex items-center justify-center h-screen bg-[#F8F9FA]">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-300">영상을 불러오는 중...</p>
+          <div className="w-12 h-12 border-4 border-[#6C5CE7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[#636E72]">영상을 불러오는 중...</p>
         </div>
       </div>
     )
@@ -1139,15 +1139,15 @@ export default function VideoReview() {
 
   if (!submission) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
+      <div className="flex items-center justify-center h-screen bg-[#F8F9FA]">
         <div className="text-center">
-          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-400" />
+          <div className="w-16 h-16 bg-[#F0EDFF] rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-[#FF6B6B]" />
           </div>
-          <p className="text-slate-300">영상을 찾을 수 없습니다.</p>
+          <p className="text-[#636E72]">영상을 찾을 수 없습니다.</p>
           <Button
             variant="ghost"
-            className="mt-4 text-slate-400 hover:text-white"
+            className="mt-4 text-[#636E72] hover:text-[#1A1A2E]"
             onClick={() => navigate(-1)}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1159,57 +1159,57 @@ export default function VideoReview() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A2E]">
       {/* 키보드 단축키 모달 */}
       {showShortcuts && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowShortcuts(false)}>
-          <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl border border-slate-700" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowShortcuts(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#DFE6E9]" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Keyboard className="w-5 h-5 text-blue-400" />
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-[#1A1A2E]">
+                <Keyboard className="w-5 h-5 text-[#6C5CE7]" />
                 키보드 단축키
               </h3>
-              <button onClick={() => setShowShortcuts(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowShortcuts(false)} className="text-[#B2BEC3] hover:text-[#1A1A2E]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">재생/일시정지</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">Space</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">재생/일시정지</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">Space</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">5초 뒤로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">←</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">5초 뒤로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">←</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">5초 앞으로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">→</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">5초 앞으로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">→</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">10초 뒤로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">J</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">10초 뒤로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">J</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">10초 앞으로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">L</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">10초 앞으로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">L</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">프레임 뒤로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">,</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">프레임 뒤로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">,</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">프레임 앞으로</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">.</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">프레임 앞으로</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">.</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">음소거</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">M</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">음소거</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">M</kbd>
                 </div>
-                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
-                  <span className="text-slate-300">전체화면</span>
-                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">F</kbd>
+                <div className="flex justify-between bg-[#F8F9FA] px-3 py-2 rounded-xl">
+                  <span className="text-[#636E72]">전체화면</span>
+                  <kbd className="bg-[#F0EDFF] text-[#6C5CE7] px-2 py-0.5 rounded text-xs font-mono">F</kbd>
                 </div>
               </div>
             </div>
@@ -1219,22 +1219,22 @@ export default function VideoReview() {
 
       {/* 헤더 - Desktop */}
       {!isMobile && (
-        <div className="bg-slate-800 border-b border-slate-700">
+        <div className="bg-white border-b border-[#DFE6E9]">
           <div className="max-w-[1920px] mx-auto px-4 py-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <Button
                   variant="ghost"
                   onClick={() => navigate(-1)}
-                  className="text-slate-400 hover:text-white hover:bg-slate-700"
+                  className="text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA]"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   뒤로
                 </Button>
-                <div className="h-6 w-px bg-slate-700"></div>
+                <div className="h-6 w-px bg-[#DFE6E9]"></div>
                 <div>
-                  <h1 className="text-lg font-semibold">영상 수정 요청</h1>
-                  <p className="text-sm text-slate-400">
+                  <h1 className="text-lg font-semibold text-[#1A1A2E]">영상 수정 요청</h1>
+                  <p className="text-sm text-[#636E72]">
                     {submission.applications?.applicant_name || '크리에이터'} • {submission.applications?.campaigns?.title || '캠페인'}
                   </p>
                 </div>
@@ -1244,10 +1244,10 @@ export default function VideoReview() {
                 {(region === 'japan' || region === 'us') && (
                   <button
                     onClick={() => setShowTranslation(!showTranslation)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
                       showTranslation
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 text-slate-400 hover:text-white'
+                        ? 'bg-[#6C5CE7] text-white'
+                        : 'bg-[#F0EDFF] text-[#6C5CE7] hover:bg-[#6C5CE7] hover:text-white'
                     }`}
                     title={showTranslation ? '번역 숨기기' : '번역 보기'}
                   >
@@ -1259,7 +1259,7 @@ export default function VideoReview() {
                 )}
                 <button
                   onClick={() => setShowShortcuts(true)}
-                  className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                  className="text-[#636E72] hover:text-[#1A1A2E] p-2 hover:bg-[#F8F9FA] rounded-xl transition-colors"
                   title="키보드 단축키 (? 키)"
                 >
                   <Keyboard className="w-5 h-5" />
@@ -1267,7 +1267,7 @@ export default function VideoReview() {
                 <Button
                   onClick={sendReviewNotification}
                   disabled={isSending || comments.length === 0}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-5 py-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                  className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-semibold px-5 py-2 shadow-lg shadow-[#6C5CE7]/20 transition-all disabled:opacity-50"
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
@@ -1280,24 +1280,24 @@ export default function VideoReview() {
 
       {/* 헤더 - Mobile */}
       {isMobile && (
-        <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+        <div className="bg-white border-b border-[#DFE6E9] sticky top-0 z-40">
           <div className="px-3 py-2">
             <div className="flex justify-between items-center">
               <button
                 onClick={() => navigate(-1)}
-                className="text-slate-400 hover:text-white p-2"
+                className="text-[#636E72] hover:text-[#1A1A2E] p-2"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="flex-1 text-center px-2">
-                <h1 className="text-sm font-semibold truncate">영상 수정 요청</h1>
-                <p className="text-xs text-slate-400 truncate">
+                <h1 className="text-sm font-semibold text-[#1A1A2E] truncate">영상 수정 요청</h1>
+                <p className="text-xs text-[#636E72] truncate">
                   {submission.applications?.applicant_name || '크리에이터'}
                 </p>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-slate-400 hover:text-white p-2"
+                className="text-[#636E72] hover:text-[#1A1A2E] p-2"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -1305,15 +1305,15 @@ export default function VideoReview() {
 
             {/* Mobile menu dropdown */}
             {mobileMenuOpen && (
-              <div className="absolute right-2 top-full mt-1 bg-slate-700 rounded-lg shadow-xl border border-slate-600 z-50 min-w-[200px]">
+              <div className="absolute right-2 top-full mt-1 bg-white rounded-2xl shadow-xl border border-[#DFE6E9] z-50 min-w-[200px]">
                 <button
                   onClick={() => {
                     setShowMobileFeedback(true)
                     setMobileMenuOpen(false)
                   }}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-slate-600 flex items-center gap-3 rounded-t-lg"
+                  className="w-full px-4 py-3 text-left text-sm text-[#1A1A2E] hover:bg-[#F8F9FA] flex items-center gap-3 rounded-t-2xl"
                 >
-                  <MessageSquare className="w-4 h-4" />
+                  <MessageSquare className="w-4 h-4 text-[#6C5CE7]" />
                   피드백 목록 ({comments.length})
                 </button>
                 <button
@@ -1322,9 +1322,9 @@ export default function VideoReview() {
                     setMobileMenuOpen(false)
                   }}
                   disabled={isSending || comments.length === 0}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-slate-600 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
+                  className="w-full px-4 py-3 text-left text-sm text-[#1A1A2E] hover:bg-[#F8F9FA] flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-2xl"
                 >
-                  <Mail className="w-4 h-4" />
+                  <Mail className="w-4 h-4 text-[#6C5CE7]" />
                   {isSending ? '전송 중...' : '수정 요청 전달'}
                 </button>
               </div>
@@ -1714,20 +1714,20 @@ export default function VideoReview() {
 
           {/* 피드백 입력 폼 - Desktop */}
           {activeMarker && !isMobile && (
-            <div className="mt-4 p-4 bg-slate-800 border border-amber-400/50 rounded-xl shadow-lg shadow-amber-400/10">
+            <div className="mt-4 p-4 bg-white border border-[#DFE6E9] rounded-2xl shadow-lg">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-slate-900" />
+                  <div className="w-8 h-8 bg-[#F0EDFF] rounded-full flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-[#6C5CE7]" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">새 피드백 작성</p>
-                    <p className="text-xs text-slate-400 font-mono">{formatTimePrecise(activeMarker.timestamp)}</p>
+                    <p className="text-sm font-semibold text-[#1A1A2E]">새 피드백 작성</p>
+                    <p className="text-xs text-[#636E72] font-mono">{formatTimePrecise(activeMarker.timestamp)}</p>
                   </div>
                 </div>
                 <button
                   onClick={cancelMarker}
-                  className="text-slate-400 hover:text-white p-1"
+                  className="text-[#B2BEC3] hover:text-[#1A1A2E] p-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1737,7 +1737,7 @@ export default function VideoReview() {
                 value={currentComment}
                 onChange={(e) => setCurrentComment(e.target.value)}
                 placeholder="수정이 필요한 부분을 상세하게 작성해 주세요..."
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 resize-none"
+                className="w-full px-4 py-3 bg-[#F8F9FA] border border-[#DFE6E9] rounded-xl text-[#1A1A2E] placeholder-[#B2BEC3] focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] resize-none"
                 rows={3}
                 autoFocus
               />
@@ -1751,12 +1751,12 @@ export default function VideoReview() {
                       onChange={(e) => setAttachmentFile(e.target.files[0])}
                       className="hidden"
                     />
-                    <div className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 transition-colors">
+                    <div className="px-3 py-2 bg-[#F8F9FA] hover:bg-[#F0EDFF] border border-[#DFE6E9] rounded-xl text-sm text-[#636E72] transition-colors">
                       📎 파일 첨부
                     </div>
                   </label>
                   {attachmentFile && (
-                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-[#00B894] mt-1 flex items-center gap-1">
                       ✓ {attachmentFile.name}
                     </p>
                   )}
@@ -1765,7 +1765,7 @@ export default function VideoReview() {
                 <Button
                   onClick={addComment}
                   disabled={uploadingFile || !currentComment.trim()}
-                  className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-900 font-semibold px-6 py-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                  className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-semibold px-6 py-2 shadow-lg shadow-[#6C5CE7]/20 disabled:opacity-50"
                 >
                   <Send className="w-4 h-4 mr-2" />
                   {uploadingFile ? '업로드 중...' : '피드백 추가'}
@@ -1776,23 +1776,23 @@ export default function VideoReview() {
 
           {/* 안내 문구 - Desktop */}
           {!activeMarker && !isMobile && (
-            <div className="mt-4 text-center py-3 bg-slate-800/50 rounded-lg border border-dashed border-slate-600">
-              <p className="text-slate-400 text-sm">
-                💡 영상의 원하는 위치를 <span className="text-amber-400 font-medium">클릭</span>하여 피드백을 추가하세요
+            <div className="mt-4 text-center py-3 bg-white rounded-2xl border border-dashed border-[#DFE6E9]">
+              <p className="text-[#636E72] text-sm">
+                💡 영상의 원하는 위치를 <span className="text-[#6C5CE7] font-medium">클릭</span>하여 피드백을 추가하세요
               </p>
             </div>
           )}
 
           {/* Mobile hint bar */}
           {isMobile && !activeMarker && (
-            <div className="p-3 bg-slate-800 border-t border-slate-700">
+            <div className="p-3 bg-white border-t border-[#DFE6E9]">
               <div className="flex items-center justify-between">
-                <p className="text-slate-400 text-xs">
+                <p className="text-[#636E72] text-xs">
                   👆 영상을 터치하여 피드백 추가
                 </p>
                 <button
                   onClick={() => setShowMobileFeedback(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg"
+                  className="flex items-center gap-2 px-3 py-2 bg-[#6C5CE7] text-white text-xs rounded-xl"
                 >
                   <MessageSquare className="w-4 h-4" />
                   피드백 {comments.length}

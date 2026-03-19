@@ -205,17 +205,17 @@ export default function PaymentHistory() {
 
   const getStatusBadge = (status) => {
     const config = {
-      completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: '완료' },
-      confirmed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: '완료' },
-      pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', label: '대기중' },
-      failed: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500', label: '실패' },
-      refunded: { bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400', label: '환불' },
-      cancelled: { bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400', label: '취소' },
-      issued: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500', label: '발급완료' }
+      completed: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '완료' },
+      confirmed: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '완료' },
+      pending: { bg: 'bg-[rgba(253,203,110,0.15)]', text: 'text-[#E17055]', dot: 'bg-[#E17055]', label: '대기중' },
+      failed: { bg: 'bg-[rgba(255,107,107,0.1)]', text: 'text-[#FF6B6B]', dot: 'bg-[#FF6B6B]', label: '실패' },
+      refunded: { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: '환불' },
+      cancelled: { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: '취소' },
+      issued: { bg: 'bg-[rgba(0,184,148,0.1)]', text: 'text-[#00B894]', dot: 'bg-[#00B894]', label: '발급완료' }
     }
-    const cfg = config[status] || { bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400', label: status }
+    const cfg = config[status] || { bg: 'bg-[#F8F9FA]', text: 'text-[#636E72]', dot: 'bg-[#B2BEC3]', label: status }
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
         {cfg.label}
       </span>
@@ -264,7 +264,7 @@ export default function PaymentHistory() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="min-h-screen bg-[#F8F9FA] lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -280,12 +280,12 @@ export default function PaymentHistory() {
               </Button>
             </div>
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 flex-shrink-0">
-                <Receipt className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
+              <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                <Receipt className="w-5 h-5 lg:w-7 lg:h-7 text-[#6C5CE7]" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg lg:text-2xl md:text-3xl font-bold text-gray-900">결제 내역</h1>
-                <p className="text-sm lg:text-base text-gray-500 mt-1">캠페인 결제 및 세금계산서를 관리하세요</p>
+                <h1 className="text-lg lg:text-2xl md:text-3xl font-bold text-[#1A1A2E]">결제 내역</h1>
+                <p className="text-sm lg:text-base text-[#636E72] mt-1">캠페인 결제 및 세금계산서를 관리하세요</p>
               </div>
             </div>
           </div>
@@ -293,63 +293,54 @@ export default function PaymentHistory() {
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-6 lg:mb-8">
             {/* 총 결제 금액 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-500">총 결제 금액</span>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                    <Wallet className="w-5 h-5 text-white" />
-                  </div>
+            <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-[#636E72]">총 결제 금액</span>
+                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-[#6C5CE7]" />
                 </div>
-                <div className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  {(totalPayments / 10000).toFixed(0)}
-                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">만원</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">VAT 포함</p>
               </div>
+              <div className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit']">
+                {(totalPayments / 10000).toFixed(0)}
+                <span className="text-base lg:text-lg font-medium text-[#B2BEC3] ml-1">만원</span>
+              </div>
+              <p className="text-xs text-[#B2BEC3] mt-2">VAT 포함</p>
             </div>
 
             {/* 결제 건수 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-500">총 결제 건수</span>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg">
-                    <CreditCard className="w-5 h-5 text-white" />
-                  </div>
+            <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-[#636E72]">총 결제 건수</span>
+                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-[#6C5CE7]" />
                 </div>
-                <div className="text-2xl lg:text-3xl font-bold text-gray-900">
-                  {totalCount}
-                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">건</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">완료된 결제</p>
               </div>
+              <div className="text-2xl lg:text-3xl font-bold text-[#1A1A2E] font-['Outfit']">
+                {totalCount}
+                <span className="text-base lg:text-lg font-medium text-[#B2BEC3] ml-1">건</span>
+              </div>
+              <p className="text-xs text-[#B2BEC3] mt-2">완료된 결제</p>
             </div>
 
             {/* 수출바우처 잔액 */}
-            <div className="relative overflow-hidden bg-white rounded-2xl p-4 lg:p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-500">수출바우처 승인 금액</span>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
+            <div className="bg-white rounded-2xl p-4 lg:p-6 border border-[#DFE6E9]">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-[#636E72]">수출바우처 승인 금액</span>
+                <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-[#6C5CE7]" />
                 </div>
-                <div className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {currentVoucherBalance.toLocaleString()}
-                  <span className="text-base lg:text-lg font-medium text-gray-400 ml-1">원</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">VAT 별도 기준 | 사용 {totalUsed.toLocaleString()}원</p>
               </div>
+              <div className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit']">
+                {currentVoucherBalance.toLocaleString()}
+                <span className="text-base lg:text-lg font-medium text-[#B2BEC3] ml-1">원</span>
+              </div>
+              <p className="text-xs text-[#B2BEC3] mt-2">VAT 별도 기준 | 사용 {totalUsed.toLocaleString()}원</p>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex border-b border-gray-100">
+          <div className="bg-white rounded-2xl border border-[#DFE6E9] overflow-hidden">
+            <div className="flex border-b border-[#DFE6E9]">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
@@ -358,16 +349,16 @@ export default function PaymentHistory() {
                     onClick={() => setSelectedTab(tab.key)}
                     className={`flex-1 flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-3 lg:py-4 font-medium text-xs lg:text-sm transition-all ${
                       selectedTab === tab.key
-                        ? 'text-purple-600 bg-purple-50/50 border-b-2 border-purple-500'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                        ? 'text-[#6C5CE7] bg-[#F0EDFF]/50 border-b-2 border-[#6C5CE7]'
+                        : 'text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA]'
                     }`}
                   >
                     <Icon className="w-4 h-4 hidden sm:block" />
                     {tab.label}
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                    <span className={`px-2 py-0.5 rounded-md text-xs ${
                       selectedTab === tab.key
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-[#F0EDFF] text-[#6C5CE7]'
+                        : 'bg-[#F8F9FA] text-[#636E72]'
                     }`}>
                       {tab.count}
                     </span>
@@ -382,44 +373,44 @@ export default function PaymentHistory() {
                 <>
                   {chargeRequests.length === 0 ? (
                     <div className="text-center py-16">
-                      <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                        <CreditCard className="w-10 h-10 text-gray-400" />
+                      <div className="w-20 h-20 mx-auto mb-6 bg-[#F8F9FA] rounded-2xl flex items-center justify-center">
+                        <CreditCard className="w-10 h-10 text-[#B2BEC3]" />
                       </div>
-                      <p className="text-lg font-medium text-gray-600 mb-2">결제 내역이 없습니다</p>
-                      <p className="text-sm text-gray-400">캠페인을 등록하고 결제를 진행해보세요</p>
+                      <p className="text-lg font-medium text-[#636E72] mb-2">결제 내역이 없습니다</p>
+                      <p className="text-sm text-[#B2BEC3]">캠페인을 등록하고 결제를 진행해보세요</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {chargeRequests.map((request) => (
                         <div
                           key={request.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30 overflow-hidden"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
                         >
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
-                            <CreditCard className="w-6 h-6 text-emerald-600" />
+                          <div className="w-12 h-12 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                            <CreditCard className="w-6 h-6 text-[#6C5CE7]" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {getStatusBadge(request.status)}
                               {request.needs_tax_invoice && (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-600 font-medium">
+                                <span className="px-2 py-0.5 rounded-md text-xs bg-[#F0EDFF] text-[#6C5CE7] font-medium">
                                   세금계산서
                                 </span>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                            <p className="font-semibold text-[#1A1A2E] text-sm lg:text-base truncate">
                               {request.campaign_name || '캠페인 결제'}
                             </p>
-                            <p className="text-xs lg:text-sm text-gray-500 flex items-center gap-1">
+                            <p className="text-xs lg:text-sm text-[#636E72] flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                               {new Date(request.created_at).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-base lg:text-xl font-bold text-gray-900">
+                            <p className="text-base lg:text-xl font-bold text-[#6C5CE7] font-['Outfit']">
                               {formatCurrency(request.amount)}
                             </p>
-                            <p className="text-xs text-gray-400">VAT 포함</p>
+                            <p className="text-xs text-[#B2BEC3]">VAT 포함</p>
                           </div>
                         </div>
                       ))}
@@ -433,44 +424,44 @@ export default function PaymentHistory() {
                 <>
                   {pointUsages.length === 0 ? (
                     <div className="text-center py-16">
-                      <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                        <TrendingUp className="w-10 h-10 text-gray-400" />
+                      <div className="w-20 h-20 mx-auto mb-6 bg-[#F8F9FA] rounded-2xl flex items-center justify-center">
+                        <TrendingUp className="w-10 h-10 text-[#B2BEC3]" />
                       </div>
-                      <p className="text-lg font-medium text-gray-600 mb-2">사용 내역이 없습니다</p>
-                      <p className="text-sm text-gray-400">수출바우처로 캠페인 결제 시 사용 내역이 표시됩니다</p>
+                      <p className="text-lg font-medium text-[#636E72] mb-2">사용 내역이 없습니다</p>
+                      <p className="text-sm text-[#B2BEC3]">수출바우처로 캠페인 결제 시 사용 내역이 표시됩니다</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {pointUsages.map((transaction) => (
                         <div
                           key={transaction.id}
-                          className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-r hover:from-white hover:to-purple-50/30 overflow-hidden"
+                          className="group flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] hover:border-[#6C5CE7]/30 hover:shadow-md transition-all duration-200 bg-white overflow-hidden"
                         >
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-100 to-orange-100 flex items-center justify-center flex-shrink-0">
-                            <TrendingUp className="w-6 h-6 text-red-500" />
+                          <div className="w-12 h-12 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                            <TrendingUp className="w-6 h-6 text-[#6C5CE7]" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-[#F0EDFF] text-[#6C5CE7]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#6C5CE7]" />
                                 바우처 사용
                               </span>
                               {transaction.package_type && (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-600 font-medium">
+                                <span className="px-2 py-0.5 rounded-md text-xs bg-[#F0EDFF] text-[#6C5CE7] font-medium">
                                   {getPackageLabel(transaction.package_type)}
                                 </span>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                            <p className="font-semibold text-[#1A1A2E] text-sm lg:text-base truncate">
                               {transaction.campaign_name || '-'}
                             </p>
-                            <p className="text-xs lg:text-sm text-gray-500 flex items-center gap-1">
+                            <p className="text-xs lg:text-sm text-[#636E72] flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                               {new Date(transaction.created_at).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-base lg:text-xl font-bold text-red-600">
+                            <p className="text-base lg:text-xl font-bold text-[#6C5CE7] font-['Outfit']">
                               -{Math.abs(transaction.amount).toLocaleString()}원
                             </p>
                           </div>
@@ -485,14 +476,14 @@ export default function PaymentHistory() {
               {selectedTab === 'invoices' && (
                 <>
                   {/* Tip Box */}
-                  <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                  <div className="mb-6 p-4 rounded-xl bg-[#F0EDFF] border border-[#6C5CE7]/20">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-lg bg-[#6C5CE7] flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold mb-1">세금계산서 안내</p>
-                        <p className="text-sm text-blue-100">
+                        <p className="font-semibold mb-1 text-[#1A1A2E]">세금계산서 안내</p>
+                        <p className="text-sm text-[#636E72]">
                           결제 완료 후 1~2일 이내에 자동 발행됩니다. 발행된 세금계산서는 등록된 이메일로 전송됩니다.
                         </p>
                       </div>
@@ -502,10 +493,10 @@ export default function PaymentHistory() {
                   {/* 발행 예정 */}
                   {chargeRequests.filter(r => (r.status === 'completed' || r.status === 'confirmed') && r.needs_tax_invoice && !r.tax_invoice_issued).length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-lg font-semibold text-[#1A1A2E] mb-4 flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-[#E17055]" />
                         발행 예정
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-600">
+                        <span className="px-2 py-0.5 rounded-md text-xs bg-[rgba(253,203,110,0.15)] text-[#E17055]">
                           {chargeRequests.filter(r => (r.status === 'completed' || r.status === 'confirmed') && r.needs_tax_invoice && !r.tax_invoice_issued).length}건
                         </span>
                       </h3>
@@ -515,24 +506,24 @@ export default function PaymentHistory() {
                           .map((request) => (
                             <div
                               key={request.id}
-                              className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden"
+                              className="flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] bg-white overflow-hidden"
                             >
-                              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <Clock className="w-6 h-6 text-amber-600" />
+                              <div className="w-12 h-12 rounded-xl bg-[rgba(253,203,110,0.15)] flex items-center justify-center flex-shrink-0">
+                                <Clock className="w-6 h-6 text-[#E17055]" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                                <p className="font-semibold text-[#1A1A2E] text-sm lg:text-base truncate">
                                   {request.campaign_name || '캠페인 결제'}
                                 </p>
-                                <p className="text-xs lg:text-sm text-gray-500">
+                                <p className="text-xs lg:text-sm text-[#636E72]">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-lg font-bold text-gray-900">
+                                <p className="text-lg font-bold text-[#6C5CE7] font-['Outfit']">
                                   {formatCurrency(request.amount)}
                                 </p>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 font-medium">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-[rgba(253,203,110,0.15)] text-[#E17055] font-medium">
                                   <Clock className="w-3 h-3" />
                                   발행 예정
                                 </span>
@@ -546,10 +537,10 @@ export default function PaymentHistory() {
                   {/* 발행 완료 */}
                   {chargeRequests.filter(r => r.tax_invoice_issued).length > 0 && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <h3 className="text-lg font-semibold text-[#1A1A2E] mb-4 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-[#00B894]" />
                         발행 완료
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-600">
+                        <span className="px-2 py-0.5 rounded-md text-xs bg-[rgba(0,184,148,0.1)] text-[#00B894]">
                           {chargeRequests.filter(r => r.tax_invoice_issued).length}건
                         </span>
                       </h3>
@@ -559,29 +550,29 @@ export default function PaymentHistory() {
                           .map((request) => (
                             <div
                               key={request.id}
-                              className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 overflow-hidden"
+                              className="flex items-center gap-4 p-4 rounded-xl border border-[#DFE6E9] bg-white overflow-hidden"
                             >
-                              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="w-6 h-6 text-emerald-600" />
+                              <div className="w-12 h-12 rounded-xl bg-[rgba(0,184,148,0.1)] flex items-center justify-center flex-shrink-0">
+                                <CheckCircle className="w-6 h-6 text-[#00B894]" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                                <p className="font-semibold text-[#1A1A2E] text-sm lg:text-base truncate">
                                   {request.campaign_name || '캠페인 결제'}
                                 </p>
-                                <p className="text-xs lg:text-sm text-gray-500">
+                                <p className="text-xs lg:text-sm text-[#636E72]">
                                   {new Date(request.created_at).toLocaleDateString('ko-KR')}
                                 </p>
                                 {request.tax_invoice_nts_confirm_num && (
-                                  <p className="text-xs text-gray-400 mt-1">
+                                  <p className="text-xs text-[#B2BEC3] mt-1">
                                     승인번호: {request.tax_invoice_nts_confirm_num}
                                   </p>
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="text-lg font-bold text-gray-900">
+                                <p className="text-lg font-bold text-[#6C5CE7] font-['Outfit']">
                                   {formatCurrency(request.amount)}
                                 </p>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 font-medium">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-[rgba(0,184,148,0.1)] text-[#00B894] font-medium">
                                   <CheckCircle className="w-3 h-3" />
                                   발행 완료
                                 </span>
@@ -594,11 +585,11 @@ export default function PaymentHistory() {
 
                   {chargeRequests.filter(r => r.needs_tax_invoice).length === 0 && (
                     <div className="text-center py-16">
-                      <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                        <FileText className="w-10 h-10 text-gray-400" />
+                      <div className="w-20 h-20 mx-auto mb-6 bg-[#F8F9FA] rounded-2xl flex items-center justify-center">
+                        <FileText className="w-10 h-10 text-[#B2BEC3]" />
                       </div>
-                      <p className="text-lg font-medium text-gray-600 mb-2">세금계산서 내역이 없습니다</p>
-                      <p className="text-sm text-gray-400">결제 시 세금계산서를 요청하시면 여기에 표시됩니다</p>
+                      <p className="text-lg font-medium text-[#636E72] mb-2">세금계산서 내역이 없습니다</p>
+                      <p className="text-sm text-[#B2BEC3]">결제 시 세금계산서를 요청하시면 여기에 표시됩니다</p>
                     </div>
                   )}
                 </>

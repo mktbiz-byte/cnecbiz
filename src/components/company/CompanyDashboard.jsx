@@ -543,7 +543,7 @@ export default function CompanyDashboard() {
                           </p>
                           <p className="text-xs text-[#636E72]">{app.month} | {app.company_name}</p>
                         </div>
-                        <Badge className={app.status === 'campaign_created' ? 'bg-green-100 text-green-800 text-xs' : 'bg-blue-100 text-blue-800 text-xs'}>
+                        <Badge className={app.status === 'campaign_created' ? 'bg-[rgba(0,184,148,0.1)] text-[#00B894] text-xs' : 'bg-[#F0EDFF] text-[#6C5CE7] text-xs'}>
                           {app.status === 'campaign_created' ? '진행중' : '승인됨'}
                         </Badge>
                         <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -667,7 +667,7 @@ export default function CompanyDashboard() {
                                   {statusInfo.label}
                                 </span>
                                 {recruitmentDays !== null && recruitmentDays >= 0 && (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${recruitmentDays <= 3 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} text-xs font-medium`}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${recruitmentDays <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-[#F0EDFF] text-[#6C5CE7]'} text-xs font-medium`}>
                                     D-{recruitmentDays}
                                   </span>
                                 )}
@@ -722,8 +722,8 @@ export default function CompanyDashboard() {
 
                   {upcomingDeadlines.length === 0 ? (
                     <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                        <Calendar className="w-8 h-8 text-gray-400" />
+                      <div className="w-16 h-16 mx-auto mb-4 bg-[#F0EDFF] rounded-2xl flex items-center justify-center">
+                        <Calendar className="w-8 h-8 text-[#6C5CE7]" />
                       </div>
                       <p className="text-sm text-gray-500">다가오는 일정이 없습니다</p>
                     </div>
@@ -744,7 +744,7 @@ export default function CompanyDashboard() {
                             <p className="text-xs lg:text-sm text-gray-500 truncate">{item.subtitle}</p>
                             <div className="flex items-center gap-2 mt-1 text-xs lg:text-sm text-gray-400">
                               <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600'}`}>
+                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${item.daysLeft <= 3 ? 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]' : 'bg-[#F0EDFF] text-[#6C5CE7]'}`}>
                                 D-{item.daysLeft}
                               </span>
                             </div>
@@ -774,8 +774,8 @@ export default function CompanyDashboard() {
 
                   {delayedItems.length === 0 ? (
                     <div className="text-center py-8">
-                      <div className="w-12 h-12 mx-auto mb-3 bg-emerald-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-emerald-500" />
+                      <div className="w-12 h-12 mx-auto mb-3 bg-[rgba(0,184,148,0.1)] rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-[#00B894]" />
                       </div>
                       <p className="text-sm font-medium text-gray-600">지연된 일정이 없습니다</p>
                     </div>

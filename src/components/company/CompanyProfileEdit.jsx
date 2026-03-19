@@ -261,8 +261,8 @@ export default function CompanyProfileEdit() {
     return (
       <>
         <CompanyNavigation />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 lg:ml-64 pt-14 pb-20 lg:pt-6 lg:pb-6">
-        <Card className="w-full max-w-md shadow-2xl border-none">
+        <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6 lg:ml-64 pt-14 pb-20 lg:pt-6 lg:pb-6">
+        <Card className="w-full max-w-md bg-white border border-[#DFE6E9] rounded-2xl shadow-sm">
           <CardContent className="p-12 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-12 h-12 text-green-600" />
@@ -272,7 +272,7 @@ export default function CompanyProfileEdit() {
               기업 정보가 성공적으로 수정되었습니다.<br />
               잠시 후 대시보드로 이동합니다.
             </p>
-            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+            <div className="animate-spin w-8 h-8 border-4 border-[#6C5CE7] border-t-transparent rounded-full mx-auto"></div>
           </CardContent>
         </Card>
       </div>
@@ -283,12 +283,12 @@ export default function CompanyProfileEdit() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 px-4 lg:py-12 lg:ml-64 pt-14 pb-20 lg:pt-12 lg:pb-12">
+      <div className="min-h-screen bg-[#F8F9FA] py-6 px-4 lg:py-12 lg:ml-64 pt-14 pb-20 lg:pt-12 lg:pb-12">
       <div className="max-w-3xl mx-auto">
-        <Card className="shadow-2xl border-none">
+        <Card className="bg-white border border-[#DFE6E9] rounded-2xl shadow-sm">
           <CardHeader className="space-y-4 text-center pb-6 lg:pb-8">
             <div className="flex justify-center">
-              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-[#6C5CE7] rounded-2xl flex items-center justify-center">
                 <Building className="w-7 h-7 lg:w-10 lg:h-10 text-white" />
               </div>
             </div>
@@ -313,8 +313,8 @@ export default function CompanyProfileEdit() {
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* 기본 정보 */}
               <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 lg:p-6">
-                    <h3 className="font-semibold text-blue-900 mb-4 text-sm lg:text-base">회원가입 시 입력한 정보</h3>
+                  <div className="bg-[#F0EDFF] border border-[#DFE6E9] rounded-lg p-4 lg:p-6">
+                    <h3 className="font-semibold text-[#1A1A2E] mb-4 text-sm lg:text-base">회원가입 시 입력한 정보</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">회사명 *</label>
@@ -471,7 +471,7 @@ export default function CompanyProfileEdit() {
                 </div>
 
               {/* 알림 설정 */}
-              <div className="space-y-6 border-t border-gray-200 pt-6 lg:pt-8">
+              <div className="space-y-6 border-t border-[#DFE6E9] pt-6 lg:pt-8">
                   <div className="space-y-4">
                     <h3 className="font-semibold text-base lg:text-lg">알림 담당자 정보</h3>
                     <p className="text-sm text-gray-600">
@@ -536,14 +536,14 @@ export default function CompanyProfileEdit() {
                   <div className="space-y-4">
                     <h3 className="font-semibold text-base lg:text-lg">알림 수신 동의</h3>
                     
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                    <div className="space-y-3 bg-[#F8F9FA] p-4 rounded-lg">
                       <label className="flex items-start space-x-3 cursor-pointer">
                         <input
                           type="checkbox"
                           name="emailNotificationConsent"
                           checked={formData.emailNotificationConsent}
                           onChange={handleChange}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-0.5"
+                          className="w-5 h-5 text-[#6C5CE7] rounded focus:ring-2 focus:ring-[#6C5CE7]/10 mt-0.5"
                         />
                         <div>
                           <span className="text-gray-900 font-medium">이메일 알림 수신 동의</span>
@@ -559,7 +559,7 @@ export default function CompanyProfileEdit() {
                           name="smsNotificationConsent"
                           checked={formData.smsNotificationConsent}
                           onChange={handleChange}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-0.5"
+                          className="w-5 h-5 text-[#6C5CE7] rounded focus:ring-2 focus:ring-[#6C5CE7]/10 mt-0.5"
                         />
                         <div>
                           <span className="text-gray-900 font-medium">SMS 알림 수신 동의</span>
@@ -569,7 +569,7 @@ export default function CompanyProfileEdit() {
                         </div>
                       </label>
 
-                      <div className="border-t border-gray-300 my-3"></div>
+                      <div className="border-t border-[#DFE6E9] my-3"></div>
 
                       <label className="flex items-start space-x-3 cursor-pointer">
                         <input
@@ -577,7 +577,7 @@ export default function CompanyProfileEdit() {
                           name="marketingConsent"
                           checked={formData.marketingConsent}
                           onChange={handleChange}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-0.5"
+                          className="w-5 h-5 text-[#6C5CE7] rounded focus:ring-2 focus:ring-[#6C5CE7]/10 mt-0.5"
                         />
                         <div>
                           <span className="text-gray-900 font-medium">마케팅 정보 수신 동의 (선택)</span>
@@ -595,10 +595,10 @@ export default function CompanyProfileEdit() {
                 </div>
 
               {/* 비밀번호 변경 */}
-              <div className="space-y-6 border-t border-gray-200 pt-6 lg:pt-8">
+              <div className="space-y-6 border-t border-[#DFE6E9] pt-6 lg:pt-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-blue-600" />
+                    <Shield className="w-5 h-5 text-[#6C5CE7]" />
                     <h3 className="font-semibold text-base lg:text-lg">비밀번호 변경</h3>
                   </div>
                   <p className="text-sm text-gray-600">
@@ -621,7 +621,7 @@ export default function CompanyProfileEdit() {
                     </div>
                   )}
 
-                  <div className="bg-slate-50 p-4 lg:p-6 rounded-xl space-y-4">
+                  <div className="bg-[#F8F9FA] p-4 lg:p-6 rounded-xl space-y-4">
                     {/* 현재 비밀번호 */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">현재 비밀번호</label>
@@ -702,7 +702,7 @@ export default function CompanyProfileEdit() {
                       type="button"
                       onClick={handlePasswordChange}
                       disabled={passwordLoading}
-                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      className="w-full h-12 bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white"
                     >
                       {passwordLoading ? (
                         <>

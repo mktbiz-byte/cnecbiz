@@ -75,24 +75,24 @@ export default function ContractManagement() {
 
   const getStatusBadge = (status) => {
     const badges = {
-      pending: { 
-        text: '대기', 
-        color: 'bg-gray-100 text-gray-800',
+      pending: {
+        text: '대기',
+        color: 'bg-[rgba(253,203,110,0.15)] text-[#E17055]',
         icon: Clock
       },
-      sent: { 
-        text: '발송됨', 
-        color: 'bg-blue-100 text-blue-800',
+      sent: {
+        text: '발송됨',
+        color: 'bg-[#F0EDFF] text-[#6C5CE7]',
         icon: Send
       },
-      signed: { 
-        text: '서명완료', 
-        color: 'bg-green-100 text-green-800',
+      signed: {
+        text: '서명완료',
+        color: 'bg-[rgba(0,184,148,0.1)] text-[#00B894]',
         icon: CheckCircle
       },
-      expired: { 
-        text: '만료', 
-        color: 'bg-red-100 text-red-800',
+      expired: {
+        text: '만료',
+        color: 'bg-[rgba(255,107,107,0.1)] text-[#FF6B6B]',
         icon: XCircle
       }
     }
@@ -254,57 +254,57 @@ export default function ContractManagement() {
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+      <div className="min-h-screen bg-[#F8F9FA] lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
         <div className="max-w-7xl mx-auto p-4 lg:p-6">
           <div className="mb-6 lg:mb-8">
-            <h1 className="text-2xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl lg:text-4xl font-bold text-[#1A1A2E]">
               계약서 관리
             </h1>
-            <p className="text-sm lg:text-base text-gray-600 mt-1">크리에이터와의 계약서를 관리하세요</p>
+            <p className="text-sm lg:text-base text-[#636E72] mt-1">크리에이터와의 계약서를 관리하세요</p>
           </div>
 
           {/* 통계 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4 mb-6">
-            <Card>
+            <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
               <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-xs lg:text-sm text-gray-600">전체</p>
-                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 mt-1 lg:mt-2">{stats.total}</p>
+                  <p className="text-xs lg:text-sm text-[#636E72]">전체</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit'] mt-1 lg:mt-2">{stats.total}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
               <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-xs lg:text-sm text-gray-600">발송됨</p>
-                  <p className="text-2xl lg:text-3xl font-bold text-blue-600 mt-1 lg:mt-2">{stats.sent}</p>
+                  <p className="text-xs lg:text-sm text-[#636E72]">발송됨</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit'] mt-1 lg:mt-2">{stats.sent}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
               <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-xs lg:text-sm text-gray-600">서명완료</p>
-                  <p className="text-2xl lg:text-3xl font-bold text-green-600 mt-1 lg:mt-2">{stats.signed}</p>
+                  <p className="text-xs lg:text-sm text-[#636E72]">서명완료</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit'] mt-1 lg:mt-2">{stats.signed}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
               <CardContent className="pt-4 lg:pt-6">
                 <div className="text-center">
-                  <p className="text-xs lg:text-sm text-gray-600">만료</p>
-                  <p className="text-2xl lg:text-3xl font-bold text-red-600 mt-1 lg:mt-2">{stats.expired}</p>
+                  <p className="text-xs lg:text-sm text-[#636E72]">만료</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#6C5CE7] font-['Outfit'] mt-1 lg:mt-2">{stats.expired}</p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* 테스트 계약서 발송 */}
-          <Card className="mb-6">
+          <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>테스트 계약서 발송</CardTitle>
-                <Button onClick={() => setShowTestForm(!showTestForm)}>
+                <Button onClick={() => setShowTestForm(!showTestForm)} className="bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white">
                   <Plus className="w-4 h-4 mr-2" />
                   테스트 발송
                 </Button>
@@ -336,7 +336,7 @@ export default function ContractManagement() {
                     onChange={(e) => setTestContract({ ...testContract, title: e.target.value })}
                   />
                 </div>
-                <Button onClick={handleSendTestContract} disabled={sending} className="w-full">
+                <Button onClick={handleSendTestContract} disabled={sending} className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white">
                   {sending ? '발송 중...' : '테스트 계약서 발송'}
                 </Button>
               </CardContent>
@@ -344,12 +344,12 @@ export default function ContractManagement() {
           </Card>
 
           {/* 계약서 목록 */}
-          <Card>
+          <Card className="bg-white border border-[#DFE6E9] rounded-2xl">
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <CardTitle className="text-base lg:text-lg">계약서 목록</CardTitle>
                 <div className="relative w-full sm:w-auto">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#B2BEC3]" />
                   <Input
                     placeholder="계약서 검색..."
                     value={searchTerm}
@@ -372,12 +372,12 @@ export default function ContractManagement() {
                 <TabsContent value={activeTab} className="mt-4 lg:mt-6">
                   {loading ? (
                     <div className="text-center py-12">
-                      <p className="text-gray-500">로딩 중...</p>
+                      <p className="text-[#636E72]">로딩 중...</p>
                     </div>
                   ) : filteredContracts.length === 0 ? (
                     <div className="text-center py-12">
-                      <FileSignature className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-4 text-gray-400" />
-                      <p className="text-gray-500">계약서가 없습니다.</p>
+                      <FileSignature className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-4 text-[#B2BEC3]" />
+                      <p className="text-[#636E72]">계약서가 없습니다.</p>
                     </div>
                   ) : (
                     <>
@@ -387,11 +387,11 @@ export default function ContractManagement() {
                           const statusBadge = getStatusBadge(contract.status)
                           const StatusIcon = statusBadge.icon
                           return (
-                            <div key={contract.id} className="border rounded-lg p-4 bg-white overflow-hidden">
+                            <div key={contract.id} className="border border-[#DFE6E9] rounded-2xl p-4 bg-white overflow-hidden">
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">{contract.title}</p>
-                                  <p className="text-xs text-gray-500 mt-1">{getContractTypeName(contract.contract_type)}</p>
+                                  <p className="text-xs text-[#636E72] mt-1">{getContractTypeName(contract.contract_type)}</p>
                                 </div>
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ml-2 flex-shrink-0 ${statusBadge.color}`}>
                                   <StatusIcon className="w-3 h-3" />
@@ -399,9 +399,9 @@ export default function ContractManagement() {
                                 </span>
                               </div>
                               {contract.campaigns?.title && (
-                                <p className="text-xs text-gray-500 mb-2 truncate">캠페인: {contract.campaigns.title}</p>
+                                <p className="text-xs text-[#636E72] mb-2 truncate">캠페인: {contract.campaigns.title}</p>
                               )}
-                              <div className="flex items-center justify-between text-xs text-gray-400">
+                              <div className="flex items-center justify-between text-xs text-[#B2BEC3]">
                                 <span>만료: {new Date(contract.expires_at).toLocaleDateString('ko-KR')}</span>
                                 <div className="flex items-center gap-2">
                                   <Button
@@ -430,24 +430,24 @@ export default function ContractManagement() {
                       {/* Desktop Table View */}
                       <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-[#F8F9FA]">
                             <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">캠페인</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">발송일</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">서명일</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">만료일</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">유형</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">제목</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">캠페인</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">상태</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">발송일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">서명일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">만료일</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-[#636E72] uppercase">작업</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white divide-y divide-[#DFE6E9]">
                             {filteredContracts.map((contract) => {
                               const statusBadge = getStatusBadge(contract.status)
                               const StatusIcon = statusBadge.icon
                               return (
-                                <tr key={contract.id} className="hover:bg-gray-50">
+                                <tr key={contract.id} className="hover:bg-[#F8F9FA]">
                                   <td className="px-4 py-4 whitespace-nowrap text-sm">
                                     {getContractTypeName(contract.contract_type)}
                                   </td>
@@ -463,13 +463,13 @@ export default function ContractManagement() {
                                       {statusBadge.text}
                                     </span>
                                   </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-[#636E72]">
                                     {contract.sent_at ? new Date(contract.sent_at).toLocaleDateString('ko-KR') : '-'}
                                   </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-[#636E72]">
                                     {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString('ko-KR') : '-'}
                                   </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-[#636E72]">
                                     {new Date(contract.expires_at).toLocaleDateString('ko-KR')}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm">
