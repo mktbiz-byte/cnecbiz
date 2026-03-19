@@ -10095,14 +10095,19 @@ Questions? Contact us.
                           {/* 스토리 기획안 정보 (story_short 캠페인) */}
                           {app.source === 'story_proposal' && (
                             <div className="mb-2 space-y-1">
-                              {app.video_concept && (
+                              {app.video_concept && app.video_concept !== '.' && (
                                 <div className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded">
-                                  <span className="font-medium">컨셉:</span> <span className="truncate">{app.video_concept}</span>
+                                  <span className="font-medium">컨셉:</span> {app.video_concept}
                                 </div>
                               )}
                               {app.tone_mood && (
                                 <div className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded">
                                   <span className="font-medium">톤:</span> {app.tone_mood}
+                                </div>
+                              )}
+                              {app.description && app.description !== '.' && (
+                                <div className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
+                                  <span className="font-medium">촬영계획:</span> <span className="line-clamp-2">{app.description}</span>
                                 </div>
                               )}
                               <div className={`text-xs px-2 py-1 rounded text-center font-medium ${
@@ -15644,6 +15649,52 @@ Questions? Contact us.
                       <span className="text-[11px] font-bold text-violet-600 uppercase tracking-wider">AI Summary</span>
                     </div>
                     <p className="text-sm text-gray-700 leading-relaxed">{selectedParticipant.ai_profile_text}</p>
+                  </div>
+                )}
+
+                {/* 스토리 기획안 상세 (story_short 캠페인) */}
+                {selectedParticipant.source === 'story_proposal' && (
+                  <div className="relative bg-gradient-to-br from-teal-50 to-cyan-50 p-4 rounded-xl border border-teal-100">
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <FileText className="w-3.5 h-3.5 text-teal-500" />
+                      <span className="text-[11px] font-bold text-teal-600 uppercase tracking-wider">기획안</span>
+                      <span className={`ml-auto px-2 py-0.5 text-[10px] rounded-md font-semibold ${
+                        selectedParticipant.proposal_status === 'approved' ? 'bg-green-100 text-green-700 border border-green-200' :
+                        selectedParticipant.proposal_status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                        'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                      }`}>
+                        {selectedParticipant.proposal_status === 'approved' ? '승인' : selectedParticipant.proposal_status === 'rejected' ? '반려' : '검토중'}
+                      </span>
+                    </div>
+                    <div className="space-y-2.5 text-sm">
+                      {selectedParticipant.video_concept && (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">영상 컨셉</span>
+                          <p className="text-gray-700 mt-0.5">{selectedParticipant.video_concept}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.tone_mood && (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">톤 / 분위기</span>
+                          <p className="text-gray-700 mt-0.5">{selectedParticipant.tone_mood}</p>
+                        </div>
+                      )}
+                      {selectedParticipant.description && (
+                        <div>
+                          <span className="text-[11px] font-semibold text-teal-600">촬영 계획</span>
+                          <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{selectedParticipant.description}</p>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 pt-1 text-xs text-gray-500">
+                        <span>{selectedParticipant.secondary_use_agreed ? '2차 활용 동의' : '2차 활용 미동의'}</span>
+                      </div>
+                      {selectedParticipant.reject_reason && (
+                        <div className="mt-2 p-2.5 bg-red-50 rounded-lg border border-red-100">
+                          <span className="text-[11px] font-semibold text-red-600">반려 사유</span>
+                          <p className="text-sm text-red-700 mt-0.5">{selectedParticipant.reject_reason}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
