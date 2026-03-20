@@ -732,18 +732,19 @@ export default function FeaturedCreatorManagementPageNew() {
     }
 
     try {
-      const { error } = await supabaseBiz
-        .from('featured_creators')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
+      const response = await fetch('/.netlify/functions/update-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', creatorId: id })
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
 
       alert('크리에이터가 삭제되었습니다.')
-      setFeaturedCreators(featuredCreators.filter(c => c.id !== id))
+      setGradedCreators(prev => prev.filter(c => c.id !== id))
     } catch (err) {
       console.error('삭제 실패:', err)
-      alert('삭제 처리 중 오류가 발생했습니다.')
+      alert('삭제 처리 중 오류가 발생했습니다: ' + err.message)
     }
   }
 
