@@ -47,49 +47,16 @@
 
 ## 무시해야 할 파일 목록
 
-> 아래 파일들은 **백업/구버전 파일**로, 참조하지 마세요.
+> Phase 0 정리 완료 (2026-03-20): 백업/테스트 파일 53개 삭제, SQL·MD 50개 이동 완료.
+> 상세 내역: `docs/PHASE0-CLEANUP-LOG.md` 참고.
 
-### src/ 내 백업 파일
+### 파일 생성 금지 규칙
 ```
-src/App_Old.jsx
-src/components/CampaignCreatePage.jsx.backup_20251209_020246
-src/components/LandingPage.jsx.backup
-src/components/LoginPageNew.jsx.backup
-src/components/admin/AdminCampaignEdit.jsx.backup
-src/components/admin/AllCreatorsPage.jsx.backup
-src/components/admin/FeaturedCreatorManagementPage_OLD.jsx
-src/components/admin/OurChannelReport.jsx.backup
-src/components/admin/SiteManagement.jsx.backup
-src/components/admin/SiteManagement.jsx.old
-src/components/company/CampaignDetail.jsx.backup
-src/components/company/CampaignDetail.jsx.backup2
-src/components/company/CampaignGuide4WeekChallenge.jsx.backup_20251209_022629
-src/components/company/CampaignGuideEditor.jsx.backup_20251209_020713
-src/components/company/CampaignGuideJapan.jsx.backup
-src/components/company/CampaignGuideJapan.jsx.backup_20251209_022629
-src/components/company/CampaignGuideOliveYoung.jsx.backup_20251209_022629
-src/components/company/CreateCampaignJapan.jsx.backup
-src/components/company/CreateCampaignJapan.jsx.backup2
-src/components/company/CreateCampaignKorea.jsx.backup
-src/components/company/CreateCampaignKorea_OLD_BACKUP.jsx
-src/components/company/CreateCampaignUS.jsx.backup
-src/components/company/FourWeekChallengeInvoice.jsx.old
-src/components/company/FourWeekGuideModal.jsx.backup
-src/components/company/OliveYoungGuideModal.jsx.backup
-src/components/company/PaymentMethodSelection.jsx.backup_20251209_021005
-src/components/creator/CreatorMyPage.jsx.backup
-src/pages/FourWeekChallengeCampaignIntro.jsx.old
-src/pages/OliveYoungCampaignIntro.jsx.old
-src/pages/RegularCampaignIntro.jsx.old
-```
-
-### 루트 폴더 참고 문서 (개발 가이드용, 코드 아님)
-```
-*.md (CLAUDE.md 제외)
-*.sql
-check_*.js, check_*.mjs
-test-*.js, test-*.cjs
-migrate_*.py
+❌ *.backup, *.backup2, *.bak, *.old, *_OLD.jsx, *_OLD_BACKUP.jsx  → Git 브랜치/stash 사용
+❌ test-*.js (netlify/functions/)  → 로컬에서만 사용, 커밋 금지
+❌ check_*.js, test-*.cjs (루트)  → scripts/ 디렉터리 사용 후 삭제
+❌ *.sql (루트)  → database/ 폴더에 저장
+❌ *.md (루트, CLAUDE.md·README.md 제외)  → docs/ 폴더에 저장
 ```
 
 ### 사용하지 않는 또는 deprecated 컴포넌트
