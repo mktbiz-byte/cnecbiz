@@ -438,9 +438,13 @@ export async function registerFeaturedCreator(creator, region, options = {}) {
     const gradeLevel = options.gradeLevel || initialGrade.gradeLevel
     const gradeName = options.gradeName || GRADE_LEVELS[gradeLevel]?.name || initialGrade.gradeName
 
+    // region → country code 매핑 (korea→KR, japan→JP, us→US)
+    const REGION_TO_COUNTRY = { korea: 'KR', japan: 'JP', us: 'US', taiwan: 'TW' }
+    const countryCode = REGION_TO_COUNTRY[region.toLowerCase()] || region.toUpperCase().substring(0, 2)
+
     const creatorData = {
       user_id: creator.user_id || creator.id,
-      source_country: region.toUpperCase().substring(0, 2),
+      source_country: countryCode,
       name: creator.name || creator.channel_name,
       profile_image_url: creator.profile_image || creator.profile_image_url || creator.avatar_url,
       bio: creator.bio,
@@ -450,7 +454,7 @@ export async function registerFeaturedCreator(creator, region, options = {}) {
       youtube_subscribers: creator.youtube_subscribers || 0,
       tiktok_url: creator.tiktok_url || null,
       tiktok_followers: creator.tiktok_followers || 0,
-      primary_country: region.toUpperCase().substring(0, 2),
+      primary_country: countryCode,
       active_regions: [region],
       cnec_grade_level: gradeLevel,
       cnec_grade_name: gradeName,
