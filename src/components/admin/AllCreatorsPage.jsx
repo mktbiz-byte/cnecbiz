@@ -16,7 +16,6 @@ import {
   AlertTriangle, AlertOctagon, XOctagon, CheckCircle, Shield, ShieldAlert, ShieldX, ShieldCheck
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
-import { database } from '../../lib/supabaseKorea'
 import AdminNavigation from './AdminNavigation'
 import LineChatModal from './LineChatModal'
 import * as XLSX from 'xlsx'
