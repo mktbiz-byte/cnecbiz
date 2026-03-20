@@ -662,6 +662,8 @@ export default function CampaignDetail() {
   const [unifiedRecommendations, setUnifiedRecommendations] = useState([])
   const [loadingUnifiedRecs, setLoadingUnifiedRecs] = useState(false)
   const [showMatchingRequestModal, setShowMatchingRequestModal] = useState(false)
+  // AI 추천 카드에서 보여줄 프로필 항목 선택
+  const [recProfileOptions, setRecProfileOptions] = useState([])  // auto-set on campaign load
   const [matchingRequestData, setMatchingRequestData] = useState({
     desiredSnsUrl: '',
     desiredVideoStyleUrl: '',
@@ -931,6 +933,10 @@ export default function CampaignDetail() {
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
+      // 캠페인 카테고리 기반으로 프로필 표시 항목 자동 선택
+      if (recProfileOptions.length === 0) {
+        setRecProfileOptions(autoSelectProfileOptions(campaign))
+      }
       // 스토리 숏폼은 AI 추천 불필요 (지원으로만 모집)
       if (campaign.campaign_type !== 'story_short') {
         // 한국 캠페인 + 베이직/주니어 패키지 제외
@@ -955,115 +961,122 @@ export default function CampaignDetail() {
     return shuffled
   }
 
-  // 캠페인 카테고리에 따라 보여줄 프로필 태그 결정
-  const getRelevantProfileTags = (creator, campaignData) => {
-    const tags = []
-    const primaryCat = campaignData?.product_categories?.primary
-    const gradeName = creator.cnec_grade_level === 5 ? 'MUSE' : creator.cnec_grade_level === 4 ? 'STAR' : creator.cnec_grade_level === 3 ? 'BLOOM' : creator.cnec_grade_level === 2 ? 'GLOW' : null
+  // 캠페인 제목/상품에서 카테고리 자동 감지
+  const inferCampaignCategory = (campaignData) => {
+    if (campaignData?.product_categories?.primary) return campaignData.product_categories.primary
 
-    // 카테고리 매칭
-    if (primaryCat && creator.categories?.includes(primaryCat)) {
-      const catLabel = { skincare: '스킨케어', makeup: '색조', haircare: '헤어케어', diet: '다이어트', fashion: '패션', lifestyle: '라이프스타일', food: '먹방/요리', family: '가족출연', pet: '반려동물', travel: '여행', tech: '테크/IT', game: '게임' }[primaryCat]
-      tags.push({ label: `${catLabel} 전문`, color: '#6C5CE7', bg: '#F0EDFF' })
+    // 캠페인 제목 + 상품명에서 키워드로 추론
+    const text = `${campaignData?.title || ''} ${campaignData?.product_name || ''} ${campaignData?.brand || ''} ${campaignData?.description || ''}`.toLowerCase()
+
+    const keywords = {
+      skincare: ['스킨케어', '세럼', '크림', '로션', '토너', '에센스', '앰플', '수분', '보습', '미백', '주름', '콜라겐', '선크림', '선로션', '자외선', '클렌징', '필링', '마스크팩', '팩', '잡티', '비타c', '비타민', '레티놀', '나이아신', '히알루론', '자생', 'skincare'],
+      makeup: ['메이크업', '색조', '파운데이션', '쿠션', '립스틱', '립', '아이섀도', '블러셔', '컨실러', '프라이머', '틴트', '마스카라', '아이라이너', '브로우', 'makeup', '베이스'],
+      haircare: ['헤어', '샴푸', '컨디셔너', '트리트먼트', '두피', '탈모', '염색', '헤어오일', 'haircare', '모발'],
+      diet: ['다이어트', '체중', '슬림', '체지방', '단백질', 'diet'],
+      food: ['먹방', '요리', '레시피', '맛집', 'food'],
+      fashion: ['패션', '의류', '옷', '코디', 'fashion'],
+      lifestyle: ['라이프', '인테리어', '홈', '생활', 'lifestyle'],
+      pet: ['반려', '강아지', '고양이', '펫', 'pet'],
     }
 
-    // 스킨케어/바디케어 캠페인 → 피부 타입, 피부 고민
-    if (['skincare', 'bodycare'].includes(primaryCat)) {
-      if (creator.skin_type) {
-        const st = SKIN_TYPES[creator.skin_type] || creator.skin_type
-        tags.push({ label: `${st} 피부`, color: '#0891B2', bg: '#CFFAFE' })
-      }
-      if (creator.skin_concerns?.length > 0) {
-        tags.push({ label: creator.skin_concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
-      }
+    for (const [cat, words] of Object.entries(keywords)) {
+      if (words.some(w => text.includes(w))) return cat
     }
-
-    // 메이크업/색조 캠페인 → 퍼스널컬러, 호수
-    if (['makeup'].includes(primaryCat)) {
-      if (creator.personal_color) {
-        const pc = PERSONAL_COLOR_MAP[creator.personal_color] || creator.personal_color
-        tags.push({ label: pc, color: '#EC4899', bg: '#FCE7F3' })
-      }
-      if (creator.skin_shade) {
-        const ss = SKIN_SHADE_MAP[creator.skin_shade] || creator.skin_shade
-        tags.push({ label: ss, color: '#D97706', bg: '#FEF3C7' })
-      }
-    }
-
-    // 헤어케어 캠페인 → 헤어 타입
-    if (['haircare'].includes(primaryCat)) {
-      if (creator.hair_type) {
-        const ht = HAIR_TYPE_MAP[creator.hair_type] || creator.hair_type
-        tags.push({ label: `${ht} 모발`, color: '#7C3AED', bg: '#EDE9FE' })
-      }
-    }
-
-    // 공통: 등급
-    if (gradeName && creator.cnec_grade_level >= 3) {
-      tags.push({ label: `${gradeName} 등급`, color: '#6C5CE7', bg: '#F0EDFF' })
-    }
-
-    return tags.slice(0, 4) // 최대 4개
+    return null
   }
 
-  // 크리에이터 추천 이유 생성 (프로필 + 카테고리 기반)
+  // 프로필 표시 옵션 정의
+  const REC_PROFILE_OPTIONS_DEF = [
+    { id: 'skinType', label: '피부 타입', categories: ['skincare', 'makeup', 'bodycare'] },
+    { id: 'skinConcerns', label: '피부 고민', categories: ['skincare', 'bodycare'] },
+    { id: 'personalColor', label: '퍼스널컬러', categories: ['skincare', 'makeup'] },
+    { id: 'skinShade', label: '쿠션 호수', categories: ['makeup'] },
+    { id: 'hairType', label: '모발 타입', categories: ['haircare'] },
+    { id: 'age', label: '나이', categories: ['skincare', 'makeup', 'haircare', 'diet', 'fashion', 'lifestyle', 'food', 'pet'] },
+    { id: 'gender', label: '성별', categories: ['skincare', 'makeup', 'haircare', 'diet', 'fashion', 'lifestyle', 'food', 'pet'] },
+  ]
+
+  // 캠페인 로드 시 프로필 표시 항목 자동 설정
+  const autoSelectProfileOptions = (campaignData) => {
+    const cat = inferCampaignCategory(campaignData)
+    if (!cat) return ['age', 'gender']
+    return REC_PROFILE_OPTIONS_DEF
+      .filter(opt => opt.categories.includes(cat))
+      .map(opt => opt.id)
+  }
+
+  // 크리에이터 프로필 태그 생성 (선택된 옵션 기반)
+  const getCreatorProfileInfo = (creator, options) => {
+    const items = []
+    if (options.includes('skinType') && creator.skin_type) {
+      items.push({ label: '피부', value: SKIN_TYPES[creator.skin_type] || creator.skin_type, color: '#0891B2', bg: '#CFFAFE' })
+    }
+    if (options.includes('skinConcerns') && creator.skin_concerns?.length > 0) {
+      items.push({ label: '고민', value: creator.skin_concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
+    }
+    if (options.includes('personalColor') && creator.personal_color) {
+      items.push({ label: '컬러', value: PERSONAL_COLOR_MAP[creator.personal_color] || creator.personal_color, color: '#EC4899', bg: '#FCE7F3' })
+    }
+    if (options.includes('skinShade') && creator.skin_shade) {
+      items.push({ label: '호수', value: SKIN_SHADE_MAP[creator.skin_shade] || creator.skin_shade, color: '#D97706', bg: '#FEF3C7' })
+    }
+    if (options.includes('hairType') && creator.hair_type) {
+      items.push({ label: '모발', value: HAIR_TYPE_MAP[creator.hair_type] || creator.hair_type, color: '#7C3AED', bg: '#EDE9FE' })
+    }
+    if (options.includes('age') && creator.age) {
+      items.push({ label: '나이', value: `${creator.age}세`, color: '#475569', bg: '#F1F5F9' })
+    }
+    if (options.includes('gender') && creator.gender) {
+      items.push({ label: '성별', value: creator.gender === 'female' ? '여성' : creator.gender === 'male' ? '남성' : creator.gender, color: '#475569', bg: '#F1F5F9' })
+    }
+    return items
+  }
+
+  // 크리에이터 추천 이유 생성 (캠페인 상품 + 프로필 기반)
   const generateDetailedReason = (creator, profile, campaignData) => {
     const parts = []
-    const primaryCat = campaignData?.product_categories?.primary
-    const catLabel = primaryCat ? { skincare: '스킨케어', makeup: '색조', haircare: '헤어케어', diet: '다이어트', fashion: '패션', lifestyle: '라이프스타일', food: '먹방/요리', family: '가족출연', pet: '반려동물', travel: '여행', tech: '테크/IT', game: '게임' }[primaryCat] : null
+    const primaryCat = inferCampaignCategory(campaignData)
+    const CAT_LABELS = { skincare: '스킨케어', makeup: '색조', haircare: '헤어케어', diet: '다이어트', fashion: '패션', lifestyle: '라이프스타일', food: '먹방/요리', family: '가족출연', pet: '반려동물', travel: '여행', tech: '테크/IT', game: '게임' }
+    const catLabel = primaryCat ? CAT_LABELS[primaryCat] : null
 
     // 카테고리 매칭 여부
     if (primaryCat && creator.categories?.includes(primaryCat)) {
-      parts.push(`${catLabel} 카테고리 전문`)
+      parts.push(`${catLabel} 전문`)
     }
 
     // 등급 기반
     const gradeName = creator.cnec_grade_level === 5 ? 'MUSE' : creator.cnec_grade_level === 4 ? 'STAR' : creator.cnec_grade_level === 3 ? 'BLOOM' : creator.cnec_grade_level === 2 ? 'GLOW' : null
     if (gradeName && creator.cnec_grade_level >= 3) {
-      parts.push(`${gradeName} 등급 크리에이터`)
+      parts.push(`${gradeName} 등급`)
     }
 
-    // 피부 타입 (스킨케어/바디케어)
-    if (['skincare', 'bodycare'].includes(primaryCat) && profile?.skin_type) {
-      const st = SKIN_TYPES[profile.skin_type] || profile.skin_type
-      parts.push(`${st} 피부`)
+    // 뷰티 프로필 (스킨케어)
+    if (['skincare', 'bodycare'].includes(primaryCat)) {
+      if (profile?.skin_type) parts.push(`${SKIN_TYPES[profile.skin_type] || profile.skin_type} 피부`)
+      if (profile?.skin_concerns?.length > 0) parts.push(profile.skin_concerns.slice(0, 2).join('·'))
     }
 
-    // 퍼스널 컬러 (메이크업)
-    if (primaryCat === 'makeup' && profile?.personal_color) {
-      const pc = PERSONAL_COLOR_MAP[profile.personal_color] || profile.personal_color
-      parts.push(pc)
+    // 뷰티 프로필 (메이크업)
+    if (primaryCat === 'makeup') {
+      if (profile?.personal_color) parts.push(PERSONAL_COLOR_MAP[profile.personal_color] || profile.personal_color)
+      if (profile?.skin_shade) parts.push(SKIN_SHADE_MAP[profile.skin_shade] || profile.skin_shade)
     }
 
-    // 호수 (메이크업)
-    if (primaryCat === 'makeup' && profile?.skin_shade) {
-      const ss = SKIN_SHADE_MAP[profile.skin_shade] || profile.skin_shade
-      parts.push(ss)
-    }
-
-    // 헤어 타입
+    // 헤어
     if (primaryCat === 'haircare' && profile?.hair_type) {
-      const ht = HAIR_TYPE_MAP[profile.hair_type] || profile.hair_type
-      parts.push(`${ht} 모발`)
+      parts.push(`${HAIR_TYPE_MAP[profile.hair_type] || profile.hair_type} 모발`)
     }
 
     // 평점
-    if (creator.rating >= 4.0) {
-      parts.push(`평점 ${creator.rating.toFixed(1)}`)
-    }
+    if (creator.rating >= 4.0) parts.push(`평점 ${creator.rating.toFixed(1)}`)
 
     // 팔로워 수
     const totalFollowers = (creator.instagram_followers || 0) + (creator.youtube_subscribers || 0) + (creator.tiktok_followers || 0)
-    if (totalFollowers >= 100000) {
-      parts.push(`팔로워 ${(totalFollowers / 10000).toFixed(1)}만`)
-    } else if (totalFollowers >= 10000) {
-      parts.push(`팔로워 ${(totalFollowers / 10000).toFixed(1)}만`)
-    }
+    if (totalFollowers >= 10000) parts.push(`팔로워 ${(totalFollowers / 10000).toFixed(1)}만`)
 
     if (parts.length === 0) {
       return creator.cnec_grade_level >= 3 ? '우수 크리에이터' : '추천 크리에이터'
     }
-
     return parts.join(' · ')
   }
 
@@ -8933,6 +8946,23 @@ Questions? Contact us.
                       </button>
                     </div>
                   </div>
+                  {/* 프로필 표시 옵션 (체크박스) */}
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    <span className="text-[10px] font-semibold text-[#636E72]">프로필 표시:</span>
+                    {REC_PROFILE_OPTIONS_DEF.map(opt => (
+                      <label key={opt.id} className="inline-flex items-center gap-1 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={recProfileOptions.includes(opt.id)}
+                          onChange={() => setRecProfileOptions(prev =>
+                            prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]
+                          )}
+                          className="w-3 h-3 rounded border-gray-300 text-[#6C5CE7] focus:ring-[#6C5CE7]"
+                        />
+                        <span className="text-[10px] text-[#636E72]">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {/* 캠페인 미승인 시 안내 */}
@@ -9013,16 +9043,19 @@ Questions? Contact us.
                             </div>
                           )}
 
-                          {/* 캠페인 맞춤 프로필 태그 */}
+                          {/* 프로필 정보 (선택된 옵션 기반) */}
                           {(() => {
-                            const tags = getRelevantProfileTags(creator, campaign)
-                            return tags.length > 0 ? (
-                              <div className="flex flex-wrap justify-center gap-1 mb-2">
-                                {tags.map((tag, i) => (
-                                  <span key={i} className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold" style={{ backgroundColor: tag.bg, color: tag.color }}>
-                                    {tag.label}
-                                  </span>
-                                ))}
+                            const items = getCreatorProfileInfo(creator, recProfileOptions)
+                            return items.length > 0 ? (
+                              <div className="mb-2 px-1.5">
+                                <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5">
+                                  {items.map((item, i) => (
+                                    <span key={i} className="text-[9px]">
+                                      <span className="text-[#B2BEC3]">{item.label}</span>{' '}
+                                      <span className="font-semibold" style={{ color: item.color }}>{item.value}</span>
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             ) : null
                           })()}
@@ -9202,37 +9235,32 @@ Questions? Contact us.
 
                     {/* 캠페인 맞춤 프로필 정보 */}
                     {(() => {
-                      const tags = getRelevantProfileTags(selectedCreatorProfile, campaign)
                       const profileItems = []
-                      const primaryCat = campaign?.product_categories?.primary
+                      const primaryCat = inferCampaignCategory(campaign)
 
-                      // 스킨케어/바디케어: 피부 타입, 피부 고민
-                      if (['skincare', 'bodycare'].includes(primaryCat)) {
+                      // 스킨케어/바디케어
+                      if (['skincare', 'bodycare'].includes(primaryCat) || !primaryCat) {
                         if (selectedCreatorProfile.skin_type) profileItems.push({ label: '피부 타입', value: SKIN_TYPES[selectedCreatorProfile.skin_type] || selectedCreatorProfile.skin_type })
                         if (selectedCreatorProfile.skin_concerns?.length > 0) profileItems.push({ label: '피부 고민', value: selectedCreatorProfile.skin_concerns.join(', ') })
                         if (selectedCreatorProfile.personal_color) profileItems.push({ label: '퍼스널컬러', value: PERSONAL_COLOR_MAP[selectedCreatorProfile.personal_color] || selectedCreatorProfile.personal_color })
                       }
 
-                      // 메이크업: 퍼스널컬러, 호수, 피부타입
-                      if (primaryCat === 'makeup') {
-                        if (selectedCreatorProfile.personal_color) profileItems.push({ label: '퍼스널컬러', value: PERSONAL_COLOR_MAP[selectedCreatorProfile.personal_color] || selectedCreatorProfile.personal_color })
+                      // 메이크업
+                      if (primaryCat === 'makeup' || !primaryCat) {
+                        if (!profileItems.find(p => p.label === '퍼스널컬러') && selectedCreatorProfile.personal_color) profileItems.push({ label: '퍼스널컬러', value: PERSONAL_COLOR_MAP[selectedCreatorProfile.personal_color] || selectedCreatorProfile.personal_color })
                         if (selectedCreatorProfile.skin_shade) profileItems.push({ label: '쿠션 호수', value: SKIN_SHADE_MAP[selectedCreatorProfile.skin_shade] || selectedCreatorProfile.skin_shade })
-                        if (selectedCreatorProfile.skin_type) profileItems.push({ label: '피부 타입', value: SKIN_TYPES[selectedCreatorProfile.skin_type] || selectedCreatorProfile.skin_type })
+                        if (!profileItems.find(p => p.label === '피부 타입') && selectedCreatorProfile.skin_type) profileItems.push({ label: '피부 타입', value: SKIN_TYPES[selectedCreatorProfile.skin_type] || selectedCreatorProfile.skin_type })
                       }
 
-                      // 헤어케어: 헤어 타입
+                      // 헤어케어
                       if (primaryCat === 'haircare') {
                         if (selectedCreatorProfile.hair_type) profileItems.push({ label: '모발 타입', value: HAIR_TYPE_MAP[selectedCreatorProfile.hair_type] || selectedCreatorProfile.hair_type })
                       }
 
-                      // 공통: 나이, 성별 (있으면)
+                      // 공통
                       if (selectedCreatorProfile.age) profileItems.push({ label: '나이', value: `${selectedCreatorProfile.age}세` })
                       if (selectedCreatorProfile.gender) profileItems.push({ label: '성별', value: selectedCreatorProfile.gender === 'female' ? '여성' : selectedCreatorProfile.gender === 'male' ? '남성' : selectedCreatorProfile.gender })
-
-                      // 전문 분야
-                      if (selectedCreatorProfile.specialties?.length > 0) {
-                        profileItems.push({ label: '전문 분야', value: selectedCreatorProfile.specialties.slice(0, 3).join(', ') })
-                      }
+                      if (selectedCreatorProfile.specialties?.length > 0) profileItems.push({ label: '전문 분야', value: selectedCreatorProfile.specialties.slice(0, 3).join(', ') })
 
                       return profileItems.length > 0 ? (
                         <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#DFE6E9]">
