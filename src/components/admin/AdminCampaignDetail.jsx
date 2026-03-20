@@ -1004,6 +1004,45 @@ export default function AdminCampaignDetail() {
                 </div>
               </div>
 
+              {/* AI 상품 카테고리 분석 결과 */}
+              {campaign.product_categories && (
+                <div className="mt-4 pt-4 border-t flex items-center gap-3">
+                  <span className="text-sm text-gray-500">AI 상품 카테고리:</span>
+                  <span className="px-2.5 py-1 text-sm font-medium bg-[#F0EDFF] text-[#6C5CE7] rounded-lg">
+                    {campaign.product_categories.primary}
+                  </span>
+                  {(campaign.product_categories.secondary || []).map(cat => (
+                    <span key={cat} className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                      {cat}
+                    </span>
+                  ))}
+                  {campaign.product_categories.confidence && (
+                    <span className="text-xs text-gray-400">
+                      (신뢰도: {Math.round(campaign.product_categories.confidence * 100)}%)
+                    </span>
+                  )}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/.netlify/functions/analyze-campaign-category', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ campaignId: campaign.id, region: campaign.region || 'korea' })
+                        })
+                        const result = await res.json()
+                        if (result.success) {
+                          alert('카테고리 재분석 완료')
+                          window.location.reload()
+                        }
+                      } catch (err) { alert('재분석 실패: ' + err.message) }
+                    }}
+                    className="text-xs text-[#6C5CE7] hover:underline"
+                  >
+                    재분석
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
                 <div>
                   <div className="text-sm text-gray-500 mb-1">모집 마감일</div>

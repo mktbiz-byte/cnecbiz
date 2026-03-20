@@ -587,6 +587,13 @@ Output format:
 
         if (error) throw error
 
+        // AI 상품 카테고리 분석 트리거 (비동기)
+        fetch('/.netlify/functions/analyze-campaign-category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId: data[0].id, region: 'us' })
+        }).catch(err => console.warn('Category analysis trigger failed:', err))
+
         setSuccess('캠페인이 생성되었습니다!')
         // 4주 챌린지인 경우 전용 가이드 페이지로 이동
         const guidePath = campaignForm.campaign_type === '4week_challenge'

@@ -1284,6 +1284,13 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
+        // AI 상품 카테고리 분석 트리거 (비동기, 실패해도 캠페인 생성은 성공)
+        fetch('/.netlify/functions/analyze-campaign-category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId, region: 'korea' })
+        }).catch(err => console.warn('Category analysis trigger failed:', err))
+
         // 네이버 웍스 알림 발송 (캠페인 생성 완료 - 검수 요청)
         try {
           const koreanDate = new Date().toLocaleString('ko-KR', {

@@ -952,13 +952,76 @@ export default function CampaignDetail() {
     return shuffled
   }
 
-  // 통합 AI 추천 크리에이터 조회 (MUSE + BLOOM + GLOW → Gemini AI 매칭)
+  // 통합 AI 추천 크리에이터 조회 (서버 사전 생성 결과 우선 → 폴백: 등급 기반)
   const fetchUnifiedRecommendations = async () => {
     if (region !== 'korea') return
 
     setLoadingUnifiedRecs(true)
     try {
-      // Step 1: 모든 등급 크리에이터 풀 조회 (grade 2~5, active)
+      // Step 1: 서버에서 사전 생성된 추천 결과 확인 (campaign_creator_matches v2)
+      const { data: serverMatches } = await supabaseBiz
+        .from('campaign_creator_matches')
+        .select('*')
+        .eq('campaign_id', campaign.id)
+        .eq('source_version', 'v2')
+        .eq('is_recommended', true)
+        .order('recommendation_rank', { ascending: true })
+        .limit(20)
+
+      if (serverMatches && serverMatches.length > 0) {
+        // 서버 결과가 있으면 featured_creators와 조인하여 프로필 보강
+        const creatorIds = serverMatches.map(m => m.creator_application_id).filter(Boolean)
+        let creatorMap = {}
+
+        if (creatorIds.length > 0) {
+          const { data: creators } = await supabaseKorea
+            .from('featured_creators')
+            .select('*')
+            .in('id', creatorIds)
+
+          ;(creators || []).forEach(c => { creatorMap[c.id] = c })
+        }
+
+        // user_profiles에서 프로필 사진 보강
+        const userIds = Object.values(creatorMap).map(c => c.user_id).filter(Boolean)
+        let profileMap = {}
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabaseKorea
+            .from('user_profiles')
+            .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
+            .in('id', userIds)
+          ;(profiles || []).forEach(p => { profileMap[p.id] = p })
+        }
+
+        const enrichedMatches = serverMatches.map(match => {
+          const creator = creatorMap[match.creator_application_id]
+          if (!creator) return null
+          const profile = creator.user_id ? profileMap[creator.user_id] : null
+          return {
+            ...creator,
+            profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || creator.profile_photo_url || creator.profile_image_url,
+            recommendation_score: match.match_score || 0,
+            recommendation_reason: match.recommendation_summary || '카테고리 매칭 추천',
+            matched_categories: match.matched_categories || [],
+            category_grade_score: match.category_grade_score || 0
+          }
+        }).filter(Boolean)
+
+        if (enrichedMatches.length > 0) {
+          console.log('[Unified Recs] Server v2 matches found:', enrichedMatches.length)
+          setUnifiedRecommendations(enrichedMatches)
+          return
+        }
+      }
+
+      // Step 2: 서버 결과 없으면 추천 생성 트리거 (비동기)
+      fetch('/.netlify/functions/generate-campaign-recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id, region: 'korea' })
+      }).catch(err => console.warn('Recommendation generation trigger failed:', err))
+
+      // Step 3: 즉시 보여줄 폴백 — 등급 기반 기본 추천
       const { data: allCreators, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
@@ -973,87 +1036,34 @@ export default function CampaignDetail() {
         return
       }
 
-      // Step 2: user_profiles에서 프로필 사진 보강
+      // 프로필 사진 보강
       const userIds = allCreators.map(c => c.user_id).filter(Boolean)
       let profileMap = {}
       if (userIds.length > 0) {
         const { data: profiles } = await supabaseKorea
           .from('user_profiles')
-          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, age, gender, skin_type, skin_concerns, instagram_followers, youtube_subscribers, tiktok_followers, bio')
+          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url')
           .in('id', userIds)
-        if (profiles) {
-          profiles.forEach(p => {
-            profileMap[p.id] = p
-          })
-        }
+        ;(profiles || []).forEach(p => { profileMap[p.id] = p })
       }
 
-      // Step 3: 크리에이터 정보 보강 (프로필 사진 + 프로필 데이터)
-      const enriched = allCreators.map(c => {
+      const basicScored = allCreators.map(c => {
         const profile = c.user_id ? profileMap[c.user_id] : null
+        let score = 0
+        if (c.cnec_grade_level === 5) score += 50
+        else if (c.cnec_grade_level === 4) score += 40
+        else if (c.cnec_grade_level === 3) score += 30
+        else if (c.cnec_grade_level === 2) score += 20
+        score += (c.rating || 0) * 5
+        if (c.is_ai_pick) score += 10
+
+        // 카테고리 매칭 보너스 (product_categories 사용)
+        const productCat = campaign.product_categories?.primary
+        if (productCat && c.categories?.includes(productCat)) score += 15
+
         return {
           ...c,
           profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || c.profile_photo_url || c.profile_image_url,
-          age: profile?.age || c.age,
-          gender: profile?.gender || c.gender,
-          skin_type: profile?.skin_type || c.skin_type,
-          skin_concerns: profile?.skin_concerns || c.skin_concerns,
-          instagram_followers: profile?.instagram_followers || c.instagram_followers || c.followers || 0,
-          youtube_subscribers: profile?.youtube_subscribers || c.youtube_subscribers || 0,
-          tiktok_followers: profile?.tiktok_followers || c.tiktok_followers || 0,
-          bio: profile?.bio || c.bio || c.target_audience
-        }
-      })
-
-      // Step 4: Gemini AI 기반 캠페인 매칭 추천 (캐싱 포함)
-      try {
-        const aiResults = await getAIRecommendations(campaign, enriched)
-        if (aiResults && aiResults.length > 0) {
-          // AI 추천 결과와 크리에이터 데이터 매칭
-          const matched = aiResults.map(rec => {
-            const creator = enriched.find(c =>
-              (c.id && c.id === rec.id) ||
-              (c.user_id && c.user_id === rec.id) ||
-              (c.id && c.id === rec.user_id) ||
-              (c.user_id && c.user_id === rec.user_id)
-            )
-            if (!creator) return null
-            return {
-              ...creator,
-              recommendation_score: rec.recommendation_score || 0,
-              recommendation_reason: rec.recommendation_reason || '캠페인 적합도 우수'
-            }
-          }).filter(Boolean)
-
-          if (matched.length > 0) {
-            console.log('[Unified Recs] AI matched:', matched.length)
-            setUnifiedRecommendations(matched.slice(0, 20))
-            return
-          }
-        }
-      } catch (aiError) {
-        console.warn('[Unified Recs] AI recommendation failed, using basic scoring:', aiError.message)
-      }
-
-      // Step 5: AI 실패 시 기본 스코어링 (등급 기반)
-      const basicScored = enriched.map(c => {
-        let score = 0
-        // 등급 점수
-        if (c.cnec_grade_level === 5) score += 50 // MUSE
-        else if (c.cnec_grade_level === 4) score += 40
-        else if (c.cnec_grade_level === 3) score += 30 // BLOOM
-        else if (c.cnec_grade_level === 2) score += 20 // GLOW
-        // 평점 점수
-        score += (c.rating || 0) * 5
-        // 팔로워 점수
-        const totalFollowers = (c.instagram_followers || 0) + (c.youtube_subscribers || 0) + (c.tiktok_followers || 0)
-        if (totalFollowers > 100000) score += 20
-        else if (totalFollowers > 50000) score += 15
-        else if (totalFollowers > 10000) score += 10
-        // AI PICK 보너스
-        if (c.is_ai_pick) score += 10
-        return {
-          ...c,
           recommendation_score: score,
           recommendation_reason: c.cnec_grade_level === 5 ? 'TOP 크리에이터' :
             c.cnec_grade_level >= 3 ? '우수 크리에이터' : '성장형 크리에이터'
@@ -8737,7 +8747,15 @@ Questions? Contact us.
                         AI 추천 크리에이터
                         <span className="px-2 py-0.5 text-xs font-medium bg-[#F0EDFF] text-[#6C5CE7] rounded-md">{unifiedRecommendations.length}명</span>
                       </CardTitle>
-                      <p className="text-sm text-[#636E72] mt-1">캠페인에 맞는 크리에이터를 AI가 분석하여 추천합니다</p>
+                      <p className="text-sm text-[#636E72] mt-1">
+                        캠페인에 맞는 크리에이터를 AI가 분석하여 추천합니다
+                        {campaign?.product_categories?.primary && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                            AI 분석: {campaign.product_categories.primary}
+                            {campaign.product_categories.secondary?.length > 0 && `, ${campaign.product_categories.secondary.join(', ')}`}
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
