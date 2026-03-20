@@ -571,10 +571,9 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-      // 스토리: 최소 5명, 스레드/X: 최소 1명
+      // 스토리/스레드/X: 20,000원 고정 단가, 최소 5명
       const unitPrice = 20000
-      const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
-      const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
+      const slots = Math.max(5, campaignForm.total_slots || 5)
       const finalCost = Math.round(unitPrice * slots * 1.1)
       const rewardPoints = 12000  // 크리에이터 지급 포인트 고정 (60%)
       const updates = {
@@ -616,9 +615,8 @@ const CampaignCreationKorea = () => {
     let newEstimatedCost = 0
 
     if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-      // 스토리: 최소 5명, 스레드/X: 최소 1명 (보너스 없음)
-      const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
-      const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
+      // 스토리/스레드/X: 20,000원 고정 단가 (보너스 없음), 최소 5명
+      const slots = Math.max(5, campaignForm.total_slots || 5)
       newEstimatedCost = Math.round(20000 * slots * 1.1)
     } else if (campaignForm.campaign_type === '4week_challenge') {
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
@@ -1119,9 +1117,8 @@ const CampaignCreationKorea = () => {
       // 정확한 estimated_cost 계산 (bonus_amount 포함)
       let calculatedEstimatedCost = campaignForm.estimated_cost
       if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-        // 스토리: 최소 5명, 스레드/X: 최소 1명, 20,000원 고정 × 인원 × 1.1 (VAT)
-        const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
-        const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
+        // 스토리/스레드/X: 20,000원 고정 × 인원 × 1.1 (VAT), 최소 5명
+        const slots = Math.max(5, campaignForm.total_slots || 5)
         calculatedEstimatedCost = Math.round(20000 * slots * 1.1)
       } else if (campaignForm.campaign_type === 'oliveyoung') {
         // 올리브영: (단가 + 보너스) × 인원 × 1.1 (VAT)
@@ -1713,18 +1710,13 @@ const CampaignCreationKorea = () => {
               </ul>
             </div>
 
-            {/* 스레드 포스트 캠페인 */}
+            {/* 스레드 포스트 캠페인 - 오픈 예정 (잠금) */}
             <div
-              className={`relative bg-white rounded-xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
-                campaignForm.campaign_type === 'threads_post'
-                  ? 'border-blue-500 shadow-lg ring-2 ring-blue-100'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-              }`}
-              onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'threads_post', is_oliveyoung_sale: false, category: ['threads'] }))}
+              className="relative bg-white rounded-xl border-2 p-5 lg:p-6 flex flex-col border-gray-200 opacity-60 cursor-not-allowed"
             >
               <div className="absolute -top-2.5 right-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                  NEW
+                <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  오픈 예정
                 </span>
               </div>
 
@@ -1739,13 +1731,10 @@ const CampaignCreationKorea = () => {
 
               <button
                 type="button"
-                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all mb-4 ${
-                  campaignForm.campaign_type === 'threads_post'
-                    ? 'bg-blue-500 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                disabled
+                className="w-full py-2.5 rounded-lg font-semibold text-sm mb-4 bg-gray-100 text-gray-400 cursor-not-allowed"
               >
-                선택하기
+                준비 중
               </button>
 
               <ul className="space-y-2 text-sm flex-1">
@@ -1768,18 +1757,13 @@ const CampaignCreationKorea = () => {
               </ul>
             </div>
 
-            {/* X 포스트 캠페인 */}
+            {/* X 포스트 캠페인 - 오픈 예정 (잠금) */}
             <div
-              className={`relative bg-white rounded-xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
-                campaignForm.campaign_type === 'x_post'
-                  ? 'border-gray-800 shadow-lg ring-2 ring-gray-200'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-              }`}
-              onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'x_post', is_oliveyoung_sale: false, category: ['x'] }))}
+              className="relative bg-white rounded-xl border-2 p-5 lg:p-6 flex flex-col border-gray-200 opacity-60 cursor-not-allowed"
             >
               <div className="absolute -top-2.5 right-3">
-                <span className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                  NEW
+                <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  오픈 예정
                 </span>
               </div>
 
@@ -1794,13 +1778,10 @@ const CampaignCreationKorea = () => {
 
               <button
                 type="button"
-                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all mb-4 ${
-                  campaignForm.campaign_type === 'x_post'
-                    ? 'bg-gray-800 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                disabled
+                className="w-full py-2.5 rounded-lg font-semibold text-sm mb-4 bg-gray-100 text-gray-400 cursor-not-allowed"
               >
-                선택하기
+                준비 중
               </button>
 
               <ul className="space-y-2 text-sm flex-1">
@@ -4925,17 +4906,17 @@ const CampaignCreationKorea = () => {
                       {/* 크리에이터 수 */}
                       <div className="border-t pt-6">
                         <div className="flex items-center justify-between mb-3">
-                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명) <span className="text-xs text-gray-500 font-normal">· 최소 1명</span></Label>
+                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명) <span className="text-xs text-gray-500 font-normal">· 최소 5명</span></Label>
                           <span className="text-blue-600 font-bold text-lg">{campaignForm.total_slots}명</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <input
                             type="range"
-                            min="1"
+                            min="5"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = Math.max(1, parseInt(e.target.value))
+                              const slots = Math.max(5, parseInt(e.target.value))
                               const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,
@@ -4948,11 +4929,11 @@ const CampaignCreationKorea = () => {
                           />
                           <Input
                             type="number"
-                            min="1"
+                            min="5"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = Math.max(1, parseInt(e.target.value) || 1)
+                              const slots = Math.max(5, parseInt(e.target.value) || 5)
                               const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,

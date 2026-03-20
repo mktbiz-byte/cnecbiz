@@ -1147,16 +1147,16 @@ export default function CampaignDetail() {
             matched_categories: match.matched_categories || [],
             category_grade_score: match.category_grade_score || 0,
             match_reasons: match.match_reasons || [],
-            // 뷰티 프로필 정보
-            skin_type: profile?.skin_type || null,
-            personal_color: profile?.personal_color || null,
-            skin_shade: profile?.skin_shade || null,
-            hair_type: profile?.hair_type || null,
-            skin_concerns: profile?.skin_concerns || [],
-            age: profile?.age || null,
-            gender: profile?.gender || null,
-            primary_interest: profile?.primary_interest || null,
-            specialties: profile?.specialties || [],
+            // 뷰티 프로필 정보 (user_profiles → featured_creators 폴백)
+            skin_type: profile?.skin_type || creator.skin_type || null,
+            personal_color: profile?.personal_color || creator.personal_color || null,
+            skin_shade: profile?.skin_shade || creator.skin_shade || null,
+            hair_type: profile?.hair_type || creator.hair_type || null,
+            skin_concerns: profile?.skin_concerns || creator.skin_concerns || [],
+            age: profile?.age || creator.age || null,
+            gender: profile?.gender || creator.gender || null,
+            primary_interest: profile?.primary_interest || creator.primary_interest || null,
+            specialties: profile?.specialties || creator.specialties || [],
           }
         }).filter(Boolean)
 
@@ -1224,15 +1224,16 @@ export default function CampaignDetail() {
                 matched_categories: match.matched_categories || [],
                 category_grade_score: match.category_grade_score || 0,
                 match_reasons: match.match_reasons || [],
-                skin_type: profile?.skin_type || null,
-                personal_color: profile?.personal_color || null,
-                skin_shade: profile?.skin_shade || null,
-                hair_type: profile?.hair_type || null,
-                skin_concerns: profile?.skin_concerns || [],
-                age: profile?.age || null,
-                gender: profile?.gender || null,
-                primary_interest: profile?.primary_interest || null,
-                specialties: profile?.specialties || [],
+                // 뷰티 프로필 정보 (user_profiles → featured_creators 폴백)
+                skin_type: profile?.skin_type || creator.skin_type || null,
+                personal_color: profile?.personal_color || creator.personal_color || null,
+                skin_shade: profile?.skin_shade || creator.skin_shade || null,
+                hair_type: profile?.hair_type || creator.hair_type || null,
+                skin_concerns: profile?.skin_concerns || creator.skin_concerns || [],
+                age: profile?.age || creator.age || null,
+                gender: profile?.gender || creator.gender || null,
+                primary_interest: profile?.primary_interest || creator.primary_interest || null,
+                specialties: profile?.specialties || creator.specialties || [],
               }
             }).filter(Boolean)
 
@@ -1291,15 +1292,16 @@ export default function CampaignDetail() {
           profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || c.profile_photo_url || c.profile_image_url,
           recommendation_score: score,
           recommendation_reason: generateDetailedReason(c, profile, campaign),
-          skin_type: profile?.skin_type || null,
-          personal_color: profile?.personal_color || null,
-          skin_shade: profile?.skin_shade || null,
-          hair_type: profile?.hair_type || null,
-          skin_concerns: profile?.skin_concerns || [],
-          age: profile?.age || null,
-          gender: profile?.gender || null,
-          primary_interest: profile?.primary_interest || null,
-          specialties: profile?.specialties || [],
+          // 뷰티 프로필 정보 (user_profiles → featured_creators 폴백)
+          skin_type: profile?.skin_type || c.skin_type || null,
+          personal_color: profile?.personal_color || c.personal_color || null,
+          skin_shade: profile?.skin_shade || c.skin_shade || null,
+          hair_type: profile?.hair_type || c.hair_type || null,
+          skin_concerns: profile?.skin_concerns || c.skin_concerns || [],
+          age: profile?.age || c.age || null,
+          gender: profile?.gender || c.gender || null,
+          primary_interest: profile?.primary_interest || c.primary_interest || null,
+          specialties: profile?.specialties || c.specialties || [],
         }
       }).sort((a, b) => b.recommendation_score - a.recommendation_score)
 
@@ -9069,7 +9071,7 @@ Questions? Contact us.
                       const gradeLabel = creator.cnec_grade_level === 5 ? 'MUSE' :
                         creator.cnec_grade_level === 4 ? 'STAR' :
                         creator.cnec_grade_level === 3 ? 'BLOOM' : 'GLOW'
-                      const matchPercent = creator.recommendation_score ? Math.min(Math.round(creator.recommendation_score), 99) : null
+                      const matchPercent = creator.recommendation_score ? Math.max(60, Math.min(Math.round(creator.recommendation_score), 99)) : null
                       const creatorBadges = getBadgesFromIds(creator.badges || [])
                       const totalFollowers = (creator.instagram_followers || 0) + (creator.youtube_subscribers || 0) + (creator.tiktok_followers || 0)
                       const formatFollowersShort = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : num > 0 ? num.toLocaleString() : '-'
@@ -9310,7 +9312,7 @@ Questions? Contact us.
                           })()}
                         </div>
                         {selectedCreatorProfile.bio && (
-                          <p className="text-sm text-[#636E72] mt-1 line-clamp-3">{selectedCreatorProfile.bio}</p>
+                          <p className="text-sm text-[#636E72] mt-1">{selectedCreatorProfile.bio}</p>
                         )}
                       </div>
                     </div>
@@ -9335,7 +9337,7 @@ Questions? Contact us.
                           <Sparkles className="w-4 h-4 text-[#6C5CE7]" />
                           <span className="text-xs font-bold text-[#6C5CE7]">AI 추천 이유</span>
                           {selectedCreatorProfile.recommendation_score && (
-                            <span className="ml-auto text-xs font-bold text-[#6C5CE7] font-['Outfit']">매칭 {Math.min(Math.round(selectedCreatorProfile.recommendation_score), 99)}%</span>
+                            <span className="ml-auto text-xs font-bold text-[#6C5CE7] font-['Outfit']">매칭 {Math.max(60, Math.min(Math.round(selectedCreatorProfile.recommendation_score), 99))}%</span>
                           )}
                         </div>
                         <p className="text-xs text-[#6C5CE7]/80">{selectedCreatorProfile.recommendation_reason}</p>
