@@ -24,8 +24,11 @@ import {
   calculateInitialGrade,
   saveCreatorGrade,
   searchCreatorsFromRegions,
-  registerFeaturedCreator
+  registerFeaturedCreator,
+  updateFeaturedCreator,
+  updateCreatorBadges
 } from '../../services/creatorGradeService'
+import { CREATOR_BADGES, getBadgesByCategory, getBadgesFromIds } from '../../data/creatorBadges'
 
 export default function FeaturedCreatorManagementPageNew() {
   const navigate = useNavigate()
@@ -191,28 +194,17 @@ export default function FeaturedCreatorManagementPageNew() {
     }
   }, [gradedCreators])
 
-  // AI 추천 확정 저장
+  // AI 추천 확정 저장 (Netlify Function으로 RLS 우회)
   const handleSaveAiPicks = async () => {
     setSavingAiPicks(true)
     try {
-      // 기존 AI pick 리셋
-      const { error: resetError } = await supabaseKorea
-        .from('featured_creators')
-        .update({ is_ai_pick: false, ai_pick_order: null })
-        .eq('is_ai_pick', true)
-
-      if (resetError) throw resetError
-
-      // 새 AI pick 설정
-      for (let i = 0; i < aiPickSlots.length; i++) {
-        if (aiPickSlots[i]) {
-          const { error } = await supabaseKorea
-            .from('featured_creators')
-            .update({ is_ai_pick: true, ai_pick_order: i + 1 })
-            .eq('id', aiPickSlots[i])
-          if (error) throw error
-        }
-      }
+      const response = await fetch('/.netlify/functions/update-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_ai_picks', slots: aiPickSlots })
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
 
       alert('AI 추천 확정 크리에이터가 저장되었습니다.')
       await loadGradedCreators()
@@ -278,56 +270,49 @@ export default function FeaturedCreatorManagementPageNew() {
   // 카테고리별 빠른 등록: 등록 실행
   const handleQuickAddRegister = async (creator) => {
     try {
-      const result = await registerFeaturedCreator(creator, creator.source_region)
+      const gradeLevel = parseInt(quickAddGrade)
+      const gradeName = GRADE_LEVELS[gradeLevel]?.name || 'FRESH'
+
+      // 등록 시 카테고리와 등급을 함께 전달 (Netlify Function으로 RLS 우회)
+      const result = await registerFeaturedCreator(creator, creator.source_region, {
+        categories: quickAddCategory ? [quickAddCategory.id] : [],
+        gradeLevel,
+        gradeName
+      })
       if (!result.success) throw result.error
 
-      // 등록 후 등급 + 카테고리 업데이트
-      const creatorId = result.creatorId || result.data?.id
-      if (creatorId) {
-        const gradeLevel = parseInt(quickAddGrade)
-        const gradeName = GRADE_LEVELS[gradeLevel]?.name || 'FRESH'
-
-        // 등급 업데이트
-        await supabaseKorea
-          .from('featured_creators')
-          .update({
-            cnec_grade_level: gradeLevel,
-            cnec_grade_name: gradeName,
-            is_cnec_recommended: gradeLevel >= 2,
-            categories: quickAddCategory ? [quickAddCategory.id] : []
-          })
-          .eq('id', creatorId)
-      }
-
-      alert(`${creator.name || creator.channel_name}님이 ${quickAddCategory?.name || ''} 카테고리에 ${GRADE_LEVELS[parseInt(quickAddGrade)]?.name || 'FRESH'} 등급으로 등록되었습니다.`)
+      alert(`${creator.name || creator.channel_name}님이 ${quickAddCategory?.name || ''} 카테고리에 ${gradeName} 등급으로 등록되었습니다.`)
       setQuickAddSearchResults(prev => prev.filter(c => c.id !== creator.id))
       await loadGradedCreators()
     } catch (err) {
       console.error('빠른 등록 오류:', err)
-      alert('등록 중 오류가 발생했습니다: ' + err.message)
+      alert('등록 중 오류가 발생했습니다: ' + (err.message || err))
     }
   }
 
-  // 등급 수동 업데이트 (Korea Supabase)
+  // 등급 수동 업데이트 (Netlify Function으로 RLS 우회)
   const handleUpdateGrade = async (creatorId, newGradeLevel, isManualMuse = false) => {
     try {
       const gradeName = GRADE_LEVELS[newGradeLevel].name
-      const { error } = await supabaseKorea
-        .from('featured_creators')
-        .update({
-          cnec_grade_level: newGradeLevel,
-          cnec_grade_name: gradeName,
-          is_cnec_recommended: newGradeLevel >= 2
+      const response = await fetch('/.netlify/functions/update-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_grade',
+          creatorId,
+          gradeLevel: newGradeLevel,
+          gradeName,
+          isRecommended: newGradeLevel >= 2
         })
-        .eq('id', creatorId)
-
-      if (error) throw error
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
 
       alert(`등급이 ${gradeName}(으)로 변경되었습니다.`)
       await loadGradedCreators()
     } catch (err) {
       console.error('등급 업데이트 오류:', err)
-      alert('등급 업데이트 중 오류가 발생했습니다.')
+      alert('등급 업데이트 중 오류가 발생했습니다: ' + err.message)
     }
   }
 
@@ -344,7 +329,8 @@ export default function FeaturedCreatorManagementPageNew() {
       rating: avgRating,
       representative_videos: creator.representative_videos || [],
       cnec_collab_videos: creator.cnec_collab_videos || [],
-      company_reviews: reviews
+      company_reviews: reviews,
+      badges: creator.badges || []
     })
     setPreviewVideoUrl(null)
     setShowProfileEditModal(true)
@@ -401,7 +387,7 @@ export default function FeaturedCreatorManagementPageNew() {
     }))
   }
 
-  // 프로필 저장 (Korea Supabase)
+  // 프로필 저장 (Netlify Function으로 RLS 우회)
   const handleSaveProfile = async () => {
     if (!editingCreator) return
 
@@ -412,20 +398,17 @@ export default function FeaturedCreatorManagementPageNew() {
         ? reviews.reduce((sum, r) => sum + (parseFloat(r.rating) || 0), 0) / reviews.length
         : 0
 
-      const { error } = await supabaseKorea
-        .from('featured_creators')
-        .update({
-          bio: profileFormData.bio,
-          categories: profileFormData.categories,
-          rating: Math.round(avgRating * 10) / 10,
-          representative_videos: profileFormData.representative_videos,
-          cnec_collab_videos: profileFormData.cnec_collab_videos,
-          company_reviews: reviews,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingCreator.id)
+      const result = await updateFeaturedCreator(editingCreator.id, {
+        bio: profileFormData.bio,
+        categories: profileFormData.categories,
+        rating: Math.round(avgRating * 10) / 10,
+        representative_videos: profileFormData.representative_videos,
+        cnec_collab_videos: profileFormData.cnec_collab_videos,
+        company_reviews: reviews,
+        badges: profileFormData.badges || []
+      })
 
-      if (error) throw error
+      if (!result.success) throw new Error(result.error?.message || result.error || '저장 실패')
 
       alert('프로필이 저장되었습니다.')
       setShowProfileEditModal(false)
@@ -1749,6 +1732,22 @@ export default function FeaturedCreatorManagementPageNew() {
                                   })}
                                 </div>
                               )}
+                              {creator.badges && creator.badges.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {getBadgesFromIds(creator.badges).slice(0, 4).map(badge => (
+                                    <span
+                                      key={badge.id}
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                      style={{ backgroundColor: badge.bg, color: badge.color }}
+                                    >
+                                      {badge.icon} {badge.name}
+                                    </span>
+                                  ))}
+                                  {creator.badges.length > 4 && (
+                                    <span className="text-[10px] text-gray-400">+{creator.badges.length - 4}</span>
+                                  )}
+                                </div>
+                              )}
                               {creator.bio && <div className="mt-2 text-xs text-gray-600 line-clamp-2">{creator.bio}</div>}
                               {creator.rating > 0 && (
                                 <div className="mt-2 flex items-center gap-1 text-xs">
@@ -2456,6 +2455,49 @@ export default function FeaturedCreatorManagementPageNew() {
                   <span className="text-xs text-gray-400">({profileFormData.company_reviews?.length || 0}건)</span>
                 </div>
               </div>
+            </div>
+
+            {/* 크리에이터 뱃지 */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-[#6C5CE7]" />
+                크리에이터 뱃지
+                <span className="text-gray-400 font-normal text-xs">({(profileFormData.badges || []).length}개 선택)</span>
+              </Label>
+              {Object.entries(getBadgesByCategory()).map(([category, badges]) => (
+                <div key={category}>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{category}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {badges.map(badge => {
+                      const isSelected = (profileFormData.badges || []).includes(badge.id)
+                      return (
+                        <button
+                          key={badge.id}
+                          type="button"
+                          onClick={() => {
+                            setProfileFormData(prev => ({
+                              ...prev,
+                              badges: isSelected
+                                ? (prev.badges || []).filter(b => b !== badge.id)
+                                : [...(prev.badges || []), badge.id]
+                            }))
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all border"
+                          style={{
+                            backgroundColor: isSelected ? badge.bg : '#F9FAFB',
+                            color: isSelected ? badge.color : '#9CA3AF',
+                            borderColor: isSelected ? badge.color + '40' : '#E5E7EB',
+                            fontWeight: isSelected ? 600 : 400
+                          }}
+                        >
+                          <span>{badge.icon}</span>
+                          <span>{badge.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* 기업 후기 관리 */}

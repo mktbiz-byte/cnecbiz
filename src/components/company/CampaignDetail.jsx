@@ -154,6 +154,7 @@ const formatShippingAddress = (p) => {
 
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
+import { getBadgesFromIds } from '../../data/creatorBadges'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
 import OliveyoungGuideModal from './OliveyoungGuideModal'
@@ -692,6 +693,7 @@ export default function CampaignDetail() {
   const [selectedParticipant, setSelectedParticipant] = useState(null)
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [selectedCreatorProfile, setSelectedCreatorProfile] = useState(null) // AI 추천 크리에이터 프로필 모달용
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   // 슈퍼관리자 영상 업로드 (JP/US)
   const [showAdminVideoUploadModal, setShowAdminVideoUploadModal] = useState(false)
@@ -8796,13 +8798,15 @@ Questions? Contact us.
                         creator.cnec_grade_level === 4 ? 'bg-purple-100 text-purple-700' :
                         creator.cnec_grade_level === 3 ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
                       const matchPercent = creator.recommendation_score ? Math.min(Math.round(creator.recommendation_score), 99) : null
+                      const creatorBadges = getBadgesFromIds(creator.badges || [])
 
                       return (
                         <div key={creator.id || index} className="bg-white border border-[#DFE6E9] rounded-2xl p-4 hover:shadow-md hover:border-[#6C5CE7]/20 transition-all relative group">
-                          {/* 매치율 뱃지 */}
+                          {/* 매칭률 뱃지 - 의미 명확하게 표시 */}
                           {matchPercent && (
-                            <div className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold bg-[#F0EDFF] text-[#6C5CE7] rounded-full font-['Outfit']">
-                              {matchPercent}%
+                            <div className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-bold bg-[#F0EDFF] text-[#6C5CE7] rounded-full font-['Outfit']" title="이 캠페인과 크리에이터의 AI 분석 매칭률">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              매칭 {matchPercent}%
                             </div>
                           )}
 
@@ -8826,6 +8830,25 @@ Questions? Contact us.
                             )}
                           </div>
 
+                          {/* 크리에이터 뱃지 */}
+                          {creatorBadges.length > 0 && (
+                            <div className="flex flex-wrap justify-center gap-1 mb-2">
+                              {creatorBadges.slice(0, 3).map(badge => (
+                                <span
+                                  key={badge.id}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-semibold"
+                                  style={{ backgroundColor: badge.bg, color: badge.color }}
+                                  title={badge.name}
+                                >
+                                  {badge.icon} {badge.name}
+                                </span>
+                              ))}
+                              {creatorBadges.length > 3 && (
+                                <span className="text-[9px] text-[#B2BEC3] self-center">+{creatorBadges.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+
                           {/* AI 추천 이유 */}
                           {creator.recommendation_reason && (
                             <div className="mb-3 px-2 py-1.5 bg-[#F0EDFF] rounded-lg">
@@ -8844,38 +8867,59 @@ Questions? Contact us.
                             </div>
                           )}
 
-                          {/* SNS 팔로워 */}
+                          {/* SNS 팔로워 - 클릭 가능한 링크 */}
                           <div className="space-y-1 mb-3">
                             {(creator.instagram_followers > 0 || creator.instagram_url) && (
-                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                              <a
+                                href={creator.instagram_url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg transition-colors ${creator.instagram_url ? 'hover:bg-[#FCE7F3] cursor-pointer' : 'cursor-default'}`}
+                                onClick={(e) => { if (!creator.instagram_url) e.preventDefault() }}
+                              >
                                 <span className="flex items-center gap-1 text-[#636E72]">
-                                  <svg className="w-3 h-3 text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                                  <Instagram className="w-3 h-3 text-pink-500" />
                                   Instagram
+                                  {creator.instagram_url && <ExternalLink className="w-2.5 h-2.5 text-[#B2BEC3]" />}
                                 </span>
                                 <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.instagram_followers || 0).toLocaleString()}</span>
-                              </div>
+                              </a>
                             )}
                             {(creator.youtube_subscribers > 0 || creator.youtube_url) && (
-                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                              <a
+                                href={creator.youtube_url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg transition-colors ${creator.youtube_url ? 'hover:bg-[#FEE2E2] cursor-pointer' : 'cursor-default'}`}
+                                onClick={(e) => { if (!creator.youtube_url) e.preventDefault() }}
+                              >
                                 <span className="flex items-center gap-1 text-[#636E72]">
-                                  <svg className="w-3 h-3 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                  <Youtube className="w-3 h-3 text-red-500" />
                                   YouTube
+                                  {creator.youtube_url && <ExternalLink className="w-2.5 h-2.5 text-[#B2BEC3]" />}
                                 </span>
                                 <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.youtube_subscribers || 0).toLocaleString()}</span>
-                              </div>
+                              </a>
                             )}
                             {(creator.tiktok_followers > 0 || creator.tiktok_url) && (
-                              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg">
+                              <a
+                                href={creator.tiktok_url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center justify-between text-xs px-2 py-1 bg-[#F8F9FA] rounded-lg transition-colors ${creator.tiktok_url ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'}`}
+                                onClick={(e) => { if (!creator.tiktok_url) e.preventDefault() }}
+                              >
                                 <span className="flex items-center gap-1 text-[#636E72]">
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
                                   TikTok
+                                  {creator.tiktok_url && <ExternalLink className="w-2.5 h-2.5 text-[#B2BEC3]" />}
                                 </span>
                                 <span className="font-medium text-[#1A1A2E] font-['Outfit']">{(creator.tiktok_followers || 0).toLocaleString()}</span>
-                              </div>
+                              </a>
                             )}
                           </div>
 
-                          {/* 액션 버튼 */}
+                          {/* 액션 버튼 - SNS 버튼 제거 (위에서 클릭 가능), 프로필 버튼 수정 */}
                           <div className="space-y-1.5">
                             <Button
                               size="sm"
@@ -8886,30 +8930,14 @@ Questions? Contact us.
                               <Mail className="w-3 h-3 mr-1" />
                               초대장 발송
                             </Button>
-                            <div className="flex gap-1.5">
-                              {(creator.instagram_url || creator.youtube_url || creator.channel_url) && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="flex-1 rounded-xl text-[10px] h-7 border-[#DFE6E9] text-[#636E72] hover:text-[#1A1A2E]"
-                                  onClick={() => window.open(creator.instagram_url || creator.youtube_url || creator.channel_url, '_blank')}
-                                >
-                                  <ExternalLink className="w-3 h-3 mr-0.5" />
-                                  SNS
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 rounded-xl text-[10px] h-7 border-[#DFE6E9] text-[#636E72] hover:text-[#1A1A2E]"
-                                onClick={() => {
-                                  setSelectedCreatorProfile(creator)
-                                  setShowProfileModal(true)
-                                }}
-                              >
-                                프로필
-                              </Button>
-                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full rounded-xl text-[10px] h-7 border-[#DFE6E9] text-[#636E72] hover:text-[#6C5CE7] hover:border-[#6C5CE7]"
+                              onClick={() => setSelectedCreatorProfile(creator)}
+                            >
+                              프로필 상세보기
+                            </Button>
                           </div>
                         </div>
                       )
@@ -8929,6 +8957,147 @@ Questions? Contact us.
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {/* AI 추천 크리에이터 프로필 모달 */}
+            {selectedCreatorProfile && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onClick={(e) => { if (e.target === e.currentTarget) setSelectedCreatorProfile(null) }}>
+                <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+                  {/* 헤더 */}
+                  <div className="relative bg-gradient-to-r from-[#6C5CE7]/5 to-[#a29bfe]/5 px-6 py-5 border-b border-gray-100">
+                    <button onClick={() => setSelectedCreatorProfile(null)} className="absolute top-3 right-3 p-1.5 hover:bg-gray-200 rounded-lg transition-colors">
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={selectedCreatorProfile.profile_photo_url || selectedCreatorProfile.profile_image_url || '/default-avatar.png'}
+                        alt={selectedCreatorProfile.name}
+                        className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white shadow-md"
+                        onError={(e) => { e.target.src = '/default-avatar.png' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-lg font-bold text-[#1A1A2E]">{selectedCreatorProfile.name || selectedCreatorProfile.channel_name}</h2>
+                          {(() => {
+                            const gl = selectedCreatorProfile.cnec_grade_level
+                            const label = gl === 5 ? 'MUSE' : gl === 4 ? 'STAR' : gl === 3 ? 'BLOOM' : gl === 2 ? 'GLOW' : 'FRESH'
+                            const cls = gl === 5 ? 'bg-amber-100 text-amber-700' : gl === 4 ? 'bg-purple-100 text-purple-700' : gl === 3 ? 'bg-violet-100 text-violet-700' : gl === 2 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                            return <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${cls}`}>{label}</span>
+                          })()}
+                        </div>
+                        {selectedCreatorProfile.bio && (
+                          <p className="text-sm text-[#636E72] mt-1 line-clamp-3">{selectedCreatorProfile.bio}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 space-y-4">
+                    {/* 뱃지 */}
+                    {selectedCreatorProfile.badges?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {getBadgesFromIds(selectedCreatorProfile.badges).map(badge => (
+                          <span key={badge.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold" style={{ backgroundColor: badge.bg, color: badge.color }}>
+                            {badge.icon} {badge.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 매칭률 & 추천 이유 */}
+                    {selectedCreatorProfile.recommendation_reason && (
+                      <div className="p-3 bg-[#F0EDFF] rounded-xl">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="w-4 h-4 text-[#6C5CE7]" />
+                          <span className="text-xs font-bold text-[#6C5CE7]">AI 추천 이유</span>
+                          {selectedCreatorProfile.recommendation_score && (
+                            <span className="ml-auto text-xs font-bold text-[#6C5CE7] font-['Outfit']">매칭 {Math.min(Math.round(selectedCreatorProfile.recommendation_score), 99)}%</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#6C5CE7]/80">{selectedCreatorProfile.recommendation_reason}</p>
+                      </div>
+                    )}
+
+                    {/* 평점 */}
+                    {(selectedCreatorProfile.rating > 0 || selectedCreatorProfile.company_reviews?.length > 0) && (
+                      <div className="flex items-center gap-2 p-3 bg-[#F8F9FA] rounded-xl">
+                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                        <span className="text-sm font-bold text-[#1A1A2E] font-['Outfit']">{selectedCreatorProfile.rating?.toFixed(1) || '0.0'}</span>
+                        {selectedCreatorProfile.company_reviews?.length > 0 && (
+                          <span className="text-xs text-[#B2BEC3]">({selectedCreatorProfile.company_reviews.length}건의 기업 후기)</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SNS */}
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-[#1A1A2E]">SNS 채널</h3>
+                      {(selectedCreatorProfile.instagram_followers > 0 || selectedCreatorProfile.instagram_url) && (
+                        <a href={selectedCreatorProfile.instagram_url || '#'} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center justify-between p-3 bg-[#F8F9FA] rounded-xl ${selectedCreatorProfile.instagram_url ? 'hover:bg-[#FCE7F3] cursor-pointer' : ''}`}
+                          onClick={(e) => { if (!selectedCreatorProfile.instagram_url) e.preventDefault() }}>
+                          <span className="flex items-center gap-2 text-sm text-[#636E72]">
+                            <Instagram className="w-4 h-4 text-pink-500" /> Instagram
+                            {selectedCreatorProfile.instagram_url && <ExternalLink className="w-3 h-3 text-[#B2BEC3]" />}
+                          </span>
+                          <span className="font-bold text-[#1A1A2E] font-['Outfit']">{(selectedCreatorProfile.instagram_followers || 0).toLocaleString()}</span>
+                        </a>
+                      )}
+                      {(selectedCreatorProfile.youtube_subscribers > 0 || selectedCreatorProfile.youtube_url) && (
+                        <a href={selectedCreatorProfile.youtube_url || '#'} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center justify-between p-3 bg-[#F8F9FA] rounded-xl ${selectedCreatorProfile.youtube_url ? 'hover:bg-[#FEE2E2] cursor-pointer' : ''}`}
+                          onClick={(e) => { if (!selectedCreatorProfile.youtube_url) e.preventDefault() }}>
+                          <span className="flex items-center gap-2 text-sm text-[#636E72]">
+                            <Youtube className="w-4 h-4 text-red-500" /> YouTube
+                            {selectedCreatorProfile.youtube_url && <ExternalLink className="w-3 h-3 text-[#B2BEC3]" />}
+                          </span>
+                          <span className="font-bold text-[#1A1A2E] font-['Outfit']">{(selectedCreatorProfile.youtube_subscribers || 0).toLocaleString()}</span>
+                        </a>
+                      )}
+                      {(selectedCreatorProfile.tiktok_followers > 0 || selectedCreatorProfile.tiktok_url) && (
+                        <a href={selectedCreatorProfile.tiktok_url || '#'} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center justify-between p-3 bg-[#F8F9FA] rounded-xl ${selectedCreatorProfile.tiktok_url ? 'hover:bg-gray-100 cursor-pointer' : ''}`}
+                          onClick={(e) => { if (!selectedCreatorProfile.tiktok_url) e.preventDefault() }}>
+                          <span className="flex items-center gap-2 text-sm text-[#636E72]">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                            TikTok
+                            {selectedCreatorProfile.tiktok_url && <ExternalLink className="w-3 h-3 text-[#B2BEC3]" />}
+                          </span>
+                          <span className="font-bold text-[#1A1A2E] font-['Outfit']">{(selectedCreatorProfile.tiktok_followers || 0).toLocaleString()}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* 대표 영상 */}
+                    {selectedCreatorProfile.representative_videos?.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-[#1A1A2E]">대표 콘텐츠</h3>
+                        <div className="space-y-1.5">
+                          {selectedCreatorProfile.representative_videos.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-[#F8F9FA] rounded-lg text-xs text-[#636E72] hover:text-[#6C5CE7] hover:bg-[#F0EDFF] transition-colors">
+                              <Video className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="truncate">{url}</span>
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 액션 버튼 */}
+                    <div className="pt-2">
+                      <Button
+                        className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white rounded-xl"
+                        onClick={() => { handleSendInvitation(selectedCreatorProfile); setSelectedCreatorProfile(null) }}
+                        disabled={campaign?.approval_status !== 'approved'}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        초대장 발송
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* 크리에이터 매칭 상담 신청 모달 */}
@@ -9400,14 +9569,24 @@ Questions? Contact us.
                             {/* 프로필 이미지 - 원형 */}
                             <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
                               {app.profile_photo_url ? (
-                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
-                                  <span className="text-lg font-bold text-gray-500">
-                                    {(app.applicant_name || 'C').charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
+                                <img
+                                  src={app.profile_photo_url}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none'
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className="w-full h-full items-center justify-center bg-gradient-to-br from-[#6C5CE7]/20 to-[#a29bfe]/20"
+                                style={{ display: app.profile_photo_url ? 'none' : 'flex' }}
+                              >
+                                <span className="text-lg font-bold text-[#6C5CE7]">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              </div>
                             </div>
                             {/* 이름/나이 + 배지 */}
                             <div className="flex-1 min-w-0">
@@ -9453,7 +9632,10 @@ Questions? Contact us.
                           {app.source === 'story_proposal' && (
                             <div className="mb-3">
                               <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">크리에이터 기획안</span>
+                                <span className="text-[10px] font-bold text-[#6C5CE7] flex items-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  크리에이터 기획안
+                                </span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
                                   app.proposal_status === 'approved' ? 'bg-green-100 text-green-700' :
                                   app.proposal_status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -9462,23 +9644,23 @@ Questions? Contact us.
                                   {app.proposal_status === 'approved' ? '승인' : app.proposal_status === 'rejected' ? '반려' : '검토중'}
                                 </span>
                               </div>
-                              <div className="space-y-1 bg-gray-50 rounded-lg p-2.5">
+                              <div className="bg-[#F8F9FA] rounded-xl p-3 space-y-2 border border-[#DFE6E9]">
                                 {(app.video_concept && app.video_concept.trim().length >= 1) && (
-                                  <div className="text-xs text-gray-700">
-                                    <span className="font-semibold text-gray-500">컨셉: </span>
-                                    <span className="line-clamp-2">{app.video_concept}</span>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-[#636E72] block mb-0.5">컨셉</span>
+                                    <p className="text-xs text-[#1A1A2E] leading-relaxed line-clamp-3">{app.video_concept}</p>
                                   </div>
                                 )}
                                 {(app.tone_mood && app.tone_mood.trim().length >= 1) && (
-                                  <div className="text-xs text-gray-700">
-                                    <span className="font-semibold text-gray-500">톤: </span>
-                                    <span className="line-clamp-1">{app.tone_mood}</span>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-[#636E72] block mb-0.5">톤/무드</span>
+                                    <p className="text-xs text-[#1A1A2E] leading-relaxed">{app.tone_mood}</p>
                                   </div>
                                 )}
                                 {(app.description && app.description.trim().length >= 1) && (
-                                  <div className="text-xs text-gray-700">
-                                    <span className="font-semibold text-gray-500">구성: </span>
-                                    <span className="line-clamp-2">{app.description}</span>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-[#636E72] block mb-0.5">구성</span>
+                                    <p className="text-xs text-[#1A1A2E] leading-relaxed line-clamp-3">{app.description}</p>
                                   </div>
                                 )}
                                 {!(app.video_concept?.trim()) && !(app.tone_mood?.trim()) && !(app.description?.trim()) && (
@@ -9881,14 +10063,24 @@ Questions? Contact us.
                           <div className="flex items-start gap-3 mb-3">
                             <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
                               {app.profile_photo_url ? (
-                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
-                                  <span className="text-lg font-bold text-gray-500">
-                                    {(app.applicant_name || 'C').charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
+                                <img
+                                  src={app.profile_photo_url}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none'
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className="w-full h-full items-center justify-center bg-gradient-to-br from-[#6C5CE7]/20 to-[#a29bfe]/20"
+                                style={{ display: app.profile_photo_url ? 'none' : 'flex' }}
+                              >
+                                <span className="text-lg font-bold text-[#6C5CE7]">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              </div>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
