@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Calendar, Loader2, Search, ExternalLink, Save, MessageSquare, Settings, Star,
-  ChevronLeft, ChevronRight, X
+  ChevronLeft, ChevronRight, X, FileSpreadsheet
 } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
@@ -17,6 +17,7 @@ import MeetingDayDetail from '../meeting/MeetingDayDetail'
 import MeetingSlotManager from '../meeting/MeetingSlotManager'
 import MeetingSettings from '../meeting/MeetingSettings'
 import ConsultationReviews from './ConsultationReviews'
+import ConsultationSpreadsheet from './ConsultationSpreadsheet'
 
 const STATUS_CONFIG = {
   pending: { label: '대기중', color: 'bg-yellow-100 text-yellow-700' },
@@ -342,6 +343,10 @@ export default function ProgramConsultationPage() {
           <Tabs value={activeMainTab} onValueChange={setTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="bookings" className="text-sm">상담 목록</TabsTrigger>
+              <TabsTrigger value="spreadsheet" className="text-sm flex items-center gap-1">
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                스프레드시트
+              </TabsTrigger>
               <TabsTrigger value="schedule" className="text-sm">스케줄 관리</TabsTrigger>
               <TabsTrigger value="reviews" className="text-sm">후기 관리</TabsTrigger>
               <TabsTrigger value="settings" className="text-sm">설정</TabsTrigger>
@@ -488,6 +493,11 @@ export default function ProgramConsultationPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* 스프레드시트 탭 */}
+            <TabsContent value="spreadsheet">
+              <ConsultationSpreadsheet />
             </TabsContent>
 
             {/* 스케줄 관리 탭 */}
