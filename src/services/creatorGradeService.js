@@ -354,19 +354,32 @@ export async function checkIfFeaturedCreator(creatorUserId, region = 'korea') {
 export async function searchCreatorsFromRegions(query = '', regions = ['korea', 'japan', 'us']) {
   const results = []
 
+  // 지역별 컬럼 구성 (Korea DB에는 user_id 컬럼이 없음 - id가 auth user id)
+  const regionColumns = {
+    korea: 'id, name, email, phone, channel_name, profile_image, profile_image_url, avatar_url, instagram_url, instagram_followers, youtube_url, youtube_subscribers, tiktok_url, tiktok_followers, bio, created_at',
+    japan: 'id, user_id, name, email, phone, profile_image, profile_image_url, avatar_url, instagram_url, instagram_followers, youtube_url, youtube_subscribers, tiktok_url, tiktok_followers, bio, created_at',
+    us: 'id, user_id, name, email, phone, profile_image, profile_image_url, avatar_url, instagram_url, instagram_followers, youtube_url, youtube_subscribers, tiktok_url, tiktok_followers, bio, created_at'
+  }
+
+  const fallbackColumns = 'id, name, email, phone, profile_image, bio'
+
   for (const region of regions) {
     try {
       const client = getSupabaseClient(region)
       if (!client) continue
 
-      // 공통 컬럼만 선택 (channel_name은 일부 지역에 없을 수 있음)
+      const columns = regionColumns[region] || fallbackColumns
       let searchQuery = client
         .from('user_profiles')
-        .select('id, user_id, name, email, phone, profile_image, profile_image_url, avatar_url, instagram_url, instagram_followers, youtube_url, youtube_subscribers, tiktok_url, tiktok_followers, bio, created_at')
+        .select(columns)
 
       if (query.trim()) {
-        // name과 email만 검색 (channel_name은 일부 지역에 없음)
-        searchQuery = searchQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+        // name, email, channel_name 모두 검색
+        if (region === 'korea') {
+          searchQuery = searchQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%,channel_name.ilike.%${query}%`)
+        } else {
+          searchQuery = searchQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+        }
       }
 
       const { data, error } = await searchQuery.limit(30)
@@ -374,26 +387,30 @@ export async function searchCreatorsFromRegions(query = '', regions = ['korea', 
       if (error) {
         console.error(`${region} 검색 오류:`, error)
         // 컬럼 오류인 경우 기본 컬럼만으로 재시도
-        if (error.code === '42703' || error.message?.includes('column')) {
+        try {
           const { data: retryData } = await client
             .from('user_profiles')
-            .select('id, user_id, name, email, phone, profile_image, bio')
+            .select(fallbackColumns)
             .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
             .limit(30)
           if (retryData) {
             const creatorsWithRegion = retryData.map(creator => ({
               ...creator,
+              user_id: creator.user_id || creator.id,
               source_region: region
             }))
             results.push(...creatorsWithRegion)
           }
+        } catch (retryErr) {
+          console.error(`${region} 재시도 실패:`, retryErr)
         }
         continue
       }
 
-      // 각 크리에이터에 지역 정보 추가
+      // 각 크리에이터에 지역 정보 추가 + user_id 정규화
       const creatorsWithRegion = (data || []).map(creator => ({
         ...creator,
+        user_id: creator.user_id || creator.id, // Korea DB: id = auth user id
         source_region: region
       }))
 
@@ -417,23 +434,21 @@ export async function registerFeaturedCreator(creator, region) {
     // 초기 등급 계산
     const initialGrade = calculateInitialGrade(creator)
 
+    // featured_creators 테이블에 실제 존재하는 컬럼만 사용
     const featuredCreator = {
-      user_id: creator.id || creator.user_id,
+      user_id: creator.user_id || creator.id,
       source_country: region.toUpperCase().substring(0, 2),
       name: creator.name || creator.channel_name,
-      email: creator.email,
-      phone: creator.phone,
       profile_image_url: creator.profile_image || creator.profile_image_url || creator.avatar_url,
       bio: creator.bio,
-      instagram_handle: creator.instagram_handle || (creator.instagram_url ? creator.instagram_url.split('/').pop() : null),
+      instagram_url: creator.instagram_url || null,
       instagram_followers: creator.instagram_followers || 0,
-      youtube_handle: creator.youtube_handle || (creator.youtube_url ? creator.youtube_url.split('/').pop() : null),
+      youtube_url: creator.youtube_url || null,
       youtube_subscribers: creator.youtube_subscribers || 0,
-      tiktok_handle: creator.tiktok_handle || (creator.tiktok_url ? creator.tiktok_url.split('/').pop() : null),
+      tiktok_url: creator.tiktok_url || null,
       tiktok_followers: creator.tiktok_followers || 0,
       primary_country: region.toUpperCase().substring(0, 2),
       active_regions: [region],
-      featured_type: 'manual',
       is_active: true,
       cnec_grade_level: initialGrade.gradeLevel,
       cnec_grade_name: initialGrade.gradeName,

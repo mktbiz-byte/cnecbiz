@@ -2792,18 +2792,25 @@ export default function FeaturedCreatorManagementPageNew() {
                 {quickAddSearchResults.map((creator) => (
                   <div key={creator.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {creator.profile_image ? (
-                        <img src={creator.profile_image} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                      {(creator.profile_image || creator.profile_image_url || creator.avatar_url) ? (
+                        <img src={creator.profile_image || creator.profile_image_url || creator.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                       ) : (
                         <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                           <Users className="w-4 h-4 text-gray-400" />
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{creator.name || creator.channel_name}</p>
+                        <p className="text-sm font-medium truncate">
+                          {creator.name || creator.channel_name}
+                          {creator.channel_name && creator.name && creator.channel_name !== creator.name && (
+                            <span className="text-gray-400 font-normal ml-1">({creator.channel_name})</span>
+                          )}
+                        </p>
                         <p className="text-xs text-gray-500 truncate">
-                          {creator.platform && <span className="capitalize">{creator.platform}</span>}
-                          {creator.subscribers && <span> · {Number(creator.subscribers).toLocaleString()}명</span>}
+                          {creator.email && <span>{creator.email}</span>}
+                          {creator.instagram_followers > 0 && <span> · IG {Number(creator.instagram_followers).toLocaleString()}</span>}
+                          {creator.youtube_subscribers > 0 && <span> · YT {Number(creator.youtube_subscribers).toLocaleString()}</span>}
+                          {creator.tiktok_followers > 0 && <span> · TT {Number(creator.tiktok_followers).toLocaleString()}</span>}
                         </p>
                       </div>
                     </div>
