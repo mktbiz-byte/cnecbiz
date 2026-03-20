@@ -1015,7 +1015,10 @@ export default function CampaignDetail() {
   const getCreatorProfileInfo = (creator, options) => {
     const items = []
     if (options.includes('skinType') && creator.skin_type) {
-      items.push({ label: '피부', value: SKIN_TYPES[creator.skin_type] || creator.skin_type, color: '#0891B2', bg: '#CFFAFE' })
+      // 영어/한글 모두 처리: dry→건성, 건성→건성
+      const skinKey = String(creator.skin_type).trim().toLowerCase()
+      const skinLabel = SKIN_TYPES[skinKey] || SKIN_TYPES[SKIN_TYPES_REVERSE[creator.skin_type]] || creator.skin_type
+      items.push({ label: '피부', value: skinLabel, color: '#0891B2', bg: '#CFFAFE' })
     }
     if (options.includes('skinConcerns') && creator.skin_concerns?.length > 0) {
       items.push({ label: '고민', value: creator.skin_concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
@@ -1164,14 +1167,87 @@ export default function CampaignDetail() {
         }
       }
 
-      // Step 2: 서버 결과 없으면 추천 생성 트리거 (비동기)
-      fetch('/.netlify/functions/generate-campaign-recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id, region: 'korea' })
-      }).catch(err => console.warn('Recommendation generation trigger failed:', err))
+      // Step 2: 서버 결과 없으면 AI 추천 생성 실행 (대기)
+      console.log('[Unified Recs] No cached results, triggering AI generation...')
+      try {
+        const genResponse = await fetch('/.netlify/functions/generate-campaign-recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId: campaign.id, region: 'korea' })
+        })
+        const genResult = await genResponse.json()
+        console.log('[Unified Recs] Generation result:', genResult)
 
-      // Step 3: 즉시 보여줄 폴백 — 등급 기반 기본 추천
+        if (genResult.success) {
+          // 생성 완료 → 새 결과 조회
+          const { data: newMatches } = await supabaseBiz
+            .from('campaign_creator_matches')
+            .select('*')
+            .eq('campaign_id', campaign.id)
+            .eq('source_version', 'v2')
+            .eq('is_recommended', true)
+            .order('recommendation_rank', { ascending: true })
+            .limit(20)
+
+          if (newMatches && newMatches.length > 0) {
+            const creatorIds2 = newMatches.map(m => m.creator_application_id).filter(Boolean)
+            let creatorMap2 = {}
+            if (creatorIds2.length > 0) {
+              const { data: creators2 } = await supabaseKorea
+                .from('featured_creators')
+                .select('*')
+                .in('id', creatorIds2)
+              ;(creators2 || []).forEach(c => { creatorMap2[c.id] = c })
+            }
+            const userIds2 = Object.values(creatorMap2).map(c => c.user_id).filter(Boolean)
+            let profileMap2 = {}
+            if (userIds2.length > 0) {
+              const { data: profiles2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest, specialties')
+                .in('id', userIds2)
+              ;(profiles2 || []).forEach(p => { profileMap2[p.id] = p })
+            }
+            const enrichedNew = newMatches.map(match => {
+              const creator = creatorMap2[match.creator_application_id]
+              if (!creator) return null
+              const profile = creator.user_id ? profileMap2[creator.user_id] : null
+              let reason = match.recommendation_summary || ''
+              if (!reason || reason.length < 5 || reason === '카테고리 매칭 추천') {
+                reason = generateDetailedReason(creator, profile, campaign)
+              }
+              return {
+                ...creator,
+                profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || creator.profile_photo_url || creator.profile_image_url,
+                recommendation_score: match.match_score || 0,
+                recommendation_reason: reason,
+                matched_categories: match.matched_categories || [],
+                category_grade_score: match.category_grade_score || 0,
+                match_reasons: match.match_reasons || [],
+                skin_type: profile?.skin_type || null,
+                personal_color: profile?.personal_color || null,
+                skin_shade: profile?.skin_shade || null,
+                hair_type: profile?.hair_type || null,
+                skin_concerns: profile?.skin_concerns || [],
+                age: profile?.age || null,
+                gender: profile?.gender || null,
+                primary_interest: profile?.primary_interest || null,
+                specialties: profile?.specialties || [],
+              }
+            }).filter(Boolean)
+
+            if (enrichedNew.length > 0) {
+              console.log('[Unified Recs] AI generation complete, loaded:', enrichedNew.length)
+              setUnifiedRecommendations(enrichedNew)
+              return
+            }
+          }
+        }
+      } catch (genErr) {
+        console.warn('[Unified Recs] AI generation failed:', genErr.message)
+      }
+
+      // Step 3: AI 생성 실패 시 폴백 — 등급 기반 기본 추천
       const { data: allCreators, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
@@ -1207,7 +1283,6 @@ export default function CampaignDetail() {
         score += (c.rating || 0) * 5
         if (c.is_ai_pick) score += 10
 
-        // 카테고리 매칭 보너스 (product_categories 사용)
         const productCat = campaign.product_categories?.primary
         if (productCat && c.categories?.includes(productCat)) score += 15
 
@@ -1216,7 +1291,6 @@ export default function CampaignDetail() {
           profile_photo_url: profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url || profile?.avatar_url || c.profile_photo_url || c.profile_image_url,
           recommendation_score: score,
           recommendation_reason: generateDetailedReason(c, profile, campaign),
-          // 뷰티 프로필 정보
           skin_type: profile?.skin_type || null,
           personal_color: profile?.personal_color || null,
           skin_shade: profile?.skin_shade || null,
@@ -1229,7 +1303,7 @@ export default function CampaignDetail() {
         }
       }).sort((a, b) => b.recommendation_score - a.recommendation_score)
 
-      console.log('[Unified Recs] Basic scoring applied:', basicScored.length)
+      console.log('[Unified Recs] Fallback basic scoring applied:', basicScored.length)
       setUnifiedRecommendations(basicScored.slice(0, 20))
     } catch (error) {
       console.error('Error fetching unified recommendations:', error)
@@ -8980,90 +9054,16 @@ Questions? Contact us.
                   </div>
                 )}
 
-                {/* 검색 + 카테고리 필터 + 정렬 */}
-                <div className="mb-5 space-y-3">
-                  <div className="bg-white rounded-xl border border-[#DFE6E9] px-4 py-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="인플루언서 이름, 카테고리 검색..."
-                        value={recSearchText}
-                        onChange={(e) => setRecSearchText(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 text-sm border-0 focus:outline-none focus:ring-0 bg-transparent placeholder-gray-400"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {['all', '뷰티', '패션', '라이프', '푸드', '여행'].map(cat => (
-                        <button
-                          key={cat}
-                          onClick={() => setRecCategoryFilter(cat)}
-                          className={`px-3.5 py-1.5 text-sm rounded-full font-medium transition-all border ${
-                            recCategoryFilter === cat
-                              ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
-                              : 'bg-white text-[#636E72] border-[#DFE6E9] hover:border-gray-400'
-                          }`}
-                        >
-                          {cat === 'all' ? '전체' : cat}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DFE6E9] rounded-lg">
-                        <ArrowUpDown className="w-3.5 h-3.5 text-[#636E72]" />
-                        <select
-                          value={recSortOrder}
-                          onChange={(e) => setRecSortOrder(e.target.value)}
-                          className="text-sm text-[#636E72] bg-transparent border-0 focus:outline-none focus:ring-0 pr-1 cursor-pointer"
-                        >
-                          <option value="match">매칭순</option>
-                          <option value="followers">팔로워순</option>
-                          <option value="rating">평점순</option>
-                        </select>
-                      </div>
-                      <span className="text-sm text-[#B2BEC3]">
-                        {(() => {
-                          const filtered = unifiedRecommendations.filter(c => {
-                            if (recSearchText) {
-                              const s = recSearchText.toLowerCase()
-                              if (!(c.name || '').toLowerCase().includes(s) && !(c.channel_name || '').toLowerCase().includes(s) && !(c.bio || '').toLowerCase().includes(s) && !(c.categories || []).some(cat => cat.toLowerCase().includes(s))) return false
-                            }
-                            if (recCategoryFilter !== 'all') {
-                              const catMap = { '뷰티': ['skincare', 'makeup', 'bodycare'], '패션': ['fashion'], '라이프': ['lifestyle'], '푸드': ['food'], '여행': ['travel'] }
-                              const cats = catMap[recCategoryFilter] || []
-                              if (!cats.some(c2 => (c.categories || []).includes(c2)) && !(c.specialties || []).some(s => s.includes(recCategoryFilter))) return false
-                            }
-                            return true
-                          })
-                          return `${filtered.length}명 발견`
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 크리에이터 카드 그리드 */}
+                {/* 크리에이터 카드 그리드 - AI 추천 확정(ai_pick) 우선 표시 */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {unifiedRecommendations
-                    .filter(creator => {
-                      if (recSearchText) {
-                        const s = recSearchText.toLowerCase()
-                        if (!(creator.name || '').toLowerCase().includes(s) && !(creator.channel_name || '').toLowerCase().includes(s) && !(creator.bio || '').toLowerCase().includes(s) && !(creator.categories || []).some(cat => cat.toLowerCase().includes(s))) return false
-                      }
-                      if (recCategoryFilter !== 'all') {
-                        const catMap = { '뷰티': ['skincare', 'makeup', 'bodycare'], '패션': ['fashion'], '라이프': ['lifestyle'], '푸드': ['food'], '여행': ['travel'] }
-                        const cats = catMap[recCategoryFilter] || []
-                        if (!cats.some(c => (creator.categories || []).includes(c)) && !(creator.specialties || []).some(s => s.includes(recCategoryFilter))) return false
-                      }
-                      return true
-                    })
+                  {[...unifiedRecommendations]
                     .sort((a, b) => {
-                      if (recSortOrder === 'match') return (b.recommendation_score || 0) - (a.recommendation_score || 0)
-                      if (recSortOrder === 'followers') return ((b.instagram_followers || 0) + (b.youtube_subscribers || 0)) - ((a.instagram_followers || 0) + (a.youtube_subscribers || 0))
-                      if (recSortOrder === 'rating') return (b.rating || 0) - (a.rating || 0)
-                      return 0
+                      // AI 추천 확정 크리에이터 우선
+                      const aConfirmed = (a.is_ai_pick || a.ai_pick || a.is_ai_confirmed) ? 1 : 0
+                      const bConfirmed = (b.is_ai_pick || b.ai_pick || b.is_ai_confirmed) ? 1 : 0
+                      if (bConfirmed !== aConfirmed) return bConfirmed - aConfirmed
+                      // 그 다음 매칭 점수순
+                      return (b.recommendation_score || 0) - (a.recommendation_score || 0)
                     })
                     .map((creator, index) => {
                       const gradeLabel = creator.cnec_grade_level === 5 ? 'MUSE' :
@@ -9267,14 +9267,20 @@ Questions? Contact us.
 
             {/* AI 추천 로딩 중 */}
             {region === 'korea' && campaign?.campaign_type !== 'story_short' && loadingUnifiedRecs && (
-              <Card className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl">
-                <CardContent className="py-8">
-                  <div className="flex items-center justify-center gap-2 text-[#6C5CE7]">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>AI가 캠페인에 맞는 크리에이터를 분석 중...</span>
+              <div className="mb-6 bg-white border border-[#DFE6E9] rounded-2xl p-10">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-[#F0EDFF] flex items-center justify-center">
+                      <Sparkles className="w-7 h-7 text-[#6C5CE7] animate-pulse" />
+                    </div>
+                    <Loader2 className="w-5 h-5 text-[#6C5CE7] animate-spin absolute -bottom-1 -right-1" />
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="text-center">
+                    <p className="text-[15px] font-bold text-[#1A1A2E] mb-1">AI 분석 중입니다</p>
+                    <p className="text-xs text-[#636E72]">캠페인에 최적화된 크리에이터를 매칭하고 있습니다. 잠시만 기다려 주세요.</p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* AI 추천 크리에이터 프로필 모달 */}

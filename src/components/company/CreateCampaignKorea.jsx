@@ -570,20 +570,22 @@ const CampaignCreationKorea = () => {
 
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
-    if (campaignForm.campaign_type === 'story_short') {
-      // 스토리 숏폼: 20,000원 고정 단가, 최소 5명
-      const storyPrice = 20000
+    if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
+      // 스토리/스레드/X: 20,000원 고정 단가, 최소 5명
+      const unitPrice = 20000
       const slots = Math.max(5, campaignForm.total_slots || 5)
-      const finalCost = Math.round(storyPrice * slots * 1.1)
+      const finalCost = Math.round(unitPrice * slots * 1.1)
       const rewardPoints = 12000  // 크리에이터 지급 포인트 고정 (60%)
-      setCampaignForm(prev => ({
-        ...prev,
+      const updates = {
         estimated_cost: finalCost,
         reward_points: rewardPoints,
         total_slots: slots,
         remaining_slots: slots,
-        category: ['instagram']  // 스토리 숏폼은 인스타그램 고정
-      }))
+      }
+      if (campaignForm.campaign_type === 'story_short') {
+        updates.category = ['instagram']  // 스토리 숏폼은 인스타그램 고정
+      }
+      setCampaignForm(prev => ({ ...prev, ...updates }))
     } else if (campaignForm.campaign_type === '4week_challenge') {
       // 4주 챌린지: 패키지 × 인원수
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
@@ -612,8 +614,8 @@ const CampaignCreationKorea = () => {
     const bonus = campaignForm.bonus_amount || 0
     let newEstimatedCost = 0
 
-    if (campaignForm.campaign_type === 'story_short') {
-      // 스토리 숏폼: 20,000원 고정 단가 (보너스 없음), 최소 5명
+    if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
+      // 스토리/스레드/X: 20,000원 고정 단가 (보너스 없음), 최소 5명
       const slots = Math.max(5, campaignForm.total_slots || 5)
       newEstimatedCost = Math.round(20000 * slots * 1.1)
     } else if (campaignForm.campaign_type === '4week_challenge') {
@@ -707,7 +709,7 @@ const CampaignCreationKorea = () => {
 
         console.log('[loadCampaign] Loaded campaign - bonus_amount:', bonus, 'estimated_cost:', data.estimated_cost)
 
-        if (data.campaign_type === 'story_short') {
+        if (['story_short', 'threads_post', 'x_post'].includes(data.campaign_type)) {
           recalculatedCost = Math.round(20000 * slots * 1.1)
         } else if (data.campaign_type === '4week_challenge') {
           const pkg = fourWeekPackageOptions.find(p => p.value === data.package_type) || fourWeekPackageOptions[0]
@@ -4829,7 +4831,7 @@ const CampaignCreationKorea = () => {
                         <div className="border-t border-slate-700 pt-4">
                           <div className="flex justify-between items-center">
                             <span className="text-lg font-bold">총 결제 금액</span>
-                            <span className="text-2xl font-bold text-teal-400">₩{campaignForm.estimated_cost.toLocaleString()}</span>
+                            <span className="text-2xl font-bold text-teal-400">₩{Math.round(20000 * campaignForm.total_slots * 1.1).toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
@@ -5081,7 +5083,7 @@ const CampaignCreationKorea = () => {
                         <div className="border-t border-slate-700 pt-4">
                           <div className="flex justify-between items-center">
                             <span className="text-lg font-bold">총 결제 금액</span>
-                            <span className="text-2xl font-bold text-blue-400">₩{campaignForm.estimated_cost.toLocaleString()}</span>
+                            <span className="text-2xl font-bold text-blue-400">₩{Math.round(20000 * campaignForm.total_slots * 1.1).toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
