@@ -292,7 +292,9 @@ exports.handler = async (event, context) => {
             'oliveyoung': '올리브영',
             '4week_challenge': '4주 챌린지',
             '4week': '4주 챌린지',
-            'story_short': '스토리 숏폼'
+            'story_short': '스토리 숏폼',
+            'threads_post': '스레드 포스트',
+            'x_post': 'X 포스트'
           }
           const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 

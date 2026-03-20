@@ -354,7 +354,9 @@ exports.handler = async (event) => {
       olive_young: '올리브영', oliveyoung: '올리브영', oliveyoung_sale: '올리브영',
       '4week_challenge': '4주챌린지', '4week': '4주챌린지',
       megawari: '메가와리', 'mega-warri': '메가와리',
-      story_short: '스토리 숏폼'
+      story_short: '스토리 숏폼',
+      threads_post: '스레드 포스트',
+      x_post: 'X 포스트'
     }
     const campaignTypeLabel = campaignTypeMap[campaignType] || campaignType
     const videoNumber = hintVideoNumber || null

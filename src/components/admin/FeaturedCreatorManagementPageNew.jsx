@@ -693,6 +693,10 @@ export default function FeaturedCreatorManagementPageNew() {
         youtube_subscribers: formData.platform === 'youtube' ? channelInfo.followers : null,
         tiktok_handle: formData.platform === 'tiktok' ? channelInfo.handle : null,
         tiktok_followers: formData.platform === 'tiktok' ? channelInfo.followers : null,
+        threads_username: formData.platform === 'threads' ? channelInfo.handle : null,
+        threads_followers: formData.platform === 'threads' ? channelInfo.followers : null,
+        x_username: formData.platform === 'x' ? channelInfo.handle : null,
+        x_followers: formData.platform === 'x' ? channelInfo.followers : null,
         
         // CAPI fields
         supported_campaigns: formData.supported_campaigns,
@@ -2376,6 +2380,12 @@ export default function FeaturedCreatorManagementPageNew() {
                           )}
                           {creator.tiktok_followers > 0 && (
                             <span className="text-gray-800">TT: {creator.tiktok_followers?.toLocaleString()}</span>
+                          )}
+                          {creator.threads_followers > 0 && (
+                            <span className="text-gray-700">Threads: {creator.threads_followers?.toLocaleString()}</span>
+                          )}
+                          {creator.x_followers > 0 && (
+                            <span className="text-gray-900">X: {creator.x_followers?.toLocaleString()}</span>
                           )}
                         </div>
 

@@ -54,6 +54,8 @@ import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClien
 import StoryProposalReadonly from './StoryProposalReadonly'
 import StoryGuideEditor from './StoryGuideEditor'
 import StorySubmissionReadonly from './StorySubmissionReadonly'
+import TextSubmissionReadonly from './TextSubmissionReadonly'
+import PostMetricsReadonly from './PostMetricsReadonly'
 import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
 import { parseGuide, prepareGuideForSave, isSceneGuide, isExternalGuide, isTextGuide } from '../../utils/guideParser'
 
@@ -11020,6 +11022,16 @@ Questions? Contact us.
                 <StorySubmissionReadonly campaignId={id} />
               </div>
             )}
+
+            {/* 스레드/X 포스트 전용 섹션 */}
+            {['threads_post', 'x_post'].includes(campaign?.campaign_type) && (
+              <div className="space-y-6 mt-6">
+                <TextSubmissionReadonly campaignId={id} />
+              </div>
+            )}
+
+            {/* 성과 요약 (모든 유형) */}
+            <PostMetricsReadonly campaignId={id} campaignType={campaign?.campaign_type} />
 
           </TabsContent>
 
