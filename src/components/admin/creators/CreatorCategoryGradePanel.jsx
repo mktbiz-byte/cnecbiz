@@ -124,37 +124,23 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
 
     setSavingId(categoryId)
     try {
-      const existing = grades[categoryId]
-      const oldGrade = existing?.grade_level || null
-      const oldScore = existing?.score ?? null
-
-      // UPSERT 등급
-      const { error: upsertErr } = await supabaseBiz
-        .from('creator_category_grades')
-        .upsert({
-          creator_id: creatorId,
-          category_id: categoryId,
-          country_code: countryCode,
-          grade_level: edit.grade_level,
-          score: edit.score !== '' ? parseFloat(edit.score) : null,
-          notes: edit.notes || null
-        }, { onConflict: 'creator_id,category_id,country_code' })
-
-      if (upsertErr) throw upsertErr
-
-      // 이력 기록 (등급이 변경된 경우만)
-      if (oldGrade !== edit.grade_level) {
-        await supabaseBiz.from('category_grade_history').insert({
-          creator_id: creatorId,
-          category_id: categoryId,
-          country_code: countryCode,
-          previous_grade: oldGrade,
-          new_grade: edit.grade_level,
-          previous_score: oldScore,
-          new_score: edit.score !== '' ? parseFloat(edit.score) : null,
-          change_reason: edit.notes || null
+      // Netlify Function을 통해 BIZ DB upsert + Korea DB categories 역동기화
+      const response = await fetch('/.netlify/functions/update-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_category_grade',
+          creatorId,
+          categoryId,
+          countryCode,
+          gradeLevel: edit.grade_level,
+          score: edit.score !== '' ? edit.score : undefined,
+          notes: edit.notes || undefined
         })
-      }
+      })
+
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '등급 저장 실패')
 
       await loadData()
     } catch (err) {
