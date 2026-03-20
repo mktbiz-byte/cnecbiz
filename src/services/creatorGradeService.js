@@ -425,17 +425,20 @@ export async function searchCreatorsFromRegions(query = '', regions = ['korea', 
 
 /**
  * 크리에이터를 추천 크리에이터로 등록
+ * Netlify Function을 통해 service_role_key로 Korea DB에 직접 쓰기 (RLS 우회)
  * @param {Object} creator - 크리에이터 정보
  * @param {string} region - 원본 지역
+ * @param {Object} options - 추가 옵션 (categories, badges, gradeLevel 등)
  * @returns {Promise<Object>} 결과
  */
-export async function registerFeaturedCreator(creator, region) {
+export async function registerFeaturedCreator(creator, region, options = {}) {
   try {
     // 초기 등급 계산
     const initialGrade = calculateInitialGrade(creator)
+    const gradeLevel = options.gradeLevel || initialGrade.gradeLevel
+    const gradeName = options.gradeName || GRADE_LEVELS[gradeLevel]?.name || initialGrade.gradeName
 
-    // featured_creators 테이블에 실제 존재하는 컬럼만 사용
-    const featuredCreator = {
+    const creatorData = {
       user_id: creator.user_id || creator.id,
       source_country: region.toUpperCase().substring(0, 2),
       name: creator.name || creator.channel_name,
@@ -449,24 +452,75 @@ export async function registerFeaturedCreator(creator, region) {
       tiktok_followers: creator.tiktok_followers || 0,
       primary_country: region.toUpperCase().substring(0, 2),
       active_regions: [region],
-      is_active: true,
-      cnec_grade_level: initialGrade.gradeLevel,
-      cnec_grade_name: initialGrade.gradeName,
+      cnec_grade_level: gradeLevel,
+      cnec_grade_name: gradeName,
       cnec_total_score: initialGrade.totalScore,
-      is_cnec_recommended: initialGrade.gradeLevel >= 2
+      is_cnec_recommended: gradeLevel >= 2,
+      categories: options.categories || [],
+      badges: options.badges || []
     }
 
-    const { data, error } = await supabaseKorea
-      .from('featured_creators')
-      .insert([featuredCreator])
-      .select()
-      .single()
+    const response = await fetch('/.netlify/functions/update-featured-creator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'register', creatorData })
+    })
 
-    if (error) throw error
+    const result = await response.json()
+    if (!result.success) throw new Error(result.error || '등록 실패')
 
-    return { success: true, data, gradeInfo: initialGrade }
+    return { success: true, data: result.data, creatorId: result.creatorId, gradeInfo: initialGrade }
   } catch (error) {
     console.error('추천 크리에이터 등록 오류:', error)
+    return { success: false, error }
+  }
+}
+
+/**
+ * 추천 크리에이터 프로필 업데이트
+ * Netlify Function을 통해 service_role_key로 Korea DB에 직접 쓰기 (RLS 우회)
+ * @param {string} creatorId - 크리에이터 ID
+ * @param {Object} profileData - 업데이트할 프로필 데이터
+ * @returns {Promise<Object>} 결과
+ */
+export async function updateFeaturedCreator(creatorId, profileData) {
+  try {
+    const response = await fetch('/.netlify/functions/update-featured-creator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_profile', creatorId, profileData })
+    })
+
+    const result = await response.json()
+    if (!result.success) throw new Error(result.error || '업데이트 실패')
+
+    return { success: true, data: result.data }
+  } catch (error) {
+    console.error('프로필 업데이트 오류:', error)
+    return { success: false, error }
+  }
+}
+
+/**
+ * 크리에이터 뱃지 업데이트
+ * @param {string} creatorId - 크리에이터 ID
+ * @param {string[]} badges - 뱃지 ID 배열
+ * @returns {Promise<Object>} 결과
+ */
+export async function updateCreatorBadges(creatorId, badges) {
+  try {
+    const response = await fetch('/.netlify/functions/update-featured-creator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_badges', creatorId, badges })
+    })
+
+    const result = await response.json()
+    if (!result.success) throw new Error(result.error || '뱃지 업데이트 실패')
+
+    return { success: true, data: result.data }
+  } catch (error) {
+    console.error('뱃지 업데이트 오류:', error)
     return { success: false, error }
   }
 }
@@ -480,5 +534,7 @@ export default {
   saveCreatorGrade,
   checkIfFeaturedCreator,
   searchCreatorsFromRegions,
-  registerFeaturedCreator
+  registerFeaturedCreator,
+  updateFeaturedCreator,
+  updateCreatorBadges
 }
