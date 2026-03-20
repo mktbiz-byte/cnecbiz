@@ -571,9 +571,10 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-      // 스토리/스레드/X: 20,000원 고정 단가, 최소 5명
+      // 스토리: 최소 5명, 스레드/X: 최소 1명
       const unitPrice = 20000
-      const slots = Math.max(5, campaignForm.total_slots || 5)
+      const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
+      const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
       const finalCost = Math.round(unitPrice * slots * 1.1)
       const rewardPoints = 12000  // 크리에이터 지급 포인트 고정 (60%)
       const updates = {
@@ -615,8 +616,9 @@ const CampaignCreationKorea = () => {
     let newEstimatedCost = 0
 
     if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-      // 스토리/스레드/X: 20,000원 고정 단가 (보너스 없음), 최소 5명
-      const slots = Math.max(5, campaignForm.total_slots || 5)
+      // 스토리: 최소 5명, 스레드/X: 최소 1명 (보너스 없음)
+      const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
+      const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
       newEstimatedCost = Math.round(20000 * slots * 1.1)
     } else if (campaignForm.campaign_type === '4week_challenge') {
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
@@ -1117,8 +1119,9 @@ const CampaignCreationKorea = () => {
       // 정확한 estimated_cost 계산 (bonus_amount 포함)
       let calculatedEstimatedCost = campaignForm.estimated_cost
       if (['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type)) {
-        // 스토리/스레드/X: 20,000원 고정 × 인원 × 1.1 (VAT), 최소 5명
-        const slots = Math.max(5, campaignForm.total_slots || 5)
+        // 스토리: 최소 5명, 스레드/X: 최소 1명, 20,000원 고정 × 인원 × 1.1 (VAT)
+        const minSlots = campaignForm.campaign_type === 'story_short' ? 5 : 1
+        const slots = Math.max(minSlots, campaignForm.total_slots || minSlots)
         calculatedEstimatedCost = Math.round(20000 * slots * 1.1)
       } else if (campaignForm.campaign_type === 'oliveyoung') {
         // 올리브영: (단가 + 보너스) × 인원 × 1.1 (VAT)
@@ -4922,17 +4925,17 @@ const CampaignCreationKorea = () => {
                       {/* 크리에이터 수 */}
                       <div className="border-t pt-6">
                         <div className="flex items-center justify-between mb-3">
-                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명) <span className="text-xs text-gray-500 font-normal">· 최소 5명</span></Label>
+                          <Label className="text-sm font-semibold text-gray-700">크리에이터 수 (명) <span className="text-xs text-gray-500 font-normal">· 최소 1명</span></Label>
                           <span className="text-blue-600 font-bold text-lg">{campaignForm.total_slots}명</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <input
                             type="range"
-                            min="5"
+                            min="1"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = Math.max(5, parseInt(e.target.value))
+                              const slots = Math.max(1, parseInt(e.target.value))
                               const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,
@@ -4945,11 +4948,11 @@ const CampaignCreationKorea = () => {
                           />
                           <Input
                             type="number"
-                            min="5"
+                            min="1"
                             max="50"
                             value={campaignForm.total_slots}
                             onChange={e => {
-                              const slots = Math.max(5, parseInt(e.target.value) || 5)
+                              const slots = Math.max(1, parseInt(e.target.value) || 1)
                               const cost = Math.round(20000 * slots * 1.1)
                               setCampaignForm(prev => ({
                                 ...prev,
