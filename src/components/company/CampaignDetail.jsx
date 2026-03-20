@@ -1005,10 +1005,17 @@ export default function CampaignDetail() {
   // 캠페인 로드 시 프로필 표시 항목 자동 설정
   const autoSelectProfileOptions = (campaignData) => {
     const cat = inferCampaignCategory(campaignData)
-    if (!cat) return ['age', 'gender']
-    return REC_PROFILE_OPTIONS_DEF
+    if (!cat) {
+      // 카테고리 추론 불가 시에도 피부타입/피부고민은 기본 표시 (뷰티 플랫폼)
+      return ['skinType', 'skinConcerns', 'age', 'gender']
+    }
+    const options = REC_PROFILE_OPTIONS_DEF
       .filter(opt => opt.categories.includes(cat))
       .map(opt => opt.id)
+    // 피부타입/피부고민은 항상 포함 (뷰티 크리에이터 플랫폼 특성)
+    if (!options.includes('skinType')) options.push('skinType')
+    if (!options.includes('skinConcerns')) options.push('skinConcerns')
+    return options
   }
 
   // 크리에이터 프로필 태그 생성 (선택된 옵션 기반)
@@ -1020,8 +1027,11 @@ export default function CampaignDetail() {
       const skinLabel = SKIN_TYPES[skinKey] || SKIN_TYPES[SKIN_TYPES_REVERSE[creator.skin_type]] || creator.skin_type
       items.push({ label: '피부', value: skinLabel, color: '#0891B2', bg: '#CFFAFE' })
     }
-    if (options.includes('skinConcerns') && creator.skin_concerns?.length > 0) {
-      items.push({ label: '고민', value: creator.skin_concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
+    if (options.includes('skinConcerns') && creator.skin_concerns) {
+      const concerns = Array.isArray(creator.skin_concerns) ? creator.skin_concerns : (typeof creator.skin_concerns === 'string' ? creator.skin_concerns.split(',').map(s => s.trim()).filter(Boolean) : [])
+      if (concerns.length > 0) {
+        items.push({ label: '고민', value: concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
+      }
     }
     if (options.includes('personalColor') && creator.personal_color) {
       items.push({ label: '컬러', value: PERSONAL_COLOR_MAP[creator.personal_color] || creator.personal_color, color: '#EC4899', bg: '#FCE7F3' })
@@ -1152,7 +1162,7 @@ export default function CampaignDetail() {
             personal_color: profile?.personal_color || creator.personal_color || null,
             skin_shade: profile?.skin_shade || creator.skin_shade || null,
             hair_type: profile?.hair_type || creator.hair_type || null,
-            skin_concerns: profile?.skin_concerns || creator.skin_concerns || [],
+            skin_concerns: (() => { const sc = profile?.skin_concerns || creator.skin_concerns; if (!sc) return []; if (Array.isArray(sc)) return sc; if (typeof sc === 'string') return sc.split(',').map(s => s.trim()).filter(Boolean); return []; })(),
             age: profile?.age || creator.age || null,
             gender: profile?.gender || creator.gender || null,
             primary_interest: profile?.primary_interest || creator.primary_interest || null,
@@ -1229,7 +1239,7 @@ export default function CampaignDetail() {
                 personal_color: profile?.personal_color || creator.personal_color || null,
                 skin_shade: profile?.skin_shade || creator.skin_shade || null,
                 hair_type: profile?.hair_type || creator.hair_type || null,
-                skin_concerns: profile?.skin_concerns || creator.skin_concerns || [],
+                skin_concerns: (() => { const sc = profile?.skin_concerns || creator.skin_concerns; if (!sc) return []; if (Array.isArray(sc)) return sc; if (typeof sc === 'string') return sc.split(',').map(s => s.trim()).filter(Boolean); return []; })(),
                 age: profile?.age || creator.age || null,
                 gender: profile?.gender || creator.gender || null,
                 primary_interest: profile?.primary_interest || creator.primary_interest || null,
@@ -17912,12 +17922,21 @@ Questions? Contact us.
                     if (region === 'us') {
                       await callUSCampaignAPI('update_campaign', campaign.id, null, deadlineEditData)
                     } else {
-                      const client = getSupabaseClient(region)
-                      const { error } = await client
-                        .from('campaigns')
-                        .update(deadlineEditData)
-                        .eq('id', campaign.id)
-                      if (error) throw error
+                      // 서버사이드 API로 수정 (service role key 사용, RLS 우회)
+                      const response = await fetch('/.netlify/functions/update-campaign-details', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          campaignId: campaign.id,
+                          region,
+                          updates: deadlineEditData,
+                          adminEmail: user?.email
+                        })
+                      })
+                      const result = await response.json()
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || '마감일 수정에 실패했습니다.')
+                      }
                     }
 
                     alert('마감일이 수정되었습니다.')
@@ -18080,12 +18099,21 @@ Questions? Contact us.
                     if (region === 'us') {
                       await callUSCampaignAPI('update_campaign', campaign.id, null, detailEditData)
                     } else {
-                      const client = getSupabaseClient(region)
-                      const { error } = await client
-                        .from('campaigns')
-                        .update(detailEditData)
-                        .eq('id', campaign.id)
-                      if (error) throw error
+                      // 서버사이드 API로 수정 (service role key 사용, RLS 우회)
+                      const response = await fetch('/.netlify/functions/update-campaign-details', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          campaignId: campaign.id,
+                          region,
+                          updates: detailEditData,
+                          adminEmail: user?.email
+                        })
+                      })
+                      const result = await response.json()
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || '캠페인 상세 정보 수정에 실패했습니다.')
+                      }
                     }
 
                     alert('캠페인 상세 정보가 수정되었습니다.')
