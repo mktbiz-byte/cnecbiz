@@ -281,6 +281,28 @@ export default function FeaturedCreatorManagementPageNew() {
       })
       if (!result.success) throw result.error
 
+      // BIZ DB 카테고리 등급 동기화 (non-fatal)
+      if (quickAddCategory && result.creatorId) {
+        try {
+          const CNEC_TO_GRADE = { FRESH: 'Bronze', GLOW: 'Silver', BLOOM: 'Gold', ICONIC: 'Platinum', MUSE: 'Diamond' }
+          const categoryGrade = CNEC_TO_GRADE[gradeName] || 'Bronze'
+          const creatorUserId = creator.user_id || creator.id
+          await fetch('/.netlify/functions/update-featured-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'update_category_grade',
+              creatorId: creatorUserId,
+              categoryId: quickAddCategory.id,
+              countryCode: creator.source_region ? { korea: 'KR', japan: 'JP', us: 'US', taiwan: 'TW' }[creator.source_region.toLowerCase()] || 'KR' : 'KR',
+              gradeLevel: categoryGrade
+            })
+          })
+        } catch (syncErr) {
+          console.warn('BIZ DB 카테고리 등급 동기화 실패 (non-fatal):', syncErr.message)
+        }
+      }
+
       alert(`${creator.name || creator.channel_name}님이 ${quickAddCategory?.name || ''} 카테고리에 ${gradeName} 등급으로 등록되었습니다.`)
       setQuickAddSearchResults(prev => prev.filter(c => c.id !== creator.id))
       await loadGradedCreators()
