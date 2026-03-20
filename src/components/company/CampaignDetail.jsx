@@ -2188,11 +2188,37 @@ export default function CampaignDetail() {
               }
             })
 
-            // 기존 applications + story proposals 병합 (중복 방지)
-            const existingIds = new Set(enrichedData.map(a => a.id))
-            const newProposals = convertedProposals.filter(p => !existingIds.has(p.id))
-            enrichedData = [...enrichedData, ...newProposals]
-            console.log('[fetchApplications] Merged', newProposals.length, 'story proposals, total:', enrichedData.length)
+            // 기존 applications + story proposals 병합
+            // 같은 user_id가 있으면 기획안 데이터를 기존 application에 병합
+            const existingUserIdMap = new Map()
+            enrichedData.forEach((a, idx) => {
+              if (a.user_id) existingUserIdMap.set(a.user_id, idx)
+            })
+
+            let mergedCount = 0
+            let addedCount = 0
+            convertedProposals.forEach(proposal => {
+              const existingIdx = existingUserIdMap.get(proposal.user_id)
+              if (existingIdx !== undefined) {
+                // 같은 크리에이터의 application이 이미 존재 → 기획안 데이터 병합
+                enrichedData[existingIdx] = {
+                  ...enrichedData[existingIdx],
+                  source: 'story_proposal',
+                  video_concept: proposal.video_concept,
+                  tone_mood: proposal.tone_mood,
+                  description: proposal.description,
+                  secondary_use_agreed: proposal.secondary_use_agreed,
+                  proposal_status: proposal.proposal_status,
+                  reject_reason: proposal.reject_reason,
+                }
+                mergedCount++
+              } else if (!enrichedData.some(a => a.id === proposal.id)) {
+                // 새로운 크리에이터 → 추가
+                enrichedData.push(proposal)
+                addedCount++
+              }
+            })
+            console.log('[fetchApplications] Story proposals: merged', mergedCount, ', added', addedCount, ', total:', enrichedData.length)
           }
         } catch (storyErr) {
           console.error('[fetchApplications] Error fetching story proposals:', storyErr)
