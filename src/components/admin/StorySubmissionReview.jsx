@@ -207,14 +207,32 @@ export default function StorySubmissionReview({ campaignId }) {
                     </div>
 
                     {/* 체크 항목 */}
-                    <div className="flex gap-4 text-sm mb-2">
+                    <div className="flex gap-4 text-sm mb-2 flex-wrap">
                       <span className={sub.has_link ? 'text-green-600' : 'text-red-500'}>
                         {sub.has_link ? '✓' : '✗'} 링크 포함
                       </span>
                       <span className={sub.has_tag ? 'text-green-600' : 'text-red-500'}>
                         {sub.has_tag ? '✓' : '✗'} 태그 포함
                       </span>
+                      <span className={sub.has_interactive_sticker ? 'text-green-600' : 'text-red-500'}>
+                        {sub.has_interactive_sticker ? '✓' : '✗'} 인터랙티브 스티커
+                      </span>
+                      <span className={sub.has_link_sticker ? 'text-green-600' : 'text-red-500'}>
+                        {sub.has_link_sticker ? '✓' : '✗'} 링크 스티커
+                      </span>
+                      <span className={(sub.slide_count || 0) >= 6 ? 'text-green-600' : 'text-red-500'}>
+                        {(sub.slide_count || 0) >= 6 ? '✓' : '✗'} 슬라이드 {sub.slide_count || 0}장
+                      </span>
                     </div>
+
+                    {/* 스티커 스크린샷 */}
+                    {sub.sticker_screenshot_url && (
+                      <a href={sub.sticker_screenshot_url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-800 bg-teal-50 px-3 py-1.5 rounded-lg mb-2">
+                        <Image className="w-4 h-4" />
+                        스티커 스크린샷
+                      </a>
+                    )}
 
                     {sub.admin_note && (
                       <p className="text-sm text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg mt-2">

@@ -138,6 +138,10 @@ async function handleRegister(body, headers) {
     youtube_subscribers: creatorData.youtube_subscribers || 0,
     tiktok_url: creatorData.tiktok_url || null,
     tiktok_followers: creatorData.tiktok_followers || 0,
+    threads_username: creatorData.threads_username || null,
+    threads_followers: creatorData.threads_followers || 0,
+    x_username: creatorData.x_username || null,
+    x_followers: creatorData.x_followers || 0,
     primary_country: creatorData.primary_country,
     active_regions: creatorData.active_regions || [],
     is_active: true,
@@ -194,7 +198,8 @@ async function handleUpdateProfile(body, headers) {
     'cnec_grade_level', 'cnec_grade_name', 'cnec_total_score',
     'is_cnec_recommended', 'is_ai_pick', 'ai_pick_order',
     'name', 'profile_image_url', 'instagram_url', 'youtube_url',
-    'tiktok_url', 'instagram_followers', 'youtube_subscribers', 'tiktok_followers'
+    'tiktok_url', 'instagram_followers', 'youtube_subscribers', 'tiktok_followers',
+    'threads_username', 'threads_followers', 'x_username', 'x_followers'
   ]
 
   allowedFields.forEach(field => {

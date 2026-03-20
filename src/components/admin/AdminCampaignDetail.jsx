@@ -33,6 +33,9 @@ import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import StoryProposalReview from './StoryProposalReview'
 import StorySubmissionReview from './StorySubmissionReview'
+import TextSubmissionReview from './TextSubmissionReview'
+import PostMetricsForm from './PostMetricsForm'
+import PostMetricsSummary from './PostMetricsSummary'
 
 export default function AdminCampaignDetail() {
   const { id } = useParams()
@@ -1582,6 +1585,17 @@ export default function AdminCampaignDetail() {
               <StorySubmissionReview campaignId={id} />
             </div>
           )}
+
+          {/* 스레드/X 포스트 전용 섹션 */}
+          {['threads_post', 'x_post'].includes(campaign?.campaign_type) && (
+            <div className="space-y-6 mt-6">
+              <TextSubmissionReview campaignId={id} />
+            </div>
+          )}
+
+          {/* 성과 입력 & 요약 (모든 유형) */}
+          <PostMetricsForm campaignId={id} campaignType={campaign?.campaign_type} />
+          <PostMetricsSummary campaignId={id} campaignType={campaign?.campaign_type} />
         </div>
       </div>
 
