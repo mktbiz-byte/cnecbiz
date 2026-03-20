@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
+import { supabaseKorea as supabase } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Checkbox } from '../ui/checkbox'

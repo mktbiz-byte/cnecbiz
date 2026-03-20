@@ -106,15 +106,15 @@ exports.handler = async (event) => {
       };
     }
 
-    // POST: 메시지 발송 (send-whatsapp-message로 포워딩)
+    // POST: 메시지 발송 (send-whatsapp로 포워딩)
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body);
 
-      // send-whatsapp-message 함수 호출
-      const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-whatsapp-message`, {
+      // send-whatsapp 함수 호출 (freeform 모드)
+      const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-whatsapp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ mode: 'freeform', ...body })
       });
 
       const result = await response.json();

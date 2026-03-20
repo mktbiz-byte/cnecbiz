@@ -6,7 +6,7 @@ const { createClient } = require('@supabase/supabase-js')
 
 // Supabase 클라이언트 초기화 (BIZ 프로젝트 사용)
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
-const supabaseKey = process.env.VITE_SUPABASE_BIZ_ANON_KEY
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 /**

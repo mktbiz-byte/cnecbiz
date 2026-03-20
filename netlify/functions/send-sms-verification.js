@@ -29,7 +29,7 @@ console.log('Popbill SMS service initialized');
 // Supabase 클라이언트 초기화
 const supabase = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.VITE_SUPABASE_BIZ_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 console.log('Supabase client initialized');

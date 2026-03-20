@@ -143,10 +143,11 @@ export default function WhatsAppChatManagement() {
     setNewMessage('')
 
     try {
-      const response = await fetch('/.netlify/functions/send-whatsapp-message', {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          mode: 'freeform',
           phoneNumber: selectedRoom.phone_number,
           message: messageToSend
         })
@@ -180,10 +181,11 @@ export default function WhatsAppChatManagement() {
 
     setStartingChat(true)
     try {
-      const response = await fetch('/.netlify/functions/send-whatsapp-message', {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          mode: 'freeform',
           phoneNumber: newPhoneNumber.trim(),
           message: newChatMessage.trim()
         })

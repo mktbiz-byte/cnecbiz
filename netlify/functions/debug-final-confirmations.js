@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     // Korea DB 연결
     const supabaseKorea = createClient(
       process.env.VITE_SUPABASE_KOREA_URL,
-      process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
+      process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
     )
 
     if (action === 'check_tables') {

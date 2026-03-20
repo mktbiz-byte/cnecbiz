@@ -26,12 +26,12 @@ exports.handler = async (event, context) => {
       {
         name: 'korea',
         url: process.env.VITE_SUPABASE_KOREA_URL,
-        key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
+        key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       },
       {
         name: 'biz',
         url: process.env.VITE_SUPABASE_BIZ_URL,
-        key: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_ANON_KEY
+        key: process.env.SUPABASE_SERVICE_ROLE_KEY
       }
     ];
 

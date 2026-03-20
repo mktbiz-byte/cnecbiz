@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseKorea } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'

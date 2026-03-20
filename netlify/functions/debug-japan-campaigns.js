@@ -19,7 +19,7 @@ exports.handler = async (event, context) => {
 
   try {
     const japanUrl = process.env.VITE_SUPABASE_JAPAN_URL;
-    const japanKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY;
+    const japanKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
 
     if (!japanUrl || !japanKey) {
       return {

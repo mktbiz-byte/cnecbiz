@@ -10,7 +10,7 @@ import {
   Clock, XCircle, Wallet, Sparkles, Loader2, Ban
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
-import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseKorea } from '../../lib/supabaseClients'
 import { encryptResidentNumber, validateResidentNumber } from '../../lib/encryptionHelper'
 
 export default function WithdrawalRequest() {

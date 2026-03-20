@@ -156,7 +156,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 // Supabase 클라이언트 초기화 - SERVICE_ROLE_KEY 사용
 const createSupabaseClient = () => {
   const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
-  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && supabaseKey) {
     return createClient(supabaseUrl, supabaseKey);
@@ -490,7 +490,7 @@ exports.handler = async (event, context) => {
 
     // 캠페인 데이터는 각 리전 DB에 저장됨 - Korea, Japan, US 모두 조회
     const regions = [
-      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY, siteUrl: 'https://cnec.co.kr' },
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY, siteUrl: 'https://cnec.co.kr' },
       { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY, siteUrl: 'https://cnec.jp' },
       { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY, siteUrl: 'https://cnec.us' }
     ];

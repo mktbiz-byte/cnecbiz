@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
+import { supabaseKorea as supabase } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { ArrowLeft, Calendar, ExternalLink, CreditCard, Edit, Save, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'

@@ -28,10 +28,10 @@ exports.handler = async (event) => {
       : process.env.VITE_SUPABASE_US_URL
 
     const supabaseKey = region === 'korea'
-      ? process.env.VITE_SUPABASE_KOREA_ANON_KEY
+      ? process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       : region === 'japan'
-      ? process.env.VITE_SUPABASE_JAPAN_ANON_KEY
-      : process.env.VITE_SUPABASE_US_ANON_KEY
+      ? process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      : process.env.SUPABASE_US_SERVICE_ROLE_KEY
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 

@@ -200,7 +200,99 @@ exports.handler = async (event) => {
 
   const { mode = 'single', templateName, sentBy } = body;
 
-  // 템플릿 확인
+  const supabase = getSupabase();
+  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  // ======== FREEFORM MODE (자유 텍스트 메시지) ========
+  if (mode === 'freeform') {
+    const { phoneNumber, message, creatorId, creatorName } = body;
+
+    if (!phoneNumber) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: '전화번호를 입력해주세요.' }) };
+    }
+    if (!message || !message.trim()) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: '메시지를 입력해주세요.' }) };
+    }
+
+    const formattedNumber = formatPhoneNumber(phoneNumber);
+    if (!formattedNumber) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: '올바른 전화번호 형식이 아닙니다.' }) };
+    }
+
+    try {
+      console.log(`[WhatsApp] Sending freeform message to ${formattedNumber}`);
+
+      // Twilio로 일반 텍스트 메시지 발송
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+      const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+      const formData = new URLSearchParams();
+      formData.append('From', formattedFrom);
+      formData.append('To', `whatsapp:${formattedNumber}`);
+      formData.append('Body', message.trim());
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString()
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(`Twilio ${response.status}: ${result.message || result.code || JSON.stringify(result)}`);
+      }
+
+      console.log(`[WhatsApp] Freeform message sent. SID: ${result.sid}`);
+
+      // DB 로그 저장
+      try {
+        await supabase.from('whatsapp_logs').insert({
+          phone_number: formattedNumber,
+          template_name: 'direct_message',
+          template_sid: null,
+          variables: { message: message.trim() },
+          twilio_sid: result.sid,
+          status: result.status || 'queued',
+          creator_id: creatorId || null,
+          creator_name: creatorName || null,
+          sent_by: sentBy || null,
+          batch_id: null
+        });
+      } catch (e) { console.warn('[WhatsApp] DB log failed:', e.message); }
+
+      try {
+        await supabase.from('notification_send_logs').insert({
+          channel: 'whatsapp', status: 'success', function_name: 'send-whatsapp',
+          recipient: formattedNumber,
+          message_preview: message.trim().substring(0, 200),
+          metadata: { twilioSid: result.sid, twilioStatus: result.status }
+        });
+      } catch (e) { console.warn('[WhatsApp] notification log failed:', e.message); }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, messageSid: result.sid, status: result.status, to: formattedNumber })
+      };
+
+    } catch (error) {
+      console.error('[WhatsApp] Freeform error:', error.message);
+      try {
+        const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+        await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ functionName: 'send-whatsapp', errorMessage: error.message, context: { mode: 'freeform' } })
+        });
+      } catch (e) { console.error('Error alert failed:', e.message); }
+
+      return { statusCode: 500, headers, body: JSON.stringify({ error: error.message, details: 'WhatsApp 메시지 발송 중 오류가 발생했습니다.' }) };
+    }
+  }
+
+  // 템플릿 확인 (single/campaign 모드)
   const template = TEMPLATE_MAP[templateName];
   if (!template) {
     return {
@@ -212,9 +304,6 @@ exports.handler = async (event) => {
       })
     };
   }
-
-  const supabase = getSupabase();
-  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
   try {
     // ======== SINGLE MODE ========

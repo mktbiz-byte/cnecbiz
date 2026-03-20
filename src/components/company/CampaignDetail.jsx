@@ -158,7 +158,6 @@ import { getAIRecommendations, generateAIRecommendations } from '../../services/
 import { getBadgesFromIds } from '../../data/creatorBadges'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
-import OliveyoungGuideModal from './OliveyoungGuideModal'
 import FourWeekGuideManager from './FourWeekGuideManager'
 
 import FourWeekGuideViewer from './FourWeekGuideViewer'
@@ -4428,10 +4427,11 @@ Questions? Contact us.
 
           // WhatsApp 발송 (Twilio) - SMS와 병렬로
           try {
-            const whatsappResponse = await fetch('/.netlify/functions/send-whatsapp-message', {
+            const whatsappResponse = await fetch('/.netlify/functions/send-whatsapp', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                mode: 'freeform',
                 phoneNumber: profile.phone,
                 message: usMessage,
                 creatorId: cancellingApp.user_id,
@@ -16074,10 +16074,10 @@ Questions? Contact us.
 
       {/* Oliveyoung/Megawari Guide Modal (가이드 보기/수정) */}
       {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale' || (region === 'japan' && campaign.campaign_type === 'megawari')) && (
-        <OliveyoungGuideModal
+        <OliveYoungGuideModal
           campaign={campaign}
           onClose={() => { setShowOliveyoungGuideModal(false); setViewingGuideGroup(null) }}
-          onUpdate={fetchCampaignDetail}
+          onSave={fetchCampaignDetail}
           supabase={supabase}
           groupName={viewingGuideGroup || (guideGroupFilter !== 'all' && guideGroupFilter !== 'none' ? guideGroupFilter : null)}
         />

@@ -157,7 +157,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 // Supabase 클라이언트 초기화 - SERVICE_ROLE_KEY 사용
 const createSupabaseClient = () => {
   const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
-  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && supabaseKey) {
     return createClient(supabaseUrl, supabaseKey);
@@ -168,7 +168,7 @@ const createSupabaseClient = () => {
 // BIZ DB 클라이언트 (기업 정보 조회용)
 const getSupabaseBiz = () => {
   const bizUrl = process.env.VITE_SUPABASE_BIZ_URL;
-  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_ANON_KEY;
+  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (bizUrl && bizKey) {
     return createClient(bizUrl, bizKey);
   }
@@ -309,9 +309,9 @@ exports.handler = async (event, context) => {
 
     // 다중 지역 Supabase 클라이언트 생성
     const regions = [
-      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
-      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY },
-      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY }
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY }
     ];
 
     // 모든 지역에서 캠페인 조회

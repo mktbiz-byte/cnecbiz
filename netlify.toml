@@ -180,10 +180,14 @@
 [functions."scheduled-chatbot-daily-report"]
   schedule = "0 0 * * *"
 
-# 오픈클로 IP 제한 Edge Function
+# 출금 결재 자동 상신 (매주 월~금 오전 10시 KST = UTC 01:00)
+[functions."scheduled-daily-withdrawal-approval"]
+  schedule = "0 1 * * 1-5"
+
+# Discovery IP 제한 Edge Function (구 OpenClo)
 [[edge_functions]]
   function = "ip-restrict-openclo"
-  path = "/admin/openclo/*"
+  path = "/admin/discovery/*"
 
 # SEO: Sitemaps
 [[redirects]]
