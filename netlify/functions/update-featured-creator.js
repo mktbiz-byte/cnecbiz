@@ -34,6 +34,8 @@ exports.handler = async (event) => {
         return await handleUpdateAiPicks(body, headers)
       case 'reset_ai_picks':
         return await handleResetAiPicks(body, headers)
+      case 'delete':
+        return await handleDelete(body, headers)
       case 'ensure_columns':
         return await handleEnsureColumns(headers)
       default:
@@ -76,6 +78,42 @@ async function handleRegister(body, headers) {
       statusCode: 400,
       headers,
       body: JSON.stringify({ success: false, error: 'creatorData is required' })
+    }
+  }
+
+  // 중복 등록 방지: 같은 user_id가 이미 있으면 업데이트
+  const userId = creatorData.user_id
+  if (userId) {
+    const { data: existing } = await supabaseKorea
+      .from('featured_creators')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (existing) {
+      // 기존 레코드 업데이트 (카테고리, 등급 등)
+      const updateFields = {}
+      if (creatorData.categories) updateFields.categories = creatorData.categories
+      if (creatorData.badges) updateFields.badges = creatorData.badges
+      if (creatorData.cnec_grade_level) updateFields.cnec_grade_level = creatorData.cnec_grade_level
+      if (creatorData.cnec_grade_name) updateFields.cnec_grade_name = creatorData.cnec_grade_name
+      if (creatorData.is_cnec_recommended !== undefined) updateFields.is_cnec_recommended = creatorData.is_cnec_recommended
+      updateFields.updated_at = new Date().toISOString()
+
+      const { data, error } = await supabaseKorea
+        .from('featured_creators')
+        .update(updateFields)
+        .eq('id', existing.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, data, creatorId: existing.id, updated: true })
+      }
     }
   }
 
@@ -271,6 +309,32 @@ async function handleResetAiPicks(body, headers) {
     .from('featured_creators')
     .update({ is_ai_pick: false, ai_pick_order: null })
     .eq('is_ai_pick', true)
+
+  if (error) throw error
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({ success: true })
+  }
+}
+
+// 크리에이터 삭제
+async function handleDelete(body, headers) {
+  const { creatorId } = body
+
+  if (!creatorId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ success: false, error: 'creatorId is required' })
+    }
+  }
+
+  const { error } = await supabaseKorea
+    .from('featured_creators')
+    .delete()
+    .eq('id', creatorId)
 
   if (error) throw error
 
