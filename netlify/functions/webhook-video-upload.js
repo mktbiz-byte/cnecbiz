@@ -48,8 +48,8 @@ exports.handler = async (event) => {
   // Fallback 패턴 적용
   const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
   const koreaKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL_BIZ;
-  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const bizUrl = process.env.VITE_SUPABASE_BIZ_URL;
+  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!koreaUrl || !koreaKey) {
     console.error('Korea Supabase 환경변수 누락:', { koreaUrl: !!koreaUrl, koreaKey: !!koreaKey });
