@@ -45,29 +45,14 @@
 
 ---
 
-## 무시해야 할 파일 목록
+## 삭제된 파일 (Phase 0에서 정리 완료)
 
-> Phase 0 정리 완료 (2026-03-20): 백업/테스트 파일 53개 삭제, SQL·MD 50개 이동 완료.
-> 상세 내역: `docs/PHASE0-CLEANUP-LOG.md` 참고.
+2026-03-20 코드베이스 정리로 아래 파일들이 삭제되었습니다:
+- src/ 내 .backup, .old, _OLD 파일 29개
+- test-*, check-*, debug-* 함수 28개
+- 루트 SQL/MD 잡파일 → database/, docs/ 폴더로 이동
 
-### 파일 생성 금지 규칙
-```
-❌ *.backup, *.backup2, *.bak, *.old, *_OLD.jsx, *_OLD_BACKUP.jsx  → Git 브랜치/stash 사용
-❌ test-*.js (netlify/functions/)  → 로컬에서만 사용, 커밋 금지
-❌ check_*.js, test-*.cjs (루트)  → scripts/ 디렉터리 사용 후 삭제
-❌ *.sql (루트)  → database/ 폴더에 저장
-❌ *.md (루트, CLAUDE.md·README.md 제외)  → docs/ 폴더에 저장
-```
-
-### 사용하지 않는 또는 deprecated 컴포넌트
-```
-src/components/LoginPageOld.jsx         # /login-old에서만 사용
-src/components/SignupPageNew.jsx        # /signup-old에서만 사용
-src/components/admin/RevenueManagement.jsx       # deprecated → RevenueManagementNew 사용
-src/components/admin/RevenueManagementEnhanced.jsx  # deprecated
-src/components/admin/RevenueManagementWithCharts.jsx  # deprecated
-src/components/company/GuideReview.jsx  # deprecated → CampaignGuideReview 사용
-```
+새로운 백업 파일을 만들지 마세요. git으로 버전 관리하세요.
 
 ---
 
@@ -250,7 +235,6 @@ verify-sms-code.js        # SMS 인증 코드 확인
 ```
 approve-campaign.js       # 캠페인 승인
 update-campaign-status.js # 캠페인 상태 업데이트
-backfill-campaign-company-info.js # 캠페인 기업 정보 백필
 ```
 
 ### 결제/포인트
@@ -315,13 +299,6 @@ scheduled-video-deadline-notification.js    # 영상 마감 알림
 scheduled-collect-transactions.js   # 거래 수집
 scheduled-creator-monitoring.js     # 크리에이터 모니터링
 scheduled-weekly-withdrawal-report.js # 주간 출금 리포트
-```
-
-### 테스트/디버그 (무시해도 됨)
-```
-test-*.js                 # 모든 테스트 함수
-debug-*.js                # 모든 디버그 함수
-check-*.js                # 모든 체크 함수
 ```
 
 ---
@@ -413,28 +390,37 @@ if (!result.success) {
 
 ### Netlify Function 구조
 ```javascript
-const { createClient } = require('@supabase/supabase-js')
-
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+// ✅ 공유 모듈 사용 (권장)
+const { getBizClient, getKoreaClient } = require('./lib/supabase');
+const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
 
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return handleOptions();
+
   try {
     const { param1, param2 } = JSON.parse(event.body)
+    const supabase = getBizClient();
 
     // 비즈니스 로직
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true, data: result })
-    }
+    return successResponse({ success: true, data: result })
   } catch (error) {
     console.error('[function-name] Error:', error)
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: error.message })
-    }
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'function-name',
+          errorMessage: error.message
+        })
+      })
+    } catch (e) { console.error('Error alert failed:', e.message) }
+
+    return errorResponse(500, error.message)
   }
 }
 ```
@@ -769,6 +755,110 @@ cnectotal.netlify.app ❌ → cnecbiz.com ✅
 - [ ] 새로운 색상을 추가하지 않았는가? (토큰에 정의된 색상만 사용)
 - [ ] 컴포넌트 스타일이 가이드와 일치하는가?
 - [ ] Tailwind 클래스가 디자인 토큰 값과 일치하는가?
+
+---
+
+## 코드베이스 필수 규칙 (2026년 3월 업데이트)
+
+### 1. Netlify Function에서 Supabase 클라이언트 생성 규칙
+
+**반드시 공유 모듈을 사용할 것:**
+```javascript
+const { getBizClient, getKoreaClient, getJapanClient, getUSClient } = require('./lib/supabase');
+const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+```
+
+절대 금지:
+```javascript
+// ❌ 각 함수에서 직접 createClient 하지 말 것
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.VITE_SUPABASE_BIZ_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+```
+
+### 2. 환경변수 표준명 (이것만 사용)
+
+| DB | URL | KEY |
+|----|-----|-----|
+| BIZ | `VITE_SUPABASE_BIZ_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| Korea | `VITE_SUPABASE_KOREA_URL` | `SUPABASE_KOREA_SERVICE_ROLE_KEY` |
+| Japan | `VITE_SUPABASE_JAPAN_URL` | `SUPABASE_JAPAN_SERVICE_ROLE_KEY` |
+| US | `VITE_SUPABASE_US_URL` | `SUPABASE_US_SERVICE_ROLE_KEY` |
+| Taiwan | `VITE_SUPABASE_TAIWAN_URL` | `SUPABASE_TAIWAN_SERVICE_ROLE_KEY` |
+
+**절대 사용 금지 환경변수:**
+- `SUPABASE_URL` (어느 DB인지 불명확)
+- `SUPABASE_BIZ_URL` (VITE_ prefix 누락)
+- `VITE_SUPABASE_URL_BIZ` (오타 — URL과 BIZ 순서 반대)
+- `SUPABASE_JAPAN_URL` (VITE_ prefix 없는 별도 패턴)
+- 모든 `*_ANON_KEY` (서버에서 anon key 사용 금지, SERVICE_ROLE_KEY만 사용)
+
+### 3. 파일 네이밍 금지 패턴
+
+새 파일을 만들 때 절대 아래 패턴 사용 금지:
+- `*_backup.jsx`, `*_old.jsx`, `*_fixed.jsx`, `*_complete.jsx`
+- `*Enhanced.jsx`, `*Improved.jsx`, `*New.jsx` (기존 것이 있으면 기존 파일을 직접 수정할 것)
+- `*ExactReplica.jsx`, `*_no_infinite_loading.jsx`
+
+기존 파일을 수정해야 할 때: 백업 파일을 만들지 말고 git으로 관리할 것.
+
+### 4. 컴포넌트 중복 방지
+
+새 컴포넌트를 만들기 전에 반드시 기존 컴포넌트를 확인:
+- Guide 관련: `src/components/company/` 에 이미 40+ 가이드 컴포넌트 존재
+- Revenue: `RevenueManagementNew.jsx`만 사용 (다른 Revenue* 파일 만들지 말 것)
+- Creator Management: `FeaturedCreatorManagementPageNew.jsx`가 메인
+
+### 5. 라우트 규칙
+
+- `/admin/openclo/*` 사용 금지 → `/admin/discovery/*` 사용
+- `-old` suffix 라우트 만들지 말 것 (이전 버전은 삭제하고 새 버전으로 교체)
+- 테스트용 라우트(`/profile-test-beta-*` 등) 프로덕션에 넣지 말 것
+
+### 6. OliveYoung GuideModal 구분
+
+| 파일명 | 역할 | 사용처 |
+|--------|------|--------|
+| `OliveYoungGuideCreateModal.jsx` | 일반 가이드 모달 (생성용) | CampaignDetail.jsx |
+| `OliveYoungGuideGroupModal.jsx` | 그룹별 가이드 모달 (편집용) | CampaignDetail.jsx |
+
+두 파일은 서로 다른 역할. 하나로 합치지 말 것.
+
+### 7. 멀티리전 DB 접근 패턴
+
+프론트엔드(`src/`):
+```javascript
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '@/lib/supabaseClients'
+```
+
+서버(`netlify/functions/`):
+```javascript
+const { getBizClient, getKoreaClient } = require('./lib/supabase');
+```
+
+`supabaseKorea.js` (독립 파일) 사용 금지 — `supabaseClients.js`에서 import할 것.
+
+### 8. scheduled 함수 등록 규칙
+
+새 scheduled 함수를 만들면 반드시 `netlify.toml`에 등록:
+```toml
+[functions."scheduled-새함수이름"]
+schedule = "0 9 * * *"
+```
+
+등록 안 하면 코드만 있고 실행되지 않음.
+
+### 9. WhatsApp 함수
+
+WhatsApp 메시지 발송은 `send-whatsapp.js` 하나만 사용:
+- `mode: "single"` — 단일 템플릿 발송
+- `mode: "campaign"` — 캠페인 일괄 발송
+- `mode: "freeform"` — 자유 텍스트 발송
+
+`send-whatsapp-message.js` 사용 금지 (삭제됨).
+
+### 10. email_templates 테이블 컬럼
+
+본문 컬럼: `body` (O) / `html_content` (X)
 
 ---
 
