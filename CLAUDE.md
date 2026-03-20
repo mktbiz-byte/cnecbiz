@@ -860,6 +860,36 @@ WhatsApp 메시지 발송은 `send-whatsapp.js` 하나만 사용:
 
 본문 컬럼: `body` (O) / `html_content` (X)
 
+### 11. 프론트엔드에서 리전 DB 직접 UPDATE 금지
+
+프론트엔드 Supabase 클라이언트(`supabaseKorea`, `supabaseJapan` 등)는 **anon key**를 사용하며,
+BIZ DB에 로그인한 세션이 리전 DB에 공유되지 않습니다. 따라서:
+
+```javascript
+// ❌ 프론트엔드에서 리전 DB 직접 UPDATE (RLS 차단됨!)
+const client = getSupabaseClient('korea')
+await client.from('campaigns').update({...}).eq('id', id)
+
+// ✅ Netlify Function API를 통해 수정 (service role key 사용)
+await fetch('/.netlify/functions/update-campaign-details', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ campaignId, region, updates, adminEmail })
+})
+```
+
+**규칙:**
+- `campaigns` 테이블 UPDATE는 반드시 `update-campaign-details` API 사용
+- `applications` 테이블 UPDATE도 Netlify Function을 통해 처리 권장
+- SELECT(조회)는 anon key로 가능 (RLS가 허용하는 경우)
+
+### 12. AI 추천 크리에이터 프로필 표시 규칙
+
+- 피부타입(`skinType`)과 피부고민(`skinConcerns`)은 **항상 기본 표시 항목에 포함**
+- 뷰티 플랫폼 특성상 카테고리 추론 불가 시에도 피부 정보는 기본 표시
+- `skin_concerns` 데이터는 배열 또는 콤마 구분 문자열일 수 있으므로 반드시 배열 변환 처리
+- `user_profiles` → `featured_creators` 순으로 폴백하여 프로필 데이터 보강
+
 ---
 
 ## 연락처
