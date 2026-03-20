@@ -6,7 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const createSupabaseClient = () => {
   const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
-  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && supabaseKey) {
     return createClient(supabaseUrl, supabaseKey);

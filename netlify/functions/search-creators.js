@@ -4,19 +4,19 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseClients = {
   KR: createClient(
     process.env.VITE_SUPABASE_KOREA_URL,
-    process.env.VITE_SUPABASE_KOREA_ANON_KEY
+    process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
   ),
   US: createClient(
     process.env.VITE_SUPABASE_BIZ_URL,
-    process.env.VITE_SUPABASE_BIZ_ANON_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   ),
   JP: createClient(
     process.env.VITE_SUPABASE_JAPAN_URL,
-    process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+    process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
   ),
   TW: createClient(
     process.env.VITE_SUPABASE_TAIWAN_URL,
-    process.env.VITE_SUPABASE_TAIWAN_ANON_KEY
+    process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
   )
 };
 

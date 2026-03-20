@@ -9,7 +9,7 @@ import {
   Clock, AlertCircle, TrendingUp, CreditCard
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
-import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function PaymentManagement() {

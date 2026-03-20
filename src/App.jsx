@@ -2,8 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // EditModeProvider removed - use Site Management page instead
 import LandingPage from './components/LandingPage'
 import LoginPageNew from './components/LoginPageNew'
-import LoginPageOld from './components/LoginPageOld'
-import SignupPageNew from './components/SignupPageNew'
 import SignupWithVerification from './components/SignupWithVerification'
 import FindEmailPage from './components/FindEmailPage'
 import FindPasswordPage from './components/FindPasswordPage'
@@ -30,7 +28,6 @@ import CampaignGuideOliveYoungJapan from './components/company/CampaignGuideOliv
 import CampaignGuideUS from './components/company/CampaignGuideUS'
 import CompanySceneGuideEditor from './components/company/CompanySceneGuideEditor'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
-import GuideReview from './components/company/GuideReview'
 import CampaignGuideReview from './components/company/CampaignGuideReview'
 import CreatorManagement from './components/company/CreatorManagement'
 import OrderConfirmation from './components/company/OrderConfirmation'
@@ -57,8 +54,6 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import NotificationDashboard from './components/admin/NotificationDashboard'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminManagement from './components/admin/AdminManagement'
-import RevenueManagement from './components/admin/RevenueManagement'
-import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhanced'
 import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
@@ -110,7 +105,6 @@ import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
 import SiteManagementCreator from './components/admin/SiteManagementCreator'
-import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
@@ -189,12 +183,10 @@ function App() {
         <Route path="/newsletter/:id" element={<NewsletterDetail />} />
         <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
         <Route path="/login" element={<LoginPageNew />} />
-        <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
         <Route path="/find-email" element={<FindEmailPage />} />
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/signup-old" element={<SignupPageNew />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Company Admin Routes */}
@@ -222,7 +214,6 @@ function App() {
         <Route path="/company/campaigns/:id/invoice/oliveyoung" element={<OliveYoungInvoice />} />
         <Route path="/company/campaigns/:id/invoice/4week" element={<FourWeekChallengeInvoice />} />
         <Route path="/company/campaigns/:id/review" element={<CampaignGuideReview />} />
-        <Route path="/company/campaigns/:id/review-old" element={<GuideReview />} />
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
@@ -257,8 +248,6 @@ function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
         <Route path="/admin/revenue" element={<Navigate to="/admin/revenue-charts" replace />} />
-        <Route path="/admin/revenue-old" element={<RevenueManagement />} />
-        <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
         <Route path="/admin/withdrawal-audit" element={<WithdrawalAudit />} />
@@ -294,7 +283,6 @@ function App() {
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/site-management-creator" element={<SiteManagementCreator />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementNew />} />
-        <Route path="/admin/revenue-charts-old" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/line-chat" element={<LineChatManagement />} />
@@ -319,22 +307,20 @@ function App() {
         <Route path="/admin/test-approval" element={<TestApprovalSubmit />} />
         <Route path="/admin/package" element={<AdminPackageManager />} />
 
-        {/* 오픈클로 (통합) */}
-        <Route path="/admin/openclo" element={<OpenCloDashboard />} />
-        <Route path="/admin/openclo/creators" element={<OpenCloCreatorList />} />
-        <Route path="/admin/openclo/review" element={<OpenCloReviewQueue />} />
-        <Route path="/admin/openclo/bot-status" element={<OpenCloBotStatus />} />
-        <Route path="/admin/openclo/bot-config" element={<OpenCloBotConfig />} />
-        <Route path="/admin/openclo/emails" element={<OpenCloEmailManager />} />
-        <Route path="/admin/openclo/kpi" element={<OpenCloKPI />} />
-        <Route path="/admin/openclo/report" element={<OpenCloReport />} />
-        <Route path="/admin/discovery/servers" element={<DiscoveryServerStatus />} />
-        <Route path="/admin/discovery/blocklist" element={<DiscoveryBlocklist />} />
-        <Route path="/admin/discovery/emails" element={<DiscoveryEmailStatus />} />
-        {/* Discovery 이전 URL 호환 리다이렉트 */}
+        {/* Discovery (구 OpenClo 통합) */}
         <Route path="/admin/discovery" element={<OpenCloDashboard />} />
         <Route path="/admin/discovery/creators" element={<OpenCloCreatorList />} />
+        <Route path="/admin/discovery/review" element={<OpenCloReviewQueue />} />
+        <Route path="/admin/discovery/bot-status" element={<OpenCloBotStatus />} />
+        <Route path="/admin/discovery/bot-config" element={<OpenCloBotConfig />} />
+        <Route path="/admin/discovery/emails" element={<DiscoveryEmailStatus />} />
         <Route path="/admin/discovery/kpi" element={<OpenCloKPI />} />
+        <Route path="/admin/discovery/report" element={<OpenCloReport />} />
+        <Route path="/admin/discovery/servers" element={<DiscoveryServerStatus />} />
+        <Route path="/admin/discovery/blocklist" element={<DiscoveryBlocklist />} />
+        {/* OpenClo → Discovery 리다이렉트 */}
+        <Route path="/admin/openclo" element={<Navigate to="/admin/discovery" replace />} />
+        <Route path="/admin/openclo/*" element={<Navigate to="/admin/discovery" replace />} />
 
         {/* AI 챗봇 Routes */}
         <Route path="/admin/chatbot/dashboard" element={<ChatbotDashboard />} />

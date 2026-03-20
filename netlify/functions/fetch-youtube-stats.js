@@ -25,11 +25,11 @@ function getSupabaseClient(region) {
   const configs = {
     japan: {
       url: process.env.VITE_SUPABASE_JAPAN_URL,
-      key: process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+      key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
     },
     us: {
       url: process.env.VITE_SUPABASE_US_URL,
-      key: process.env.VITE_SUPABASE_US_ANON_KEY
+      key: process.env.SUPABASE_US_SERVICE_ROLE_KEY
     }
   }
   

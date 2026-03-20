@@ -4,7 +4,7 @@ exports.handler = async (event, context) => {
   try {
     const supabase = createClient(
       process.env.VITE_SUPABASE_US_URL,
-      process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY
+      process.env.SUPABASE_US_SERVICE_ROLE_KEY
     );
 
     // 미국 active 캠페인 하나 조회 (모든 컬럼)

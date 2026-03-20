@@ -7,14 +7,14 @@ const { createClient } = require('@supabase/supabase-js');
  * 환경 변수:
  * - LINE_CHANNEL_SECRET: Channel Secret (서명 검증용)
  * - LINE_CHANNEL_ACCESS_TOKEN: Channel Access Token (메시지 발송용)
- * - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: DB 연결
+ * - VITE_SUPABASE_JAPAN_URL, SUPABASE_JAPAN_SERVICE_ROLE_KEY: DB 연결
  * - NAVER_WORKS_* : 네이버 웍스 알림용 (선택)
  */
 
 // Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
-  const url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.VITE_SUPABASE_JAPAN_URL;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
 
   console.log('[LINE Webhook] Supabase URL:', url ? url.substring(0, 30) + '...' : 'NOT SET');
 

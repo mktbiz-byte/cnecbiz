@@ -97,13 +97,13 @@ exports.handler = async (event) => {
     let supabaseUrl, supabaseKey
     if (region === 'korea') {
       supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
-      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY
+      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
     } else if (region === 'japan') {
       supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
-      supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+      supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
     } else {
       supabaseUrl = process.env.VITE_SUPABASE_US_URL
-      supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY
+      supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey)
