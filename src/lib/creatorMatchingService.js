@@ -17,7 +17,7 @@ export async function generateAIMatchingReasons(campaign, creator) {
 **캠페인 정보:**
 - 제목: ${campaign.title}
 - 브랜드: ${campaign.brand || '미정'}
-- 카테고리: ${campaign.product_category}
+- 제품 카테고리: ${campaign.product_categories?.primary || campaign.product_category || '미분류'} (관련: ${campaign.product_categories?.secondary?.join(', ') || '없음'})
 - 설명: ${campaign.description}
 - 타겟 오디언스: ${campaign.target_audience || '미정'}
 - 예산: ${campaign.budget}원
@@ -101,9 +101,10 @@ export async function generateAIMatchingReasons(campaign, creator) {
  */
 function generateBasicMatching(campaign, creator) {
   const creatorCategories = creator.final_categories || creator.ai_generated_categories || []
-  
+  const productCategory = campaign.product_categories?.primary || campaign.product_category
+
   // Category match
-  const categoryMatch = creatorCategories.includes(campaign.product_category) ? 100 : 50
+  const categoryMatch = productCategory && creatorCategories.includes(productCategory) ? 100 : 50
   
   // Engagement score
   const engagementScore = Math.min((creator.avg_engagement_rate || 0) * 10, 100)
@@ -152,7 +153,7 @@ function generateBasicMatching(campaign, creator) {
         score: Math.round(followerScore)
       }
     ],
-    recommendation_summary: `${creator.creator_name}님은 ${campaign.product_category} 카테고리에서 활동하며, 평균 참여율 ${creator.avg_engagement_rate || 0}%로 팔로워와의 소통이 활발합니다. 캠페인 목표 달성에 기여할 수 있는 크리에이터입니다.`
+    recommendation_summary: `${creator.creator_name}님은 ${campaign.product_categories?.primary || campaign.product_category || '해당'} 카테고리에서 활동하며, 평균 참여율 ${creator.avg_engagement_rate || 0}%로 팔로워와의 소통이 활발합니다. 캠페인 목표 달성에 기여할 수 있는 크리에이터입니다.`
   }
 }
 

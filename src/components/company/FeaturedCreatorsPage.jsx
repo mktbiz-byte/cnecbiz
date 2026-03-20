@@ -48,6 +48,30 @@ const FeaturedCreatorsPage = () => {
   });
   const [userCampaigns, setUserCampaigns] = useState([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const CATEGORY_FILTERS = [
+    { id: 'all', name: '전체' },
+    { id: 'skincare', name: '🧴 스킨케어' },
+    { id: 'makeup', name: '💄 색조' },
+    { id: 'diet', name: '🏃 다이어트' },
+    { id: 'haircare', name: '💇 헤어케어' },
+    { id: 'fashion', name: '👗 패션' },
+    { id: 'lifestyle', name: '🏠 라이프' },
+    { id: 'food', name: '🍳 먹방/요리' },
+    { id: 'family', name: '👨‍👩‍👧 가족' },
+    { id: 'pet', name: '🐶 반려동물' },
+    { id: 'travel', name: '✈️ 여행' },
+    { id: 'tech', name: '📱 테크' },
+    { id: 'game', name: '🎮 게임' }
+  ];
+
+  const filteredCreators = categoryFilter === 'all'
+    ? creators
+    : creators.filter(c => {
+        const cats = c.final_categories || c.ai_generated_categories || c.categories || [];
+        return cats.some(cat => cat?.toLowerCase().includes(categoryFilter));
+      });
 
   useEffect(() => {
     fetchFeaturedCreators();
@@ -309,8 +333,31 @@ const FeaturedCreatorsPage = () => {
         </SelectionBar>
       )}
 
+      {/* 카테고리 필터 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', padding: '0 4px' }}>
+        {CATEGORY_FILTERS.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setCategoryFilter(cat.id)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '20px',
+              border: 'none',
+              fontSize: '13px',
+              fontWeight: categoryFilter === cat.id ? '600' : '400',
+              backgroundColor: categoryFilter === cat.id ? '#6C5CE7' : '#f3f4f6',
+              color: categoryFilter === cat.id ? '#fff' : '#4b5563',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
       <CreatorsGrid>
-        {creators.map((creator) => {
+        {filteredCreators.map((creator) => {
           const isSelected = selectedCreators.some(c => c.id === creator.id);
           return (
             <CreatorCard key={creator.id} isSelected={isSelected}>
