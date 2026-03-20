@@ -62,8 +62,7 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
   const [editingCategory, setEditingCategory] = useState(null)
   const [savingCategory, setSavingCategory] = useState(false)
 
-  // 선택된 국가
-  const [selectedCountry, setSelectedCountry] = useState(countryCode)
+  // 국가는 크리에이터의 실제 국가에 고정 (변경 불가)
 
   const loadData = useCallback(async () => {
     if (!creatorId) return
@@ -71,8 +70,8 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
     try {
       const [catRes, gradeRes, histRes] = await Promise.all([
         supabaseBiz.from('beauty_categories').select('*').eq('is_active', true).order('sort_order'),
-        supabaseBiz.from('creator_category_grades').select('*, beauty_categories(*)').eq('creator_id', creatorId).eq('country_code', selectedCountry),
-        supabaseBiz.from('category_grade_history').select('*, beauty_categories(label_ko)').eq('creator_id', creatorId).eq('country_code', selectedCountry).order('created_at', { ascending: false }).limit(20)
+        supabaseBiz.from('creator_category_grades').select('*, beauty_categories(*)').eq('creator_id', creatorId).eq('country_code', countryCode),
+        supabaseBiz.from('category_grade_history').select('*, beauty_categories(label_ko)').eq('creator_id', creatorId).eq('country_code', countryCode).order('created_at', { ascending: false }).limit(20)
       ])
 
       if (catRes.data) setCategories(catRes.data)
@@ -104,7 +103,7 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
     } finally {
       setLoading(false)
     }
-  }, [creatorId, selectedCountry])
+  }, [creatorId, countryCode])
 
   const loadAllCategories = useCallback(async () => {
     const { data } = await supabaseBiz.from('beauty_categories').select('*').order('sort_order')
@@ -135,7 +134,7 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
         .upsert({
           creator_id: creatorId,
           category_id: categoryId,
-          country_code: selectedCountry,
+          country_code: countryCode,
           grade_level: edit.grade_level,
           score: edit.score !== '' ? parseFloat(edit.score) : null,
           notes: edit.notes || null
@@ -148,7 +147,7 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
         await supabaseBiz.from('category_grade_history').insert({
           creator_id: creatorId,
           category_id: categoryId,
-          country_code: selectedCountry,
+          country_code: countryCode,
           previous_grade: oldGrade,
           new_grade: edit.grade_level,
           previous_score: oldScore,
@@ -240,21 +239,12 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
 
   return (
     <div className="space-y-6">
-      {/* 국가 선택 */}
+      {/* 국가 표시 (크리에이터 국가에 고정, 변경 불가) */}
       <div className="flex items-center gap-2">
-        <Label className="text-sm font-semibold">국가별 등급:</Label>
-        <div className="flex gap-1">
-          {Object.entries(COUNTRY_LABELS).map(([code, { label, flag }]) => (
-            <Button
-              key={code}
-              variant={selectedCountry === code ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCountry(code)}
-            >
-              {flag} {label}
-            </Button>
-          ))}
-        </div>
+        <Label className="text-sm font-semibold">국가:</Label>
+        <Badge variant="outline" className="text-sm px-3 py-1">
+          {COUNTRY_LABELS[countryCode]?.flag} {COUNTRY_LABELS[countryCode]?.label || countryCode}
+        </Badge>
       </div>
 
       {/* 카테고리별 등급 카드 그리드 */}
@@ -419,7 +409,7 @@ export default function CreatorCategoryGradePanel({ creatorId, creatorName, coun
       <div className="space-y-3">
         <h4 className="font-semibold text-sm flex items-center gap-2">
           등급 변동 이력
-          <Badge variant="outline" className="text-xs">{COUNTRY_LABELS[selectedCountry]?.flag} {COUNTRY_LABELS[selectedCountry]?.label}</Badge>
+          <Badge variant="outline" className="text-xs">{COUNTRY_LABELS[countryCode]?.flag} {COUNTRY_LABELS[countryCode]?.label}</Badge>
         </h4>
         {history.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">변동 이력이 없습니다</p>

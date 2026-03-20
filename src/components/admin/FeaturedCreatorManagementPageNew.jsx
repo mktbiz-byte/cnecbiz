@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import {
   Star, Plus, Edit, Trash2, Loader2, Mail, Send,
   TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown,
-  Save, X as XIcon
+  Save, X as XIcon, ChevronDown, ChevronRight
 } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible'
 import AdminNavigation from './AdminNavigation'
 import CreatorCategoryGradePanel from './creators/CreatorCategoryGradePanel'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
@@ -81,8 +82,9 @@ export default function FeaturedCreatorManagementPageNew() {
   const [gradedSearchResults, setGradedSearchResults] = useState([])
   const [searchingGraded, setSearchingGraded] = useState(false)
   const [selectedGradedCreator, setSelectedGradedCreator] = useState(null)
-  const [gradeFilter, setGradeFilter] = useState('all')
-  const [countryFilter, setCountryFilter] = useState('all')
+  const [selectedCountryTab, setSelectedCountryTab] = useState('KR')
+  const [openCategories, setOpenCategories] = useState({})
+  const [categoryGradeFilters, setCategoryGradeFilters] = useState({})
 
   // 프로필 편집 모달 state
   const [showProfileEditModal, setShowProfileEditModal] = useState(false)
@@ -390,19 +392,43 @@ export default function FeaturedCreatorManagementPageNew() {
     }))
   }
 
-  // 국가 + 등급별 필터링된 크리에이터 목록
-  const filteredGradedCreators = gradedCreators.filter(c => {
-    // 국가 필터
-    if (countryFilter !== 'all') {
-      const creatorCountry = (c.source_country || c.primary_country || 'KR').toUpperCase()
-      if (countryFilter === 'korea' && creatorCountry !== 'KR') return false
-      if (countryFilter === 'japan' && creatorCountry !== 'JP') return false
-      if (countryFilter === 'us' && creatorCountry !== 'US') return false
-    }
-    // 등급 필터
-    if (gradeFilter !== 'all' && c.cnec_grade_level !== parseInt(gradeFilter)) return false
-    return true
+  // 선택된 국가의 크리에이터 필터링
+  const countryCreators = gradedCreators.filter(c => {
+    const cc = (c.source_country || c.primary_country || 'KR').toUpperCase()
+    return cc === selectedCountryTab
   })
+
+  // 카테고리별 그룹핑 (creator.categories 배열 기반)
+  const categoryGroups = {}
+  CREATOR_CATEGORIES.forEach(cat => { categoryGroups[cat.id] = [] })
+  categoryGroups['uncategorized'] = []
+
+  countryCreators.forEach(creator => {
+    if (!creator.categories || creator.categories.length === 0) {
+      categoryGroups['uncategorized'].push(creator)
+    } else {
+      creator.categories.forEach(catId => {
+        if (categoryGroups[catId]) {
+          categoryGroups[catId].push(creator)
+        }
+      })
+    }
+  })
+
+  // 카테고리 내 등급 필터 적용
+  const getFilteredCategoryCreators = (catId) => {
+    const filter = categoryGradeFilters[catId] || 'all'
+    const creators = categoryGroups[catId] || []
+    if (filter === 'all') return creators
+    return creators.filter(c => c.cnec_grade_level === parseInt(filter))
+  }
+
+  // 국가별 카운트
+  const countryCounts = {
+    KR: gradedCreators.filter(c => (c.source_country || c.primary_country || 'KR').toUpperCase() === 'KR').length,
+    JP: gradedCreators.filter(c => (c.source_country || c.primary_country || 'KR').toUpperCase() === 'JP').length,
+    US: gradedCreators.filter(c => (c.source_country || c.primary_country || 'KR').toUpperCase() === 'US').length,
+  }
 
   const loadFeaturedCreators = async () => {
     try {
@@ -1313,7 +1339,7 @@ export default function FeaturedCreatorManagementPageNew() {
                 <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
                   <div>
                     <h3 className="text-lg font-semibold">크넥 등급제 크리에이터</h3>
-                    <p className="text-sm text-gray-500">FRESH → GLOW → BLOOM → ICONIC → MUSE 등급으로 크리에이터를 관리합니다</p>
+                    <p className="text-sm text-gray-500">국가 → 카테고리 → 등급 순서로 크리에이터를 관리합니다</p>
                   </div>
                   <Button onClick={() => setShowGradedCreatorModal(true)}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -1321,57 +1347,25 @@ export default function FeaturedCreatorManagementPageNew() {
                   </Button>
                 </div>
 
-                {/* 국가 필터 */}
-                <div className="flex gap-2 mb-4 flex-wrap">
+                {/* 국가 탭 (주요 네비게이션) */}
+                <div className="flex gap-1 mb-6 border-b">
                   {[
-                    { key: 'all', label: '전체', flag: '' },
-                    { key: 'korea', label: '한국', flag: '🇰🇷', code: 'KR' },
-                    { key: 'japan', label: '일본', flag: '🇯🇵', code: 'JP' },
-                    { key: 'us', label: '미국', flag: '🇺🇸', code: 'US' }
-                  ].map(({ key, label, flag, code }) => {
-                    const count = key === 'all'
-                      ? gradedCreators.length
-                      : gradedCreators.filter(c => (c.source_country || c.primary_country || 'KR').toUpperCase() === code).length
-                    return (
-                      <Button
-                        key={key}
-                        variant={countryFilter === key ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCountryFilter(key)}
-                      >
-                        {flag} {label} ({count})
-                      </Button>
-                    )
-                  })}
-                </div>
-
-                {/* 등급 필터 */}
-                <div className="flex gap-2 mb-6 flex-wrap">
-                  <Button
-                    variant={gradeFilter === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setGradeFilter('all')}
-                  >
-                    전체 ({gradedCreators.length})
-                  </Button>
-                  {Object.entries(GRADE_LEVELS).map(([level, info]) => {
-                    const count = gradedCreators.filter(c => c.cnec_grade_level === parseInt(level)).length
-                    return (
-                      <Button
-                        key={level}
-                        variant={gradeFilter === level ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setGradeFilter(level)}
-                        className="gap-1"
-                        style={gradeFilter === level ? { backgroundColor: info.color } : {}}
-                      >
-                        <span style={{ color: gradeFilter !== level ? info.color : 'inherit' }}>
-                          {info.name}
-                        </span>
-                        <span className="text-xs opacity-70">({count})</span>
-                      </Button>
-                    )
-                  })}
+                    { code: 'KR', label: '한국', flag: '🇰🇷' },
+                    { code: 'JP', label: '일본', flag: '🇯🇵' },
+                    { code: 'US', label: '미국', flag: '🇺🇸' }
+                  ].map(({ code, label, flag }) => (
+                    <button
+                      key={code}
+                      className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        selectedCountryTab === code
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedCountryTab(code)}
+                    >
+                      {flag} {label} ({countryCounts[code] || 0})
+                    </button>
+                  ))}
                 </div>
 
                 {/* AI 추천 확정 크리에이터 관리 */}
@@ -1423,6 +1417,7 @@ export default function FeaturedCreatorManagementPageNew() {
                                         (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
                                         c.is_active !== false &&
                                         !aiPickSlots.includes(c.id) &&
+                                        (c.source_country || c.primary_country || 'KR').toUpperCase() === selectedCountryTab &&
                                         c.name?.toLowerCase().includes(q.trim().toLowerCase())
                                       ).slice(0, 8)
                                       const newResults = [...aiPickSearchResults]
@@ -1441,6 +1436,7 @@ export default function FeaturedCreatorManagementPageNew() {
                                         (c.cnec_grade_level === 2 || c.cnec_grade_level === 3) &&
                                         c.is_active !== false &&
                                         !aiPickSlots.includes(c.id) &&
+                                        (c.source_country || c.primary_country || 'KR').toUpperCase() === selectedCountryTab &&
                                         c.name?.toLowerCase().includes(aiPickSearchQuery[index].trim().toLowerCase())
                                       ).slice(0, 8)
                                       const newResults = [...aiPickSearchResults]
@@ -1525,12 +1521,12 @@ export default function FeaturedCreatorManagementPageNew() {
                   </CardContent>
                 </Card>
 
-                {/* 등급제 크리에이터 목록 */}
+                {/* 카테고리별 크리에이터 목록 */}
                 {loadingGraded ? (
                   <div className="text-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
                   </div>
-                ) : filteredGradedCreators.length === 0 ? (
+                ) : countryCreators.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center text-gray-500">
                       <Crown className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -1539,242 +1535,245 @@ export default function FeaturedCreatorManagementPageNew() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredGradedCreators.map(creator => {
-                      const gradeInfo = GRADE_LEVELS[creator.cnec_grade_level || 1]
-                      return (
-                        <Card key={creator.id} className="overflow-hidden">
-                          <div
-                            className="h-2"
-                            style={{ backgroundColor: gradeInfo.color }}
-                          />
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              {/* 프로필 이미지 */}
-                              <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-                                {creator.profile_image_url || creator.profile_image ? (
-                                  <img
-                                    src={creator.profile_image_url || creator.profile_image}
-                                    alt={creator.name || creator.channel_name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Users className="w-8 h-8 text-gray-300" />
-                                  </div>
-                                )}
-                              </div>
+                  <div className="space-y-3">
+                    {[...CREATOR_CATEGORIES, { id: 'uncategorized', name: '미분류', emoji: '📦' }]
+                      .filter(cat => (categoryGroups[cat.id] || []).length > 0)
+                      .map(cat => {
+                        const catCreators = categoryGroups[cat.id] || []
+                        const filteredCreators = getFilteredCategoryCreators(cat.id)
+                        const isOpen = openCategories[cat.id] !== false // 기본 열림
+                        const currentFilter = categoryGradeFilters[cat.id] || 'all'
 
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold truncate">{creator.name || creator.channel_name}</h3>
-                                  <Badge
-                                    className="text-white text-xs"
-                                    style={{ backgroundColor: gradeInfo.color }}
-                                  >
-                                    {gradeInfo.name}
-                                  </Badge>
-                                </div>
-
-                                <div className="text-sm text-gray-500 mb-2">
-                                  {creator.cnec_total_score?.toFixed(1) || 0}점
-                                  {creator.primary_country && (
-                                    <span className="ml-2">
-                                      {getRegionFlag(creator.primary_country?.toLowerCase())}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* 등급 변경 드롭다운 */}
+                        return (
+                          <Collapsible
+                            key={cat.id}
+                            open={isOpen}
+                            onOpenChange={(open) => setOpenCategories(prev => ({ ...prev, [cat.id]: open }))}
+                          >
+                            <CollapsibleTrigger asChild>
+                              <button className="w-full flex items-center justify-between px-4 py-3 bg-white border rounded-lg hover:bg-gray-50 transition-colors">
                                 <div className="flex items-center gap-2">
-                                  <Select
-                                    value={String(creator.cnec_grade_level || 1)}
-                                    onValueChange={(value) => handleUpdateGrade(creator.id, parseInt(value))}
-                                  >
-                                    <SelectTrigger className="h-8 text-xs w-28">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {Object.entries(GRADE_LEVELS).map(([level, info]) => (
-                                        <SelectItem key={level} value={level}>
-                                          <span style={{ color: info.color }}>{info.name}</span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8"
-                                    onClick={() => openProfileEditModal(creator)}
-                                    title="프로필 편집"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8"
-                                    onClick={() => {
-                                      setCategoryGradeCreator(creator)
-                                      setShowCategoryGradeDialog(true)
-                                    }}
-                                    title="카테고리 등급 관리"
-                                  >
-                                    <Award className="w-3 h-3" />
-                                  </Button>
-
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8"
-                                    onClick={() => handleDelete(creator.id)}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
+                                  <span className="text-lg">{cat.emoji}</span>
+                                  <span className="font-semibold text-sm">{cat.name}</span>
+                                  <Badge variant="secondary" className="text-xs">{catCreators.length}</Badge>
                                 </div>
-                              </div>
-                            </div>
-
-                            {/* 카테고리 표시 */}
-                            {creator.categories && creator.categories.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                {creator.categories.map(catId => {
-                                  const cat = CREATOR_CATEGORIES.find(c => c.id === catId)
-                                  return cat ? (
-                                    <span key={catId} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                                      {cat.emoji} {cat.name}
-                                    </span>
-                                  ) : null
+                                {isOpen ? (
+                                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                                )}
+                              </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="mt-2">
+                              {/* 카테고리 내 등급 필터 */}
+                              <div className="flex gap-1.5 mb-3 px-1 flex-wrap">
+                                <Button
+                                  variant={currentFilter === 'all' ? 'default' : 'outline'}
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => setCategoryGradeFilters(prev => ({ ...prev, [cat.id]: 'all' }))}
+                                >
+                                  전체 ({catCreators.length})
+                                </Button>
+                                {Object.entries(GRADE_LEVELS).map(([level, info]) => {
+                                  const count = catCreators.filter(c => c.cnec_grade_level === parseInt(level)).length
+                                  if (count === 0) return null
+                                  return (
+                                    <Button
+                                      key={level}
+                                      variant={currentFilter === level ? 'default' : 'outline'}
+                                      size="sm"
+                                      className="h-7 text-xs gap-1"
+                                      style={currentFilter === level ? { backgroundColor: info.color } : {}}
+                                      onClick={() => setCategoryGradeFilters(prev => ({ ...prev, [cat.id]: level }))}
+                                    >
+                                      <span style={{ color: currentFilter !== level ? info.color : 'inherit' }}>
+                                        {info.name}
+                                      </span>
+                                      <span className="opacity-70">({count})</span>
+                                    </Button>
+                                  )
                                 })}
                               </div>
-                            )}
 
-                            {/* 소개글 미리보기 */}
-                            {creator.bio && (
-                              <div className="mt-2 text-xs text-gray-600 line-clamp-2">
-                                {creator.bio}
-                              </div>
-                            )}
+                              {/* 크리에이터 카드 그리드 */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {filteredCreators.map(creator => {
+                                  const gradeInfo = GRADE_LEVELS[creator.cnec_grade_level || 1]
+                                  return (
+                                    <Card key={creator.id} className="overflow-hidden">
+                                      <div className="h-2" style={{ backgroundColor: gradeInfo.color }} />
+                                      <CardContent className="p-4">
+                                        <div className="flex items-start gap-3">
+                                          <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                                            {creator.profile_image_url || creator.profile_image ? (
+                                              <img
+                                                src={creator.profile_image_url || creator.profile_image}
+                                                alt={creator.name || creator.channel_name}
+                                                className="w-full h-full object-cover"
+                                              />
+                                            ) : (
+                                              <div className="w-full h-full flex items-center justify-center">
+                                                <Users className="w-6 h-6 text-gray-300" />
+                                              </div>
+                                            )}
+                                          </div>
 
-                            {/* 평점 표시 */}
-                            {creator.rating > 0 && (
-                              <div className="mt-2 flex items-center gap-1 text-xs">
-                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                                <span className="font-semibold">{creator.rating.toFixed(1)}</span>
-                              </div>
-                            )}
-
-                            {/* 등록된 영상 미리보기 */}
-                            {((creator.representative_videos && creator.representative_videos.length > 0) ||
-                              (creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0)) && (
-                              <div className="mt-3 space-y-2">
-                                {/* 대표 영상 */}
-                                {creator.representative_videos && creator.representative_videos.length > 0 && (
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                                      <span className="text-red-500">▶</span> 대표영상 ({creator.representative_videos.length})
-                                    </div>
-                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
-                                      {creator.representative_videos.slice(0, 4).map((url, idx) => (
-                                        <div
-                                          key={idx}
-                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
-                                          onClick={() => setPreviewVideoUrl(url)}
-                                        >
-                                          {getYouTubeThumbnail(url) ? (
-                                            <img
-                                              src={getYouTubeThumbnail(url)}
-                                              alt={`영상 ${idx + 1}`}
-                                              className="w-full h-full object-cover"
-                                            />
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                              {idx + 1}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <h3 className="font-semibold text-sm truncate">{creator.name || creator.channel_name}</h3>
+                                              <Badge className="text-white text-xs" style={{ backgroundColor: gradeInfo.color }}>
+                                                {gradeInfo.name}
+                                              </Badge>
                                             </div>
-                                          )}
-                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
-                                              <span className="text-white text-xs ml-0.5">▶</span>
+
+                                            <div className="text-xs text-gray-500 mb-2">
+                                              {creator.cnec_total_score?.toFixed(1) || 0}점
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5">
+                                              <Select
+                                                value={String(creator.cnec_grade_level || 1)}
+                                                onValueChange={(value) => handleUpdateGrade(creator.id, parseInt(value))}
+                                              >
+                                                <SelectTrigger className="h-7 text-xs w-24">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  {Object.entries(GRADE_LEVELS).map(([level, info]) => (
+                                                    <SelectItem key={level} value={level}>
+                                                      <span style={{ color: info.color }}>{info.name}</span>
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+
+                                              <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openProfileEditModal(creator)} title="프로필 편집">
+                                                <Edit className="w-3 h-3" />
+                                              </Button>
+                                              <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => { setCategoryGradeCreator(creator); setShowCategoryGradeDialog(true) }} title="카테고리 등급">
+                                                <Award className="w-3 h-3" />
+                                              </Button>
+                                              <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => handleDelete(creator.id)}>
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
                                             </div>
                                           </div>
                                         </div>
-                                      ))}
-                                      {creator.representative_videos.length > 4 && (
-                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
-                                          +{creator.representative_videos.length - 4}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
 
-                                {/* 크넥 협업 영상 */}
-                                {creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0 && (
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                                      <span className="text-blue-500">★</span> 크넥협업 ({creator.cnec_collab_videos.length})
-                                    </div>
-                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
-                                      {creator.cnec_collab_videos.slice(0, 4).map((url, idx) => (
-                                        <div
-                                          key={idx}
-                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
-                                          onClick={() => setPreviewVideoUrl(url)}
-                                        >
-                                          {getYouTubeThumbnail(url) ? (
-                                            <img
-                                              src={getYouTubeThumbnail(url)}
-                                              alt={`협업 ${idx + 1}`}
-                                              className="w-full h-full object-cover"
-                                            />
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                              {idx + 1}
-                                            </div>
-                                          )}
-                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                                              <span className="text-white text-xs ml-0.5">▶</span>
-                                            </div>
+                                        {/* 카테고리 표시 */}
+                                        {creator.categories && creator.categories.length > 0 && (
+                                          <div className="mt-2 flex flex-wrap gap-1">
+                                            {creator.categories.map(catId => {
+                                              const c = CREATOR_CATEGORIES.find(x => x.id === catId)
+                                              return c ? (
+                                                <span key={catId} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+                                                  {c.emoji} {c.name}
+                                                </span>
+                                              ) : null
+                                            })}
                                           </div>
-                                          <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">
-                                            CNEC
-                                          </div>
-                                        </div>
-                                      ))}
-                                      {creator.cnec_collab_videos.length > 4 && (
-                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
-                                          +{creator.cnec_collab_videos.length - 4}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                                        )}
 
-                            {/* 통계 */}
-                            <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
-                              <div>
-                                <div className="font-semibold">{creator.instagram_followers?.toLocaleString() || '-'}</div>
-                                <div className="text-gray-500">Instagram</div>
+                                        {creator.bio && (
+                                          <div className="mt-2 text-xs text-gray-600 line-clamp-2">{creator.bio}</div>
+                                        )}
+
+                                        {creator.rating > 0 && (
+                                          <div className="mt-2 flex items-center gap-1 text-xs">
+                                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                                            <span className="font-semibold">{creator.rating.toFixed(1)}</span>
+                                          </div>
+                                        )}
+
+                                        {/* 영상 미리보기 */}
+                                        {((creator.representative_videos && creator.representative_videos.length > 0) ||
+                                          (creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0)) && (
+                                          <div className="mt-3 space-y-2">
+                                            {creator.representative_videos && creator.representative_videos.length > 0 && (
+                                              <div>
+                                                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                                  <span className="text-red-500">▶</span> 대표영상 ({creator.representative_videos.length})
+                                                </div>
+                                                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                                  {creator.representative_videos.slice(0, 4).map((url, idx) => (
+                                                    <div key={idx} className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group" onClick={() => setPreviewVideoUrl(url)}>
+                                                      {getYouTubeThumbnail(url) ? (
+                                                        <img src={getYouTubeThumbnail(url)} alt={`영상 ${idx + 1}`} className="w-full h-full object-cover" />
+                                                      ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{idx + 1}</div>
+                                                      )}
+                                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
+                                                          <span className="text-white text-xs ml-0.5">▶</span>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                  {creator.representative_videos.length > 4 && (
+                                                    <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                                      +{creator.representative_videos.length - 4}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0 && (
+                                              <div>
+                                                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                                  <span className="text-blue-500">★</span> 크넥협업 ({creator.cnec_collab_videos.length})
+                                                </div>
+                                                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                                  {creator.cnec_collab_videos.slice(0, 4).map((url, idx) => (
+                                                    <div key={idx} className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group" onClick={() => setPreviewVideoUrl(url)}>
+                                                      {getYouTubeThumbnail(url) ? (
+                                                        <img src={getYouTubeThumbnail(url)} alt={`협업 ${idx + 1}`} className="w-full h-full object-cover" />
+                                                      ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{idx + 1}</div>
+                                                      )}
+                                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+                                                          <span className="text-white text-xs ml-0.5">▶</span>
+                                                        </div>
+                                                      </div>
+                                                      <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">CNEC</div>
+                                                    </div>
+                                                  ))}
+                                                  {creator.cnec_collab_videos.length > 4 && (
+                                                    <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                                      +{creator.cnec_collab_videos.length - 4}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* 통계 */}
+                                        <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
+                                          <div>
+                                            <div className="font-semibold">{creator.instagram_followers?.toLocaleString() || '-'}</div>
+                                            <div className="text-gray-500">Instagram</div>
+                                          </div>
+                                          <div>
+                                            <div className="font-semibold">{creator.youtube_subscribers?.toLocaleString() || '-'}</div>
+                                            <div className="text-gray-500">YouTube</div>
+                                          </div>
+                                          <div>
+                                            <div className="font-semibold">{creator.tiktok_followers?.toLocaleString() || '-'}</div>
+                                            <div className="text-gray-500">TikTok</div>
+                                          </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  )
+                                })}
                               </div>
-                              <div>
-                                <div className="font-semibold">{creator.youtube_subscribers?.toLocaleString() || '-'}</div>
-                                <div className="text-gray-500">YouTube</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold">{creator.tiktok_followers?.toLocaleString() || '-'}</div>
-                                <div className="text-gray-500">TikTok</div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )
+                      })}
                   </div>
                 )}
               </TabsContent>
@@ -2739,7 +2738,7 @@ export default function FeaturedCreatorManagementPageNew() {
               카테고리별 등급 관리 — {categoryGradeCreator?.name || categoryGradeCreator?.channel_name}
             </DialogTitle>
             <DialogDescription>
-              뷰티 카테고리별로 등급을 지정하고 관리합니다. 국가별 독립 등급 분류가 가능합니다.
+              크리에이터의 국가 기준으로 뷰티 카테고리별 등급을 지정하고 관리합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-2">
