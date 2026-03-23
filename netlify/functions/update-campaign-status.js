@@ -231,10 +231,9 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // active로 변경 시 캠페인 승인 알림톡 발송 (한국 캠페인만)
-    const isKorea = ['korea', 'kr', 'KR', 'biz'].includes(region) || !region
-    console.log('[update-campaign-status] isKorea:', isKorea, 'region:', region)
-    if (newStatus === 'active' && isKorea) {
+    // active로 변경 시 캠페인 승인 알림톡 발송 (모든 리전 — 기업은 모두 한국 기업)
+    console.log('[update-campaign-status] region:', region)
+    if (newStatus === 'active') {
       try {
         // 알림톡 발송을 위해 send-kakao-notification 함수 직접 호출
         const { data: campaign } = await supabaseClient

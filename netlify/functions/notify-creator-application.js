@@ -274,15 +274,16 @@ exports.handler = async (event) => {
 
       const baseUrl = process.env.URL || 'https://cnecbiz.com';
 
-      // 카카오 알림톡 발송 (기업에게)
-      if (company.phone) {
+      // 카카오 알림톡 발송 (기업에게) - notification 필드 우선 사용
+      const companyNotifyPhone = company.notification_phone || company.phone
+      if (companyNotifyPhone) {
         try {
           const kakaoResponse = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              receiverNum: company.phone,
-              receiverName: company.company_name || company.full_name,
+              receiverNum: companyNotifyPhone,
+              receiverName: company.notification_contact_person || company.company_name || company.full_name,
               templateCode: '025110000797',
               variables: {
                 '기업명': company.company_name || company.full_name,
@@ -302,14 +303,15 @@ exports.handler = async (event) => {
         }
       }
 
-      // 이메일 발송 (기업에게)
-      if (company.email) {
+      // 이메일 발송 (기업에게) - notification 필드 우선 사용
+      const companyNotifyEmail = company.notification_email || company.email
+      if (companyNotifyEmail) {
         try {
           const emailResponse = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              to: company.email,
+              to: companyNotifyEmail,
               subject: `[CNEC] 초대한 크리에이터(${creator.full_name})가 캠페인에 지원했습니다`,
               html: `
                 <h2>초대한 크리에이터 지원 알림</h2>

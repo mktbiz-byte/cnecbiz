@@ -248,6 +248,132 @@ exports.handler = async (event) => {
       console.error('[award-campaign-points] 네이버 웍스 알림 오류:', worksError)
     }
 
+    // 5. 기업에게 최종확정 알림 발송 (카카오톡 + 이메일) — 모든 리전 공통
+    try {
+      const bizClient = createClient(
+        process.env.VITE_SUPABASE_BIZ_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      )
+
+      // 캠페인에서 기업 정보 조회
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('title, campaign_name, company_biz_id, company_id, company_email')
+        .eq('id', campaignId)
+        .maybeSingle()
+
+      if (campaign) {
+        let company = null
+
+        // company_biz_id → companies.id (BIZ DB)
+        if (campaign.company_biz_id) {
+          const { data: c } = await bizClient
+            .from('companies')
+            .select('company_name, notification_phone, phone, notification_email, email, notification_contact_person')
+            .eq('id', campaign.company_biz_id)
+            .maybeSingle()
+          if (c) company = c
+        }
+
+        // company_email → companies.email (BIZ DB)
+        if (!company && campaign.company_email) {
+          const { data: c } = await bizClient
+            .from('companies')
+            .select('company_name, notification_phone, phone, notification_email, email, notification_contact_person')
+            .eq('email', campaign.company_email)
+            .maybeSingle()
+          if (c) company = c
+        }
+
+        // company_id → companies.id or user_id (BIZ DB)
+        if (!company && campaign.company_id) {
+          const { data: c } = await bizClient
+            .from('companies')
+            .select('company_name, notification_phone, phone, notification_email, email, notification_contact_person')
+            .eq('id', campaign.company_id)
+            .maybeSingle()
+          if (c) company = c
+
+          if (!company) {
+            const { data: c2 } = await bizClient
+              .from('companies')
+              .select('company_name, notification_phone, phone, notification_email, email, notification_contact_person')
+              .eq('user_id', campaign.company_id)
+              .maybeSingle()
+            if (c2) company = c2
+          }
+        }
+
+        if (company) {
+          const companyPhone = company.notification_phone || company.phone
+          const companyEmail = company.notification_email || company.email
+          const campaignDisplayTitle = campaign.title || campaign.campaign_name || '캠페인'
+          const creatorDisplayName = creatorName || '크리에이터'
+          const baseUrl = process.env.URL || 'https://cnecbiz.com'
+
+          // 카카오 알림톡 발송 (기업에게 최종확정 알림)
+          if (companyPhone) {
+            try {
+              await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: companyPhone,
+                  receiverName: company.notification_contact_person || company.company_name,
+                  templateCode: '025100001009',
+                  variables: {
+                    '회사명': company.company_name || '고객사',
+                    '캠페인명': campaignDisplayTitle,
+                    '크리에이터명': creatorDisplayName
+                  }
+                })
+              })
+              console.log('[award-campaign-points] 기업 카카오 알림톡 발송 완료')
+            } catch (kakaoErr) {
+              console.error('[award-campaign-points] 기업 카카오 알림톡 실패:', kakaoErr.message)
+            }
+          }
+
+          // 이메일 발송 (기업에게)
+          if (companyEmail) {
+            try {
+              await fetch(`${baseUrl}/.netlify/functions/send-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: companyEmail,
+                  subject: `[CNEC] 캠페인 최종 확정 완료 - ${campaignDisplayTitle}`,
+                  html: `
+                    <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #6C5CE7;">캠페인 크리에이터 최종 확정 완료</h2>
+                      <p>${company.company_name || '고객사'}님, 캠페인의 크리에이터 최종 확정이 완료되었습니다.</p>
+                      <div style="background: #F8F9FA; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>캠페인:</strong> ${campaignDisplayTitle}</p>
+                        <p><strong>크리에이터:</strong> ${creatorDisplayName}</p>
+                      </div>
+                      <p>
+                        <a href="${baseUrl}/company/campaigns/${campaignId}"
+                           style="background-color: #6C5CE7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                          캠페인 상세 보기
+                        </a>
+                      </p>
+                    </div>
+                  `
+                })
+              })
+              console.log('[award-campaign-points] 기업 이메일 발송 완료')
+            } catch (emailErr) {
+              console.error('[award-campaign-points] 기업 이메일 실패:', emailErr.message)
+            }
+          }
+        } else {
+          console.log('[award-campaign-points] 기업 정보를 찾을 수 없어 기업 알림 스킵')
+        }
+      }
+    } catch (companyNotifError) {
+      console.error('[award-campaign-points] 기업 알림 발송 오류:', companyNotifError.message)
+    }
+
     return {
       statusCode: 200,
       headers,
