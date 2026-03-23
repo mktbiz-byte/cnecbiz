@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink, Globe, Languages, PenLine, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getSupabaseClient } from '../../lib/supabaseClients'
+import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 
 export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit, region, supabaseClient }) {
   const navigate = useNavigate()
@@ -258,15 +258,27 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
       }
 
       // challenge_weekly_guides_ai is a TEXT column, so stringify the object
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
-          challenge_weekly_guides_ai: JSON.stringify(updatedGuides),
-          challenge_weekly_guides: updatedGuides
+      // 리전 API로 캠페인 업데이트 (RLS 우회)
+      const regionApiMap = { korea: 'korea-campaign-operations', japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+      const apiName = regionApiMap[region] || 'korea-campaign-operations'
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      const response = await fetch(`/.netlify/functions/${apiName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update_campaign',
+          campaign_id: campaign.id,
+          data: {
+            challenge_weekly_guides_ai: JSON.stringify(updatedGuides),
+            challenge_weekly_guides: updatedGuides
+          }
         })
-        .eq('id', campaign.id)
-
-      if (error) throw error
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '저장에 실패했습니다.')
 
       alert('수정이 저장되었습니다!')
       setIsEditing(false)

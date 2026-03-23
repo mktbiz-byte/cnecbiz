@@ -137,6 +137,49 @@ const callKoreaCampaignAPI = async (action, campaignId, applicationId, data) => 
   return result
 }
 
+// Japan 리전 서버사이드 API 호출 (Service Role Key로 RLS 우회)
+const callJapanCampaignAPI = async (action, campaignId, applicationId, data) => {
+  const { data: { session } } = await supabaseBiz.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('인증이 필요합니다')
+  }
+
+  const response = await fetch('/.netlify/functions/japan-campaign-operations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      action,
+      campaign_id: campaignId,
+      application_id: applicationId,
+      data
+    })
+  })
+
+  const responseText = await response.text()
+  let result
+  try {
+    result = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error(`Japan API 응답 파싱 실패: ${responseText.substring(0, 200)}`)
+  }
+
+  if (!result.success) {
+    throw new Error(result.error || `Japan API 실패 (상태: ${response.status})`)
+  }
+  return result
+}
+
+// 리전별 API 호출 래퍼 (region에 따라 적절한 API 호출)
+const callRegionCampaignAPI = async (region, action, campaignId, applicationId, data) => {
+  if (region === 'us') return callUSCampaignAPI(action, campaignId, applicationId, data)
+  if (region === 'korea') return callKoreaCampaignAPI(action, campaignId, applicationId, data)
+  if (region === 'japan') return callJapanCampaignAPI(action, campaignId, applicationId, data)
+  throw new Error(`지원하지 않는 리전: ${region}`)
+}
+
 // 국가 코드 → 국기 이모지 변환
 const countryCodeToFlag = (code) => {
   if (!code || code.length !== 2) return '🌍'
@@ -1410,23 +1453,9 @@ export default function CampaignDetail() {
 
     setIsDeleting(true)
     try {
-      // 관련 applications도 함께 삭제
-      const { error: appError } = await supabase
-        .from('applications')
-        .delete()
-        .eq('campaign_id', campaign.id)
-
-      if (appError) {
-        console.error('Error deleting applications:', appError)
-      }
-
-      // 캠페인 삭제
-      const { error } = await supabase
-        .from('campaigns')
-        .delete()
-        .eq('id', campaign.id)
-
-      if (error) throw error
+      // 캠페인 삭제는 리전 API의 update_campaign으로 status를 deleted로 변경
+      // (직접 DELETE는 RLS에 의해 차단될 수 있음)
+      await callRegionCampaignAPI(region, 'update_campaign', campaign.id, null, { status: 'deleted' })
 
       alert('캠페인이 삭제되었습니다.')
       navigate('/company/campaigns')
@@ -2916,16 +2945,10 @@ export default function CampaignDetail() {
         platform
       })
 
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({
-          views,
-          last_view_check: new Date().toISOString(),
-          view_history: viewHistory
-        })
-        .eq('id', participant.id)
-
-      if (updateError) throw updateError
+      await callRegionCampaignAPI(region, 'update_views', id, participant.id, {
+        views,
+        view_history: viewHistory
+      })
 
       // 참여자 목록 새로고침
       await fetchParticipants()
@@ -2963,25 +2986,8 @@ export default function CampaignDetail() {
       if (changes.tracking_number !== undefined) updateData.tracking_number = changes.tracking_number
       if (changes.shipping_company !== undefined) updateData.shipping_company = changes.shipping_company
 
-      // applications 업데이트
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('id', participantId)
-
-      if (error) throw error
-
-      // applications 테이블도 업데이트
-      const { error: appError } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('campaign_id', participant.campaign_id)
-        .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
-        .eq('status', 'selected')
-
-      if (appError) {
-        console.error('Error updating applications table:', appError)
-      }
+      // applications 업데이트 (리전 API 사용)
+      await callRegionCampaignAPI(region, 'update_shipping', id, participantId, updateData)
 
       // 저장된 변경사항 제거
       setTrackingChanges(prev => {
@@ -3029,12 +3035,7 @@ export default function CampaignDetail() {
         } : {})
       }
 
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('id', editingAddressFor)
-
-      if (error) throw error
+      await callRegionCampaignAPI(region, 'update_application', id, editingAddressFor, updateData)
 
       // 로컬 상태 업데이트
       setParticipants(prev => prev.map(p =>
@@ -3273,12 +3274,9 @@ JSON만 출력.`
             throw new Error(saveResult.error || saveResult.details || 'Failed to save guide')
           }
         } else {
-          const { error } = await supabase
-            .from('applications')
-            .update({ personalized_guide: prepareGuideForSave(guideData, region) })
-            .eq('id', participantId)
-
-          if (error) throw error
+          await callRegionCampaignAPI(region, 'update_application', id, participantId, {
+            personalized_guide: prepareGuideForSave(guideData, region)
+          })
         }
         successCount++
       } catch (err) {
@@ -4018,16 +4016,8 @@ JSON만 출력.`
             updateData.shipping_company = courier
           }
 
-          const { error } = await supabase
-            .from('applications')
-            .update(updateData)
-            .eq('id', participant.id)
-
-          if (error) {
-            failCount++
-          } else {
-            successCount++
-          }
+          await callRegionCampaignAPI(region, 'update_application', id, participant.id, updateData)
+          successCount++
         } catch (error) {
           console.error('[ERROR] Exception updating tracking:', error)
           failCount++
@@ -4061,17 +4051,7 @@ JSON만 출력.`
         const participant = participants.find(p => p.id === participantId)
         if (!participant) continue
 
-        await supabase
-          .from('applications')
-          .update({ shipping_company: bulkCourierCompany })
-          .eq('id', participantId)
-
-        await supabase
-          .from('applications')
-          .update({ shipping_company: bulkCourierCompany })
-          .eq('campaign_id', participant.campaign_id)
-          .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
-          .eq('status', 'selected')
+        await callRegionCampaignAPI(region, 'update_application', id, participantId, { shipping_company: bulkCourierCompany })
       }
 
       await fetchParticipants()
@@ -4087,18 +4067,7 @@ JSON만 출력.`
   // 지원자 채널만 설정 (가상선정 없이)
   const handleSetApplicationChannel = async (applicationId, channel) => {
     try {
-      if (region === 'us') {
-        await callUSCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
-      } else if (region === 'korea') {
-        await callKoreaCampaignAPI('update_channel', id, applicationId, { main_channel: channel })
-      } else {
-        const { error } = await supabase
-          .from('applications')
-          .update({ main_channel: channel })
-          .eq('id', applicationId)
-
-        if (error) throw error
-      }
+      await callRegionCampaignAPI(region, 'update_channel', id, applicationId, { main_channel: channel })
 
       // 지원자 목록 업데이트
       setApplications(prev =>
@@ -4122,19 +4091,8 @@ JSON만 출력.`
         updateData.main_channel = mainChannel
       }
 
-      // US/Korea 캠페인은 API 사용 (RLS 우회)
-      if (region === 'us') {
-        await callUSCampaignAPI('virtual_select', id, applicationId, updateData)
-      } else if (region === 'korea') {
-        await callKoreaCampaignAPI('virtual_select', id, applicationId, updateData)
-      } else {
-        const { error } = await supabase
-          .from('applications')
-          .update(updateData)
-          .eq('id', applicationId)
-
-        if (error) throw error
-      }
+      // 리전 API 사용 (RLS 우회)
+      await callRegionCampaignAPI(region, 'virtual_select', id, applicationId, updateData)
 
       // 지원자 목록 업데이트
       setApplications(prev =>
@@ -4158,19 +4116,8 @@ JSON만 출력.`
   // 선정 크리에이터 채널 변경
   const handleChangeParticipantChannel = async (participantId, newChannel) => {
     try {
-      // US/Korea 캠페인은 API 사용 (RLS 우회)
-      if (region === 'us') {
-        await callUSCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
-      } else if (region === 'korea') {
-        await callKoreaCampaignAPI('update_channel', id, participantId, { main_channel: newChannel })
-      } else {
-        const { error } = await supabase
-          .from('applications')
-          .update({ main_channel: newChannel })
-          .eq('id', participantId)
-
-        if (error) throw error
-      }
+      // 리전 API 사용 (RLS 우회)
+      await callRegionCampaignAPI(region, 'update_channel', id, participantId, { main_channel: newChannel })
 
       // 참가자 목록 업데이트
       setParticipants(prev =>
@@ -4250,28 +4197,10 @@ JSON만 출력.`
       // applications의 status를 'selected'로 업데이트 (크리에이터 관리 탭과 동일)
       console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
 
-      // US/Korea 캠페인은 API 사용 (RLS 우회)
-      if (region === 'us') {
-        await callUSCampaignAPI('confirm_selection', id, null, {
-          application_ids: toAdd.map(app => app.id)
-        })
-      } else if (region === 'korea') {
-        await callKoreaCampaignAPI('confirm_selection', id, null, {
-          application_ids: toAdd.map(app => app.id)
-        })
-      } else {
-        const { error: updateError, data: updateData } = await supabase
-          .from('applications')
-          .update({
-            status: 'selected',
-            virtual_selected: false
-          })
-          .in('id', toAdd.map(app => app.id))
-          .select()
-
-        console.log('Update result:', updateData, 'Error:', updateError)
-        if (updateError) throw updateError
-      }
+      // 리전 API 사용 (RLS 우회)
+      await callRegionCampaignAPI(region, 'confirm_selection', id, null, {
+        application_ids: toAdd.map(app => app.id)
+      })
 
       // 목록 새로고침
       await fetchApplications()
@@ -4399,23 +4328,8 @@ JSON만 출력.`
     
     try {
       // applications 상태를 pending으로 변경 (삭제하지 않고 상태만 변경)
-      // US/Korea 캠페인은 API 사용 (RLS 우회)
-      if (region === 'us') {
-        await callUSCampaignAPI('cancel_selection', id, cancellingApp.id, {})
-      } else if (region === 'korea') {
-        await callKoreaCampaignAPI('cancel_selection', id, cancellingApp.id, {})
-      } else {
-        const { error: updateError } = await supabase
-          .from('applications')
-          .update({
-            status: 'pending',
-            virtual_selected: false,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', cancellingApp.id)
-
-        if (updateError) throw updateError
-      }
+      // 리전 API 사용 (RLS 우회)
+      await callRegionCampaignAPI(region, 'cancel_selection', id, cancellingApp.id, {})
 
       // 알림 발송 (지역별)
       let notificationSent = false
@@ -4595,15 +4509,8 @@ Questions? Contact us.
 
       const { guide } = await response.json()
 
-      // 생성된 가이드를 campaigns 테이블에 저장
-      const { error: updateError } = await supabase
-        .from('campaigns')
-        .update({ ai_generated_guide: guide })
-        .eq('id', campaign.id)
-
-      if (updateError) {
-        throw new Error(updateError.message || 'Failed to save guide')
-      }
+      // 생성된 가이드를 campaigns 테이블에 저장 (리전 API 사용)
+      await callRegionCampaignAPI(region, 'update_campaign', campaign.id, null, { ai_generated_guide: guide })
 
       alert('올리브영 세일 통합 가이드가 성공적으로 생성되었습니다!')
       
@@ -4777,18 +4684,11 @@ Questions? Contact us.
 
       for (const participant of participants) {
         try {
-          // 가이드 승인 및 전달
-          const { error: updateError } = await supabase
-            .from('applications')
-            .update({ 
-              personalized_guide: prepareGuideForSave(campaign.ai_generated_guide, region),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', participant.id)
-
-          if (updateError) {
-            throw new Error(updateError.message)
-          }
+          // 가이드 승인 및 전달 (리전 API 사용)
+          await callRegionCampaignAPI(region, 'update_application', id, participant.id, {
+            personalized_guide: prepareGuideForSave(campaign.ai_generated_guide, region),
+            updated_at: new Date().toISOString()
+          })
 
           // 지역별 알림 + 이메일 발송 (enriched 데이터 사용, user_profiles 재조회 없음)
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -4892,14 +4792,7 @@ Questions? Contact us.
           }
           updateData.additional_message = message
 
-          const { error: updateError } = await supabase
-            .from('applications')
-            .update(updateData)
-            .eq('id', participant.id)
-
-          if (updateError) {
-            throw new Error(updateError.message)
-          }
+          await callRegionCampaignAPI(region, 'update_application', id, participant.id, updateData)
 
           // 크리에이터에게 알림 발송 (enriched data 사용 - user_profiles 재조회 불필요)
           // 주차별 마감일 처리
@@ -5008,14 +4901,7 @@ Questions? Contact us.
             updateData.additional_message = individualMessage.trim()
           }
 
-          const { error: updateError } = await supabase
-            .from('applications')
-            .update(updateData)
-            .eq('id', participant.id)
-
-          if (updateError) {
-            throw new Error(updateError.message)
-          }
+          await callRegionCampaignAPI(region, 'update_application', id, participant.id, updateData)
 
           // 지역별 알림 + 이메일 발송 (enriched 데이터 사용, user_profiles 재조회 없음)
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -5074,15 +4960,7 @@ Questions? Contact us.
       let failCount = 0
       for (const participantId of selectedParticipants) {
         try {
-          if (region === 'korea') {
-            await callKoreaCampaignAPI('update_application', id, participantId, { guide_group: finalGroupName })
-          } else {
-            const { error: updateError } = await supabase
-              .from('applications')
-              .update({ guide_group: finalGroupName })
-              .eq('id', participantId)
-            if (updateError) throw updateError
-          }
+          await callRegionCampaignAPI(region, 'update_application', id, participantId, { guide_group: finalGroupName })
         } catch (err) {
           console.error('그룹 지정 실패 (id:', participantId, '):', err)
           failCount++
@@ -5247,17 +5125,10 @@ Questions? Contact us.
 
           const { guide } = await response.json()
 
-          // 생성된 가이드를 applications 테이블에 저장
-          const { error: updateError } = await supabase
-            .from('applications')
-            .update({
-              personalized_guide: prepareGuideForSave(guide, region)
-            })
-            .eq('id', participant.id)
-
-          if (updateError) {
-            throw new Error(updateError.message || 'Failed to save guide')
-          }
+          // 생성된 가이드를 applications 테이블에 저장 (리전 API 사용)
+          await callRegionCampaignAPI(region, 'update_application', id, participant.id, {
+            personalized_guide: prepareGuideForSave(guide, region)
+          })
 
           successCount++
         } catch (error) {
@@ -5338,22 +5209,8 @@ Questions? Contact us.
             updatePayload.status = 'filming'
           }
 
-          const { data: updateData, error: updateError } = await supabase
-            .from('applications')
-            .update(updatePayload)
-            .eq('id', participantId)
-            .select()
-
-          if (updateError) {
-            console.error('[ERROR] Failed to update application status:')
-            console.error('Error code:', updateError.code)
-            console.error('Error message:', updateError.message)
-            console.error('Error details:', updateError.details)
-            console.error('Error hint:', updateError.hint)
-            console.error('Full error:', JSON.stringify(updateError, null, 2))
-            throw updateError
-          }
-          console.log('[DEBUG] Successfully updated application status:', updateData)
+          await callRegionCampaignAPI(region, 'update_application', id, participantId, updatePayload)
+          console.log('[DEBUG] Successfully updated application status via API')
 
           // ★ 즉시 로컬 상태 업데이트 (fetchParticipants 지연 문제 방지)
           if (updatePayload.status === 'filming') {
@@ -5499,26 +5356,8 @@ Questions? Contact us.
           })
           const updateResult = await updateRes.json()
           if (!updateResult.success) {
-            console.warn('[handleVideoApproval] Function update failed, trying direct:', updateResult.error)
-            // 직접 업데이트 폴백
-            let { error: videoError } = await supabase
-              .from('video_submissions')
-              .update({ status: 'approved', approved_at: now, reviewed_at: now })
-              .eq('id', submission.id)
-
-            if (videoError) {
-              const { error: fallbackError } = await supabase
-                .from('video_submissions')
-                .update({ status: 'approved', updated_at: now })
-                .eq('id', submission.id)
-              if (fallbackError) {
-                const { error: minimalError } = await supabase
-                  .from('video_submissions')
-                  .update({ status: 'approved' })
-                  .eq('id', submission.id)
-                if (minimalError) throw minimalError
-              }
-            }
+            console.error('[handleVideoApproval] Function update failed:', updateResult.error)
+            throw new Error(updateResult.error || '영상 상태 업데이트 실패')
           }
         } catch (e) {
           console.error('[handleVideoApproval] video_submissions update error:', e.message)
@@ -5586,19 +5425,13 @@ Questions? Contact us.
           })
           const approveAppResult = await approveAppRes.json()
           if (!approveAppResult.success) {
-            console.warn('[handleVideoApproval] Application update via function failed, trying direct:', approveAppResult.error)
-            await supabase
-              .from('applications')
-              .update({ status: 'approved', upload_deadline: inputDeadline })
-              .eq('id', submission.application_id)
+            console.warn('[handleVideoApproval] Application update via function failed, trying region API:', approveAppResult.error)
+            await callRegionCampaignAPI(region, 'update_application', id, submission.application_id, { status: 'approved', upload_deadline: inputDeadline })
           }
         } catch (e) {
           console.warn('[handleVideoApproval] Application update error:', e.message)
-          // 직접 업데이트 폴백
-          await supabase
-            .from('applications')
-            .update({ status: 'approved', upload_deadline: inputDeadline })
-            .eq('id', submission.application_id)
+          // 리전 API 폴백
+          await callRegionCampaignAPI(region, 'update_application', id, submission.application_id, { status: 'approved', upload_deadline: inputDeadline })
         }
       }
 
@@ -5796,10 +5629,12 @@ Questions? Contact us.
     console.log(`[자동완료] 캠페인 "${campaign.title}" - 선정 크리에이터 ${apps.length}명 모두 완료. 캠페인 상태를 completed로 변경`)
 
     // 캠페인 상태를 completed로 변경
-    const { error: updateError } = await supabase
-      .from('campaigns')
-      .update({ status: 'completed', updated_at: new Date().toISOString() })
-      .eq('id', campaign.id)
+    const { error: updateError } = await (async () => {
+      try {
+        await callRegionCampaignAPI(region, 'update_campaign', campaign.id, null, { status: 'completed', updated_at: new Date().toISOString() })
+        return { error: null }
+      } catch (e) { return { error: e } }
+    })()
 
     if (updateError) {
       console.error('[자동완료] 캠페인 상태 업데이트 실패:', updateError)
@@ -5886,22 +5721,24 @@ Questions? Contact us.
         return
       }
 
-      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
       const pointAmount = calculateCreatorPoints(campaign)
       const confirmedAt = new Date().toISOString()
 
-      // 1. video_submissions를 completed로 업데이트 (에러 체크 필수)
-      const { error: updateError } = await videoClient
-        .from('video_submissions')
-        .update({
-          status: 'completed',
-          final_confirmed_at: confirmedAt
+      // 1. video_submissions를 completed로 업데이트 (Netlify Function으로 RLS 우회)
+      const videoUpdateRes = await fetch('/.netlify/functions/save-video-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_video_submission_status',
+          region,
+          submissionId: submission.id,
+          updateData: { status: 'completed', final_confirmed_at: confirmedAt }
         })
-        .eq('id', submission.id)
-
-      if (updateError) {
-        console.error('video_submissions 업데이트 실패:', updateError)
-        throw new Error(`영상 상태 업데이트 실패: ${updateError.message}`)
+      })
+      const videoUpdateResult = await videoUpdateRes.json()
+      if (!videoUpdateResult.success) {
+        console.error('video_submissions 업데이트 실패:', videoUpdateResult.error)
+        throw new Error(`영상 상태 업데이트 실패: ${videoUpdateResult.error}`)
       }
 
       // 로컬 상태 즉시 업데이트 (UI 반영) - DB 업데이트 성공 후에만 실행
@@ -5918,31 +5755,11 @@ Questions? Contact us.
         .eq('id', submission.application_id)
         .single()
 
-      // 3. applications를 completed로 업데이트
-      if (region === 'japan' || region === 'us') {
-        // JP/US는 Netlify Function으로 RLS 우회
-        const res = await fetch('/.netlify/functions/save-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'update_application',
-            region,
-            campaignId: campaign.id,
-            userId: applicationData?.user_id || submission.user_id,
-            updateData: { status: 'completed', final_confirmed_at: new Date().toISOString() }
-          })
-        })
-        const result = await res.json()
-        if (!result.success) {
-          console.error('JP/US application 상태 변경 실패:', result.error)
-        }
-      } else {
-        // 한국은 기존 방식
-        await supabase
-          .from('applications')
-          .update({ status: 'completed' })
-          .eq('id', submission.application_id)
-      }
+      // 3. applications를 completed로 업데이트 (리전 API 사용)
+      await callRegionCampaignAPI(region, 'update_application', id, submission.application_id, {
+        status: 'completed',
+        final_confirmed_at: new Date().toISOString()
+      })
 
       // 4. 포인트 지급 (skipPointPayment가 false일 때만)
       const userId = applicationData?.user_id || submission.user_id
@@ -6407,24 +6224,8 @@ Questions? Contact us.
         }
 
         if (Object.keys(updateData).length > 0) {
-          // BIZ DB applications 테이블 업데이트
-          await supabase
-            .from('applications')
-            .update(updateData)
-            .eq('id', adminSnsEditData.participantId)
-
-          // Korea DB campaign_participants 테이블에도 업데이트 (user_id로 매칭)
-          if (supabaseKorea && adminSnsEditData.userId) {
-            const { error: koreaError } = await supabaseKorea
-              .from('campaign_participants')
-              .update(updateData)
-              .eq('campaign_id', id)
-              .eq('user_id', adminSnsEditData.userId)
-
-            if (koreaError) {
-              console.error('Korea DB update error:', koreaError)
-            }
-          }
+          // 리전 API를 통해 applications 테이블 업데이트
+          await callRegionCampaignAPI(region, 'update_application', id, adminSnsEditData.participantId, updateData)
         }
 
         setShowAdminSnsEditModal(false)
@@ -6778,22 +6579,11 @@ Questions? Contact us.
   const handlePostSelectionComplete = async (updatedCreator) => {
     try {
       // 상태를 가이드 확인 대기로 변경
-      if (region === 'korea') {
-        await callKoreaCampaignAPI('update_application', id, updatedCreator.id, {
-          status: 'guide_confirmation',
-          guide_sent_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      } else {
-        await supabase
-          .from('applications')
-          .update({
-            status: 'guide_confirmation',
-            guide_sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', updatedCreator.id)
-      }
+      await callRegionCampaignAPI(region, 'update_application', id, updatedCreator.id, {
+        status: 'guide_confirmation',
+        guide_sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
 
       // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
       try {
@@ -8230,16 +8020,14 @@ Questions? Contact us.
                                             if (!confirm(`${creatorName}님에게 ${weekNum}주차 가이드를 전달하시겠습니까?\n\n마감일: ${deadlineText}`)) return
 
                                             try {
-                                              // 개별 크리에이터에게 주차별 가이드 발송
-                                              const { error } = await supabase
-                                                .from('applications')
-                                                .update({
-                                                  [`week${weekNum}_guide_delivered`]: true,
-                                                  [`week${weekNum}_guide_delivered_at`]: new Date().toISOString(),
-                                                  status: 'filming',
-                                                  updated_at: new Date().toISOString()
-                                                })
-                                                .eq('id', participant.id)
+                                              // 개별 크리에이터에게 주차별 가이드 발송 (리전 API 사용)
+                                              await callRegionCampaignAPI(region, 'update_application', id, participant.id, {
+                                                [`week${weekNum}_guide_delivered`]: true,
+                                                [`week${weekNum}_guide_delivered_at`]: new Date().toISOString(),
+                                                status: 'filming',
+                                                updated_at: new Date().toISOString()
+                                              })
+                                              const error = null
 
                                               if (error) throw error
 
@@ -8397,12 +8185,7 @@ Questions? Contact us.
 
   const handleUpdateCreatorStatus = async (participantId, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status: newStatus })
-        .eq('id', participantId)
-
-      if (error) throw error
+      await callRegionCampaignAPI(region, 'update_status', id, participantId, { status: newStatus })
 
       // 참여자 목록 재로드
       const { data, error: fetchError } = await supabase
@@ -8480,12 +8263,7 @@ Questions? Contact us.
       // 4주 챌린지/메가와리: personalized_guide와 status 초기화만 수행
       // (week1_guide_delivered 등 컬럼은 applications 테이블에 존재하지 않음)
 
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('id', participantId)
-
-      if (error) throw error
+      await callRegionCampaignAPI(region, 'update_application', id, participantId, updateData)
 
       // 참여자 목록 재로드
       await fetchParticipants()
@@ -8587,18 +8365,13 @@ Questions? Contact us.
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       
-      // 1. 캠페인 취소
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
-          is_cancelled: true,
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: user?.email || 'unknown',
-          cancel_reason: cancelReason || '사유 미기재'
-        })
-        .eq('id', id)
-
-      if (error) throw error
+      // 1. 캠페인 취소 (리전 API 사용)
+      await callRegionCampaignAPI(region, 'update_campaign', id, null, {
+        is_cancelled: true,
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: user?.email || 'unknown',
+        cancel_reason: cancelReason || '사유 미기재'
+      })
 
       // 2. 포인트로 결제한 경우 포인트 반납
       // points_transactions에서 이 캠페인의 결제 기록 확인
@@ -10565,12 +10338,11 @@ Questions? Contact us.
                                     }
                                     if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                                     try {
-                                      const { error } = await supabase.from('applications').update({
+                                      await callRegionCampaignAPI(region, 'update_application', id, app.id, {
                                         status: 'selected',
                                         virtual_selected: false,
                                         main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
-                                      }).eq('id', app.id)
-                                      if (error) throw error
+                                      })
                                       const pName = app.applicant_name || app.creator_name || '크리에이터'
                                       const pEmail = app.email || app.applicant_email || app.creator_email
                                       let pPhone = app.phone || app.phone_number || app.creator_phone
@@ -14487,17 +14259,9 @@ Questions? Contact us.
                       }
                       creator={selectedGuide}
                       onSave={async (updatedGuide) => {
-                        const { error } = await supabase
-                          .from('applications')
-                          .update({
-                            personalized_guide: prepareGuideForSave(updatedGuide, region)
-                          })
-                          .eq('id', selectedGuide.id)
-
-                        if (error) {
-                          console.error('가이드 저장 실패:', error)
-                          throw new Error('데이터베이스 저장 실패: ' + error.message)
-                        }
+                        await callRegionCampaignAPI(region, 'update_application', id, selectedGuide.id, {
+                          personalized_guide: prepareGuideForSave(updatedGuide, region)
+                        })
 
                         // Update local state
                         setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
@@ -14669,12 +14433,10 @@ Questions? Contact us.
                       onClick={async () => {
                         try {
                           // 추가 메시지 저장
-                          const { error } = await supabase
-                            .from('applications')
-                            .update({
-                              additional_message: selectedGuide.additional_message || null
-                            })
-                            .eq('id', selectedGuide.id)
+                          await callRegionCampaignAPI(region, 'update_application', id, selectedGuide.id, {
+                            additional_message: selectedGuide.additional_message || null
+                          })
+                          const error = null
 
                           if (error) {
                             console.error('Supabase error:', error)
@@ -14897,12 +14659,10 @@ Questions? Contact us.
                     const { regeneratedGuide } = await regenerateResponse.json()
 
                     // 데이터베이스에 업데이트
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        personalized_guide: prepareGuideForSave(regeneratedGuide, region)
-                      })
-                      .eq('id', selectedGuide.id)
+                    await callRegionCampaignAPI(region, 'update_application', id, selectedGuide.id, {
+                      personalized_guide: prepareGuideForSave(regeneratedGuide, region)
+                    })
+                    const error = null
 
                     if (error) throw error
 
@@ -15183,15 +14943,10 @@ Questions? Contact us.
                       created_at: new Date().toISOString()
                     }
 
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        video_status: 'revision_requested',
-                        revision_requests: [...existingRequests, newRequest]
-                      })
-                      .eq('id', selectedParticipant.id)
-
-                    if (error) throw error
+                    await callRegionCampaignAPI(region, 'update_application', id, selectedParticipant.id, {
+                      video_status: 'revision_requested',
+                      revision_requests: [...existingRequests, newRequest]
+                    })
 
                     // 알림 발송 (수정 요청) - 리전별
                     if (selectedParticipant.user_id) {
@@ -15914,13 +15669,11 @@ Questions? Contact us.
                   if (!confirm('연장 신청을 거부하시겠습니까? 거부 시 캠페인 취소 여부를 결정해야 합니다.')) return
 
                   try {
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        extension_status: 'rejected',
-                        extension_decided_at: new Date().toISOString()
-                      })
-                      .eq('id', selectedParticipant.id)
+                    await callRegionCampaignAPI(region, 'update_application', id, selectedParticipant.id, {
+                      extension_status: 'rejected',
+                      extension_decided_at: new Date().toISOString()
+                    })
+                    const error = null
 
                     if (error) throw error
 
@@ -15945,13 +15698,11 @@ Questions? Contact us.
               <Button
                 onClick={async () => {
                   try {
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        extension_status: 'approved',
-                        extension_decided_at: new Date().toISOString()
-                      })
-                      .eq('id', selectedParticipant.id)
+                    await callRegionCampaignAPI(region, 'update_application', id, selectedParticipant.id, {
+                      extension_status: 'approved',
+                      extension_decided_at: new Date().toISOString()
+                    })
+                    const error = null
 
                     if (error) throw error
 
@@ -16376,13 +16127,11 @@ Questions? Contact us.
 
                         try {
                           const guideSaveVal = prepareGuideForSave(guidePayload, region)
-                          const { error } = await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: guideSaveVal,
-                              updated_at: new Date().toISOString()
-                            })
-                            .eq('id', selectedParticipantForGuide.id)
+                          await callRegionCampaignAPI(region, 'update_application', id, selectedParticipantForGuide.id, {
+                            personalized_guide: guideSaveVal,
+                            updated_at: new Date().toISOString()
+                          })
+                          const error = null
 
                           if (error) throw error
 
@@ -16506,16 +16255,11 @@ Questions? Contact us.
                           title: externalGuideData.title || ''
                         }
 
-                        const { error } = await supabase
-                          .from('applications')
-                          .update({
-                            personalized_guide: prepareGuideForSave(guidePayload, region),
-                            updated_at: new Date().toISOString(),
-                            status: 'filming'
-                          })
-                          .eq('id', selectedParticipantForGuide.id)
-
-                        if (error) throw error
+                        await callRegionCampaignAPI(region, 'update_application', id, selectedParticipantForGuide.id, {
+                          personalized_guide: prepareGuideForSave(guidePayload, region),
+                          updated_at: new Date().toISOString(),
+                          status: 'filming'
+                        })
 
                         // 알림 발송 (participant에 이미 enrichment된 데이터 사용)
                         try {
@@ -17315,15 +17059,10 @@ Questions? Contact us.
                     const { guide } = await response.json()
 
                     // 생성된 가이드를 applications 테이블에 저장
-                    const { error: updateError } = await supabase
-                      .from('applications')
-                      .update({
-                        personalized_guide: prepareGuideForSave(guide, region),
-                        updated_at: new Date().toISOString()
-                      })
-                      .eq('id', selectedParticipantForGuide.id)
-
-                    if (updateError) throw updateError
+                    await callRegionCampaignAPI(region, 'update_application', id, selectedParticipantForGuide.id, {
+                      personalized_guide: prepareGuideForSave(guide, region),
+                      updated_at: new Date().toISOString()
+                    })
 
                     // 참여자 목록 새로고침
                     await fetchParticipants()
