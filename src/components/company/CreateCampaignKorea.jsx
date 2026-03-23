@@ -1152,7 +1152,7 @@ const CampaignCreationKorea = () => {
       // DB에 저장할 필드만 명시적으로 선택 (화이트리스트 방식)
       const allowedFields = {
         campaign_type: campaignForm.campaign_type,
-        package_type: campaignForm.campaign_type === 'story_short' ? null : campaignForm.package_type,
+        package_type: ['story_short', 'threads_post', 'x_post'].includes(campaignForm.campaign_type) ? null : campaignForm.package_type,
         brand: campaignForm.brand,
         product_name: campaignForm.product_name,
         product_description: campaignForm.product_description,

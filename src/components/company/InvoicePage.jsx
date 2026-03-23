@@ -505,7 +505,7 @@ const InvoicePage = () => {
 
   // 패키지 타입 라벨 매핑
   const getPackageLabel = (packageType, campaignType) => {
-    const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지', story_short: '스토리 숏폼' }
+    const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지', story_short: '스토리 숏폼', threads_post: '스레드 포스트', x_post: 'X 포스트' }
     const packageLabels = { basic: '베이직', junior: '초급', intermediate: '중급', senior: '상급', premium: '프리미엄', standard: '스탠다드', professional: '프로페셔널', enterprise: '엔터프라이즈' }
     const ctLabel = campaignTypeLabels[campaignType] || campaignType || ''
     const pkgLabel = packageLabels[packageType?.toLowerCase()] || packageType || ''
@@ -516,14 +516,14 @@ const InvoicePage = () => {
 
   // 가격 계산 (bonus_amount 포함)
   const recruitmentCount = campaign.total_slots || 1
-  // 스토리 숏폼은 고정 단가 20,000원 사용
-  const isStoryShort = campaign.campaign_type === 'story_short'
-  const basePackagePrice = isStoryShort ? 20000 : getPackagePrice(campaign.package_type, campaign.campaign_type)
-  const packagePrice = basePackagePrice + (isStoryShort ? 0 : (campaign.bonus_amount || 0))  // 스토리는 보너스 없음
+  // 스토리/스레드/X는 고정 단가 20,000원 사용
+  const isFixedUnitPrice = ['story_short', 'threads_post', 'x_post'].includes(campaign.campaign_type)
+  const basePackagePrice = isFixedUnitPrice ? 20000 : getPackagePrice(campaign.package_type, campaign.campaign_type)
+  const packagePrice = basePackagePrice + (isFixedUnitPrice ? 0 : (campaign.bonus_amount || 0))  // 스토리/스레드/X는 보너스 없음
   const subtotal = packagePrice * recruitmentCount
   const vat = Math.round(subtotal * 0.1)
-  // 스토리 숏폼: estimated_cost 우선, 그 외: 패키지 가격 기반
-  const totalCost = isStoryShort
+  // 스토리/스레드/X: estimated_cost 우선, 그 외: 패키지 가격 기반
+  const totalCost = isFixedUnitPrice
     ? (campaign.estimated_cost ? Math.round(campaign.estimated_cost) : subtotal + vat)
     : (campaign.package_type && campaign.total_slots) ? subtotal + vat : (campaign.estimated_cost ? Math.round(campaign.estimated_cost) : subtotal + vat)
   // 할인 금액 (현재는 0)
