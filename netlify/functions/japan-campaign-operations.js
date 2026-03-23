@@ -121,6 +121,16 @@ exports.handler = async (event) => {
           .limit(1000)
         break
 
+      // 참가자 조회 (선정된 크리에이터만)
+      case 'get_participants':
+        result = await supabaseJapan
+          .from('applications')
+          .select('*')
+          .eq('campaign_id', campaign_id)
+          .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+          .order('created_at', { ascending: false })
+        break
+
       case 'virtual_select':
         const virtualSelectData = { virtual_selected: data.virtual_selected }
         if (data.main_channel) {

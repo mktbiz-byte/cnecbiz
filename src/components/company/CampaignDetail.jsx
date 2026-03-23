@@ -1544,7 +1544,7 @@ export default function CampaignDetail() {
     try {
       let data, error
 
-      // Korea 리전은 서버사이드 API로 RLS 우회
+      // 모든 리전에서 서버사이드 API로 RLS 우회 (anon key로는 리전 DB 접근 불가)
       if (region === 'korea') {
         try {
           const apiResult = await callKoreaCampaignAPI('get_participants', id)
@@ -1552,6 +1552,38 @@ export default function CampaignDetail() {
           error = null
         } catch (apiErr) {
           console.error('[fetchParticipants] Korea API fallback:', apiErr)
+          const result = await supabase
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+            .order('created_at', { ascending: false })
+          data = result.data
+          error = result.error
+        }
+      } else if (region === 'us') {
+        try {
+          const apiResult = await callUSCampaignAPI('get_participants', id)
+          data = apiResult?.data || []
+          error = null
+        } catch (apiErr) {
+          console.error('[fetchParticipants] US API fallback:', apiErr)
+          const result = await supabase
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+            .order('created_at', { ascending: false })
+          data = result.data
+          error = result.error
+        }
+      } else if (region === 'japan') {
+        try {
+          const apiResult = await callJapanCampaignAPI('get_participants', id)
+          data = apiResult?.data || []
+          error = null
+        } catch (apiErr) {
+          console.error('[fetchParticipants] Japan API fallback:', apiErr)
           const result = await supabase
             .from('applications')
             .select('*')
