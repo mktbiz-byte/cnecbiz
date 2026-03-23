@@ -5729,7 +5729,7 @@ Questions? Contact us.
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'update_video_submission_status',
+          action: 'update_video_submission',
           region,
           submissionId: submission.id,
           updateData: { status: 'completed', final_confirmed_at: confirmedAt }
@@ -5977,35 +5977,21 @@ Questions? Contact us.
       const pointAmount = calculateCreatorPoints(campaign)
       const userId = participant.user_id
 
-      // 1. 리전별 applications 상태 업데이트
-      if (region === 'japan' || region === 'us') {
-        // JP/US는 Netlify Function으로 RLS 우회
-        const res = await fetch('/.netlify/functions/save-video-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'update_application',
-            region,
-            campaignId: campaign.id,
-            userId: participant.user_id,
-            updateData: { status: 'completed', final_confirmed_at: new Date().toISOString() }
-          })
+      // 1. 리전별 applications 상태 업데이트 (모두 Netlify Function으로 RLS 우회)
+      const res = await fetch('/.netlify/functions/save-video-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_application',
+          region,
+          campaignId: campaign.id,
+          userId: participant.user_id,
+          updateData: { status: 'completed', final_confirmed_at: new Date().toISOString() }
         })
-        const result = await res.json()
-        if (!result.success) {
-          console.error('JP/US application 상태 변경 실패:', result.error)
-        }
-      } else {
-        // 한국: Korea DB 직접 업데이트
-        if (region === 'korea' && supabaseKorea) {
-          await supabaseKorea
-            .from('applications')
-            .update({
-              status: 'completed',
-              final_confirmed_at: new Date().toISOString()
-            })
-            .eq('id', participant.id)
-        }
+      })
+      const result = await res.json()
+      if (!result.success) {
+        console.error('application 상태 변경 실패:', result.error)
       }
 
       // 2. BIZ DB의 applications 상태 업데이트 (있으면)
