@@ -1,14 +1,14 @@
 const { createClient } = require('@supabase/supabase-js')
 
-// Korea Supabase 서비스 롤 클라이언트 (RLS 우회)
-const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL
-const koreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+// Japan Supabase 서비스 롤 클라이언트 (RLS 우회)
+const japanUrl = process.env.VITE_SUPABASE_JAPAN_URL
+const japanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
 
 // BIZ Supabase (인증 확인용)
 const bizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const bizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const supabaseKorea = koreaUrl && koreaServiceKey ? createClient(koreaUrl, koreaServiceKey) : null
+const supabaseJapan = japanUrl && japanServiceKey ? createClient(japanUrl, japanServiceKey) : null
 const supabaseBiz = bizUrl && bizServiceKey ? createClient(bizUrl, bizServiceKey) : null
 
 const headers = {
@@ -32,12 +32,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    if (!supabaseKorea) {
-      console.error('Korea Supabase 환경변수 누락: VITE_SUPABASE_KOREA_URL 또는 SUPABASE_KOREA_SERVICE_ROLE_KEY')
+    if (!supabaseJapan) {
+      console.error('Japan Supabase 환경변수 누락: VITE_SUPABASE_JAPAN_URL 또는 SUPABASE_JAPAN_SERVICE_ROLE_KEY')
       return {
         statusCode: 503,
         headers,
-        body: JSON.stringify({ success: false, error: 'Korea Supabase 설정이 필요합니다.' })
+        body: JSON.stringify({ success: false, error: 'Japan Supabase 설정이 필요합니다. 관리자에게 문의하세요.' })
       }
     }
 
@@ -74,12 +74,12 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body)
     const { action, campaign_id, application_id, data } = body
 
-    console.log('[Korea API] Request:', { action, campaign_id, application_id, userEmail: user.email })
+    console.log('[Japan API] Request:', { action, campaign_id, application_id, userEmail: user.email })
 
-    // 캠페인 조회 (Korea DB)
-    const { data: campaign, error: campaignError } = await supabaseKorea
+    // 캠페인 조회 (Japan DB)
+    const { data: campaign, error: campaignError } = await supabaseJapan
       .from('campaigns')
-      .select('id, company_id, title')
+      .select('id, company_id, company_email, title')
       .eq('id', campaign_id)
       .single()
 
@@ -87,7 +87,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다' })
+        body: JSON.stringify({ success: false, error: `캠페인을 찾을 수 없습니다: ${campaignError?.message || 'not found'}` })
       }
     }
 
@@ -100,38 +100,20 @@ exports.handler = async (event) => {
 
     const isAdmin = !!adminData
 
-    // 소유권 확인 (관리자이거나 company_id가 일치)
-    if (!isAdmin && campaign.company_id !== user.id) {
-      // company_id가 companies.user_id일 수 있으므로 추가 확인
-      const { data: companyRecord } = await supabaseBiz
-        .from('companies')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('id', campaign.company_id)
-        .maybeSingle()
-
-      if (!companyRecord) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다' })
-        }
+    // 소유권 확인 (관리자이거나 company_email 또는 company_id가 일치)
+    if (!isAdmin && campaign.company_id !== user.id && campaign.company_email !== user.email) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다' })
       }
     }
 
     let result
 
     switch (action) {
-      case 'get_campaign':
-        result = await supabaseKorea
-          .from('campaigns')
-          .select('*')
-          .eq('id', campaign_id)
-          .single()
-        break
-
       case 'get_applications':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .select('*')
           .eq('campaign_id', campaign_id)
@@ -139,35 +121,12 @@ exports.handler = async (event) => {
           .limit(1000)
         break
 
-      case 'get_participants':
-        result = await supabaseKorea
-          .from('applications')
-          .select('*')
-          .eq('campaign_id', campaign_id)
-          .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
-          .order('created_at', { ascending: false })
-        break
-
-      case 'get_video_submissions':
-        result = await supabaseKorea
-          .from('video_submissions')
-          .select('*')
-          .eq('campaign_id', campaign_id)
-          .order('created_at', { ascending: false })
-        break
-
-      case 'get_user_profiles':
-        result = await supabaseKorea
-          .from('user_profiles')
-          .select('*')
-        break
-
       case 'virtual_select':
         const virtualSelectData = { virtual_selected: data.virtual_selected }
         if (data.main_channel) {
           virtualSelectData.main_channel = data.main_channel
         }
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update(virtualSelectData)
           .eq('id', application_id)
@@ -176,7 +135,7 @@ exports.handler = async (event) => {
         break
 
       case 'update_channel':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({ main_channel: data.main_channel })
           .eq('id', application_id)
@@ -185,7 +144,7 @@ exports.handler = async (event) => {
         break
 
       case 'confirm_selection':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({
             status: 'selected',
@@ -197,7 +156,7 @@ exports.handler = async (event) => {
         break
 
       case 'cancel_selection':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({
             status: 'pending',
@@ -209,7 +168,7 @@ exports.handler = async (event) => {
         break
 
       case 'update_status':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({ status: data.status })
           .eq('id', application_id)
@@ -218,7 +177,7 @@ exports.handler = async (event) => {
         break
 
       case 'update_shipping':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({
             tracking_number: data.tracking_number,
@@ -230,7 +189,7 @@ exports.handler = async (event) => {
         break
 
       case 'update_guide':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({
             personalized_guide: data.guide,
@@ -243,7 +202,7 @@ exports.handler = async (event) => {
         break
 
       case 'update_views':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update({
             views: data.views,
@@ -257,7 +216,7 @@ exports.handler = async (event) => {
 
       case 'update_application':
         const { updated_at, ...safeData } = data
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('applications')
           .update(safeData)
           .eq('id', application_id)
@@ -267,7 +226,7 @@ exports.handler = async (event) => {
 
       // 캠페인 정보 업데이트 (마감일, 상세 정보 등)
       case 'update_campaign':
-        result = await supabaseKorea
+        result = await supabaseJapan
           .from('campaigns')
           .update(data)
           .eq('id', campaign_id)
@@ -283,7 +242,7 @@ exports.handler = async (event) => {
     }
 
     if (result.error) {
-      console.error('[Korea API] Database error:', result.error)
+      console.error('[Japan API] Database error:', result.error)
       return {
         statusCode: 500,
         headers,
@@ -301,7 +260,7 @@ exports.handler = async (event) => {
     }
 
   } catch (error) {
-    console.error('[Korea API] Error:', error)
+    console.error('[Japan API] Error:', error)
 
     try {
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com'
@@ -309,7 +268,7 @@ exports.handler = async (event) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          functionName: 'korea-campaign-operations',
+          functionName: 'japan-campaign-operations',
           errorMessage: error.message,
           context: { action: JSON.parse(event.body)?.action }
         })

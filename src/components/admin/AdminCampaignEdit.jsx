@@ -114,9 +114,6 @@ export default function AdminCampaignEdit() {
 
     setSaving(true)
     try {
-      const client = getSupabaseClient(region)
-      if (!client) throw new Error('Supabase client not found')
-
       const updateData = {
         title: campaign.title,
         brand: campaign.brand,
@@ -201,12 +198,40 @@ export default function AdminCampaignEdit() {
         updateData.reward_points = campaign.reward_points
       }
 
-      const { error } = await client
-        .from('campaigns')
-        .update(updateData)
-        .eq('id', id)
+      // RLS 우회를 위해 리전별 서버사이드 API로 업데이트
+      const regionApiMap = {
+        korea: 'korea-campaign-operations',
+        japan: 'japan-campaign-operations',
+        us: 'us-campaign-operations'
+      }
+      const apiName = regionApiMap[region]
 
-      if (error) throw error
+      if (apiName) {
+        const { data: { session } } = await supabaseBiz.auth.getSession()
+        const response = await fetch(`/.netlify/functions/${apiName}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'update_campaign',
+            campaign_id: id,
+            data: updateData
+          })
+        })
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || '캠페인 수정에 실패했습니다.')
+      } else {
+        // BIZ/Taiwan 등 operations API가 없는 리전은 직접 업데이트
+        const client = getSupabaseClient(region)
+        if (!client) throw new Error('Supabase client not found')
+        const { error } = await client
+          .from('campaigns')
+          .update(updateData)
+          .eq('id', id)
+        if (error) throw error
+      }
 
       alert('캠페인이 수정되었습니다!')
       navigate(`/admin/campaigns/${id}?region=${region}`)
@@ -231,18 +256,44 @@ export default function AdminCampaignEdit() {
     }
 
     try {
-      const client = getSupabaseClient(region)
-      if (!client) throw new Error('Supabase client not found')
+      const statusUpdateData = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      }
 
-      const { error } = await client
-        .from('campaigns')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
+      // RLS 우회를 위해 리전별 서버사이드 API로 업데이트
+      const regionApiMap = {
+        korea: 'korea-campaign-operations',
+        japan: 'japan-campaign-operations',
+        us: 'us-campaign-operations'
+      }
+      const apiName = regionApiMap[region]
+
+      if (apiName) {
+        const { data: { session } } = await supabaseBiz.auth.getSession()
+        const response = await fetch(`/.netlify/functions/${apiName}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'update_campaign',
+            campaign_id: id,
+            data: statusUpdateData
+          })
         })
-        .eq('id', id)
-
-      if (error) throw error
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || '상태 변경에 실패했습니다.')
+      } else {
+        const client = getSupabaseClient(region)
+        if (!client) throw new Error('Supabase client not found')
+        const { error } = await client
+          .from('campaigns')
+          .update(statusUpdateData)
+          .eq('id', id)
+        if (error) throw error
+      }
 
       setCampaign({ ...campaign, status: newStatus })
       alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
