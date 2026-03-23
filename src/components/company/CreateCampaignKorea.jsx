@@ -1293,19 +1293,28 @@ const CampaignCreationKorea = () => {
         }
       }
 
-      const client = supabaseKorea || supabaseBiz
       if (editId) {
-        // 수정 모드: 포인트 차감 없이 수정만 진행
-        const { error: updateError } = await client
-          .from('campaigns')
-          .update(campaignData)
-          .eq('id', editId)
-
-        if (updateError) throw updateError
+        // RLS 우회를 위해 서버사이드 API로 업데이트 (anon key로는 리전 DB UPDATE 불가)
+        const { data: { session } } = await supabaseBiz.auth.getSession()
+        const response = await fetch('/.netlify/functions/korea-campaign-operations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'update_campaign',
+            campaign_id: editId,
+            data: campaignData
+          })
+        })
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || '캠페인 수정에 실패했습니다.')
 
         setSuccess('캠페인이 수정되었습니다!')
       } else {
         // 신규 생성 모드
+        const client = supabaseKorea || supabaseBiz
         const { data: insertData, error: insertError } = await client
           .from('campaigns')
           .insert([{
