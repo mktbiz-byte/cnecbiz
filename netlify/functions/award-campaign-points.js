@@ -69,22 +69,15 @@ exports.handler = async (event) => {
 
     const supabase = getRegionClient(region || 'korea')
 
-    // 1. user_profiles에서 현재 포인트 조회 (user_id 우선 → id fallback)
+    // 1. user_profiles에서 현재 포인트 조회
+    // ⚠️ Korea DB user_profiles에는 user_id 컬럼이 없음 (id = auth user id)
+    // Japan/US DB에는 user_id 컬럼이 있음
     let profile = null
     let profileMatchField = 'id'
+    const isKorea = !region || region === 'korea' || region === 'kr'
 
-    // user_id 우선 시도 (Supabase Auth UUID가 더 일반적)
-    const { data: profileByUserId } = await supabase
-      .from('user_profiles')
-      .select('id, points, user_id')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (profileByUserId) {
-      profile = profileByUserId
-      profileMatchField = 'user_id'
-    } else {
-      // fallback: id로 시도
+    if (isKorea) {
+      // Korea: id = auth user id (user_id 컬럼 없음)
       const { data: profileById } = await supabase
         .from('user_profiles')
         .select('id, points')
@@ -94,6 +87,29 @@ exports.handler = async (event) => {
       if (profileById) {
         profile = profileById
         profileMatchField = 'id'
+      }
+    } else {
+      // Japan/US: user_id 컬럼 존재 → user_id 우선 시도, id fallback
+      const { data: profileByUserId } = await supabase
+        .from('user_profiles')
+        .select('id, points, user_id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (profileByUserId) {
+        profile = profileByUserId
+        profileMatchField = 'user_id'
+      } else {
+        const { data: profileById } = await supabase
+          .from('user_profiles')
+          .select('id, points')
+          .eq('id', userId)
+          .maybeSingle()
+
+        if (profileById) {
+          profile = profileById
+          profileMatchField = 'id'
+        }
       }
     }
 
