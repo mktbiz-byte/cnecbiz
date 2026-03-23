@@ -7346,7 +7346,9 @@ Questions? Contact us.
 
   const handleRequestAdditionalPayment = () => {
     const additionalCount = selectedParticipants.length - campaign.total_slots
-    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)
+    const packagePrice = ['story_short', 'threads_post', 'x_post'].includes(campaign.campaign_type)
+      ? 20000
+      : getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)
     const additionalCost = Math.round(packagePrice * additionalCount * 1.1)  // VAT 포함
     if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원 (VAT 포함)`)) {
       // 견적서 페이지로 이동 (추가 인원 정보 포함, region 파라미터 유지)
@@ -8838,9 +8840,11 @@ Questions? Contact us.
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-[#636E72]">{campaign.campaign_type === 'story_short' ? '캠페인 타입' : '패키지'}</p>
+                  <p className="text-xs sm:text-sm text-[#636E72]">{['story_short', 'threads_post', 'x_post'].includes(campaign.campaign_type) ? '캠페인 타입' : '패키지'}</p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
                     {campaign.campaign_type === 'story_short' ? '스토리 숏폼' :
+                     campaign.campaign_type === 'threads_post' ? '스레드 포스트' :
+                     campaign.campaign_type === 'x_post' ? 'X 포스트' :
                      campaign.package_type === 'junior' ? '초급' :
                      campaign.package_type === 'standard' ? '스탠다드' :
                      campaign.package_type === 'intermediate' ? '스탠다드' :
@@ -8875,7 +8879,7 @@ Questions? Contact us.
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-[#636E72]">결제 예상 금액 <span className="text-[10px] sm:text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
-                    {campaign.campaign_type === 'story_short' ?
+                    {['story_short', 'threads_post', 'x_post'].includes(campaign.campaign_type) ?
                       `₩${Math.round(campaign.estimated_cost || (20000 * (campaign.total_slots || 5) * 1.1)).toLocaleString()}`
                       : campaign.package_type && campaign.total_slots ?
                         `₩${Math.round((getPackagePrice(campaign.package_type, campaign.campaign_type) + (campaign.bonus_amount || 0)) * campaign.total_slots * 1.1).toLocaleString()}`
