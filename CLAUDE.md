@@ -108,6 +108,7 @@ cnecbiz/
 | `companies` | 기업 정보 |
 | `creators` | 크리에이터 정보 |
 | `admin_users` | 관리자 계정 |
+| `featured_creators` | 추천 크리에이터 (threads_username, x_username, threads_followers, x_followers 포함) |
 
 #### 계약서 시스템
 | 테이블 | 용도 |
@@ -120,6 +121,19 @@ cnecbiz/
 |--------|------|
 | `points` | 포인트 내역 |
 | `payments` | 결제 내역 |
+
+#### 콘텐츠 제출/성과 시스템 (2026년 3월 추가)
+| 테이블 | 용도 |
+|--------|------|
+| `text_submissions` | 스레드/X 포스트 텍스트 제출물 |
+| `story_submissions` | 스토리 숏폼 콘텐츠 제출물 |
+| `campaign_post_metrics` | 콘텐츠 성과 지표 (views, likes, replies, reposts, impressions 등) |
+
+#### 상담/스프레드시트 시스템 (2026년 3월 추가)
+| 테이블 | 용도 |
+|--------|------|
+| `consultation_spreadsheets` | 상담 스프레드시트 컨테이너 |
+| `consultation_spreadsheet_rows` | 스프레드시트 개별 행 데이터 |
 
 #### 출금/결재 시스템 ★ 중요
 | 테이블 | DB | 용도 |
@@ -235,13 +249,14 @@ verify-sms-code.js        # SMS 인증 코드 확인
 ```
 approve-campaign.js       # 캠페인 승인
 update-campaign-status.js # 캠페인 상태 업데이트
+update-campaign-details.js # 캠페인 상세 수정 (리전 DB service role key 사용)
 ```
 
 ### 결제/포인트
 ```
 confirm-payment.js        # 결제 확인
 confirm-toss-payment.js   # 토스 결제 확인
-confirm-campaign-payment.js # 캠페인 결제 확인
+confirm-campaign-payment.js # 캠페인 입금 확인 (관리자 수동, 자동 승인+활성화, 알림톡+이메일 발송) ★
 create-charge-request.js  # 충전 요청 생성
 confirm-charge-complete.js # 충전 완료 확인
 precharge-points.js       # 포인트 선충전
@@ -291,6 +306,22 @@ popbill-webhook.js        # Popbill 웹훅
 get-tax-invoice-requests.js # 세금계산서 요청 조회
 ```
 
+### 콘텐츠 제출/성과 (2026년 3월 추가)
+```
+get-text-submissions.js       # 스레드/X 텍스트 제출물 조회
+review-text-submission.js     # 텍스트 제출물 승인/반려
+get-story-submissions.js      # 스토리 제출물 조회
+review-story-submission.js    # 스토리 제출물 승인/반려
+save-post-metrics.js          # 콘텐츠 성과 지표 저장 (UPSERT)
+get-post-metrics.js           # 콘텐츠 성과 지표 조회
+```
+
+### 상담/유틸리티 (2026년 3월 추가)
+```
+manage-consultation-spreadsheet.js # 상담 스프레드시트 CRUD
+generate-utm-link.js              # UTM 추적 링크 생성
+```
+
 ### 예약 작업 (Scheduled)
 ```
 scheduled-daily-report.js           # 일일 리포트
@@ -299,6 +330,9 @@ scheduled-video-deadline-notification.js    # 영상 마감 알림
 scheduled-collect-transactions.js   # 거래 수집
 scheduled-creator-monitoring.js     # 크리에이터 모니터링
 scheduled-weekly-withdrawal-report.js # 주간 출금 리포트
+scheduled-daily-withdrawal-approval.js # 출금 자동 결재 (월~금 10am KST)
+scheduled-unmatched-deposits-alert.js  # 미매칭 입금 알림 (매일 4pm KST)
+scheduled-chatbot-cleanup.js        # 챗봇 데이터 정리 (매일 3am UTC)
 ```
 
 ---
@@ -590,7 +624,7 @@ const supabaseKorea = createClient(
 
 ---
 
-## ⚠️ 필수 개발 규칙 (2025년 2월 업데이트)
+## ⚠️ 필수 개발 규칙 (2026년 3월 업데이트)
 
 > **모든 세션에서 반드시 지켜야 하는 규칙입니다. 위반 시 프로덕션 오류가 발생합니다.**
 
@@ -755,6 +789,44 @@ cnectotal.netlify.app ❌ → cnecbiz.com ✅
 - [ ] 새로운 색상을 추가하지 않았는가? (토큰에 정의된 색상만 사용)
 - [ ] 컴포넌트 스타일이 가이드와 일치하는가?
 - [ ] Tailwind 클래스가 디자인 토큰 값과 일치하는가?
+
+---
+
+## 캠페인 타입 (campaign_type) 상세 (2026년 3월 업데이트)
+
+| campaign_type | 이름 | 단가 | 최소 인원 | 채널 | 상태 |
+|---------------|------|------|-----------|------|------|
+| `planned` | 일반 캠페인 | 패키지별 | 1명 | 다중 선택 | 운영중 |
+| `oliveyoung` | 올영세일 | ₩400,000 | 1명 | 올리브영 | 운영중 |
+| `4week_challenge` | 4주 챌린지 | 패키지별 | 1명 | 인스타그램 | 운영중 |
+| `story_short` | 스토리 숏폼 | ₩20,000 | 5명 | 인스타그램 | 운영중 |
+| `threads_post` | 스레드 포스트 | ₩20,000 | 5명 | Threads | **오픈 (2026-03-23)** |
+| `x_post` | X 포스트 | ₩20,000 | 5명 | X(트위터) | **오픈 (2026-03-23)** |
+
+### 스레드/X 포스트 특징
+- 텍스트 기반 콘텐츠 (3단계 퍼널: Hook → Value → Offer)
+- 견적: `단가(₩20,000) × 인원 × 1.1(VAT)` → 5명 기준 ₩110,000
+- 크리에이터 지급 포인트: ₩12,000 (60%)
+- 제출물: 포스트 URL + 스크린샷
+- 성과 지표: views, likes, replies, reposts, quotes, impressions, bookmarks
+- `package_type`은 null로 저장 (CampaignDetail에서 패키지 기반 금액 계산 방지)
+
+### 콘텐츠 제출/검수 컴포넌트 (2026년 3월 추가)
+
+| 컴포넌트 | 위치 | 용도 |
+|----------|------|------|
+| `TextSubmissionReview.jsx` | admin/ | 스레드/X 텍스트 제출물 검수 |
+| `StorySubmissionReview.jsx` | admin/ | 스토리 제출물 검수 (인터랙티브 스티커 등) |
+| `PostMetricsForm.jsx` | admin/ | 성과 지표 입력 폼 |
+| `PostMetricsSummary.jsx` | admin/ | 성과 지표 요약 표시 |
+| `TextSubmissionReadonly.jsx` | company/ | 텍스트 제출물 읽기전용 (기업용) |
+| `StorySubmissionReadonly.jsx` | company/ | 스토리 제출물 읽기전용 (기업용) |
+| `PostMetricsReadonly.jsx` | company/ | 성과 지표 읽기전용 (기업용) |
+| `TextContentGuideForm.jsx` | company/ | 스레드/X 가이드 작성 폼 |
+| `StoryContentGuideForm.jsx` | company/ | 스토리 가이드 작성 폼 |
+| `ReferenceUrlsInput.jsx` | company/ | 레퍼런스 URL 입력 |
+| `CnecShopLinkGenerator.jsx` | company/ | CNEC Shop 어필리에이트 링크 생성 |
+| `ConsultationSpreadsheet.jsx` | admin/ | 상담 스프레드시트 (멀티시트, 인라인 편집, 엑셀 내보내기) |
 
 ---
 
