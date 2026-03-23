@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabaseKorea as supabase } from '../../lib/supabaseClients'
+import { supabaseKorea as supabase, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { ArrowLeft, Calendar, ExternalLink, CreditCard, Edit, Save, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
@@ -54,12 +54,22 @@ export default function OliveYoungGuideViewer() {
       setSaving(true)
       const fieldName = `oliveyoung_step${editingStep}_guide_ai`
       
-      const { error } = await supabase
-        .from('campaigns')
-        .update({ [fieldName]: editValue })
-        .eq('id', id)
-
-      if (error) throw error
+      // 리전 API로 캠페인 업데이트 (RLS 우회)
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      const response = await fetch('/.netlify/functions/korea-campaign-operations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update_campaign',
+          campaign_id: id,
+          data: { [fieldName]: editValue }
+        })
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || '저장에 실패했습니다.')
 
       // Update local state
       setCampaign({ ...campaign, [fieldName]: editValue })
