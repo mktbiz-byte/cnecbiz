@@ -242,6 +242,16 @@ exports.handler = async (event) => {
           .limit(1000)
         break
 
+      // 참가자 조회 (선정된 크리에이터만)
+      case 'get_participants':
+        result = await supabaseUS
+          .from('applications')
+          .select('*')
+          .eq('campaign_id', campaign_id)
+          .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+          .order('created_at', { ascending: false })
+        break
+
       // 일반 업데이트 (updated_at 제외)
       case 'update_application':
         // US DB에 없는 컬럼 제외
