@@ -1710,13 +1710,25 @@ const CampaignCreationKorea = () => {
               </ul>
             </div>
 
-            {/* 스레드 포스트 캠페인 - 오픈 예정 (잠금) */}
+            {/* 스레드 포스트 캠페인 */}
             <div
-              className="relative bg-white rounded-xl border-2 p-5 lg:p-6 flex flex-col border-gray-200 opacity-60 cursor-not-allowed"
+              className={`relative bg-white rounded-xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
+                campaignForm.campaign_type === 'threads_post'
+                  ? 'border-blue-500 shadow-lg ring-2 ring-blue-100'
+                  : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+              }`}
+              onClick={() => setCampaignForm(prev => ({
+                ...prev,
+                campaign_type: 'threads_post',
+                is_oliveyoung_sale: false,
+                category: ['threads'],
+                total_slots: Math.max(5, prev.total_slots || 5),
+                remaining_slots: Math.max(5, prev.total_slots || 5)
+              }))}
             >
-              <div className="absolute -top-2.5 right-3">
-                <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                  오픈 예정
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  NEW
                 </span>
               </div>
 
@@ -1731,10 +1743,13 @@ const CampaignCreationKorea = () => {
 
               <button
                 type="button"
-                disabled
-                className="w-full py-2.5 rounded-lg font-semibold text-sm mb-4 bg-gray-100 text-gray-400 cursor-not-allowed"
+                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all mb-4 ${
+                  campaignForm.campaign_type === 'threads_post'
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                준비 중
+                선택하기
               </button>
 
               <ul className="space-y-2 text-sm flex-1">
@@ -1757,13 +1772,25 @@ const CampaignCreationKorea = () => {
               </ul>
             </div>
 
-            {/* X 포스트 캠페인 - 오픈 예정 (잠금) */}
+            {/* X 포스트 캠페인 */}
             <div
-              className="relative bg-white rounded-xl border-2 p-5 lg:p-6 flex flex-col border-gray-200 opacity-60 cursor-not-allowed"
+              className={`relative bg-white rounded-xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
+                campaignForm.campaign_type === 'x_post'
+                  ? 'border-gray-900 shadow-lg ring-2 ring-gray-200'
+                  : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+              }`}
+              onClick={() => setCampaignForm(prev => ({
+                ...prev,
+                campaign_type: 'x_post',
+                is_oliveyoung_sale: false,
+                category: ['x'],
+                total_slots: Math.max(5, prev.total_slots || 5),
+                remaining_slots: Math.max(5, prev.total_slots || 5)
+              }))}
             >
-              <div className="absolute -top-2.5 right-3">
-                <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                  오픈 예정
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  NEW
                 </span>
               </div>
 
@@ -1778,10 +1805,13 @@ const CampaignCreationKorea = () => {
 
               <button
                 type="button"
-                disabled
-                className="w-full py-2.5 rounded-lg font-semibold text-sm mb-4 bg-gray-100 text-gray-400 cursor-not-allowed"
+                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all mb-4 ${
+                  campaignForm.campaign_type === 'x_post'
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                준비 중
+                선택하기
               </button>
 
               <ul className="space-y-2 text-sm flex-1">
