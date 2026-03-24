@@ -5,6 +5,21 @@ import { Badge } from '@/components/ui/badge'
 import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award, FileText, Calendar, TrendingUp, Users, Eye, Clock } from 'lucide-react'
 import { checkIfFeaturedCreator, GRADE_LEVELS } from '../../services/creatorGradeService'
 
+// 텍스트 정규화 (연속 줄바꿈 제거, 앞뒤 공백 제거)
+const normalizeText = (text) => {
+  if (!text) return ''
+  return text.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+// 등급 부제 매핑 (브랜드 담당자용)
+const GRADE_SUBTITLES = {
+  5: 'Top 크리에이터',
+  4: '우수 크리에이터',
+  3: '활동 우수',
+  2: '성장 중',
+  1: '신규',
+}
+
 // 플랫폼 아이콘 컴포넌트
 const InstagramIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -180,6 +195,9 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
   // 프로필 모달 상태
   const [showProfileModal, setShowProfileModal] = useState(false)
 
+  // 더보기 토글 상태
+  const [showFullBio, setShowFullBio] = useState(false)
+
   // 추천 크리에이터 확인
   useEffect(() => {
     if (propFeaturedInfo) {
@@ -272,12 +290,12 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
       {/* 새 카드 레이아웃 - 이미지처럼 깔끔한 세로형 카드 */}
       <Card className={`overflow-hidden transition-all duration-200 rounded-2xl ${
         virtual_selected
-          ? 'ring-2 ring-blue-400 shadow-md bg-blue-50/20'
+          ? 'ring-2 ring-purple-300/50 shadow-md bg-purple-50/20'
           : isAlreadyParticipant || isConfirmed
             ? 'ring-1 ring-green-300 shadow-sm'
             : 'hover:shadow-md border-gray-200'
       }`}>
-        <CardContent className="p-4">
+        <CardContent className="p-4 min-h-[200px]">
           {/* 상단: 프로필 사진 + 이름/나이/피부타입 + 배지 */}
           <div className="flex items-start gap-3 mb-3">
             {/* 프로필 사진 (원형) */}
@@ -294,13 +312,13 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                 <h3 className="font-bold text-gray-900 text-sm truncate">{displayName}</h3>
-                {/* 크넥 추천 배지 */}
-                {isRecommended && featuredInfo && (
+                {/* 크넥 등급 배지 */}
+                {featuredInfo && (
                   <span
                     className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-                    style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
+                    style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#9CA3AF' }}
                   >
-                    {featuredInfo.gradeInfo?.label || '추천'}
+                    {featuredInfo.gradeInfo?.name || 'FRESH'} · {GRADE_SUBTITLES[featuredInfo.gradeLevel || 1] || '신규'}
                   </span>
                 )}
                 {/* 협업 경험 배지 */}
@@ -321,8 +339,8 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-0.5"></span>선정됨
                 </span>
               ) : virtual_selected ? (
-                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1 bg-blue-100 text-blue-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-0.5"></span>가상선택
+                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1 bg-purple-100 text-purple-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block mr-0.5"></span>관심 표시됨
                 </span>
               ) : null}
             </div>
@@ -417,19 +435,19 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                   onClick={handleVirtualSelect}
                   className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center gap-1 ${
                     virtual_selected
-                      ? 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                      ? 'bg-purple-100 hover:bg-purple-200 text-purple-600'
                       : 'bg-gray-900 hover:bg-gray-700 text-white'
                   }`}
                 >
                   {virtual_selected ? (
                     <>
                       <XCircle className="w-3 h-3" />
-                      선택 취소
+                      관심 해제
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-3 h-3" />
-                      선택
+                      관심 표시
                     </>
                   )}
                 </button>
@@ -550,7 +568,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                           <MessageSquare className="w-3.5 h-3.5" />
                           Q{index + 1}. {qa.question || '질문'}
                         </div>
-                        <p className="text-sm text-gray-700 pl-1 border-l-2 border-green-300">{qa.answer}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed pl-1 border-l-2 border-green-300 whitespace-pre-line">{normalizeText(qa.answer)}</p>
                       </div>
                     ))}
                   </div>
@@ -562,7 +580,12 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">지원자 한마디</h4>
                   <div className="p-3 bg-amber-50 rounded-lg">
-                    <p className="text-sm text-gray-700">{additional_info}</p>
+                    <p className={`text-sm text-gray-700 leading-relaxed whitespace-pre-line ${!showFullBio ? 'line-clamp-3' : ''}`}>{normalizeText(additional_info)}</p>
+                    {additional_info.length > 100 && (
+                      <button onClick={() => setShowFullBio(!showFullBio)} className="text-xs text-purple-600 font-medium mt-1 hover:underline">
+                        {showFullBio ? '접기' : '더보기'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

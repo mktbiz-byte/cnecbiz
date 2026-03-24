@@ -52,7 +52,7 @@ function generateDefaultGuide(campaign) {
       },
       {
         heading: '구매 링크',
-        content: `아래 링크를 스토리 스와이프업에 반드시 첨부해주세요.\n${campaign.story_swipe_link || ''}`
+        content: `아래 링크를 스토리 연결 링크에 반드시 첨부해주세요.\n${campaign.story_swipe_link || ''}`
       },
       {
         heading: '금지사항',
@@ -174,7 +174,7 @@ export default function StoryGuideEditor({ campaign, region, participants, onGui
           const utmLink = `${campaign.story_swipe_link}${campaign.story_swipe_link.includes('?') ? '&' : '?'}utm_source=cnec&utm_medium=story&utm_campaign=${campaign.id}&utm_content=${p.user_id || p.id}`
           const linkSection = creatorGuide.sections.find(s => s.heading === '구매 링크')
           if (linkSection) {
-            linkSection.content = `아래 링크를 스토리 스와이프업에 반드시 첨부해주세요.\n${utmLink}`
+            linkSection.content = `아래 링크를 스토리 연결 링크에 반드시 첨부해주세요.\n${utmLink}`
           }
         }
 

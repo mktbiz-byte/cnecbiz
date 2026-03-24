@@ -51,6 +51,8 @@ import {
   User,
   CheckCircle2
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, getSupabaseClient } from '../../lib/supabaseClients'
 import StoryProposalReadonly from './StoryProposalReadonly'
 import StoryGuideEditor from './StoryGuideEditor'
@@ -724,6 +726,7 @@ export default function CampaignDetail() {
   const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [sortOrder, setSortOrder] = useState('newest') // 'newest' | 'oldest'
   const [videoReviewFilter, setVideoReviewFilter] = useState('all') // 'all', 'pending', 'approved', 'not_submitted'
   const [notSubmittedStep, setNotSubmittedStep] = useState(null) // 미제출자 조회 차수 (올리브영: 1/2, 4주: 1~4)
@@ -4135,13 +4138,18 @@ JSON만 출력.`
         )
       )
 
-      // UI 업데이트 후 alert 표시
-      setTimeout(() => {
-        alert(selected ? '가상 선정되었습니다.' : '가상 선정이 취소되었습니다.')
-      }, 100)
+      // UI 업데이트 후 toast 표시
+      if (selected) {
+        toast('관심 크리에이터로 표시되었습니다', {
+          description: '최종 확정은 하단 [확정하기] 버튼을 눌러주세요.',
+          duration: 3000
+        })
+      } else {
+        toast('관심 표시가 해제되었습니다', { duration: 2000 })
+      }
     } catch (error) {
       console.error('Error updating virtual selection:', error)
-      alert('가상 선정 처리에 실패했습니다: ' + error.message)
+      toast.error('관심 표시 처리에 실패했습니다: ' + error.message)
     }
   }
 
@@ -4182,8 +4190,11 @@ JSON만 출력.`
         app.virtual_selected && app.status !== 'selected'
       )
       
+      // 모달 닫기
+      setShowConfirmModal(false)
+
       if (virtualSelected.length === 0) {
-        alert('확정할 크리에이터가 없습니다. (이미 확정되었거나 가상 선정되지 않음)')
+        toast.error('확정할 크리에이터가 없습니다.')
         return
       }
 
@@ -4191,18 +4202,14 @@ JSON만 출력.`
       const currentParticipantsCount = participants.length
       const totalSlots = campaign.total_slots || 0
       const availableSlots = totalSlots - currentParticipantsCount
-      
+
       if (availableSlots <= 0) {
-        alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
-        return
-      }
-      
-      if (virtualSelected.length > availableSlots) {
-        alert(`모집인원을 초과할 수 없습니다.\n\n모집인원: ${totalSlots}명\n현재 참여: ${currentParticipantsCount}명\n남은 자리: ${availableSlots}명\n선택한 인원: ${virtualSelected.length}명\n\n${availableSlots}명만 선택해주세요.`)
+        toast.error(`모집인원(${totalSlots}명)이 이미 충족되었습니다.`)
         return
       }
 
-      if (!confirm(`${virtualSelected.length}명의 크리에이터를 확정하시겠습니까?`)) {
+      if (virtualSelected.length > availableSlots) {
+        toast.error(`모집인원을 초과할 수 없습니다. 남은 자리: ${availableSlots}명`)
         return
       }
 
@@ -8633,7 +8640,7 @@ Questions? Contact us.
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-[#636E72]">{['story_short', 'threads_post', 'x_post'].includes(campaign.campaign_type) ? '캠페인 타입' : '패키지'}</p>
                   <p className="text-sm sm:text-xl md:text-2xl font-bold mt-1 sm:mt-2 truncate">
-                    {campaign.campaign_type === 'story_short' ? '스토리 숏폼' :
+                    {campaign.campaign_type === 'story_short' ? '인스타그램 스토리' :
                      campaign.campaign_type === 'threads_post' ? '스레드 포스트' :
                      campaign.campaign_type === 'x_post' ? 'X 포스트' :
                      campaign.package_type === 'junior' ? '초급' :
@@ -8735,8 +8742,8 @@ Questions? Contact us.
                 className="flex items-center gap-1.5 sm:gap-2.5 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg sm:rounded-xl px-2.5 sm:px-5 py-2 sm:py-2.5 text-[#636E72] hover:text-[#1A1A2E] hover:bg-[#F8F9FA] transition-all duration-200 font-medium text-xs sm:text-sm whitespace-nowrap"
               >
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">가상 선정</span>
-                <span className="sm:hidden">가선</span>
+                <span className="hidden sm:inline">관심 표시</span>
+                <span className="sm:hidden">관심</span>
                 <span className="data-[state=active]:bg-white/20 bg-[#F0EDFF] data-[state=active]:text-white text-[#6C5CE7] px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-['Outfit']">{applications.filter(app => app.virtual_selected).length}명</span>
               </TabsTrigger>
               <TabsTrigger
@@ -9400,7 +9407,7 @@ Questions? Contact us.
                     <p className="text-2xl font-bold text-[#00B894] font-['Outfit']">{applications.filter(a => a.account_status === 'verified').length}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-[#B2BEC3] mb-0.5">가상 선택</p>
+                    <p className="text-[11px] text-[#B2BEC3] mb-0.5">관심 표시</p>
                     <p className="text-2xl font-bold text-[#6C5CE7] font-['Outfit']">{applications.filter(a => a.virtual_selected).length}</p>
                   </div>
                 </div>
@@ -9790,7 +9797,7 @@ Questions? Contact us.
                             )}
                             {/* 가상선택/선정 상태 - 우측 상단 */}
                             {app.virtual_selected && (
-                              <div className="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold bg-blue-500/90 text-white rounded-full backdrop-blur-sm">가상 선택</div>
+                              <div className="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold bg-purple-500/90 text-white rounded-full backdrop-blur-sm">관심 표시</div>
                             )}
                             {app.status === 'selected' && (
                               <div className="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold bg-green-500/90 text-white rounded-full backdrop-blur-sm">선정됨</div>
@@ -10180,28 +10187,39 @@ Questions? Contact us.
                 </CardContent>
               </Card>
             )}
+            {/* 관심 표시 플로팅 액션 바 */}
+            {applications.filter(a => a.virtual_selected).length > 0 && (
+              <div className="sticky bottom-0 z-10 bg-white/90 backdrop-blur-sm border-t border-gray-200 px-4 py-3 flex items-center justify-between rounded-b-xl shadow-lg mt-4">
+                <span className="text-sm font-medium text-gray-700">
+                  <span className="text-purple-600 font-bold">{applications.filter(a => a.virtual_selected).length}명</span> 관심 표시됨
+                </span>
+                <Button onClick={() => setShowConfirmModal(true)} className="bg-gray-900 hover:bg-gray-700 text-white rounded-xl px-5">
+                  확정하기
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
-          {/* 가상 선정 탭 */}
+          {/* 관심 표시 탭 */}
           <TabsContent value="virtual">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-2xl font-bold text-gray-900">가상 선정 크리에이터</CardTitle>
-                    <p className="text-sm text-gray-500 mt-1">임시 선정 목록입니다. 최종 확정 전 자유롭게 변경하세요.</p>
+                    <CardTitle className="text-2xl font-bold text-gray-900">관심 표시 크리에이터</CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">관심 표시한 크리에이터 목록입니다. 최종 확정 전 자유롭게 변경하세요.</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">가상 선택</p>
-                      <p className="text-2xl font-bold text-blue-500">{applications.filter(app => app.virtual_selected).length}</p>
+                      <p className="text-xs text-gray-500">관심 표시</p>
+                      <p className="text-2xl font-bold text-purple-500">{applications.filter(app => app.virtual_selected).length}</p>
                     </div>
                     <Button
                       onClick={handleBulkConfirm}
                       disabled={applications.filter(app => app.virtual_selected).length === 0}
                       className="bg-gray-900 hover:bg-gray-700 text-white rounded-xl px-5"
                     >
-                      전체 선정 확정
+                      전체 확정하기
                     </Button>
                   </div>
                 </div>
@@ -10210,7 +10228,7 @@ Questions? Contact us.
                 {applications.filter(app => app.virtual_selected).length === 0 ? (
                   <div className="text-center py-16 text-gray-400">
                     <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                    <p className="text-sm">아직 가상 선정한 크리에이터가 없습니다.</p>
+                    <p className="text-sm">아직 관심 표시한 크리에이터가 없습니다.</p>
                     <p className="text-xs text-gray-400 mt-1">지원자 탭에서 크리에이터를 선택하세요.</p>
                   </div>
                 ) : (
@@ -10274,7 +10292,7 @@ Questions? Contact us.
                                 )
                               })()}
                             </div>
-                            <span className="flex-shrink-0 text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">가상</span>
+                            <span className="flex-shrink-0 text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">관심</span>
                           </div>
                           {/* 피부 고민 태그 */}
                           {app.skin_concerns && app.skin_concerns.length > 0 && (
@@ -10811,17 +10829,17 @@ Questions? Contact us.
               </CardContent>
             </Card>
 
-            {/* 스토리 숏폼 전용: 가이드 & 기획안 & 검수 현황 (선정 크리에이터 탭 내) */}
+            {/* 인스타그램 스토리 전용: 가이드 & 기획안 & 검수 현황 (선정 크리에이터 탭 내) */}
             {campaign?.campaign_type === 'story_short' && (
               <div className="space-y-6 mt-6">
-                {/* 스토리 숏폼 가이드 요약 */}
+                {/* 인스타그램 스토리 가이드 요약 */}
                 <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
                   <CardHeader className="bg-[#F0EDFF] border-b border-[#DFE6E9]">
                     <CardTitle className="flex items-center gap-2 text-gray-800">
                       <div className="w-8 h-8 rounded-xl bg-[#6C5CE7] flex items-center justify-center shadow-sm">
                         <FileText className="w-4 h-4 text-white" />
                       </div>
-                      스토리 숏폼 가이드
+                      인스타그램 스토리 가이드
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
@@ -17938,6 +17956,22 @@ Questions? Contact us.
           </div>
         </div>
       )}
+
+      {/* 크리에이터 확정 확인 모달 */}
+      <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>크리에이터 확정</AlertDialogTitle>
+            <AlertDialogDescription>
+              선택한 {applications.filter(a => a.virtual_selected && a.status !== 'selected').length}명의 크리에이터를 최종 확정하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkConfirm}>확정</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
