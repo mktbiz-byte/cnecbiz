@@ -1076,7 +1076,7 @@ export default function CampaignDetail() {
     if (options.includes('skinConcerns') && creator.skin_concerns) {
       const concerns = Array.isArray(creator.skin_concerns) ? creator.skin_concerns : (typeof creator.skin_concerns === 'string' ? creator.skin_concerns.split(',').map(s => s.trim()).filter(Boolean) : [])
       if (concerns.length > 0) {
-        items.push({ label: '고민', value: concerns.slice(0, 2).join('·'), color: '#059669', bg: '#D1FAE5' })
+        items.push({ label: '고민', value: concerns.slice(0, 2).map(c => SKIN_CONCERN_MAP[c] || SKIN_CONCERNS_LABELS[c] || c).join('·'), color: '#059669', bg: '#D1FAE5' })
       }
     }
     if (options.includes('personalColor') && creator.personal_color) {
@@ -1118,7 +1118,7 @@ export default function CampaignDetail() {
     // 뷰티 프로필 (스킨케어)
     if (['skincare', 'bodycare'].includes(primaryCat)) {
       if (profile?.skin_type) parts.push(`${SKIN_TYPES[profile.skin_type] || profile.skin_type} 피부`)
-      if (profile?.skin_concerns?.length > 0) parts.push(profile.skin_concerns.slice(0, 2).join('·'))
+      if (profile?.skin_concerns?.length > 0) parts.push(profile.skin_concerns.slice(0, 2).map(c => SKIN_CONCERN_MAP[c] || SKIN_CONCERNS_LABELS[c] || c).join('·'))
     }
 
     // 뷰티 프로필 (메이크업)
@@ -9167,7 +9167,7 @@ Questions? Contact us.
                       // 스킨케어/바디케어
                       if (['skincare', 'bodycare'].includes(primaryCat) || !primaryCat) {
                         if (selectedCreatorProfile.skin_type) profileItems.push({ label: '피부 타입', value: SKIN_TYPES[selectedCreatorProfile.skin_type] || selectedCreatorProfile.skin_type })
-                        if (selectedCreatorProfile.skin_concerns?.length > 0) profileItems.push({ label: '피부 고민', value: selectedCreatorProfile.skin_concerns.join(', ') })
+                        if (selectedCreatorProfile.skin_concerns?.length > 0) profileItems.push({ label: '피부 고민', value: selectedCreatorProfile.skin_concerns.map(c => SKIN_CONCERN_MAP[c] || SKIN_CONCERNS_LABELS[c] || c).join(', ') })
                         if (selectedCreatorProfile.personal_color) profileItems.push({ label: '퍼스널컬러', value: PERSONAL_COLOR_MAP[selectedCreatorProfile.personal_color] || selectedCreatorProfile.personal_color })
                       }
 
