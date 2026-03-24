@@ -581,7 +581,7 @@ const getGradeRecommendation = (gradeLevel) => {
   if (!gradeLevel) return null
 
   switch (gradeLevel) {
-    case 5: // MUSE
+    case 5: // 브랜드 픽
       return {
         text: 'TOP 크리에이터',
         description: '크넥이 엄선한 최상위 크리에이터. 높은 전환율과 퀄리티 보장',
@@ -591,7 +591,7 @@ const getGradeRecommendation = (gradeLevel) => {
         borderClass: 'border-amber-400',
         priority: 5
       }
-    case 4: // ICONIC
+    case 4: // 브랜드 픽
       return {
         text: '적극 추천',
         description: '검증된 실적! 브랜드 만족도 90% 이상, 재협업률 높음',
@@ -601,7 +601,7 @@ const getGradeRecommendation = (gradeLevel) => {
         borderClass: 'border-pink-400',
         priority: 4
       }
-    case 3: // BLOOM
+    case 3: // 크넥 TOP
       return {
         text: '추천',
         description: '안정적인 협업 가능. 마감 준수율 우수, 퀄리티 검증됨',
@@ -611,7 +611,7 @@ const getGradeRecommendation = (gradeLevel) => {
         borderClass: 'border-violet-400',
         priority: 3
       }
-    case 2: // GLOW
+    case 2: // 크넥 추천
       return {
         text: '활동 우수',
         description: '활발한 활동과 빠른 응답. 협업 경험 보유',
@@ -621,9 +621,9 @@ const getGradeRecommendation = (gradeLevel) => {
         borderClass: 'border-blue-400',
         priority: 2
       }
-    case 1: // FRESH
+    case 1: // 크넥 인증
     default:
-      return null // FRESH는 배지 표시 안함
+      return null // 크넥 인증은 배지 표시 안함
   }
 }
 
@@ -705,7 +705,7 @@ export default function CampaignDetail() {
   // 세금계산서 발행 상태
   const [taxInvoiceStatus, setTaxInvoiceStatus] = useState(null) // null | 'none' | 'pending' | 'issued'
   const [taxInvoiceInfo, setTaxInvoiceInfo] = useState(null)
-  // 통합 AI 추천 크리에이터 (MUSE + BLOOM + GLOW 통합)
+  // 통합 AI 추천 크리에이터 (브랜드 픽 + 크넥 TOP + 크넥 추천 통합)
   const [unifiedRecommendations, setUnifiedRecommendations] = useState([])
   const [loadingUnifiedRecs, setLoadingUnifiedRecs] = useState(false)
   const [showMatchingRequestModal, setShowMatchingRequestModal] = useState(false)
@@ -1110,7 +1110,7 @@ export default function CampaignDetail() {
     }
 
     // 등급 기반
-    const gradeName = creator.cnec_grade_level === 5 ? 'MUSE' : creator.cnec_grade_level === 4 ? 'STAR' : creator.cnec_grade_level === 3 ? 'BLOOM' : creator.cnec_grade_level === 2 ? 'GLOW' : null
+    const gradeName = creator.cnec_grade_level === 5 ? '브랜드 픽' : creator.cnec_grade_level === 4 ? '브랜드 픽' : creator.cnec_grade_level === 3 ? '크넥 TOP' : creator.cnec_grade_level === 2 ? '크넥 추천' : null
     if (gradeName && creator.cnec_grade_level >= 3) {
       parts.push(`${gradeName} 등급`)
     }
@@ -8787,7 +8787,7 @@ Questions? Contact us.
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
           <TabsContent value="applications">
-            {/* 베이직 패키지 안내 (AI 추천 & MUSE 추천 미제공) - 스토리 캠페인 제외 */}
+            {/* 베이직 패키지 안내 (AI 추천 & 브랜드 픽 추천 미제공) - 스토리 캠페인 제외 */}
             {region === 'korea' && campaign?.campaign_type !== 'story_short' && (['basic', 'junior'].includes(campaign?.package_type?.toLowerCase())) && (
               <Card className="mb-6 bg-[#F0EDFF] border border-[#DFE6E9] rounded-2xl">
                 <CardContent className="py-6">
@@ -8883,9 +8883,9 @@ Questions? Contact us.
                       return (b.recommendation_score || 0) - (a.recommendation_score || 0)
                     })
                     .map((creator, index) => {
-                      const gradeLabel = creator.cnec_grade_level === 5 ? 'MUSE' :
-                        creator.cnec_grade_level === 4 ? 'STAR' :
-                        creator.cnec_grade_level === 3 ? 'BLOOM' : 'GLOW'
+                      const gradeLabel = creator.cnec_grade_level === 5 ? '브랜드 픽' :
+                        creator.cnec_grade_level === 4 ? '브랜드 픽' :
+                        creator.cnec_grade_level === 3 ? '크넥 TOP' : '크넥 추천'
                       const matchPercent = creator.recommendation_score ? Math.max(60, Math.min(Math.round(creator.recommendation_score), 99)) : null
                       const creatorBadges = getBadgesFromIds(creator.badges || [])
                       const totalFollowers = (creator.instagram_followers || 0) + (creator.youtube_subscribers || 0) + (creator.tiktok_followers || 0)
@@ -9121,7 +9121,7 @@ Questions? Contact us.
                           <h2 className="text-lg font-bold text-[#1A1A2E]">{selectedCreatorProfile.name || selectedCreatorProfile.channel_name}</h2>
                           {(() => {
                             const gl = selectedCreatorProfile.cnec_grade_level
-                            const label = gl === 5 ? 'MUSE' : gl === 4 ? 'STAR' : gl === 3 ? 'BLOOM' : gl === 2 ? 'GLOW' : 'FRESH'
+                            const label = gl === 5 ? '브랜드 픽' : gl === 4 ? '브랜드 픽' : gl === 3 ? '크넥 TOP' : gl === 2 ? '크넥 추천' : '크넥 인증'
                             const cls = gl === 5 ? 'bg-amber-100 text-amber-700' : gl === 4 ? 'bg-purple-100 text-purple-700' : gl === 3 ? 'bg-violet-100 text-violet-700' : gl === 2 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                             return <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${cls}`}>{label}</span>
                           })()}
@@ -9745,10 +9745,10 @@ Questions? Contact us.
                       const formatFollowersApp = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '-')
 
                       // 등급 라벨
-                      const gradeLabel = app.cnec_grade_level === 5 ? 'MUSE' :
-                        app.cnec_grade_level === 4 ? 'STAR' :
-                        app.cnec_grade_level === 3 ? 'BLOOM' :
-                        app.cnec_grade_level === 2 ? 'GLOW' : null
+                      const gradeLabel = app.cnec_grade_level === 5 ? '브랜드 픽' :
+                        app.cnec_grade_level === 4 ? '브랜드 픽' :
+                        app.cnec_grade_level === 3 ? '크넥 TOP' :
+                        app.cnec_grade_level === 2 ? '크넥 추천' : null
                       // 카테고리
                       const CAT_LABELS_APP = { skincare: '뷰티', makeup: '뷰티', bodycare: '뷰티', fashion: '패션', lifestyle: '라이프', food: '푸드', travel: '여행' }
                       const appCategory = (app.categories || [])[0]

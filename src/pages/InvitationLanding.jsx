@@ -113,7 +113,7 @@ export default function InvitationLanding() {
       if (featuredCreator) {
         creatorData = featuredCreator
       } else {
-        // featured_creators에 없으면 user_profiles에서 조회 (MUSE 크리에이터용)
+        // featured_creators에 없으면 user_profiles에서 조회 (브랜드 픽 크리에이터용)
         const profileClient = supabaseKorea || supabaseBiz
         const { data: userProfile } = await profileClient
           .from('user_profiles')

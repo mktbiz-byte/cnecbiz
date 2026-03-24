@@ -267,8 +267,8 @@ export default function CreatorManagement() {
 
   const fetchRecommendedCreators = async () => {
     try {
-      // cnec_grade_level >= 2 (GLOW 이상)만 표시
-      // 1 = FRESH, 2 = GLOW, 3 = BLOOM, 4 = ICONIC, 5 = MUSE
+      // cnec_grade_level >= 2 (크넥 추천 이상)만 표시
+      // 1 = 크넥 인증, 2 = 크넥 추천, 3 = 크넥 TOP, 4 = 브랜드 픽, 5 = 브랜드 픽
       const { data: featuredCreators, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
