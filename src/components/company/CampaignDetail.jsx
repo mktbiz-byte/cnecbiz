@@ -1179,10 +1179,11 @@ export default function CampaignDetail() {
         const userIds = Object.values(creatorMap).map(c => c.user_id).filter(Boolean)
         let profileMap = {}
         if (userIds.length > 0) {
-          const { data: profiles } = await supabaseKorea
+          const { data: profiles, error: profileErr } = await supabaseKorea
             .from('user_profiles')
-            .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest, specialties')
+            .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest')
             .in('id', userIds)
+          if (profileErr) console.warn('[Unified Recs] user_profiles fetch error:', profileErr.message)
           ;(profiles || []).forEach(p => { profileMap[p.id] = p })
         }
 
@@ -1258,10 +1259,11 @@ export default function CampaignDetail() {
             const userIds2 = Object.values(creatorMap2).map(c => c.user_id).filter(Boolean)
             let profileMap2 = {}
             if (userIds2.length > 0) {
-              const { data: profiles2 } = await supabaseKorea
+              const { data: profiles2, error: profileErr2 } = await supabaseKorea
                 .from('user_profiles')
-                .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest, specialties')
+                .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest')
                 .in('id', userIds2)
+              if (profileErr2) console.warn('[Unified Recs] user_profiles fetch error:', profileErr2.message)
               ;(profiles2 || []).forEach(p => { profileMap2[p.id] = p })
             }
             const enrichedNew = newMatches.map(match => {
@@ -1323,10 +1325,11 @@ export default function CampaignDetail() {
       const userIds = allCreators.map(c => c.user_id).filter(Boolean)
       let profileMap = {}
       if (userIds.length > 0) {
-        const { data: profiles } = await supabaseKorea
+        const { data: profiles, error: profileErr } = await supabaseKorea
           .from('user_profiles')
-          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest, specialties')
+          .select('id, profile_image, profile_photo_url, profile_image_url, avatar_url, skin_type, personal_color, skin_shade, hair_type, skin_concerns, age, gender, primary_interest')
           .in('id', userIds)
+        if (profileErr) console.warn('[Unified Recs] user_profiles fetch error:', profileErr.message)
         ;(profiles || []).forEach(p => { profileMap[p.id] = p })
       }
 
