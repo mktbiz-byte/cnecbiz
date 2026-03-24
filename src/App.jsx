@@ -163,10 +163,12 @@ import PackageLanding from './pages/PackageLanding'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminPackageManager from './components/admin/AdminPackageManager'
 import CompanyPackageCampaign from './components/company/CompanyPackageCampaign'
+import { Toaster } from '@/components/ui/sonner'
 
 function App() {
   return (
     <Router>
+      <Toaster position="top-center" />
       <ConsultationBanner />
       <HolidayNotice />
       <Routes>

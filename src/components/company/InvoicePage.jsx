@@ -505,7 +505,7 @@ const InvoicePage = () => {
 
   // 패키지 타입 라벨 매핑
   const getPackageLabel = (packageType, campaignType) => {
-    const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지', story_short: '스토리 숏폼', threads_post: '스레드 포스트', x_post: 'X 포스트' }
+    const campaignTypeLabels = { regular: '기획형', oliveyoung: '올영세일', megawari: '메가와리', '4week_challenge': '4주 챌린지', story_short: '인스타그램 스토리', threads_post: '스레드 포스트', x_post: 'X 포스트' }
     const packageLabels = { basic: '베이직', junior: '초급', intermediate: '중급', senior: '상급', premium: '프리미엄', standard: '스탠다드', professional: '프로페셔널', enterprise: '엔터프라이즈' }
     const ctLabel = campaignTypeLabels[campaignType] || campaignType || ''
     const pkgLabel = packageLabels[packageType?.toLowerCase()] || packageType || ''

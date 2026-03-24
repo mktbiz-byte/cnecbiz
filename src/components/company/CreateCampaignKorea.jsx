@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { History, X, Loader2, Package, Download, Info, Upload, ArrowLeft } from 'lucide-react'
 import TextContentGuideForm from './campaigns/TextContentGuideForm'
-import StoryContentGuideForm from './campaigns/StoryContentGuideForm'
 import ReferenceUrlsInput from './campaigns/ReferenceUrlsInput'
 import CnecShopLinkGenerator from './campaigns/CnecShopLinkGenerator'
 
@@ -1053,14 +1052,9 @@ const CampaignCreationKorea = () => {
       if (!tg.offer?.trim()) { setError('전환 유도(Offer) 가이드를 입력해주세요.'); return }
       if (!campaignForm.end_date) { setError('포스트 업로드 마감일을 입력해주세요.'); return }
     }
-    // 스토리 숏폼 전용 검증
+    // 인스타그램 스토리 전용 검증
     if (campaignForm.campaign_type === 'story_short') {
-      const sg = campaignForm.story_content_guide || {}
-      if (!sg.slide_1_hook?.trim()) { setError('슬라이드 1 Hook 가이드를 입력해주세요.'); return }
-      if (!sg.slide_2_3_info?.trim()) { setError('슬라이드 2~3 정보 가이드를 입력해주세요.'); return }
-      if (!sg.slide_4_6_usage?.trim()) { setError('슬라이드 4~6 사용과정 가이드를 입력해주세요.'); return }
-      if (!sg.slide_9_10_cta?.trim()) { setError('슬라이드 9~10 CTA 가이드를 입력해주세요.'); return }
-      if (!campaignForm.story_swipe_link || !campaignForm.story_swipe_link.trim()) { setError('구매 링크를 입력해주세요.'); return }
+      if (!campaignForm.story_swipe_link || !campaignForm.story_swipe_link.trim()) { setError('연결 링크를 입력해주세요.'); return }
       if (!campaignForm.story_required_keyword?.trim()) { setError('필수 키워드를 입력해주세요.'); return }
       if (!campaignForm.story_exposure_type) { setError('제품 노출 방식을 선택해주세요.'); return }
       if (!campaignForm.story_tone_guide?.trim()) { setError('영상 톤/분위기를 입력해주세요.'); return }
@@ -1348,7 +1342,7 @@ const CampaignCreationKorea = () => {
           })
           const campaignTypeLabel = campaignForm.campaign_type === 'oliveyoung' ? '올영세일'
             : campaignForm.campaign_type === '4week_challenge' ? '4주 챌린지'
-            : campaignForm.campaign_type === 'story_short' ? '스토리 숏폼'
+            : campaignForm.campaign_type === 'story_short' ? '인스타그램 스토리'
             : campaignForm.campaign_type === 'threads_post' ? '스레드 포스트'
             : campaignForm.campaign_type === 'x_post' ? 'X 포스트'
             : '일반'
@@ -1371,7 +1365,7 @@ const CampaignCreationKorea = () => {
         // 포인트 시스템 제거: 모든 결제는 계좌이체로 진행
         // 입금 확인 요청은 InvoicePage에서 세금계산서 신청 시에만 생성
         if (campaignForm.campaign_type === 'story_short') {
-          setSuccess('스토리 숏폼 캠페인이 생성되었습니다! 결제를 진행해주세요.')
+          setSuccess('인스타그램 스토리 캠페인이 생성되었습니다! 결제를 진행해주세요.')
         } else {
           setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
         }
@@ -1394,7 +1388,7 @@ const CampaignCreationKorea = () => {
 
       // 수정 모드일 경우 적절한 페이지로 이동
       if (campaignForm.campaign_type === 'story_short') {
-        setSuccess('스토리 숏폼 캠페인이 수정되었습니다!')
+        setSuccess('인스타그램 스토리 캠페인이 수정되었습니다!')
         setTimeout(() => navigate(`/company/campaigns/${editId}?region=korea`), 1500)
       } else {
         setSuccess('캠페인이 수정되었습니다! 가이드를 확인해주세요.')
@@ -1680,7 +1674,7 @@ const CampaignCreationKorea = () => {
               </div>
 
               <div className="mb-4 pt-2">
-                <h3 className="text-base font-bold text-gray-900 mb-1">스토리 숏폼</h3>
+                <h3 className="text-base font-bold text-gray-900 mb-1">인스타그램 스토리</h3>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl lg:text-3xl font-bold text-gray-900">₩20,000</span>
                   <span className="text-gray-500 text-sm">/건</span>
@@ -4437,7 +4431,7 @@ const CampaignCreationKorea = () => {
                 <div className="lg:col-span-2 space-y-4 lg:space-y-8">
                   {/* 스토리 숏폼 캠페인 설정 */}
                   <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
-                    <h2 className="text-lg lg:text-2xl font-bold text-gray-900 mb-2">스토리 숏폼 캠페인 설정</h2>
+                    <h2 className="text-lg lg:text-2xl font-bold text-gray-900 mb-2">인스타그램 스토리 캠페인 설정</h2>
                     <p className="text-gray-500 mb-6">간편하게 스토리 콘텐츠를 제작하세요. AI 가이드 생성 없이 바로 캠페인을 개설합니다.</p>
 
                     {/* 브랜드명 */}
@@ -4463,9 +4457,9 @@ const CampaignCreationKorea = () => {
                         />
                       </div>
 
-                      {/* 구매 링크 (스와이프업) */}
+                      {/* 구매 링크 (연결 링크) */}
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">스와이프업 링크 *</Label>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 block">연결 링크 *</Label>
                         <Input
                           value={campaignForm.story_swipe_link}
                           onChange={e => setCampaignForm(prev => ({ ...prev, story_swipe_link: e.target.value }))}
@@ -4753,14 +4747,6 @@ const CampaignCreationKorea = () => {
                     </div>
                   </div>
 
-                  {/* 슬라이드별 콘텐츠 가이드 (신규) */}
-                  <div className="bg-white rounded-2xl p-4 lg:p-8 shadow-sm">
-                    <StoryContentGuideForm
-                      guide={campaignForm.story_content_guide || {}}
-                      onChange={(guide) => setCampaignForm(prev => ({ ...prev, story_content_guide: guide }))}
-                    />
-                  </div>
-
                   {/* 크넥샵 연결 (신규) */}
                   <CnecShopLinkGenerator
                     productUrl={campaignForm.cnec_shop_product_url}
@@ -4829,7 +4815,7 @@ const CampaignCreationKorea = () => {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400 text-sm">상품</span>
-                          <span className="font-medium">스토리 숏폼</span>
+                          <span className="font-medium">인스타그램 스토리</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400 text-sm">단가</span>
