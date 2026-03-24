@@ -22,11 +22,11 @@ import * as XLSX from 'xlsx'
 
 // 등급 정의
 const GRADE_LEVELS = {
-  1: { name: 'FRESH', label: '새싹', color: '#10B981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-600', lightBg: 'bg-emerald-50', borderClass: 'border-emerald-200' },
-  2: { name: 'GLOW', label: '빛나기 시작', color: '#3B82F6', bgClass: 'bg-blue-500', textClass: 'text-blue-600', lightBg: 'bg-blue-50', borderClass: 'border-blue-200' },
-  3: { name: 'BLOOM', label: '피어나는 중', color: '#8B5CF6', bgClass: 'bg-violet-500', textClass: 'text-violet-600', lightBg: 'bg-violet-50', borderClass: 'border-violet-200' },
-  4: { name: 'ICONIC', label: '아이코닉', color: '#EC4899', bgClass: 'bg-pink-500', textClass: 'text-pink-600', lightBg: 'bg-pink-50', borderClass: 'border-pink-200' },
-  5: { name: 'MUSE', label: '뮤즈', color: '#F59E0B', bgClass: 'bg-amber-500', textClass: 'text-amber-600', lightBg: 'bg-amber-50', borderClass: 'border-amber-200' }
+  1: { name: 'FRESH', label: '크넥 인증', color: '#10B981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-600', lightBg: 'bg-emerald-50', borderClass: 'border-emerald-200' },
+  2: { name: 'GLOW', label: '크넥 추천', color: '#3B82F6', bgClass: 'bg-blue-500', textClass: 'text-blue-600', lightBg: 'bg-blue-50', borderClass: 'border-blue-200' },
+  3: { name: 'BLOOM', label: '크넥 TOP', color: '#8B5CF6', bgClass: 'bg-violet-500', textClass: 'text-violet-600', lightBg: 'bg-violet-50', borderClass: 'border-violet-200' },
+  4: { name: 'ICONIC', label: '브랜드 픽', color: '#EC4899', bgClass: 'bg-pink-500', textClass: 'text-pink-600', lightBg: 'bg-pink-50', borderClass: 'border-pink-200' },
+  5: { name: 'MUSE', label: '브랜드 픽', color: '#F59E0B', bgClass: 'bg-amber-500', textClass: 'text-amber-600', lightBg: 'bg-amber-50', borderClass: 'border-amber-200' }
 }
 
 // 계정 상태 정의 (가계정/찐계정 관리)
@@ -2836,7 +2836,7 @@ export default function AllCreatorsPage() {
                 <p className="text-sm text-blue-800">
                   <strong>💡 등급 안내</strong><br />
                   • 등급은 크리에이터 사이트에서 표시됩니다<br />
-                  • GLOW(Lv.2) 이상은 추천 크리에이터로 표시됩니다
+                  • 크넥 추천(Lv.2) 이상은 추천 크리에이터로 표시됩니다
                 </p>
               </div>
             </div>
@@ -3144,7 +3144,7 @@ export default function AllCreatorsPage() {
               <p className="text-sm text-blue-800">
                 <strong>💡 안내</strong><br />
                 • 선택된 모든 한국 크리에이터의 등급이 변경됩니다<br />
-                • GLOW(Lv.2) 이상은 추천 크리에이터로 표시됩니다
+                • 크넥 추천(Lv.2) 이상은 추천 크리에이터로 표시됩니다
               </p>
             </div>
           </div>

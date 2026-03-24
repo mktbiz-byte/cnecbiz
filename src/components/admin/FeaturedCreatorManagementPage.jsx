@@ -872,7 +872,7 @@ export default function FeaturedCreatorManagementPage() {
                   AI 추천 확정 크리에이터 (5명)
                 </CardTitle>
                 <CardDescription>
-                  캠페인 AI 추천에 항상 포함되는 크리에이터를 설정합니다 · BLOOM, GLOW 등급만 선택 가능
+                  캠페인 AI 추천에 항상 포함되는 크리에이터를 설정합니다 · 크넥 TOP, 크넥 추천 등급만 선택 가능
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">

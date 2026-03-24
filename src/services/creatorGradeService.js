@@ -7,11 +7,11 @@ import { supabaseKorea, getSupabaseClient } from '../lib/supabaseClients'
 
 // 등급 정의
 export const GRADE_LEVELS = {
-  1: { name: 'FRESH', label: '새싹', color: '#10B981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-500', lightBg: 'bg-emerald-50' },
-  2: { name: 'GLOW', label: '빛나기 시작', color: '#3B82F6', bgClass: 'bg-blue-500', textClass: 'text-blue-500', lightBg: 'bg-blue-50' },
-  3: { name: 'BLOOM', label: '피어나는 중', color: '#8B5CF6', bgClass: 'bg-violet-500', textClass: 'text-violet-500', lightBg: 'bg-violet-50' },
-  4: { name: 'ICONIC', label: '아이코닉', color: '#EC4899', bgClass: 'bg-pink-500', textClass: 'text-pink-500', lightBg: 'bg-pink-50' },
-  5: { name: 'MUSE', label: '뮤즈', color: '#F59E0B', bgClass: 'bg-amber-500', textClass: 'text-amber-500', lightBg: 'bg-amber-50' }
+  1: { name: 'FRESH', label: '크넥 인증', color: '#10B981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-500', lightBg: 'bg-emerald-50' },
+  2: { name: 'GLOW', label: '크넥 추천', color: '#3B82F6', bgClass: 'bg-blue-500', textClass: 'text-blue-500', lightBg: 'bg-blue-50' },
+  3: { name: 'BLOOM', label: '크넥 TOP', color: '#8B5CF6', bgClass: 'bg-violet-500', textClass: 'text-violet-500', lightBg: 'bg-violet-50' },
+  4: { name: 'ICONIC', label: '브랜드 픽', color: '#EC4899', bgClass: 'bg-pink-500', textClass: 'text-pink-500', lightBg: 'bg-pink-50' },
+  5: { name: 'MUSE', label: '브랜드 픽', color: '#F59E0B', bgClass: 'bg-amber-500', textClass: 'text-amber-500', lightBg: 'bg-amber-50' }
 }
 
 // 뱃지 정의
@@ -37,27 +37,27 @@ export const BADGE_TYPES = {
  * @returns {number} 등급 레벨 (1-5)
  */
 export function calculateGradeLevel(totalScore, completedCampaigns = 0, recollaborationRate = 0, isManualMuse = false) {
-  // MUSE (Lv.5): 운영팀 심사 후 초대
+  // 브랜드 픽 (Lv.5): 운영팀 심사 후 초대
   if (isManualMuse) {
     return 5
   }
 
-  // ICONIC (Lv.4): 80점 이상 + 캠페인 30건 이상 + 재협업률 30%↑
+  // 브랜드 픽 (Lv.4): 80점 이상 + 캠페인 30건 이상 + 재협업률 30%↑
   if (totalScore >= 80 && completedCampaigns >= 30 && recollaborationRate >= 30) {
     return 4
   }
 
-  // BLOOM (Lv.3): 60점 이상 + 캠페인 10건 이상
+  // 크넥 TOP (Lv.3): 60점 이상 + 캠페인 10건 이상
   if (totalScore >= 60 && completedCampaigns >= 10) {
     return 3
   }
 
-  // GLOW (Lv.2): 40점 이상 + 캠페인 3건 이상
+  // 크넥 추천 (Lv.2): 40점 이상 + 캠페인 3건 이상
   if (totalScore >= 40 && completedCampaigns >= 3) {
     return 2
   }
 
-  // FRESH (Lv.1): 기본
+  // 크넥 인증 (Lv.1): 기본
   return 1
 }
 
@@ -278,7 +278,7 @@ export async function saveCreatorGrade(creatorId, gradeData) {
         cnec_grade_level: gradeData.gradeLevel,
         cnec_grade_name: gradeData.gradeName,
         cnec_total_score: gradeData.totalScore,
-        is_cnec_recommended: gradeData.gradeLevel >= 2 // GLOW 이상이면 추천
+        is_cnec_recommended: gradeData.gradeLevel >= 2 // 크넥 추천 이상이면 추천
       })
       .eq('id', creatorId)
 
