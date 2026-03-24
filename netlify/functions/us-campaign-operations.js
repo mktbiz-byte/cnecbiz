@@ -20,6 +20,19 @@ const headers = {
   'Content-Type': 'application/json'
 }
 
+// application_id가 campaign_applications 테이블에 있는지 확인하는 헬퍼
+// 신규 캠페인은 campaign_applications에, 레거시는 applications에 저장됨
+const getApplicationTable = async (applicationId, campaignId) => {
+  if (!applicationId) return 'applications'
+  const { data } = await supabaseUS
+    .from('campaign_applications')
+    .select('id')
+    .eq('id', applicationId)
+    .eq('campaign_id', campaignId)
+    .maybeSingle()
+  return data ? 'campaign_applications' : 'applications'
+}
+
 exports.handler = async (event) => {
   // 디버깅: 환경변수 상태 로깅
   console.log('[US API] Environment check:', {
@@ -130,33 +143,40 @@ exports.handler = async (event) => {
 
     switch (action) {
       // 가상 선정 토글
-      case 'virtual_select':
+      case 'virtual_select': {
+        const table = await getApplicationTable(application_id, campaign_id)
         const virtualSelectData = { virtual_selected: data.virtual_selected }
         if (data.main_channel) {
           virtualSelectData.main_channel = data.main_channel
         }
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update(virtualSelectData)
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 업로드 채널 변경
-      case 'update_channel':
+      case 'update_channel': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({ main_channel: data.main_channel })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 크리에이터 확정 (status를 selected로)
-      case 'confirm_selection':
+      case 'confirm_selection': {
+        // confirm_selection은 여러 ID를 받으므로 첫 번째 ID로 테이블 판별
+        const firstId = data.application_ids?.[0]
+        const table = await getApplicationTable(firstId, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             status: 'selected',
             virtual_selected: false
@@ -165,11 +185,13 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 확정 취소
-      case 'cancel_selection':
+      case 'cancel_selection': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             status: 'pending',
             virtual_selected: false
@@ -178,11 +200,13 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 상태 업데이트
-      case 'update_status':
+      case 'update_status': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             status: data.status
           })
@@ -190,11 +214,13 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 배송 정보 업데이트
-      case 'update_shipping':
+      case 'update_shipping': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             tracking_number: data.tracking_number,
             shipping_company: data.shipping_company
@@ -203,11 +229,13 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 가이드 업데이트
-      case 'update_guide':
+      case 'update_guide': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             personalized_guide: data.guide,
             status: data.status || 'filming',
@@ -217,11 +245,13 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
       // 조회수 업데이트
-      case 'update_views':
+      case 'update_views': {
+        const table = await getApplicationTable(application_id, campaign_id)
         result = await supabaseUS
-          .from('applications')
+          .from(table)
           .update({
             views: data.views,
             last_view_check: new Date().toISOString(),
@@ -231,38 +261,86 @@ exports.handler = async (event) => {
           .eq('campaign_id', campaign_id)
           .select()
         break
+      }
 
-      // applications 조회
-      case 'get_applications':
-        result = await supabaseUS
-          .from('applications')
+      // applications 조회 (campaign_applications 우선, applications 폴백)
+      case 'get_applications': {
+        // 먼저 campaign_applications 테이블 조회 (신규 캠페인)
+        const caResult = await supabaseUS
+          .from('campaign_applications')
           .select('*')
           .eq('campaign_id', campaign_id)
           .order('created_at', { ascending: false })
           .limit(1000)
-        break
 
-      // 참가자 조회 (선정된 크리에이터만)
-      case 'get_participants':
-        result = await supabaseUS
-          .from('applications')
+        if (caResult.data && caResult.data.length > 0) {
+          result = caResult
+        } else {
+          // 폴백: 기존 applications 테이블 (레거시 캠페인)
+          result = await supabaseUS
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', campaign_id)
+            .order('created_at', { ascending: false })
+            .limit(1000)
+        }
+        break
+      }
+
+      // 참가자 조회 (선정된 크리에이터만, campaign_applications 우선)
+      case 'get_participants': {
+        const selectedStatuses = ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled']
+
+        const cpResult = await supabaseUS
+          .from('campaign_applications')
           .select('*')
           .eq('campaign_id', campaign_id)
-          .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded', 'force_cancelled'])
+          .in('status', selectedStatuses)
           .order('created_at', { ascending: false })
-        break
 
-      // 일반 업데이트 (updated_at 제외)
-      case 'update_application':
+        if (cpResult.data && cpResult.data.length > 0) {
+          result = cpResult
+        } else {
+          result = await supabaseUS
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', campaign_id)
+            .in('status', selectedStatuses)
+            .order('created_at', { ascending: false })
+        }
+        break
+      }
+
+      // 일반 업데이트 (campaign_applications 우선, applications 폴백)
+      case 'update_application': {
         // US DB에 없는 컬럼 제외
         const { updated_at, ...safeData } = data
-        result = await supabaseUS
-          .from('applications')
-          .update(safeData)
+
+        // campaign_applications에서 먼저 찾기
+        const { data: caCheck } = await supabaseUS
+          .from('campaign_applications')
+          .select('id')
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
-          .select()
+          .single()
+
+        if (caCheck) {
+          result = await supabaseUS
+            .from('campaign_applications')
+            .update(safeData)
+            .eq('id', application_id)
+            .eq('campaign_id', campaign_id)
+            .select()
+        } else {
+          result = await supabaseUS
+            .from('applications')
+            .update(safeData)
+            .eq('id', application_id)
+            .eq('campaign_id', campaign_id)
+            .select()
+        }
         break
+      }
 
       // 캠페인 정보 업데이트 (마감일, 상세 정보 등)
       case 'update_campaign': {
