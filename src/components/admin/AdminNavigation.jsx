@@ -5,7 +5,7 @@ import {
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
   Briefcase, UserCircle, DollarSign, Cog, Upload, Mail, Phone, AlertTriangle, Target,
-  Bot, Send, FileText, CalendarDays, FlaskConical, Calendar, Package, Radar, Server
+  Bot, Send, FileText, CalendarDays, FlaskConical, Calendar, Package, Radar, Server, History
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -133,11 +133,12 @@ export default function AdminNavigation() {
     {
       id: 'chatbot',
       type: 'group',
-      icon: MessageSquare,
+      icon: Bot,
       label: 'AI 챗봇',
       items: [
         { path: '/admin/chatbot/dashboard', icon: BarChart3, label: '대시보드' },
         { path: '/admin/chatbot/faq', icon: MessageCircle, label: 'FAQ 관리' },
+        { path: '/admin/chatbot/replies', icon: History, label: '답변 이력' },
         { path: '/admin/chatbot/guardrails', icon: Shield, label: '기준틀' },
         { path: '/admin/chatbot/prompts', icon: Settings, label: '프롬프트' },
       ]

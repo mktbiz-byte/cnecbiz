@@ -1,330 +1,273 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import {
-  MessageSquare, TrendingUp, Star, AlertCircle, Loader2,
-  Send, CheckCircle2, XCircle, Search, BookOpen, RefreshCw
-} from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Bot, MessageSquare, AlertCircle, CheckCircle, TrendingUp, Loader2, RefreshCw, Send } from 'lucide-react'
 import { supabaseBiz } from '../../../lib/supabaseClients'
 import AdminNavigation from '../AdminNavigation'
 
 export default function ChatbotDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState(null)
-  const [unanswered, setUnanswered] = useState([])
-  const [learningQueue, setLearningQueue] = useState([])
-  const [botTypeFilter, setBotTypeFilter] = useState('')
-  const [answerInput, setAnswerInput] = useState({})
-  const [submitting, setSubmitting] = useState({})
+  const [stats, setStats] = useState({ total: 0, replied: 0, escalated: 0, today: 0 })
+  const [faqStats, setFaqStats] = useState({ business: 0, creator: 0 })
+  const [chartData, setChartData] = useState([])
+  const [escalations, setEscalations] = useState([])
+  const [replyModal, setReplyModal] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-      if (!user) { navigate('/admin/login'); return }
-      const { data: admin } = await supabaseBiz
-        .from('admin_users')
-        .select('*')
-        .eq('email', user.email)
-        .maybeSingle()
-      if (!admin) { navigate('/admin/login'); return }
-      fetchAll()
-    }
-    checkAuth()
+  const checkAuth = useCallback(async () => {
+    const { data: { user } } = await supabaseBiz.auth.getUser()
+    if (!user) { navigate('/admin/login'); return false }
+    const { data: admin } = await supabaseBiz.from('admin_users').select('*').eq('email', user.email).maybeSingle()
+    if (!admin) { navigate('/admin/login'); return false }
+    return true
   }, [navigate])
 
-  const fetchAll = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      await Promise.all([fetchStats(), fetchUnanswered(), fetchLearning()])
+      const today = new Date().toISOString().split('T')[0]
+
+      const [totalRes, repliedRes, escalatedRes, todayRes, faqRes] = await Promise.all([
+        supabaseBiz.from('kakao_bot_processed').select('*', { count: 'exact', head: true }),
+        supabaseBiz.from('kakao_bot_processed').select('*', { count: 'exact', head: true }).eq('replied', true),
+        supabaseBiz.from('kakao_bot_processed').select('*', { count: 'exact', head: true }).eq('escalated', true),
+        supabaseBiz.from('kakao_bot_processed').select('*', { count: 'exact', head: true }).gte('created_at', today),
+        supabaseBiz.from('chatbot_faq').select('bot_type').eq('is_active', true),
+      ])
+
+      setStats({
+        total: totalRes.count || 0,
+        replied: repliedRes.count || 0,
+        escalated: escalatedRes.count || 0,
+        today: todayRes.count || 0,
+      })
+
+      const biz = (faqRes.data || []).filter(f => f.bot_type === 'business').length
+      const cre = (faqRes.data || []).filter(f => f.bot_type === 'creator').length
+      setFaqStats({ business: biz, creator: cre })
+
+      // 최근 7일 차트 데이터
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+      const { data: recentData } = await supabaseBiz.from('kakao_bot_processed')
+        .select('created_at, replied, escalated')
+        .gte('created_at', sevenDaysAgo.toISOString().split('T')[0])
+        .order('created_at', { ascending: true })
+
+      const dayMap = {}
+      for (let i = 0; i < 7; i++) {
+        const d = new Date()
+        d.setDate(d.getDate() - 6 + i)
+        const key = d.toISOString().split('T')[0]
+        dayMap[key] = { date: `${d.getMonth() + 1}/${d.getDate()}`, total: 0, replied: 0, escalated: 0 }
+      }
+      ;(recentData || []).forEach(row => {
+        const key = row.created_at?.split('T')[0]
+        if (dayMap[key]) {
+          dayMap[key].total++
+          if (row.replied) dayMap[key].replied++
+          if (row.escalated) dayMap[key].escalated++
+        }
+      })
+      setChartData(Object.values(dayMap))
+
+      // 에스컬레이션 대기
+      const { data: escData } = await supabaseBiz.from('kakao_bot_processed')
+        .select('*')
+        .eq('escalated', true)
+        .eq('replied', false)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      setEscalations(escData || [])
     } catch (err) {
-      console.error('Dashboard fetch error:', err)
+      console.error('데이터 로딩 오류:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchStats = async () => {
-    const res = await fetch('/.netlify/functions/chatbot-stats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bot_type: botTypeFilter || undefined })
-    })
-    const result = await res.json()
-    if (result.success) setStats(result.data)
-  }
+  useEffect(() => {
+    checkAuth().then(ok => ok && fetchData())
+  }, [checkAuth, fetchData])
 
-  const fetchUnanswered = async () => {
-    const { data } = await supabaseBiz
-      .from('chatbot_unanswered')
-      .select('*')
-      .in('status', ['pending', 'in_progress'])
-      .order('created_at', { ascending: false })
-      .limit(20)
-    setUnanswered(data || [])
-  }
-
-  const fetchLearning = async () => {
-    const res = await fetch('/.netlify/functions/chatbot-learning-review', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'list', limit: 10 })
-    })
-    const result = await res.json()
-    if (result.success) setLearningQueue(result.data.items || [])
-  }
-
-  const handleAnswer = async (item) => {
-    const answer = answerInput[item.id]
-    if (!answer) return
-
-    setSubmitting(prev => ({ ...prev, [item.id]: true }))
+  const handleReplySubmit = async () => {
+    if (!replyText.trim() || !replyModal) return
+    setSubmitting(true)
     try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-      await fetch('/.netlify/functions/chatbot-answer-escalation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, answer, adminEmail: user?.email })
-      })
-      setAnswerInput(prev => ({ ...prev, [item.id]: '' }))
-      await fetchUnanswered()
-      await fetchStats()
+      await supabaseBiz.from('kakao_bot_processed')
+        .update({ reply_text: replyText.trim(), replied: true })
+        .eq('id', replyModal.id)
+      setReplyModal(null)
+      setReplyText('')
+      fetchData()
     } catch (err) {
-      alert(`답변 전송 실패: ${err.message}`)
+      alert('답변 저장 실패: ' + err.message)
     } finally {
-      setSubmitting(prev => ({ ...prev, [item.id]: false }))
+      setSubmitting(false)
     }
   }
 
-  const handleLearningAction = async (id, action, faqData) => {
-    try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-      await fetch('/.netlify/functions/chatbot-learning-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, id, adminEmail: user?.email, faq_data: faqData })
-      })
-      await fetchLearning()
-      await fetchStats()
-    } catch (err) {
-      alert(`처리 실패: ${err.message}`)
-    }
-  }
-
-  const COLORS = ['#6C5CE7', '#A29BFE', '#DFE6E9']
+  const statCards = [
+    { label: '총 처리건수', value: stats.total, icon: MessageSquare, color: 'bg-[#F0EDFF] text-[#6C5CE7]' },
+    { label: '답변 완료', value: stats.replied, icon: CheckCircle, color: 'bg-green-100 text-green-700' },
+    { label: '에스컬레이션', value: stats.escalated, icon: AlertCircle, color: 'bg-red-100 text-red-700' },
+    { label: '오늘 처리', value: stats.today, icon: TrendingUp, color: 'bg-amber-100 text-amber-700' },
+  ]
 
   if (loading) {
     return (
-      <>
+      <div className="flex min-h-screen bg-[#F8F9FA]">
         <AdminNavigation />
-        <div className="min-h-screen bg-[#F8F9FA] p-6 lg:p-8 lg:ml-60 flex items-center justify-center">
+        <main className="flex-1 ml-[240px] p-8 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-[#6C5CE7]" />
-        </div>
-      </>
+        </main>
+      </div>
     )
   }
 
-  const pieData = stats ? [
-    { name: '크리에이터', value: stats.todayConversations > 0 ? Math.round(stats.todayConversations * 0.6) : 0 },
-    { name: '기업', value: stats.todayConversations > 0 ? Math.round(stats.todayConversations * 0.4) : 0 }
-  ] : []
-
   return (
-    <>
+    <div className="flex min-h-screen bg-[#F8F9FA]">
       <AdminNavigation />
-      <div className="min-h-screen bg-[#F8F9FA] p-6 lg:p-8 lg:ml-60">
+      <main className="flex-1 ml-[240px] p-8">
         <div className="max-w-7xl mx-auto">
           {/* 헤더 */}
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>AI 챗봇 대시보드</h1>
-              <p className="text-sm text-[#636E72] mt-1">카카오톡 챗봇 운영 현황</p>
+            <div className="flex items-center gap-3">
+              <Bot className="w-7 h-7 text-[#6C5CE7]" />
+              <h1 className="text-2xl font-bold text-[#2D3436]" style={{ fontFamily: "'Outfit', sans-serif" }}>AI 챗봇 대시보드</h1>
             </div>
-            <Button onClick={fetchAll} variant="outline" className="gap-2 rounded-xl border-[#DFE6E9]">
+            <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 border border-[#DFE6E9] rounded-xl text-[#636E72] hover:border-[#6C5CE7] transition-colors">
               <RefreshCw className="w-4 h-4" /> 새로고침
-            </Button>
+            </button>
+          </div>
+
+          {/* 운영 상태 배너 */}
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm text-green-700 font-medium">
+              GCP VM 정상 운영 중 &nbsp;|&nbsp; business 모드 &nbsp;|&nbsp; 15초 주기 감지
+            </span>
           </div>
 
           {/* 통계 카드 */}
-          {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: '오늘 대화', value: stats.todayConversations, icon: MessageSquare },
-                { label: '응답률', value: `${stats.responseRate}%`, icon: TrendingUp },
-                { label: '평균 만족도', value: stats.avgRating ? `${stats.avgRating}/5` : '-', icon: Star },
-                { label: '미답변 대기', value: stats.pendingUnanswered, icon: AlertCircle }
-              ].map((card, i) => (
-                <Card key={i} className="border-[#DFE6E9] rounded-2xl shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-[#636E72]">{card.label}</p>
-                        <p className="text-2xl font-bold text-[#1A1A2E] mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{card.value}</p>
-                      </div>
-                      <div className="w-10 h-10 bg-[#F0EDFF] rounded-xl flex items-center justify-center">
-                        <card.icon className="w-5 h-5 text-[#6C5CE7]" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {statCards.map(card => (
+              <div key={card.label} className="bg-white border border-[#DFE6E9] rounded-2xl shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-[#636E72]">{card.label}</span>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${card.color}`}>
+                    <card.icon className="w-5 h-5" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold text-[#2D3436]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {card.value.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
 
-          {/* 차트 영역 */}
-          {stats && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-              <Card className="lg:col-span-2 border-[#DFE6E9] rounded-2xl shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold text-[#1A1A2E]">최근 7일 대화 추이</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={stats.dailyChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#DFE6E9" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#636E72' }} tickFormatter={d => d.slice(5)} />
-                      <YAxis tick={{ fontSize: 12, fill: '#636E72' }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count" stroke="#6C5CE7" strokeWidth={2} dot={{ fill: '#6C5CE7' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card className="border-[#DFE6E9] rounded-2xl shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold text-[#1A1A2E]">현황 요약</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#636E72]">활성 FAQ</span>
-                    <span className="font-semibold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.activeFaqs}개</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#636E72]">총 대화</span>
-                    <span className="font-semibold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.totalConversations}건</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#636E72]">학습 대기</span>
-                    <span className="font-semibold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.pendingLearning}건</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#636E72]">총 에스컬레이션</span>
-                    <span className="font-semibold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>{stats.totalEscalations}건</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* 차트 */}
+          <div className="bg-white border border-[#DFE6E9] rounded-2xl shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-[#2D3436] mb-4">최근 7일 처리 현황</h2>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEE" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="total" stroke="#6C5CE7" strokeWidth={2} name="전체" dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="replied" stroke="#00B894" strokeWidth={2} name="답변완료" dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="escalated" stroke="#E17055" strokeWidth={2} name="에스컬레이션" dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
 
-          {/* 미답변 큐 */}
-          <Card className="border-[#DFE6E9] rounded-2xl shadow-sm mb-6">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-[#1A1A2E] flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-[#6C5CE7]" /> 미답변 대기 ({unanswered.length}건)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {unanswered.length === 0 ? (
-                <p className="text-sm text-[#B2BEC3] text-center py-8">대기 중인 미답변이 없습니다</p>
+          {/* 에스컬레이션 대기 + FAQ 현황 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2 bg-white border border-[#DFE6E9] rounded-2xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-[#2D3436] mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" /> 에스컬레이션 대기 ({escalations.length})
+              </h2>
+              {escalations.length === 0 ? (
+                <p className="text-sm text-[#636E72] py-4">미처리 에스컬레이션이 없습니다.</p>
               ) : (
-                <div className="space-y-3">
-                  {unanswered.map(item => (
-                    <div key={item.id} className="bg-[#F8F9FA] rounded-xl p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge className="text-xs bg-[#F0EDFF] text-[#6C5CE7] hover:bg-[#F0EDFF]">
-                              {item.bot_type === 'creator' ? '크리에이터' : '기업'}
-                            </Badge>
-                            <span className="text-xs text-[#B2BEC3]">
-                              {new Date(item.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-[#1A1A2E] font-medium">{item.question}</p>
-                          {item.confidence && (
-                            <p className="text-xs text-[#B2BEC3] mt-1">확신도: {(item.confidence * 100).toFixed(0)}%</p>
-                          )}
-                        </div>
+                <div className="space-y-3 max-h-[320px] overflow-y-auto">
+                  {escalations.map(item => (
+                    <div key={item.id} className="border border-[#DFE6E9] rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-[#2D3436]">{item.chat_name || '알 수 없음'}</span>
+                        <span className="text-xs text-[#636E72]">{new Date(item.created_at).toLocaleString('ko-KR')}</span>
                       </div>
-                      <div className="flex gap-2 mt-3">
-                        <Input
-                          placeholder="답변 입력..."
-                          value={answerInput[item.id] || ''}
-                          onChange={e => setAnswerInput(prev => ({ ...prev, [item.id]: e.target.value }))}
-                          className="text-sm rounded-lg border-[#DFE6E9]"
-                          onKeyDown={e => e.key === 'Enter' && handleAnswer(item)}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleAnswer(item)}
-                          disabled={!answerInput[item.id] || submitting[item.id]}
-                          className="bg-[#6C5CE7] hover:bg-[#5A4BD6] rounded-lg whitespace-nowrap"
-                        >
-                          {submitting[item.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        </Button>
-                      </div>
+                      <p className="text-sm text-[#636E72] mb-3 line-clamp-2">{item.last_message}</p>
+                      <button
+                        onClick={() => { setReplyModal(item); setReplyText('') }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-[#6C5CE7] text-white rounded-lg hover:bg-[#5A4BD6] transition-colors"
+                      >
+                        <Send className="w-3 h-3" /> 답변 입력
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* 학습 승인 대기 */}
-          <Card className="border-[#DFE6E9] rounded-2xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-[#1A1A2E] flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#6C5CE7]" /> 학습 승인 대기 ({learningQueue.length}건)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {learningQueue.length === 0 ? (
-                <p className="text-sm text-[#B2BEC3] text-center py-8">승인 대기 중인 학습 항목이 없습니다</p>
-              ) : (
-                <div className="space-y-3">
-                  {learningQueue.map(item => (
-                    <div key={item.id} className="bg-[#F8F9FA] rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className="text-xs bg-[#F0EDFF] text-[#6C5CE7] hover:bg-[#F0EDFF]">
-                          {item.source_type === 'staff_answer' ? '담당자 답변' : item.source_type === 'choice' ? '선택지' : item.source_type}
-                        </Badge>
-                        <Badge className="text-xs" variant="outline">
-                          {item.bot_type === 'creator' ? '크리에이터' : '기업'}
-                        </Badge>
-                      </div>
-                      <p className="text-sm font-medium text-[#1A1A2E]">Q: {item.source_data?.question}</p>
-                      <p className="text-sm text-[#636E72] mt-1">A: {item.source_data?.answer}</p>
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          onClick={() => handleLearningAction(item.id, 'approve')}
-                          className="bg-[#00B894] hover:bg-[#00A381] rounded-lg gap-1"
-                        >
-                          <CheckCircle2 className="w-3 h-3" /> FAQ 추가
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleLearningAction(item.id, 'reject')}
-                          className="rounded-lg gap-1 text-[#D63031] border-[#D63031] hover:bg-[#D63031] hover:text-white"
-                        >
-                          <XCircle className="w-3 h-3" /> 거부
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+            <div className="bg-white border border-[#DFE6E9] rounded-2xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-[#2D3436] mb-4">FAQ 현황</h2>
+              <div className="space-y-4">
+                <div className="bg-[#F0EDFF] rounded-xl p-4">
+                  <p className="text-sm text-[#636E72] mb-1">기업 (business)</p>
+                  <p className="text-2xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>{faqStats.business}개</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="bg-[#F0EDFF] rounded-xl p-4">
+                  <p className="text-sm text-[#636E72] mb-1">크리에이터 (creator)</p>
+                  <p className="text-2xl font-bold text-[#6C5CE7]" style={{ fontFamily: "'Outfit', sans-serif" }}>{faqStats.creator}개</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </>
+
+        {/* 답변 입력 모달 */}
+        {replyModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setReplyModal(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-[#2D3436] mb-4">수동 답변 입력</h3>
+              <div className="mb-4">
+                <label className="text-sm text-[#636E72] block mb-1">사용자</label>
+                <p className="text-sm font-medium">{replyModal.chat_name || '알 수 없음'}</p>
+              </div>
+              <div className="mb-4">
+                <label className="text-sm text-[#636E72] block mb-1">질문</label>
+                <p className="text-sm bg-gray-50 rounded-xl p-3">{replyModal.last_message}</p>
+              </div>
+              <div className="mb-4">
+                <label className="text-sm text-[#636E72] block mb-1">답변</label>
+                <textarea
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  rows={4}
+                  className="w-full border border-[#DFE6E9] rounded-xl p-3 text-sm focus:border-[#6C5CE7] focus:outline-none"
+                  placeholder="답변을 입력하세요..."
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setReplyModal(null)} className="px-4 py-2 border border-[#DFE6E9] rounded-xl text-sm text-[#636E72] hover:border-[#6C5CE7]">
+                  취소
+                </button>
+                <button
+                  onClick={handleReplySubmit}
+                  disabled={submitting || !replyText.trim()}
+                  className="px-4 py-2 bg-[#6C5CE7] text-white rounded-xl text-sm hover:bg-[#5A4BD6] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />} 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
   )
 }

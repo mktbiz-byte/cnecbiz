@@ -147,6 +147,7 @@ import ChatbotDashboard from './components/admin/chatbot/ChatbotDashboard'
 import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagement'
 import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
 import ChatbotPromptManagement from './components/admin/chatbot/ChatbotPromptManagement'
+import ChatbotReplyHistory from './components/admin/chatbot/ChatbotReplyHistory'
 import MeetingSchedulePage from './components/admin/meeting/MeetingSchedulePage'
 import ProgramConsultationPage from './components/admin/consultation/ProgramConsultationPage'
 import NewsletterShowcase from './pages/NewsletterShowcase'
@@ -325,6 +326,7 @@ function App() {
         {/* AI 챗봇 Routes */}
         <Route path="/admin/chatbot/dashboard" element={<ChatbotDashboard />} />
         <Route path="/admin/chatbot/faq" element={<ChatbotFaqManagement />} />
+        <Route path="/admin/chatbot/replies" element={<ChatbotReplyHistory />} />
         <Route path="/admin/chatbot/guardrails" element={<ChatbotGuardrails />} />
         <Route path="/admin/chatbot/prompts" element={<ChatbotPromptManagement />} />
 
