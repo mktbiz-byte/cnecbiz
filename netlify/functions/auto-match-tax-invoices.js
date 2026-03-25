@@ -1,14 +1,11 @@
 /**
  * 입금 내역과 세금계산서 자동 매칭 API
  * bank_transactions의 미발행 입금 건과 발행된 세금계산서를 금액+회사명으로 자동 매칭
+ * accountLabel 파라미터로 하우랩/하우파파 구분 지원
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+const { getBizClient } = require('./lib/supabase');
+const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
 
 /**
  * 회사명 정규화
@@ -50,89 +47,151 @@ function calculateSimilarity(str1, str2) {
 }
 
 exports.handler = async (event, context) => {
+  if (event.httpMethod === 'OPTIONS') return handleOptions();
+
   try {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    };
-
-    if (event.httpMethod === 'OPTIONS') {
-      return { statusCode: 200, headers, body: '' };
-    }
-
     let body = {};
     try { body = JSON.parse(event.body || '{}'); } catch (e) { body = {}; }
     const dryRun = body.dryRun || false;
+    const accountLabel = body.accountLabel || null; // 'howlab' | 'howpapa' | null
 
-    console.log(`[auto-match] 시작 (dryRun: ${dryRun})`);
+    const accountLabelKr = accountLabel === 'howlab' ? '하우랩' : accountLabel === 'howpapa' ? '하우파파' : null;
 
-    // 1. 미발행 입금 내역 조회
-    const { data: unmatchedDeposits, error: depError } = await supabaseAdmin
+    console.log(`[auto-match] 시작 (dryRun: ${dryRun}, accountLabel: ${accountLabel})`);
+
+    const supabaseAdmin = getBizClient();
+
+    // 1. 미발행 입금 내역 조회 (account_label 필터 적용)
+    let depositQuery = supabaseAdmin
       .from('bank_transactions')
-      .select('id, tid, briefs, trade_balance, trade_date, tax_invoice_status, charge_request_id')
+      .select('id, tid, briefs, trade_balance, trade_date, tax_invoice_status, charge_request_id, account_label')
       .or('tax_invoice_status.eq.none,tax_invoice_status.is.null')
       .order('trade_date', { ascending: false })
       .limit(500);
 
+    if (accountLabelKr) {
+      depositQuery = depositQuery.eq('account_label', accountLabelKr);
+    }
+
+    const { data: unmatchedDeposits, error: depError } = await depositQuery;
+
     if (depError) throw depError;
 
     if (!unmatchedDeposits || unmatchedDeposits.length === 0) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          message: '매칭할 미발행 입금 건이 없습니다.',
-          matched: 0, total: 0, invoiceCount: 0, dryRun, results: []
-        })
-      };
+      return successResponse({
+        success: true,
+        message: '매칭할 미발행 입금 건이 없습니다.',
+        matched: 0, total: 0, invoiceCount: 0, dryRun, results: []
+      });
     }
 
-    console.log(`[auto-match] 미발행 입금 ${unmatchedDeposits.length}건`);
+    console.log(`[auto-match] 미발행 입금 ${unmatchedDeposits.length}건 (${accountLabelKr || '전체'})`);
 
-    // 2a. points_charge_requests에서 발행 완료된 세금계산서
-    const { data: autoInvoices } = await supabaseAdmin
-      .from('points_charge_requests')
-      .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
-      .eq('tax_invoice_issued', true);
-
-    const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
-    let companyMap = {};
-    if (companyIds.length > 0) {
-      const { data: companies } = await supabaseAdmin
-        .from('companies')
-        .select('user_id, company_name')
-        .in('user_id', companyIds);
-      if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
-    }
-
+    // 2. 세금계산서 소스 결정
     const issuedInvoices = [];
-    (autoInvoices || []).forEach(inv => {
-      issuedInvoices.push({
-        source: 'charge_request', sourceId: inv.id,
-        companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
-        amount: inv.amount,
-        ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
-        issuedAt: inv.tax_invoice_info?.issued_at || null
-      });
-    });
 
-    // 2b. manual_tax_invoices에서 발행 완료된 세금계산서
-    const { data: manualInvoices } = await supabaseAdmin
-      .from('manual_tax_invoices')
-      .select('id, company_name, total_amount, nts_confirm_num, issued_at, status')
-      .eq('status', 'issued');
+    if (accountLabel === 'howlab') {
+      // 하우랩: manual_tax_invoices에서 mgt_key가 'L'로 시작하는 것만
+      const { data: manualInvoices } = await supabaseAdmin
+        .from('manual_tax_invoices')
+        .select('id, company_name, total_amount, nts_confirm_num, issued_at, status, mgt_key')
+        .eq('status', 'issued')
+        .like('mgt_key', 'L%');
 
-    (manualInvoices || []).forEach(inv => {
-      issuedInvoices.push({
-        source: 'manual', sourceId: inv.id,
-        companyName: inv.company_name || '',
-        amount: inv.total_amount,
-        ntsConfirmNum: inv.nts_confirm_num || null,
-        issuedAt: inv.issued_at || null
+      (manualInvoices || []).forEach(inv => {
+        issuedInvoices.push({
+          source: 'manual', sourceId: inv.id,
+          companyName: inv.company_name || '',
+          amount: inv.total_amount,
+          ntsConfirmNum: inv.nts_confirm_num || null,
+          issuedAt: inv.issued_at || null
+        });
       });
-    });
+    } else if (accountLabel === 'howpapa') {
+      // 하우파파: points_charge_requests + manual_tax_invoices(M* 또는 L이 아닌 것)
+      const { data: autoInvoices } = await supabaseAdmin
+        .from('points_charge_requests')
+        .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
+        .eq('tax_invoice_issued', true);
+
+      const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
+      let companyMap = {};
+      if (companyIds.length > 0) {
+        const { data: companies } = await supabaseAdmin
+          .from('companies')
+          .select('user_id, company_name')
+          .in('user_id', companyIds);
+        if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
+      }
+
+      (autoInvoices || []).forEach(inv => {
+        issuedInvoices.push({
+          source: 'charge_request', sourceId: inv.id,
+          companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
+          amount: inv.amount,
+          ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
+          issuedAt: inv.tax_invoice_info?.issued_at || null
+        });
+      });
+
+      // 하우파파 수동 세금계산서 (L이 아닌 것)
+      const { data: manualInvoices } = await supabaseAdmin
+        .from('manual_tax_invoices')
+        .select('id, company_name, total_amount, nts_confirm_num, issued_at, status, mgt_key')
+        .eq('status', 'issued')
+        .not('mgt_key', 'like', 'L%');
+
+      (manualInvoices || []).forEach(inv => {
+        issuedInvoices.push({
+          source: 'manual', sourceId: inv.id,
+          companyName: inv.company_name || '',
+          amount: inv.total_amount,
+          ntsConfirmNum: inv.nts_confirm_num || null,
+          issuedAt: inv.issued_at || null
+        });
+      });
+    } else {
+      // accountLabel 없음 → 전체 (기존 로직)
+      const { data: autoInvoices } = await supabaseAdmin
+        .from('points_charge_requests')
+        .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
+        .eq('tax_invoice_issued', true);
+
+      const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
+      let companyMap = {};
+      if (companyIds.length > 0) {
+        const { data: companies } = await supabaseAdmin
+          .from('companies')
+          .select('user_id, company_name')
+          .in('user_id', companyIds);
+        if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
+      }
+
+      (autoInvoices || []).forEach(inv => {
+        issuedInvoices.push({
+          source: 'charge_request', sourceId: inv.id,
+          companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
+          amount: inv.amount,
+          ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
+          issuedAt: inv.tax_invoice_info?.issued_at || null
+        });
+      });
+
+      const { data: manualInvoices } = await supabaseAdmin
+        .from('manual_tax_invoices')
+        .select('id, company_name, total_amount, nts_confirm_num, issued_at, status')
+        .eq('status', 'issued');
+
+      (manualInvoices || []).forEach(inv => {
+        issuedInvoices.push({
+          source: 'manual', sourceId: inv.id,
+          companyName: inv.company_name || '',
+          amount: inv.total_amount,
+          ntsConfirmNum: inv.nts_confirm_num || null,
+          issuedAt: inv.issued_at || null
+        });
+      });
+    }
 
     console.log(`[auto-match] 발행된 세금계산서 ${issuedInvoices.length}건`);
 
@@ -153,14 +212,14 @@ exports.handler = async (event, context) => {
       const depositAmount = parseInt(deposit.trade_balance);
       const depositName = deposit.briefs || '';
 
-      // charge_request 링크 매칭
+      // charge_request 링크 매칭 (하우파파만 해당)
       if (deposit.charge_request_id) {
         const linkedInvoice = issuedInvoices.find(
           inv => inv.source === 'charge_request' && inv.sourceId === deposit.charge_request_id
         );
         if (linkedInvoice && !matchedInvoiceIds.has(`${linkedInvoice.source}_${linkedInvoice.sourceId}`)) {
           results.push({
-            depositId: deposit.id, depositName, depositAmount, depositDate: deposit.trade_date,
+            depositId: deposit.id, depositTid: deposit.tid, depositName, depositAmount, depositDate: deposit.trade_date,
             matchedInvoice: linkedInvoice, matchType: 'charge_request_link', similarity: 100, confidence: 'high'
           });
           matchedInvoiceIds.add(`${linkedInvoice.source}_${linkedInvoice.sourceId}`);
@@ -188,7 +247,7 @@ exports.handler = async (event, context) => {
       if (bestMatch && bestSimilarity >= 60) {
         const confidence = bestSimilarity >= 90 ? 'high' : bestSimilarity >= 75 ? 'medium' : 'low';
         results.push({
-          depositId: deposit.id, depositName, depositAmount, depositDate: deposit.trade_date,
+          depositId: deposit.id, depositTid: deposit.tid, depositName, depositAmount, depositDate: deposit.trade_date,
           matchedInvoice: bestMatch, matchType: 'amount_name', similarity: bestSimilarity, confidence
         });
         matchedInvoiceIds.add(`${bestMatch.source}_${bestMatch.sourceId}`);
@@ -207,10 +266,25 @@ exports.handler = async (event, context) => {
           if (match.matchedInvoice.ntsConfirmNum) {
             updates.tax_invoice_nts_confirm_num = match.matchedInvoice.ntsConfirmNum;
           }
-          const { error } = await supabaseAdmin
-            .from('bank_transactions')
-            .update(updates)
-            .eq('id', match.depositId);
+
+          // id가 있으면 id로, 없으면 tid로 업데이트
+          let updateQuery;
+          if (match.depositId) {
+            updateQuery = supabaseAdmin
+              .from('bank_transactions')
+              .update(updates)
+              .eq('id', match.depositId);
+          } else if (match.depositTid) {
+            updateQuery = supabaseAdmin
+              .from('bank_transactions')
+              .update(updates)
+              .eq('tid', match.depositTid);
+          } else {
+            console.warn('[auto-match] Skip: no id or tid for deposit', match.depositName);
+            continue;
+          }
+
+          const { error } = await updateQuery;
           if (!error) updatedCount++;
         } catch (err) {
           console.error('[auto-match] Update error:', err.message);
@@ -218,31 +292,36 @@ exports.handler = async (event, context) => {
       }
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        message: dryRun ? `${results.length}건 매칭 가능 (미리보기)` : `${updatedCount}건 자동 매칭 완료`,
-        matched: dryRun ? results.length : updatedCount,
-        total: unmatchedDeposits.length,
-        invoiceCount: issuedInvoices.length,
-        dryRun,
-        results: results.map(r => ({
-          depositId: r.depositId, depositName: r.depositName, depositAmount: r.depositAmount,
-          depositDate: r.depositDate, invoiceCompany: r.matchedInvoice.companyName,
-          invoiceAmount: r.matchedInvoice.amount, invoiceNtsNum: r.matchedInvoice.ntsConfirmNum,
-          invoiceIssuedAt: r.matchedInvoice.issuedAt, matchType: r.matchType,
-          similarity: r.similarity, confidence: r.confidence
-        }))
-      })
-    };
+    return successResponse({
+      success: true,
+      message: dryRun ? `${results.length}건 매칭 가능 (미리보기)` : `${updatedCount}건 자동 매칭 완료`,
+      matched: dryRun ? results.length : updatedCount,
+      total: unmatchedDeposits.length,
+      invoiceCount: issuedInvoices.length,
+      dryRun,
+      results: results.map(r => ({
+        depositId: r.depositId, depositTid: r.depositTid, depositName: r.depositName, depositAmount: r.depositAmount,
+        depositDate: r.depositDate, invoiceCompany: r.matchedInvoice.companyName,
+        invoiceAmount: r.matchedInvoice.amount, invoiceNtsNum: r.matchedInvoice.ntsConfirmNum,
+        invoiceIssuedAt: r.matchedInvoice.issuedAt, matchType: r.matchType,
+        similarity: r.similarity, confidence: r.confidence
+      }))
+    });
   } catch (error) {
     console.error('[auto-match] Error:', error);
-    return {
-      statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ success: false, error: error.message || '알 수 없는 오류' })
-    };
+
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'auto-match-tax-invoices',
+          errorMessage: error.message
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
+    return errorResponse(500, error.message || '알 수 없는 오류');
   }
 };

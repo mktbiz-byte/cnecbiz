@@ -193,7 +193,7 @@ export default function HowlabDepositsTab() {
       const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: true })
+        body: JSON.stringify({ dryRun: true, accountLabel: 'howlab' })
       })
       const result = await response.json()
       if (result.success) {
@@ -216,7 +216,7 @@ export default function HowlabDepositsTab() {
       const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: false })
+        body: JSON.stringify({ dryRun: false, accountLabel: 'howlab' })
       })
       const result = await response.json()
       if (result.success) {
@@ -243,6 +243,7 @@ export default function HowlabDepositsTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transactionId: taxModalTx.id || null,
+          tid: taxModalTx.tid || null,
           chargeRequestId: taxModalTx.chargeRequestId || null,
           taxInvoiceStatus: taxModalStatus,
           ntsConfirmNum: taxModalNtsNum || null
