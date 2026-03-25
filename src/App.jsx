@@ -90,6 +90,7 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorMappingManagement from './components/admin/CreatorMappingManagement'
 import CreatorProposalManagement from './components/admin/CreatorProposalManagement'
+import BulkAlimtalkPage from './components/admin/BulkAlimtalkPage'
 import YoutuberSearchPage from './components/admin/YoutuberSearchPage'
 import DailyReportPage from './components/admin/DailyReportPage'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
@@ -335,6 +336,7 @@ function App() {
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
         <Route path="/admin/creator-mapping" element={<CreatorMappingManagement />} />
+        <Route path="/admin/bulk-alimtalk" element={<BulkAlimtalkPage />} />
         <Route path="/admin/creator-proposals" element={<CreatorProposalManagement />} />
         <Route path="/admin/meeting-schedule" element={<MeetingSchedulePage />} />
         <Route path="/admin/program-consultations" element={<ProgramConsultationPage />} />
