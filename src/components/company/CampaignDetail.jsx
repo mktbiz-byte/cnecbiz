@@ -3518,11 +3518,16 @@ JSON만 출력.`
             if (region !== 'us') {
               try {
                 const pEmail = participant.email || participant.creator_email || participant.applicant_email
-                if (participant.user_id) {
-                  await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('user_id', participant.user_id)
-                }
                 if (pEmail) {
-                  await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('creator_email', pEmail)
+                  await supabase.from('campaign_participants').upsert({
+                    campaign_id: id,
+                    creator_email: pEmail,
+                    user_id: participant.user_id || null,
+                    selection_status: 'selected',
+                    personalized_guide: guideSaveValue
+                  }, { onConflict: 'campaign_id,creator_email', ignoreDuplicates: false })
+                } else if (participant.user_id) {
+                  await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('user_id', participant.user_id)
                 }
               } catch (syncErr) {
                 console.log('[Guide Sync] campaign_participants 동기화 실패 (무시):', syncErr.message)
@@ -6690,6 +6695,33 @@ Questions? Contact us.
             selected_at: new Date().toISOString()
           })
           .eq('id', participantId)
+      }
+
+      // campaign_participants 테이블에 레코드 생성 (크리에이터 마이페이지 표시용)
+      // US DB에는 campaign_participants 테이블이 없으므로 US 제외
+      if (region !== 'us') {
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            const pEmail = participant.email || participant.creator_email || participant.applicant_email || participant.user_email
+            try {
+              await supabase
+                .from('campaign_participants')
+                .upsert({
+                  campaign_id: id,
+                  creator_email: pEmail,
+                  user_id: participant.user_id || null,
+                  selection_status: 'selected',
+                  main_channel: participant.main_channel || null,
+                  guide_group: participant.guide_group || null,
+                  selected_at: new Date().toISOString()
+                }, { onConflict: 'campaign_id,creator_email', ignoreDuplicates: false })
+            } catch (cpErr) {
+              console.log('[handleConfirmSelection] campaign_participants upsert 실패 (무시):', cpErr.message)
+            }
+          }
+        }
       }
 
       // 캠페인의 selected_participants_count 업데이트
