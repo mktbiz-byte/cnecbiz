@@ -20,6 +20,59 @@ import AdminNavigation from './AdminNavigation'
 import LineChatModal from './LineChatModal'
 import * as XLSX from 'xlsx'
 
+// 프로필 완성도 계산 (나라별 스키마 대응)
+const PROFILE_FIELDS = [
+  { key: 'profile_image', label: '프로필 이미지', weight: 8 },
+  { key: 'bio', label: '자기소개', weight: 7 },
+  { key: 'phone', label: '전화번호', weight: 6 },
+  { key: 'sns', label: 'SNS 1개 이상', weight: 8, custom: true },
+  { key: 'skin_type', label: '피부타입', weight: 6 },
+  { key: 'skin_shade', label: '피부톤', weight: 5 },
+  { key: 'personal_color', label: '퍼스널컬러', weight: 5 },
+  { key: 'hair_type', label: '모발타입', weight: 5 },
+  { key: 'skin_concerns', label: '피부고민', weight: 5, isArray: true },
+  { key: 'primary_interest', label: '주요 관심사', weight: 5 },
+  { key: 'gender', label: '성별', weight: 4 },
+  { key: 'age', label: '나이', weight: 4 },
+  { key: 'editing_level', label: '편집 능력', weight: 4 },
+  { key: 'shooting_level', label: '촬영 능력', weight: 4 },
+  { key: 'follower_range', label: '팔로워 규모', weight: 4 },
+  { key: 'upload_frequency', label: '업로드 빈도', weight: 4 },
+  { key: 'content_formats', label: '콘텐츠 형식', weight: 4, isArray: true },
+  { key: 'collaboration_preferences', label: '협업 선호', weight: 4, isArray: true },
+]
+
+function calcProfileCompleteness(creator) {
+  if (!creator) return { percent: 0, filled: 0, total: PROFILE_FIELDS.length, missing: [] }
+  let totalWeight = 0
+  let filledWeight = 0
+  const missing = []
+
+  for (const field of PROFILE_FIELDS) {
+    totalWeight += field.weight
+    let isFilled = false
+
+    if (field.custom && field.key === 'sns') {
+      isFilled = !!(creator.instagram_url || creator.youtube_url || creator.tiktok_url || creator.blog_url)
+    } else if (field.isArray) {
+      const val = creator[field.key]
+      isFilled = Array.isArray(val) ? val.length > 0 : (typeof val === 'string' && val.length > 0)
+    } else {
+      const val = creator[field.key]
+      isFilled = val !== null && val !== undefined && val !== '' && val !== 0
+    }
+
+    if (isFilled) {
+      filledWeight += field.weight
+    } else {
+      missing.push(field.label)
+    }
+  }
+
+  const percent = totalWeight > 0 ? Math.round((filledWeight / totalWeight) * 100) : 0
+  return { percent, filled: PROFILE_FIELDS.length - missing.length, total: PROFILE_FIELDS.length, missing }
+}
+
 // 등급 정의
 const GRADE_LEVELS = {
   1: { name: 'FRESH', label: '크넥 인증', color: '#10B981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-600', lightBg: 'bg-emerald-50', borderClass: 'border-emerald-200' },
@@ -248,6 +301,7 @@ export default function AllCreatorsPage() {
 
   // 계정 상태 (가계정/찐계정) 관련 상태
   const [accountStatusFilter, setAccountStatusFilter] = useState('all')
+  const [profileFilter, setProfileFilter] = useState('all') // 'all' | 'incomplete' (< 70%)
   const [showAccountStatusModal, setShowAccountStatusModal] = useState(false)
   const [selectedAccountStatus, setSelectedAccountStatus] = useState(null)
   const [accountStatusNote, setAccountStatusNote] = useState('')
@@ -289,7 +343,7 @@ export default function AllCreatorsPage() {
   // 탭이나 검색어, 등급필터, 계정상태필터 변경 시 페이지 초기화
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab, searchTerm, gradeFilter, accountStatusFilter])
+  }, [activeTab, searchTerm, gradeFilter, accountStatusFilter, profileFilter])
 
   // 필터별 인원 수 계산
   const filterCounts = useMemo(() => {
@@ -874,12 +928,15 @@ export default function AllCreatorsPage() {
     // 계정 상태 필터 (가계정/찐계정)
     if (accountStatusFilter !== 'all') {
       if (accountStatusFilter === 'unclassified') {
-        // 미분류 계정
         filtered = filtered.filter(creator => !creator.account_status)
       } else {
-        // 특정 상태 (verified, warning_1, warning_2, warning_3)
         filtered = filtered.filter(creator => creator.account_status === accountStatusFilter)
       }
+    }
+
+    // 프로필 완성도 필터
+    if (profileFilter === 'incomplete') {
+      filtered = filtered.filter(creator => calcProfileCompleteness(creator).percent < 70)
     }
 
     return filtered
@@ -1688,6 +1745,7 @@ export default function AllCreatorsPage() {
               <th className="text-left p-1.5 font-medium text-gray-600">이메일</th>
               <th className="text-left p-1.5 font-medium text-gray-600">휴대폰</th>
               <th className="text-left p-1.5 font-medium text-gray-600">SNS</th>
+              <th className="text-left p-1.5 font-medium text-gray-600">프로필</th>
               <th className="text-left p-1.5 font-medium text-gray-600">상태</th>
               {region === 'all' && <th className="text-left p-1.5 font-medium text-gray-600">지역</th>}
               <th className="text-left p-1.5 font-medium text-gray-600">가입일</th>
@@ -1759,6 +1817,19 @@ export default function AllCreatorsPage() {
                   </td>
                   <td className="p-1.5" onClick={(e) => e.stopPropagation()}>
                     <SNSIcons creator={creator} />
+                  </td>
+                  <td className="p-1.5">
+                    {(() => {
+                      const { percent } = calcProfileCompleteness(creator)
+                      return (
+                        <div className="flex items-center gap-1.5" title={`프로필 완성도 ${percent}%`}>
+                          <div className="w-12 bg-gray-200 rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full ${percent >= 70 ? 'bg-emerald-500' : percent >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${percent}%` }} />
+                          </div>
+                          <span className={`text-xs font-medium ${percent >= 70 ? 'text-emerald-600' : percent >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{percent}%</span>
+                        </div>
+                      )
+                    })()}
                   </td>
                   <td className="p-1.5">{getStatusBadge(creator.approval_status)}</td>
                   {region === 'all' && (
@@ -2043,6 +2114,29 @@ export default function AllCreatorsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* 프로필 완성도 필터 */}
+                <div>
+                  <span className="text-xs text-gray-500 mr-2">프로필:</span>
+                  <div className="flex gap-1 inline-flex">
+                    <button
+                      onClick={() => setProfileFilter('all')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        profileFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      전체
+                    </button>
+                    <button
+                      onClick={() => setProfileFilter('incomplete')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        profileFilter === 'incomplete' ? 'bg-red-500 text-white' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                      }`}
+                    >
+                      미완성 (&lt;70%)
+                    </button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -2227,6 +2321,97 @@ export default function AllCreatorsPage() {
                   {!normalizeInstagramUrl(selectedCreator.instagram_url) && !normalizeYoutubeUrl(selectedCreator.youtube_url) && !normalizeTiktokUrl(selectedCreator.tiktok_url) && (
                     <p className="text-gray-400 text-center py-4">등록된 SNS 정보가 없습니다.</p>
                   )}
+                </div>
+              </div>
+
+              {/* 프로필 완성도 */}
+              {(() => {
+                const comp = calcProfileCompleteness(selectedCreator)
+                return (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" /> 프로필 완성도
+                      </h4>
+                      <span className={`text-lg font-bold ${comp.percent >= 70 ? 'text-emerald-600' : comp.percent >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                        {comp.percent}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+                      <div className={`h-2.5 rounded-full transition-all ${comp.percent >= 70 ? 'bg-emerald-500' : comp.percent >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${comp.percent}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">{comp.filled}/{comp.total}개 항목 완료</p>
+                    {comp.missing.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {comp.missing.map(m => (
+                          <span key={m} className="text-xs px-1.5 py-0.5 bg-red-50 text-red-500 rounded">{m}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* 뷰티 프로필 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> 뷰티 프로필
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">피부타입</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.skin_type || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">피부톤</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.skin_shade || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">퍼스널컬러</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.personal_color || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">모발타입</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.hair_type || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500">피부고민</p>
+                    <p className="text-sm font-medium text-gray-800">
+                      {(() => {
+                        const sc = selectedCreator.skin_concerns
+                        if (!sc) return '-'
+                        if (Array.isArray(sc)) return sc.join(', ') || '-'
+                        if (typeof sc === 'string') return sc || '-'
+                        return '-'
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">주요 관심사</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.primary_interest || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">성별 / 나이</p>
+                    <p className="text-sm font-medium text-gray-800">
+                      {selectedCreator.gender || '-'} / {selectedCreator.age || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">편집 능력</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.editing_level || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">촬영 능력</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.shooting_level || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">팔로워 규모</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.follower_range || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">업로드 빈도</p>
+                    <p className="text-sm font-medium text-gray-800">{selectedCreator.upload_frequency || '-'}</p>
+                  </div>
                 </div>
               </div>
 
