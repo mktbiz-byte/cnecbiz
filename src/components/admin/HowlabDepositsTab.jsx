@@ -30,25 +30,64 @@ export default function HowlabDepositsTab() {
     syncFromPopbill(true)
   }, [])
 
-  // DB에서 하우랩 전체 입금 내역 로드
+  // DB에서 하우랩 전체 입금 내역 로드 (실패 시 팝빌 직접 표시)
   const loadFromDb = async () => {
     setLoading(true)
     try {
-      // 하우랩 데이터만 필터링 (account_label='하우랩')
       const response = await fetch('/.netlify/functions/get-bank-transactions?accountLabel=howlab')
-      const data = await response.json()
-
-      if (data.success) {
-        setTransactions([...data.transactions])
-        setStats({...data.stats})
-      } else {
-        console.error('[하우랩] DB 조회 실패:', data)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.transactions && data.transactions.length > 0) {
+          setTransactions([...data.transactions])
+          setStats({...data.stats})
+          setLoading(false)
+          return
+        }
       }
+      // DB에 데이터 없거나 실패 → 팝빌 직접 조회
+      console.warn('[하우랩] DB 조회 실패 또는 0건, 팝빌 직접 조회')
+      await loadFromPopbill()
     } catch (error) {
       console.error('[하우랩] DB 조회 예외:', error)
-      alert(`거래 내역을 불러오는데 실패했습니다.\n\n오류: ${error.message}`)
+      await loadFromPopbill()
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 팝빌에서 직접 표시 (DB 실패 시 폴백)
+  const loadFromPopbill = async () => {
+    try {
+      const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      const startDateObj = new Date()
+      startDateObj.setDate(startDateObj.getDate() - 25)
+      const startDate = startDateObj.toISOString().slice(0, 10).replace(/-/g, '')
+
+      const popbillUrl = `/.netlify/functions/get-howlab-deposits?startDate=${startDate}&endDate=${endDate}&filterType=input`
+      const popbillResponse = await fetch(popbillUrl)
+      const popbillData = await popbillResponse.json()
+
+      if (popbillData.success && popbillData.data && popbillData.data.length > 0) {
+        const formattedTransactions = popbillData.data.map(d => ({
+          id: null, tid: d.bkid,
+          tradeDate: d.bkdate + (d.bktime || ''),
+          tradeType: d.bkinput > 0 ? 'I' : 'O',
+          tradeBalance: String(d.bkinput > 0 ? d.bkinput : d.bkoutput),
+          briefs: d.bkjukyo || '',
+          isMatched: false, matchedRequest: null,
+          accountLabel: '하우랩',
+          taxInvoiceStatus: 'none', taxInvoiceNtsConfirmNum: null, chargeRequestId: null
+        }))
+        setTransactions(formattedTransactions)
+        setStats({
+          total: formattedTransactions.length,
+          matched: 0, unmatched: formattedTransactions.length,
+          totalAmount: formattedTransactions.reduce((sum, tx) => sum + parseInt(tx.tradeBalance || 0), 0)
+        })
+      }
+    } catch (error) {
+      console.error('[하우랩] 팝빌도 실패:', error.message)
+      setPopbillError('팝빌 조회도 실패: ' + error.message)
     }
   }
 
@@ -80,16 +119,24 @@ export default function HowlabDepositsTab() {
           briefs: d.bkjukyo || ''
         }))
 
-        const saveResponse = await fetch('/.netlify/functions/sync-deposits-to-db', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transactions: txForSync,
-            accountLabel: '하우랩'
+        // DB 저장 시도 (실패해도 무시)
+        let newCount = 0
+        try {
+          const saveResponse = await fetch('/.netlify/functions/sync-deposits-to-db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transactions: txForSync,
+              accountLabel: '하우랩'
+            })
           })
-        })
-        const saveResult = await saveResponse.json()
-        const newCount = saveResult.savedCount || 0
+          if (saveResponse.ok) {
+            const saveResult = await saveResponse.json()
+            newCount = saveResult.savedCount || 0
+          }
+        } catch (syncErr) {
+          console.warn('[하우랩] DB 저장 실패 (무시):', syncErr.message)
+        }
 
         setLastSyncTime(new Date().toLocaleString('ko-KR'))
         setSyncResult({ success: true, fetched: popbillData.data.length, saved: newCount })
