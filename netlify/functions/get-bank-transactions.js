@@ -4,33 +4,42 @@
  * 세금계산서 발행 상태 포함
  */
 
-const { getBizClient } = require('./lib/supabase');
-const { handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS'
+};
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
 
   try {
-    const supabaseAdmin = getBizClient();
-
     const params = event.queryStringParameters || {};
     const startDate = params.startDate || null;
     const endDate = params.endDate || null;
     const accountLabel = params.accountLabel || null;
 
-    // bank_transactions 조회 (날짜 파라미터 없으면 전체 조회)
+    // bank_transactions 조회
     let query = supabaseAdmin
       .from('bank_transactions')
       .select('*')
       .order('trade_date', { ascending: false })
-      .order('trade_time', { ascending: false });
+      .order('trade_time', { ascending: false })
+      .limit(2000);
 
     if (startDate) query = query.gte('trade_date', startDate);
     if (endDate) query = query.lte('trade_date', endDate);
     if (accountLabel === 'howlab') query = query.eq('account_label', '하우랩');
     else if (accountLabel === 'howpapa') query = query.eq('account_label', '하우파파');
-
-    console.log(`[get-bank-transactions] 조회: ${accountLabel || '전체'} / ${startDate || '전체'} ~ ${endDate || '전체'}`);
 
     const { data: transactions, error } = await query;
 
@@ -38,7 +47,7 @@ exports.handler = async (event) => {
 
     // 매칭된 charge_request_id 목록 추출
     const chargeRequestIds = [...new Set(
-      transactions.filter(tx => tx.charge_request_id).map(tx => tx.charge_request_id)
+      (transactions || []).filter(tx => tx.charge_request_id).map(tx => tx.charge_request_id)
     )];
 
     // 한 번에 충전 요청 + 세금계산서 정보 조회
@@ -50,7 +59,6 @@ exports.handler = async (event) => {
         .in('id', chargeRequestIds);
 
       if (requests) {
-        // company_id 목록으로 회사명 일괄 조회
         const companyIds = [...new Set(requests.map(r => r.company_id).filter(Boolean))];
         let companyMap = {};
         if (companyIds.length > 0) {
@@ -78,14 +86,12 @@ exports.handler = async (event) => {
     }
 
     // 데이터 포맷 변환 (세금계산서 상태 포함)
-    const formattedTransactions = transactions.map(tx => {
+    const formattedTransactions = (transactions || []).map(tx => {
       const matchedRequest = tx.charge_request_id ? (chargeRequestMap[tx.charge_request_id] || null) : null;
 
-      // 세금계산서 상태 결정
       let taxInvoiceStatus = tx.tax_invoice_status || 'none';
       let taxInvoiceNtsConfirmNum = tx.tax_invoice_nts_confirm_num || null;
 
-      // 매칭된 충전 요청이 있으면 그쪽의 세금계산서 상태를 우선 사용
       if (matchedRequest) {
         if (matchedRequest.tax_invoice_issued) {
           taxInvoiceStatus = 'issued';
@@ -100,12 +106,9 @@ exports.handler = async (event) => {
         tid: tx.tid,
         tradeDate: tx.trade_date + (tx.trade_time || ''),
         tradeType: tx.trade_type,
-        tradeBalance: tx.trade_balance.toString(),
+        tradeBalance: String(tx.trade_balance),
         balance: tx.after_balance?.toString() || '0',
         briefs: tx.briefs,
-        remark1: tx.remark1,
-        remark2: tx.remark2,
-        remark3: tx.remark3,
         isMatched: tx.is_matched,
         matchedRequest,
         accountLabel: tx.account_label || null,
@@ -115,7 +118,6 @@ exports.handler = async (event) => {
       };
     });
 
-    // 통계 계산 (세금계산서 통계 포함)
     const stats = {
       total: formattedTransactions.length,
       matched: formattedTransactions.filter(tx => tx.isMatched).length,
@@ -123,30 +125,20 @@ exports.handler = async (event) => {
       totalAmount: formattedTransactions.reduce((sum, tx) => sum + parseInt(tx.tradeBalance || 0), 0),
       taxInvoiceIssued: formattedTransactions.filter(tx => tx.taxInvoiceStatus === 'issued').length,
       taxInvoicePending: formattedTransactions.filter(tx => tx.taxInvoiceStatus === 'pending').length,
-      taxInvoiceNone: formattedTransactions.filter(tx => tx.taxInvoiceStatus === 'none' || tx.taxInvoiceStatus === 'not_needed').length
+      taxInvoiceNone: formattedTransactions.filter(tx => tx.taxInvoiceStatus === 'none' || !tx.taxInvoiceStatus).length
     };
 
-    return successResponse({
-      success: true,
-      transactions: formattedTransactions,
-      stats,
-      period: { startDate, endDate }
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, transactions: formattedTransactions, stats })
+    };
   } catch (error) {
     console.error('[get-bank-transactions] Error:', error);
-
-    try {
-      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
-      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'get-bank-transactions',
-          errorMessage: error.message
-        })
-      });
-    } catch (e) { console.error('Error alert failed:', e.message); }
-
-    return errorResponse(500, error.message);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 };
