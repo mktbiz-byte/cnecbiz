@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Upload, Users, Send, FileSpreadsheet, Loader2, CheckCircle, XCircle, Trash2, AlertTriangle, Phone } from 'lucide-react'
+import { Upload, Users, Send, FileSpreadsheet, Loader2, CheckCircle, XCircle, Trash2, AlertTriangle, Phone, Megaphone, Eye, Download } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import * as XLSX from 'xlsx'
 
-// 전화번호 정규화
 function normalizePhone(phone) {
   if (!phone) return null
   const cleaned = String(phone).replace(/[^0-9]/g, '')
@@ -14,7 +13,6 @@ function normalizePhone(phone) {
   return cleaned
 }
 
-// 전화번호 표시용 포맷
 function formatPhone(phone) {
   if (!phone) return ''
   if (phone.length === 11) return `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`
@@ -38,114 +36,79 @@ const TEMPLATE_OPTIONS = [
 export default function BulkAlimtalkPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATE_OPTIONS[0])
   const [variableValues, setVariableValues] = useState({})
-
-  // 수신자 데이터
-  const [excelRecipients, setExcelRecipients] = useState([]) // 엑셀 업로드
-  const [bizRecipients, setBizRecipients] = useState([]) // BIZ DB 크리에이터
-  const [mergedRecipients, setMergedRecipients] = useState([]) // 중복 제거된 최종
-
-  // 상태
+  const [excelRecipients, setExcelRecipients] = useState([])
+  const [bizRecipients, setBizRecipients] = useState([])
+  const [mergedRecipients, setMergedRecipients] = useState([])
   const [loadingBiz, setLoadingBiz] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendResult, setSendResult] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // BIZ DB에서 크리에이터 불러오기 (Korea DB user_profiles)
   const loadBizCreators = async () => {
     setLoadingBiz(true)
     try {
-      // featured_creators에서 한국 크리에이터 조회
       const { data: featured, error } = await supabaseBiz
         .from('featured_creators')
         .select('id, name, phone, email, region')
-
       if (error) throw error
-
       const creators = (featured || [])
         .filter(c => c.phone && normalizePhone(c.phone))
-        .map(c => ({
-          phone: normalizePhone(c.phone),
-          name: c.name || '',
-          source: 'BIZ DB'
-        }))
-
+        .map(c => ({ phone: normalizePhone(c.phone), name: c.name || '', source: 'BIZ DB' }))
       setBizRecipients(creators)
     } catch (error) {
-      console.error('BIZ DB 로드 실패:', error)
       alert('크리에이터 데이터 로드 실패: ' + error.message)
     } finally {
       setLoadingBiz(false)
     }
   }
 
-  // 엑셀 파일 업로드 처리
   const handleExcelUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target.result)
         const workbook = XLSX.read(data, { type: 'array' })
-        const sheetName = workbook.SheetNames[0]
-        const sheet = workbook.Sheets[sheetName]
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' })
-
         const recipients = []
         for (const row of jsonData) {
-          // 전화번호 컬럼 찾기 (여러 이름 시도)
           const phoneRaw = row['전화번호'] || row['핸드폰'] || row['phone'] || row['Phone'] || row['연락처'] || row['휴대폰'] || ''
           const nameRaw = row['이름'] || row['name'] || row['Name'] || row['크리에이터명'] || ''
-
           const phone = normalizePhone(phoneRaw)
           if (!phone) continue
-
-          recipients.push({
-            phone,
-            name: String(nameRaw).trim(),
-            source: '엑셀'
-          })
+          recipients.push({ phone, name: String(nameRaw).trim(), source: '엑셀' })
         }
-
         setExcelRecipients(recipients)
-        alert(`엑셀에서 ${recipients.length}명의 유효한 수신자를 불러왔습니다.`)
+        alert(`엑셀에서 ${recipients.length}명의 수신자를 불러왔습니다.`)
       } catch (err) {
-        console.error('엑셀 파싱 실패:', err)
         alert('엑셀 파일 파싱 실패: ' + err.message)
       }
     }
     reader.readAsArrayBuffer(file)
   }
 
-  // 중복 제거 및 병합
   useEffect(() => {
     const phoneMap = new Map()
-
-    // 엑셀 데이터 우선 (이름이 더 정확할 수 있음)
     for (const r of excelRecipients) {
-      if (!phoneMap.has(r.phone)) {
-        phoneMap.set(r.phone, { ...r })
-      }
+      if (!phoneMap.has(r.phone)) phoneMap.set(r.phone, { ...r })
     }
-
-    // BIZ DB 데이터 추가 (중복은 스킵)
     for (const r of bizRecipients) {
       if (!phoneMap.has(r.phone)) {
         phoneMap.set(r.phone, { ...r })
       } else {
-        // 이름이 없으면 보강
         const existing = phoneMap.get(r.phone)
         if (!existing.name && r.name) {
           existing.name = r.name
-          existing.source = existing.source + ' + BIZ DB'
+          existing.source = existing.source + ' + BIZ'
         }
       }
     }
-
     setMergedRecipients(Array.from(phoneMap.values()))
   }, [excelRecipients, bizRecipients])
 
-  // 미리보기 메시지 생성
   const getPreviewMessage = () => {
     let msg = selectedTemplate.content
     msg = msg.replace(/#{크리에이터명}/g, '홍길동')
@@ -155,26 +118,14 @@ export default function BulkAlimtalkPage() {
     return msg
   }
 
-  // 발송
   const handleSend = async () => {
-    if (mergedRecipients.length === 0) {
-      alert('수신자가 없습니다.')
-      return
-    }
-
-    // 변수 채워졌는지 확인
+    if (mergedRecipients.length === 0) return alert('수신자가 없습니다.')
     for (const v of selectedTemplate.variables) {
-      if (!variableValues[v]) {
-        alert(`'${v}' 변수를 입력해주세요.`)
-        return
-      }
+      if (!variableValues[v]) return alert(`'${v}' 변수를 입력해주세요.`)
     }
-
-    if (!confirm(`총 ${mergedRecipients.length}명에게 알림톡을 발송하시겠습니까?\n\n템플릿: ${selectedTemplate.name}\n${selectedTemplate.variables.map(v => `${v}: ${variableValues[v]}`).join('\n')}`)) return
-
+    if (!confirm(`총 ${mergedRecipients.length}명에게 알림톡을 발송하시겠습니까?`)) return
     setSending(true)
     setSendResult(null)
-
     try {
       const response = await fetch('/.netlify/functions/send-bulk-alimtalk', {
         method: 'POST',
@@ -187,12 +138,10 @@ export default function BulkAlimtalkPage() {
           buttons: selectedTemplate.buttons || null
         })
       })
-
       const result = await response.json()
       setSendResult(result)
-
       if (result.success) {
-        alert(`발송 완료! 성공: ${result.totalSuccess}건, 실패: ${result.totalFail}건`)
+        alert(`발송 완료! 성공 ${result.totalSuccess}건, 실패 ${result.totalFail}건`)
       } else {
         alert('발송 실패: ' + (result.error || '알 수 없는 오류'))
       }
@@ -203,129 +152,198 @@ export default function BulkAlimtalkPage() {
     }
   }
 
+  const handleDownloadSample = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['이름', '전화번호'],
+      ['홍길동', '01012345678'],
+      ['김크넥', '010-9876-5432']
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '수신자')
+    XLSX.writeFile(wb, '알림톡_수신자_샘플.xlsx')
+  }
+
   const excelCount = excelRecipients.length
   const bizCount = bizRecipients.length
   const duplicateCount = excelCount + bizCount - mergedRecipients.length
 
+  const filteredRecipients = mergedRecipients.filter(r => {
+    if (!searchTerm) return true
+    const s = searchTerm.toLowerCase()
+    return r.name?.toLowerCase().includes(s) || r.phone?.includes(s)
+  })
+
   return (
     <div className="space-y-6">
+      {/* 페이지 헤더 */}
       <div>
-        <h1 className="text-2xl font-bold">단체 알림톡 발송</h1>
-        <p className="text-sm text-gray-500 mt-1">엑셀 업로드 + BIZ DB 크리에이터를 합쳐서 중복 제거 후 팝빌 알림톡을 일괄 발송합니다.</p>
+        <h1 className="text-2xl font-bold text-[#1A1A2E]">단체 알림톡 발송</h1>
+        <p className="text-sm text-[#636E72] mt-1">엑셀 업로드 + BIZ DB 크리에이터 데이터를 합쳐서 중복 제거 후 팝빌 알림톡을 일괄 발송합니다.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 좌측: 수신자 관리 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <FileSpreadsheet className="w-5 h-5 mx-auto mb-1 text-blue-500" />
-                <div className="text-xl font-bold">{excelCount}</div>
-                <p className="text-xs text-gray-500">엑셀 업로드</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <Users className="w-5 h-5 mx-auto mb-1 text-purple-500" />
-                <div className="text-xl font-bold">{bizCount}</div>
-                <p className="text-xs text-gray-500">BIZ DB</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <XCircle className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-                <div className="text-xl font-bold">{duplicateCount}</div>
-                <p className="text-xs text-gray-500">중복 제거</p>
-              </CardContent>
-            </Card>
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-6 text-center">
-                <Send className="w-5 h-5 mx-auto mb-1 text-green-600" />
-                <div className="text-xl font-bold text-green-700">{mergedRecipients.length}</div>
-                <p className="text-xs text-gray-500">최종 발송 대상</p>
-              </CardContent>
-            </Card>
-          </div>
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+              <FileSpreadsheet className="w-5 h-5 text-[#6C5CE7]" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[#1A1A2E]">{excelCount}</div>
+              <p className="text-xs text-[#636E72]">엑셀 업로드</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+              <Users className="w-5 h-5 text-[#6C5CE7]" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[#1A1A2E]">{bizCount}</div>
+              <p className="text-xs text-[#636E72]">BIZ DB</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[rgba(253,203,110,0.1)] flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-[#FDCB6E]" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[#1A1A2E]">{duplicateCount}</div>
+              <p className="text-xs text-[#636E72]">중복 제거</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-[#6C5CE7]/20 bg-[#F0EDFF]/30">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#6C5CE7] flex items-center justify-center">
+              <Send className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[#6C5CE7]">{mergedRecipients.length}</div>
+              <p className="text-xs text-[#636E72]">최종 발송 대상</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center">
+              <Megaphone className="w-5 h-5 text-[#6C5CE7]" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[#1A1A2E]">~{Math.ceil(mergedRecipients.length * 8).toLocaleString()}</div>
+              <p className="text-xs text-[#636E72]">예상 비용 (원)</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* 좌측: 수신자 관리 (3/5) */}
+        <div className="lg:col-span-3 space-y-6">
           {/* 데이터 소스 */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">수신자 데이터 추가</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-[#1A1A2E]">수신자 데이터 추가</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               {/* 엑셀 업로드 */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">엑셀 파일 업로드 (.xlsx, .xls)</label>
-                  <p className="text-xs text-gray-400 mb-2">컬럼명: 전화번호(또는 핸드폰/phone/연락처), 이름(또는 name/크리에이터명)</p>
-                  <Input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleExcelUpload}
-                    className="cursor-pointer"
-                  />
+              <div className="border border-dashed border-[#DFE6E9] rounded-2xl p-5 hover:border-[#6C5CE7]/40 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                    <Upload className="w-5 h-5 text-[#6C5CE7]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-[#1A1A2E] mb-1">엑셀 파일 업로드</p>
+                    <p className="text-xs text-[#B2BEC3] mb-3">컬럼: 이름, 전화번호 (또는 핸드폰/phone/연락처)</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleExcelUpload}
+                        className="cursor-pointer text-sm flex-1"
+                      />
+                      <Button variant="ghost" size="sm" onClick={handleDownloadSample} className="text-[#6C5CE7] text-xs flex-shrink-0">
+                        <Download className="w-3.5 h-3.5 mr-1" /> 샘플
+                      </Button>
+                    </div>
+                  </div>
+                  {excelCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => setExcelRecipients([])} className="text-[#FF6B6B] flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
-                {excelCount > 0 && (
-                  <Button variant="outline" size="sm" onClick={() => setExcelRecipients([])}>
-                    <Trash2 className="w-4 h-4 mr-1" /> 엑셀 초기화
-                  </Button>
-                )}
               </div>
 
-              {/* BIZ DB 불러오기 */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BIZ DB 크리에이터</label>
-                  <p className="text-xs text-gray-400">featured_creators 테이블에서 전화번호가 있는 크리에이터를 불러옵니다.</p>
+              {/* BIZ DB */}
+              <div className="border border-[#DFE6E9] rounded-2xl p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#F0EDFF] flex items-center justify-center flex-shrink-0">
+                    <Users className="w-5 h-5 text-[#6C5CE7]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-[#1A1A2E]">BIZ DB 크리에이터</p>
+                    <p className="text-xs text-[#B2BEC3]">featured_creators에서 전화번호 보유 크리에이터</p>
+                  </div>
+                  <Button onClick={loadBizCreators} disabled={loadingBiz} variant="outline" size="sm" className="rounded-xl">
+                    {loadingBiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4 mr-1.5" />}
+                    {bizCount > 0 ? `${bizCount}명 로드됨` : '불러오기'}
+                  </Button>
                 </div>
-                <Button onClick={loadBizCreators} disabled={loadingBiz} variant="outline">
-                  {loadingBiz ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-                  {bizCount > 0 ? `${bizCount}명 로드됨` : 'DB에서 불러오기'}
-                </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* 수신자 목록 */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">발송 대상 목록 ({mergedRecipients.length}명)</CardTitle>
-                {mergedRecipients.length > 0 && (
-                  <span className="text-xs text-gray-500">
-                    중복 {duplicateCount}건 자동 제거됨
-                  </span>
-                )}
+                <CardTitle className="text-base text-[#1A1A2E]">
+                  발송 대상 ({mergedRecipients.length}명)
+                  {duplicateCount > 0 && <span className="text-xs font-normal text-[#FDCB6E] ml-2">중복 {duplicateCount}건 제거됨</span>}
+                </CardTitle>
+                <div className="relative w-56">
+                  <Input
+                    type="text"
+                    placeholder="이름, 전화번호 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="text-sm h-8 rounded-lg"
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               {mergedRecipients.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Phone className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>엑셀을 업로드하거나 BIZ DB에서 불러와주세요.</p>
+                <div className="text-center py-12 text-[#B2BEC3]">
+                  <Phone className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">엑셀을 업로드하거나 BIZ DB에서 불러와주세요.</p>
                 </div>
               ) : (
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-[400px] overflow-y-auto rounded-lg border border-[#DFE6E9]">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50">
-                      <tr className="border-b">
-                        <th className="text-left p-2 w-12">#</th>
-                        <th className="text-left p-2">이름</th>
-                        <th className="text-left p-2">전화번호</th>
-                        <th className="text-left p-2">출처</th>
+                    <thead className="sticky top-0 bg-[#F8F9FA] z-10">
+                      <tr>
+                        <th className="text-left p-2.5 text-[#636E72] font-medium w-12">#</th>
+                        <th className="text-left p-2.5 text-[#636E72] font-medium">이름</th>
+                        <th className="text-left p-2.5 text-[#636E72] font-medium">전화번호</th>
+                        <th className="text-left p-2.5 text-[#636E72] font-medium">출처</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {mergedRecipients.slice(0, 200).map((r, idx) => (
-                        <tr key={r.phone} className="border-b hover:bg-gray-50">
-                          <td className="p-2 text-gray-400">{idx + 1}</td>
-                          <td className="p-2 font-medium">{r.name || '-'}</td>
-                          <td className="p-2 text-gray-600">{formatPhone(r.phone)}</td>
-                          <td className="p-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              r.source === '엑셀' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                      {filteredRecipients.slice(0, 200).map((r, idx) => (
+                        <tr key={r.phone} className="border-t border-[#DFE6E9] hover:bg-[#F8F9FA]">
+                          <td className="p-2.5 text-[#B2BEC3]">{idx + 1}</td>
+                          <td className="p-2.5 font-medium text-[#1A1A2E]">{r.name || '-'}</td>
+                          <td className="p-2.5 text-[#636E72] font-mono text-xs">{formatPhone(r.phone)}</td>
+                          <td className="p-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-md ${
+                              r.source === '엑셀' ? 'bg-[rgba(116,185,255,0.1)] text-[#74B9FF]'
+                              : r.source?.includes('+') ? 'bg-[rgba(253,203,110,0.1)] text-[#FDCB6E]'
+                              : 'bg-[#F0EDFF] text-[#6C5CE7]'
                             }`}>
                               {r.source}
                             </span>
@@ -334,8 +352,8 @@ export default function BulkAlimtalkPage() {
                       ))}
                     </tbody>
                   </table>
-                  {mergedRecipients.length > 200 && (
-                    <p className="text-center text-xs text-gray-400 py-2">외 {mergedRecipients.length - 200}명 더...</p>
+                  {filteredRecipients.length > 200 && (
+                    <p className="text-center text-xs text-[#B2BEC3] py-2 bg-[#F8F9FA]">외 {filteredRecipients.length - 200}명...</p>
                   )}
                 </div>
               )}
@@ -343,18 +361,18 @@ export default function BulkAlimtalkPage() {
           </Card>
         </div>
 
-        {/* 우측: 템플릿 설정 + 미리보기 */}
-        <div className="space-y-6">
-          {/* 템플릿 선택 */}
+        {/* 우측: 템플릿 + 미리보기 (2/5) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* 템플릿 설정 */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">알림톡 템플릿</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-[#1A1A2E]">알림톡 템플릿</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">템플릿</label>
+                <label className="block text-xs font-medium text-[#636E72] mb-1.5">템플릿 선택</label>
                 <select
-                  className="w-full p-2.5 border rounded-lg text-sm"
+                  className="w-full p-2.5 border border-[#DFE6E9] rounded-xl text-sm bg-white focus:outline-none focus:border-[#6C5CE7]"
                   value={selectedTemplate.code}
                   onChange={(e) => {
                     const tmpl = TEMPLATE_OPTIONS.find(t => t.code === e.target.value)
@@ -362,21 +380,26 @@ export default function BulkAlimtalkPage() {
                   }}
                 >
                   {TEMPLATE_OPTIONS.map(t => (
-                    <option key={t.code} value={t.code}>{t.name} ({t.code})</option>
+                    <option key={t.code} value={t.code}>{t.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">플러스친구: {selectedTemplate.plusFriend}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-[#F0EDFF] text-[#6C5CE7]">{selectedTemplate.plusFriend}</span>
+                  <span className="text-xs text-[#B2BEC3]">{selectedTemplate.code}</span>
+                </div>
               </div>
 
-              {/* 변수 입력 */}
               {selectedTemplate.variables.map(v => (
                 <div key={v}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">#{'{' + v + '}'}</label>
+                  <label className="block text-xs font-medium text-[#636E72] mb-1.5">
+                    <span className="text-[#6C5CE7] font-mono">{'#{'}{v}{'}'}</span>
+                  </label>
                   <Input
                     type="text"
                     placeholder={`${v} 입력...`}
                     value={variableValues[v] || ''}
                     onChange={(e) => setVariableValues(prev => ({ ...prev, [v]: e.target.value }))}
+                    className="rounded-xl"
                   />
                 </div>
               ))}
@@ -385,30 +408,53 @@ export default function BulkAlimtalkPage() {
 
           {/* 미리보기 */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">미리보기</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed">
-                {getPreviewMessage()}
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base text-[#1A1A2E]">미리보기</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowPreview(!showPreview)} className="text-[#6C5CE7]">
+                  <Eye className="w-4 h-4 mr-1" /> {showPreview ? '접기' : '펼치기'}
+                </Button>
               </div>
-              {selectedTemplate.buttons && (
-                <div className="mt-3 space-y-2">
-                  {selectedTemplate.buttons.map((btn, idx) => (
-                    <div key={idx} className="border rounded-lg p-2 text-center text-sm font-medium text-blue-600 bg-blue-50">
-                      {btn.n}
+            </CardHeader>
+            {(showPreview || true) && (
+              <CardContent>
+                {/* 카카오톡 스타일 미리보기 */}
+                <div className="bg-[#B2C7D9] rounded-2xl p-4 max-w-xs mx-auto">
+                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {/* 헤더 */}
+                    <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-[#F0EDFF] flex items-center justify-center">
+                        <Megaphone className="w-4 h-4 text-[#6C5CE7]" />
+                      </div>
+                      <span className="text-xs font-bold text-[#1A1A2E]">크넥 크리에이터</span>
                     </div>
-                  ))}
+                    {/* 알림톡 라벨 */}
+                    <div className="px-4">
+                      <div className="bg-[#FEF3C7] rounded-md px-2 py-1 inline-block">
+                        <span className="text-xs font-bold text-[#92400E]">알림톡 도착</span>
+                      </div>
+                    </div>
+                    {/* 본문 */}
+                    <div className="px-4 py-3 text-xs text-[#1A1A2E] whitespace-pre-wrap leading-relaxed">
+                      {getPreviewMessage()}
+                    </div>
+                    {/* 버튼 */}
+                    {selectedTemplate.buttons?.map((btn, idx) => (
+                      <div key={idx} className="border-t border-[#DFE6E9] px-4 py-2.5 text-center">
+                        <span className="text-xs font-medium text-[#6C5CE7]">{btn.n}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
 
           {/* 발송 버튼 */}
           <Button
             onClick={handleSend}
             disabled={sending || mergedRecipients.length === 0}
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-6 text-lg"
+            className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-bold py-5 text-base rounded-2xl shadow-lg shadow-[#6C5CE7]/20"
           >
             {sending ? (
               <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> 발송 중...</>
@@ -419,37 +465,34 @@ export default function BulkAlimtalkPage() {
 
           {/* 발송 결과 */}
           {sendResult && (
-            <Card className={sendResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-3">
-                  {sendResult.success ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                  )}
-                  <span className="font-bold">{sendResult.message}</span>
+            <Card className={sendResult.success ? 'border-[#00B894]/30 bg-[rgba(0,184,148,0.05)]' : 'border-[#FF6B6B]/30 bg-[rgba(255,107,107,0.05)]'}>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  {sendResult.success
+                    ? <CheckCircle className="w-5 h-5 text-[#00B894]" />
+                    : <AlertTriangle className="w-5 h-5 text-[#FF6B6B]" />
+                  }
+                  <span className="font-bold text-sm text-[#1A1A2E]">{sendResult.message}</span>
                 </div>
-                {sendResult.totalSuccess > 0 && (
-                  <p className="text-sm text-green-700">성공: {sendResult.totalSuccess}건</p>
-                )}
-                {sendResult.totalFail > 0 && (
-                  <p className="text-sm text-red-700">실패: {sendResult.totalFail}건</p>
-                )}
+                <div className="flex gap-4 text-sm">
+                  {sendResult.totalSuccess > 0 && <span className="text-[#00B894]">성공 {sendResult.totalSuccess}건</span>}
+                  {sendResult.totalFail > 0 && <span className="text-[#FF6B6B]">실패 {sendResult.totalFail}건</span>}
+                </div>
               </CardContent>
             </Card>
           )}
 
           {/* 주의사항 */}
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-            <div className="flex gap-2 text-sm">
-              <AlertTriangle className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div className="text-orange-800">
-                <p className="font-medium mb-1">주의사항</p>
-                <ul className="text-xs space-y-1 list-disc list-inside">
-                  <li>팝빌 알림톡은 1건당 약 8원 과금됩니다.</li>
-                  <li>1회 최대 1,000건씩 배치 발송됩니다.</li>
-                  <li>수신 거부 번호에는 발송되지 않습니다.</li>
-                  <li>발송 후 취소가 불가능합니다.</li>
+          <div className="bg-[rgba(253,203,110,0.1)] border border-[#FDCB6E]/30 rounded-2xl p-4">
+            <div className="flex gap-3">
+              <AlertTriangle className="w-4 h-4 text-[#FDCB6E] mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-[#1A1A2E] mb-1.5">주의사항</p>
+                <ul className="text-xs text-[#636E72] space-y-1 list-disc list-inside">
+                  <li>팝빌 알림톡은 1건당 약 8원 과금</li>
+                  <li>1회 최대 1,000건씩 배치 발송</li>
+                  <li>수신 거부 번호에는 발송되지 않음</li>
+                  <li>발송 후 취소 불가</li>
                 </ul>
               </div>
             </div>
