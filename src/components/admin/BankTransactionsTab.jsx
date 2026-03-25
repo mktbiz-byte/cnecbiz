@@ -14,20 +14,17 @@ export default function BankTransactionsTab() {
 
   // 자동 매칭
   const [autoMatching, setAutoMatching] = useState(false)
-  const [autoMatchResults, setAutoMatchResults] = useState(null) // 미리보기 결과
-  // 팝빌 동기화용 날짜 (최근 25일 - 팝빌 API 1개월 제한)
-  const [syncStartDate, setSyncStartDate] = useState(() => {
+  const [autoMatchResults, setAutoMatchResults] = useState(null)
+  const [startDate, setStartDate] = useState(() => {
     const date = new Date()
-    date.setDate(date.getDate() - 25)
+    date.setDate(date.getDate() - 14)
     return date.toISOString().slice(0, 10)
   })
-  const [syncEndDate, setSyncEndDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all') // all, matched, unmatched
-  const [filterTaxInvoice, setFilterTaxInvoice] = useState('all') // all, issued, pending, none
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterTaxInvoice, setFilterTaxInvoice] = useState('all')
   const [filterAccount, setFilterAccount] = useState('all')
-  const [lastSyncTime, setLastSyncTime] = useState(null)
-  const [syncResult, setSyncResult] = useState(null)
 
   // 세금계산서 상태 변경 모달
   const [taxModalTx, setTaxModalTx] = useState(null)
@@ -36,42 +33,81 @@ export default function BankTransactionsTab() {
   const [taxUpdating, setTaxUpdating] = useState(false)
 
   useEffect(() => {
-    // 1. DB에서 전체 데이터 로드
-    loadFromDb()
-    // 2. 팝빌에서 최신 데이터 자동 동기화 (백그라운드)
-    syncFromPopbill(true)
+    fetchTransactions()
   }, [])
 
-  // DB에서 전체 입금 내역 로드 (날짜 제한 없음)
-  const loadFromDb = async () => {
+  // 1차: DB에서 즉시 표시, 2차: 팝빌로 백그라운드 동기화 (1개월 이내만)
+  const fetchTransactions = async () => {
     setLoading(true)
+    setPopbillError(null)
+
     try {
-      const response = await fetch('/.netlify/functions/get-bank-transactions')
+      // 1차: DB에서 즉시 조회 (날짜 제한 없음)
+      const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howpapa`
+      const response = await fetch(dbUrl)
       const data = await response.json()
 
       if (data.success) {
         setTransactions([...data.transactions])
         setStats({...data.stats})
         setDataSource('db')
-      } else {
-        console.error('[하우파파] DB 조회 실패:', data)
+      }
+
+      // 2차: 팝빌 백그라운드 동기화 (1개월 이내만 가능)
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+
+      if (diffDays <= 31) {
+        // 1개월 이내면 팝빌 동기화 시도 (백그라운드)
+        syncFromPopbill()
       }
     } catch (error) {
-      console.error('[하우파파] DB 조회 예외:', error)
-      alert(`거래 내역을 불러오는데 실패했습니다.\n\n오류: ${error.message}`)
+      console.error('[하우파파] 예외:', error)
+
+      // DB 실패 시 팝빌 직접 조회 시도
+      try {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+
+        if (diffDays <= 31) {
+          const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
+          const popbillResponse = await fetch(popbillUrl)
+          const popbillData = await popbillResponse.json()
+
+          if (popbillData.success && popbillData.data) {
+            const formattedTransactions = popbillData.data.map(tx => ({
+              id: null, tid: tx.tid,
+              tradeDate: tx.tradeDate + (tx.tradeTime || ''),
+              tradeType: tx.tradeType || 'I',
+              tradeBalance: String(tx.tradeBalance),
+              briefs: tx.briefs,
+              isMatched: false, matchedRequest: null,
+              accountLabel: '하우파파',
+              taxInvoiceStatus: 'none', taxInvoiceNtsConfirmNum: null, chargeRequestId: null
+            }))
+            setTransactions(formattedTransactions)
+            updateStats(formattedTransactions)
+            setDataSource('popbill')
+          }
+        } else {
+          alert('조회 기간이 1개월을 초과합니다. DB에 저장된 데이터만 표시됩니다.')
+        }
+      } catch (popErr) {
+        console.error('[하우파파] 팝빌도 실패:', popErr)
+        alert(`거래 내역을 불러오는데 실패했습니다: ${error.message}`)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  // 팝빌에서 최신 데이터 가져와 DB에 저장, 그 후 DB 다시 로드
-  const syncFromPopbill = async (isBackground = false) => {
-    if (!isBackground) setSyncing(true)
-    setSyncResult(null)
-
+  // 팝빌에서 가져와 DB 저장 후 다시 로드 (백그라운드)
+  const syncFromPopbill = async () => {
     try {
-      console.log('[하우파파] 팝빌 동기화 시작...')
-      const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${syncStartDate.replace(/-/g, '')}&endDate=${syncEndDate.replace(/-/g, '')}&filterType=input`
+      setSyncing(true)
+      const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
       const popbillResponse = await fetch(popbillUrl)
       const popbillData = await popbillResponse.json()
 
@@ -80,42 +116,27 @@ export default function BankTransactionsTab() {
         const saveResponse = await fetch('/.netlify/functions/sync-deposits-to-db', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transactions: popbillData.data,
-            accountLabel: '하우파파'
-          })
+          body: JSON.stringify({ transactions: popbillData.data, accountLabel: '하우파파' })
         })
         const saveResult = await saveResponse.json()
 
-        const newCount = saveResult.savedCount || 0
-        setLastSyncTime(new Date().toLocaleString('ko-KR'))
-        setSyncResult({
-          success: true,
-          fetched: popbillData.data.length,
-          saved: newCount
-        })
-
-        console.log(`[하우파파] 팝빌 동기화 완료: ${popbillData.data.length}건 조회, ${newCount}건 새로 저장`)
-
-        // 새 데이터가 있으면 DB에서 다시 로드
-        if (newCount > 0) {
-          await loadFromDb()
-        }
-      } else {
-        if (!popbillData.success) {
-          console.warn('[하우파파] 팝빌 조회 실패:', popbillData.error)
-          if (!isBackground) {
-            setPopbillError(popbillData.error || '팝빌 API 오류')
+        if (saveResult.success && saveResult.savedCount > 0) {
+          console.log(`[하우파파] 팝빌 동기화: ${saveResult.savedCount}건 새로 저장`)
+          // 새 데이터 있으면 DB에서 다시 로드
+          const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howpapa`
+          const response = await fetch(dbUrl)
+          const data = await response.json()
+          if (data.success) {
+            setTransactions([...data.transactions])
+            setStats({...data.stats})
           }
         }
-        setSyncResult({ success: true, fetched: 0, saved: 0 })
+        setDataSource('db+popbill')
+      } else if (!popbillData.success) {
+        setPopbillError(popbillData.error || '팝빌 API 오류')
       }
     } catch (error) {
-      console.error('[하우파파] 팝빌 동기화 실패:', error)
-      if (!isBackground) {
-        alert('팝빌 동기화 실패: ' + error.message)
-      }
-      setSyncResult({ success: false, error: error.message })
+      console.warn('[하우파파] 팝빌 동기화 실패:', error.message)
     } finally {
       setSyncing(false)
     }
@@ -152,7 +173,7 @@ export default function BankTransactionsTab() {
 
       if (data.success) {
         alert('매칭이 완료되었습니다!')
-        loadFromDb()
+        fetchTransactions()
       } else {
         alert('매칭 실패: ' + data.error)
       }
@@ -200,7 +221,7 @@ export default function BankTransactionsTab() {
       if (result.success) {
         alert(`${result.matched}건 자동 매칭 완료!`)
         setAutoMatchResults(null)
-        loadFromDb()
+        fetchTransactions()
       } else {
         alert('자동 매칭 실패: ' + result.error)
       }
@@ -377,14 +398,16 @@ export default function BankTransactionsTab() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>하우파파 입금 내역 (전체)</CardTitle>
+            <CardTitle>하우파파 입금 내역</CardTitle>
             <div className="flex items-center gap-2">
-              {lastSyncTime && (
-                <span className="text-xs text-gray-500">마지막 동기화: {lastSyncTime}</span>
+              {dataSource && (
+                <span className={`text-xs px-2 py-1 rounded-full ${dataSource === 'popbill' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {dataSource === 'popbill' ? '팝빌 실시간' : 'DB 저장 데이터'}
+                </span>
               )}
               {syncing && (
                 <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" /> 동기화 중
+                  <RefreshCw className="w-3 h-3 animate-spin" /> DB 저장 중
                 </span>
               )}
             </div>
@@ -392,19 +415,39 @@ export default function BankTransactionsTab() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
-            {/* 액션 버튼 */}
+            {/* 날짜 & 조회 */}
             <div className="flex flex-wrap gap-2 items-center">
-              <Button onClick={loadFromDb} disabled={loading}>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+              <span className="self-center">~</span>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+              <Button onClick={fetchTransactions} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                새로고침
+                조회
               </Button>
               <Button
-                onClick={() => syncFromPopbill(false)}
-                disabled={loading || syncing}
+                onClick={async () => {
+                  if (!confirm('은행 API에서 최신 거래 내역을 수집하시겠습니까?')) return
+                  setLoading(true)
+                  try {
+                    const response = await fetch('/.netlify/functions/scheduled-collect-transactions')
+                    const data = await response.json()
+                    if (data.success) {
+                      alert(`수집 완료!\n\n저장: ${data.savedCount || 0}건\n자동 매칭: ${data.matchedCount || 0}건`)
+                      fetchTransactions()
+                    } else {
+                      alert('수집 실패: ' + (data.error || '알 수 없는 오류'))
+                    }
+                  } catch (error) {
+                    alert('수집 실패: ' + error.message)
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                disabled={loading}
                 variant="outline"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                팝빌 최신 동기화
+                <RefreshCw className="w-4 h-4 mr-2" />
+                수동 수집
               </Button>
               <Button
                 onClick={handleAutoMatchPreview}
@@ -415,11 +458,6 @@ export default function BankTransactionsTab() {
                 <Zap className={`w-4 h-4 mr-2 ${autoMatching ? 'animate-pulse' : ''}`} />
                 {autoMatching ? '매칭 중...' : '세금계산서 자동 매칭'}
               </Button>
-              {syncResult && syncResult.success && syncResult.saved > 0 && (
-                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                  +{syncResult.saved}건 새로 저장됨
-                </span>
-              )}
             </div>
 
             {/* 필터 */}
