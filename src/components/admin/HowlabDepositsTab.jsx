@@ -14,6 +14,12 @@ export default function HowlabDepositsTab() {
   const [syncResult, setSyncResult] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTaxInvoice, setFilterTaxInvoice] = useState('all')
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() - 14)
+    return date.toISOString().slice(0, 10)
+  })
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   // 자동 매칭
   const [autoMatching, setAutoMatching] = useState(false)
@@ -30,64 +36,88 @@ export default function HowlabDepositsTab() {
     syncFromPopbill(true)
   }, [])
 
-  // DB에서 하우랩 전체 입금 내역 로드 (실패 시 팝빌 직접 표시)
+  // DB에서 하우랩 입금 내역 로드 (날짜 필터 적용, 실패 시 팝빌 폴백)
   const loadFromDb = async () => {
     setLoading(true)
+    setPopbillError(null)
+
+    const diffDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
+
+    // 1차: DB 조회
     try {
-      const response = await fetch('/.netlify/functions/get-bank-transactions?accountLabel=howlab')
+      const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howlab`
+      const response = await fetch(dbUrl)
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.transactions && data.transactions.length > 0) {
           setTransactions([...data.transactions])
           setStats({...data.stats})
           setLoading(false)
+          // 백그라운드 팝빌 동기화 (1개월 이내만)
+          if (diffDays <= 31) syncFromPopbill(true)
           return
         }
       }
-      // DB에 데이터 없거나 실패 → 팝빌 직접 조회
-      console.warn('[하우랩] DB 조회 실패 또는 0건, 팝빌 직접 조회')
-      await loadFromPopbill()
-    } catch (error) {
-      console.error('[하우랩] DB 조회 예외:', error)
-      await loadFromPopbill()
-    } finally {
-      setLoading(false)
+    } catch (dbError) {
+      console.warn('[하우랩] DB 조회 실패:', dbError.message)
     }
+
+    // 2차: DB 0건 또는 실패 → 팝빌 직접 조회 (1개월 이내만)
+    if (diffDays <= 31) {
+      try {
+        const popbillUrl = `/.netlify/functions/get-howlab-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
+        const popbillResponse = await fetch(popbillUrl)
+        const popbillData = await popbillResponse.json()
+
+        if (popbillData.success && popbillData.data && popbillData.data.length > 0) {
+          const formattedTransactions = popbillData.data.map(d => ({
+            id: null, tid: d.bkid,
+            tradeDate: d.bkdate + (d.bktime || ''),
+            tradeType: d.bkinput > 0 ? 'I' : 'O',
+            tradeBalance: String(d.bkinput > 0 ? d.bkinput : d.bkoutput),
+            briefs: d.bkjukyo || '',
+            isMatched: false, matchedRequest: null,
+            accountLabel: '하우랩',
+            taxInvoiceStatus: 'none', taxInvoiceNtsConfirmNum: null, chargeRequestId: null
+          }))
+          setTransactions(formattedTransactions)
+          setStats({
+            total: formattedTransactions.length,
+            matched: 0, unmatched: formattedTransactions.length,
+            totalAmount: formattedTransactions.reduce((sum, tx) => sum + parseInt(tx.tradeBalance || 0), 0)
+          })
+          // 백그라운드 DB 저장
+          syncToDb(popbillData.data)
+        } else if (!popbillData.success) {
+          setPopbillError(popbillData.error || '팝빌 API 오류')
+        }
+      } catch (popErr) {
+        console.error('[하우랩] 팝빌 실패:', popErr.message)
+        setPopbillError('팝빌 조회 실패: ' + popErr.message)
+      }
+    } else {
+      setPopbillError('조회 기간이 1개월 초과. DB에 저장된 데이터만 표시됩니다.')
+    }
+
+    setLoading(false)
   }
 
-  // 팝빌에서 직접 표시 (DB 실패 시 폴백)
-  const loadFromPopbill = async () => {
+  // 팝빌 데이터를 DB에 백그라운드 저장
+  const syncToDb = async (popbillData) => {
     try {
-      const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-      const startDateObj = new Date()
-      startDateObj.setDate(startDateObj.getDate() - 25)
-      const startDate = startDateObj.toISOString().slice(0, 10).replace(/-/g, '')
-
-      const popbillUrl = `/.netlify/functions/get-howlab-deposits?startDate=${startDate}&endDate=${endDate}&filterType=input`
-      const popbillResponse = await fetch(popbillUrl)
-      const popbillData = await popbillResponse.json()
-
-      if (popbillData.success && popbillData.data && popbillData.data.length > 0) {
-        const formattedTransactions = popbillData.data.map(d => ({
-          id: null, tid: d.bkid,
-          tradeDate: d.bkdate + (d.bktime || ''),
-          tradeType: d.bkinput > 0 ? 'I' : 'O',
-          tradeBalance: String(d.bkinput > 0 ? d.bkinput : d.bkoutput),
-          briefs: d.bkjukyo || '',
-          isMatched: false, matchedRequest: null,
-          accountLabel: '하우랩',
-          taxInvoiceStatus: 'none', taxInvoiceNtsConfirmNum: null, chargeRequestId: null
-        }))
-        setTransactions(formattedTransactions)
-        setStats({
-          total: formattedTransactions.length,
-          matched: 0, unmatched: formattedTransactions.length,
-          totalAmount: formattedTransactions.reduce((sum, tx) => sum + parseInt(tx.tradeBalance || 0), 0)
-        })
-      }
-    } catch (error) {
-      console.error('[하우랩] 팝빌도 실패:', error.message)
-      setPopbillError('팝빌 조회도 실패: ' + error.message)
+      const txForSync = popbillData.map(d => ({
+        tid: d.bkid, tradeDate: d.bkdate, tradeTime: d.bktime || '',
+        tradeType: d.bkinput > 0 ? 'I' : 'O',
+        tradeBalance: d.bkinput > 0 ? d.bkinput : d.bkoutput,
+        briefs: d.bkjukyo || ''
+      }))
+      await fetch('/.netlify/functions/sync-deposits-to-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactions: txForSync, accountLabel: '하우랩' })
+      })
+    } catch (e) {
+      console.warn('[하우랩] DB 저장 실패 (무시):', e.message)
     }
   }
 
@@ -98,13 +128,9 @@ export default function HowlabDepositsTab() {
     setPopbillError(null)
 
     try {
-      // 최근 25일 조회 (팝빌 1개월 제한)
-      const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-      const startDateObj = new Date()
-      startDateObj.setDate(startDateObj.getDate() - 25)
-      const startDate = startDateObj.toISOString().slice(0, 10).replace(/-/g, '')
+      // 현재 날짜 범위로 조회 (팝빌 1개월 제한 준수)
 
-      const popbillUrl = `/.netlify/functions/get-howlab-deposits?startDate=${startDate}&endDate=${endDate}&filterType=input`
+      const popbillUrl = `/.netlify/functions/get-howlab-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
       const popbillResponse = await fetch(popbillUrl)
       const popbillData = await popbillResponse.json()
 
@@ -369,11 +395,14 @@ export default function HowlabDepositsTab() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
-            {/* 액션 버튼 */}
+            {/* 날짜 & 조회 */}
             <div className="flex flex-wrap gap-2 items-center">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+              <span className="self-center">~</span>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
               <Button onClick={loadFromDb} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                새로고침
+                조회
               </Button>
               <Button onClick={() => syncFromPopbill(false)} disabled={loading || syncing} variant="outline">
                 <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
