@@ -20,57 +20,90 @@ import AdminNavigation from './AdminNavigation'
 import LineChatModal from './LineChatModal'
 import * as XLSX from 'xlsx'
 
-// 프로필 완성도 계산 (나라별 스키마 대응)
-const PROFILE_FIELDS = [
-  { key: 'profile_image', label: '프로필 이미지', weight: 8 },
-  { key: 'bio', label: '자기소개', weight: 7 },
-  { key: 'phone', label: '전화번호', weight: 6 },
-  { key: 'sns', label: 'SNS 1개 이상', weight: 8, custom: true },
-  { key: 'skin_type', label: '피부타입', weight: 6 },
-  { key: 'skin_shade', label: '피부톤', weight: 5 },
-  { key: 'personal_color', label: '퍼스널컬러', weight: 5 },
-  { key: 'hair_type', label: '모발타입', weight: 5 },
-  { key: 'skin_concerns', label: '피부고민', weight: 5, isArray: true },
-  { key: 'primary_interest', label: '주요 관심사', weight: 5 },
-  { key: 'gender', label: '성별', weight: 4 },
-  { key: 'age', label: '나이', weight: 4 },
-  { key: 'editing_level', label: '편집 능력', weight: 4 },
-  { key: 'shooting_level', label: '촬영 능력', weight: 4 },
-  { key: 'follower_range', label: '팔로워 규모', weight: 4 },
-  { key: 'upload_frequency', label: '업로드 빈도', weight: 4 },
-  { key: 'content_formats', label: '콘텐츠 형식', weight: 4, isArray: true },
-  { key: 'collaboration_preferences', label: '협업 선호', weight: 4, isArray: true },
+// 프로필 완성도 계산 - 스텝(섹션) 기반
+// 크리에이터 프로필 폼은 스텝 단위로 채워지므로, 개별 필드가 아닌 섹션별로 판정
+// DB 실데이터 기반: skin_shade(13%), personal_color(14%) 등은 제외
+const PROFILE_SECTIONS = [
+  {
+    label: '기본 정보',
+    weight: 20,
+    check: (c) => !!(c.phone && c.name)
+  },
+  {
+    label: '프로필 이미지',
+    weight: 10,
+    check: (c) => !!(c.profile_image || c.profile_image_url || c.avatar_url || c.profile_photo_url)
+  },
+  {
+    label: '자기소개',
+    weight: 10,
+    check: (c) => !!(c.bio && c.bio.length > 0)
+  },
+  {
+    label: 'SNS 계정',
+    weight: 15,
+    check: (c) => !!(c.instagram_url || c.youtube_url || c.tiktok_url || c.blog_url)
+  },
+  {
+    label: '뷰티 프로필',
+    weight: 15,
+    // skin_type + (skin_concerns OR hair_type) → 스텝에서 함께 채움
+    check: (c) => {
+      const hasSkinType = !!(c.skin_type)
+      const hasDetail = !!(c.hair_type) || hasJsonArray(c.skin_concerns) || hasJsonArray(c.hair_concerns)
+      return hasSkinType && hasDetail
+    }
+  },
+  {
+    label: '콘텐츠 활동',
+    weight: 15,
+    // editing_level, shooting_level, content_formats, video_styles → 같은 스텝에서 함께 채움
+    check: (c) => {
+      const hasLevel = !!(c.editing_level || c.shooting_level)
+      const hasFormat = hasJsonArray(c.content_formats) || hasJsonArray(c.video_styles)
+      return hasLevel || hasFormat
+    }
+  },
+  {
+    label: '상세 프로필',
+    weight: 15,
+    // gender/age + 라이프스타일(nail/glasses/offline 등) → 같은 스텝
+    check: (c) => {
+      const hasBasic = !!(c.gender || c.age)
+      const hasLifestyle = !!(c.nail_usage || c.glasses_usage || c.circle_lens_usage || c.offline_visit)
+      return hasBasic && hasLifestyle
+    }
+  }
 ]
 
+function hasJsonArray(val) {
+  if (!val) return false
+  if (Array.isArray(val)) return val.length > 0
+  if (typeof val === 'string') {
+    try { const arr = JSON.parse(val); return Array.isArray(arr) && arr.length > 0 } catch { return val.length > 0 }
+  }
+  return false
+}
+
 function calcProfileCompleteness(creator) {
-  if (!creator) return { percent: 0, filled: 0, total: PROFILE_FIELDS.length, missing: [] }
+  if (!creator) return { percent: 0, filled: 0, total: PROFILE_SECTIONS.length, missing: [] }
   let totalWeight = 0
   let filledWeight = 0
   const missing = []
+  let filled = 0
 
-  for (const field of PROFILE_FIELDS) {
-    totalWeight += field.weight
-    let isFilled = false
-
-    if (field.custom && field.key === 'sns') {
-      isFilled = !!(creator.instagram_url || creator.youtube_url || creator.tiktok_url || creator.blog_url)
-    } else if (field.isArray) {
-      const val = creator[field.key]
-      isFilled = Array.isArray(val) ? val.length > 0 : (typeof val === 'string' && val.length > 0)
+  for (const section of PROFILE_SECTIONS) {
+    totalWeight += section.weight
+    if (section.check(creator)) {
+      filledWeight += section.weight
+      filled++
     } else {
-      const val = creator[field.key]
-      isFilled = val !== null && val !== undefined && val !== '' && val !== 0
-    }
-
-    if (isFilled) {
-      filledWeight += field.weight
-    } else {
-      missing.push(field.label)
+      missing.push(section.label)
     }
   }
 
   const percent = totalWeight > 0 ? Math.round((filledWeight / totalWeight) * 100) : 0
-  return { percent, filled: PROFILE_FIELDS.length - missing.length, total: PROFILE_FIELDS.length, missing }
+  return { percent, filled, total: PROFILE_SECTIONS.length, missing }
 }
 
 // 등급 정의
