@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, Users, Send, FileSpreadsheet, Loader2, CheckCircle, XCircle, Trash2, AlertTriangle, Phone, Megaphone, Eye, Download } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
 import * as XLSX from 'xlsx'
+import AdminNavigation from './AdminNavigation'
 
 function normalizePhone(phone) {
   if (!phone) return null
@@ -48,14 +48,17 @@ export default function BulkAlimtalkPage() {
   const loadBizCreators = async () => {
     setLoadingBiz(true)
     try {
-      const { data: featured, error } = await supabaseBiz
-        .from('featured_creators')
-        .select('id, name, phone, email, region')
-      if (error) throw error
-      const creators = (featured || [])
-        .filter(c => c.phone && normalizePhone(c.phone))
-        .map(c => ({ phone: normalizePhone(c.phone), name: c.name || '', source: 'BIZ DB' }))
-      setBizRecipients(creators)
+      const response = await fetch('/.netlify/functions/get-bulk-alimtalk-recipients')
+      const data = await response.json()
+      if (data.success && data.recipients) {
+        setBizRecipients(data.recipients.map(r => ({
+          phone: r.phone,
+          name: r.name || '',
+          source: r.source || 'DB'
+        })))
+      } else {
+        throw new Error(data.error || '조회 실패')
+      }
     } catch (error) {
       alert('크리에이터 데이터 로드 실패: ' + error.message)
     } finally {
@@ -174,11 +177,14 @@ export default function BulkAlimtalkPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <>
+    <AdminNavigation />
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white lg:ml-64">
+    <div className="max-w-7xl mx-auto p-4 lg:p-8 space-y-6">
       {/* 페이지 헤더 */}
       <div>
-        <h1 className="text-2xl font-bold text-[#1A1A2E]">단체 알림톡 발송</h1>
-        <p className="text-sm text-[#636E72] mt-1">엑셀 업로드 + BIZ DB 크리에이터 데이터를 합쳐서 중복 제거 후 팝빌 알림톡을 일괄 발송합니다.</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-[#1A1A2E]">단체 알림톡 발송</h1>
+        <p className="text-sm text-[#636E72] mt-1">엑셀 업로드 + DB 크리에이터 데이터를 합쳐서 중복 제거 후 팝빌 알림톡을 일괄 발송합니다.</p>
       </div>
 
       {/* 통계 카드 */}
@@ -285,8 +291,8 @@ export default function BulkAlimtalkPage() {
                     <Users className="w-5 h-5 text-[#6C5CE7]" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-sm text-[#1A1A2E]">BIZ DB 크리에이터</p>
-                    <p className="text-xs text-[#B2BEC3]">featured_creators에서 전화번호 보유 크리에이터</p>
+                    <p className="font-medium text-sm text-[#1A1A2E]">DB 크리에이터 (SMS 동의)</p>
+                    <p className="text-xs text-[#B2BEC3]">Korea DB + BIZ DB에서 SMS 수신 동의 크리에이터</p>
                   </div>
                   <Button onClick={loadBizCreators} disabled={loadingBiz} variant="outline" size="sm" className="rounded-xl">
                     {loadingBiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4 mr-1.5" />}
@@ -500,5 +506,7 @@ export default function BulkAlimtalkPage() {
         </div>
       </div>
     </div>
+    </div>
+    </>
   )
 }
