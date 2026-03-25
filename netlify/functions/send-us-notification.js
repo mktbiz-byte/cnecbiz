@@ -275,14 +275,65 @@ ${data.stepInfo ? `<p style="color:#92400e;font-weight:bold;margin:0 0 10px;">�
   })
 };
 
-// WhatsApp 메시지 발송 (Twilio API)
-async function sendWhatsAppMessage(phoneNumber, message) {
+// Twilio Content Template 매핑 (send-whatsapp.js와 동일한 승인된 템플릿)
+// WhatsApp Business API는 24시간 대화창 밖에서 freeform Body 전송 불가 → Content Template 필수
+const WHATSAPP_TEMPLATE_MAP = {
+  campaign_selected: {
+    contentSid: 'HXf1ecf5df2af11281cce89dbcb767a701', // creator_selected_v2
+    buildVars: (data) => ({ '1': data.creatorName || 'Creator', '2': data.guideUrl || 'https://cnec.us/creator/mypage' })
+  },
+  guide_confirm_request: {
+    contentSid: 'HX75d0a17c1c2002a0df8916afbc502206', // selection_guide_delivery_v2
+    buildVars: (data) => ({ '1': data.creatorName || 'Creator', '2': data.guideUrl || 'https://cnec.us/creator/mypage' })
+  },
+  video_review_request: {
+    contentSid: 'HX847391a9a9c3ea2fa415e64626c494ac', // modification_request_v2
+    buildVars: (data) => ({
+      '1': data.creatorName || 'Creator',
+      '2': data.campaignName || '-',
+      '3': data.feedback || 'Please check the details.',
+      '4': data.deadline || 'ASAP',
+      '5': data.reviewUrl || 'https://cnec.us/creator/mypage'
+    })
+  },
+  points_awarded: {
+    contentSid: 'HX7e9d152dfe2d323473300d8b068fe877', // points_awarded_v2
+    buildVars: (data) => ({
+      '1': data.creatorName || 'Creator',
+      '2': `$${data.points?.toLocaleString() || '0'}`,
+      '3': data.campaignName || 'Campaign reward',
+      '4': new Date().toLocaleDateString('en-US'),
+      '5': `$${data.totalPoints?.toLocaleString() || data.points?.toLocaleString() || '0'}`,
+      '6': 'https://cnec.us/creator/mypage'
+    })
+  },
+  sns_upload_request: {
+    contentSid: 'HXd0fa21fcd4b8717dad532d890e8f0919', // verification_complete_v2
+    buildVars: (data) => ({
+      '1': data.creatorName || 'Creator',
+      '2': data.campaignName || '-',
+      '3': data.deadline || 'Campaign end date',
+      '4': data.uploadUrl || 'https://cnec.us/creator/mypage'
+    })
+  }
+  // video_deadline_reminder: 매칭 템플릿 없음 → 이메일만 발송
+};
+
+// WhatsApp Content Template 발송 (Twilio API)
+async function sendWhatsAppMessage(phoneNumber, notificationType, data) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+13203078933';
 
   if (!accountSid || !authToken || !phoneNumber) {
     return { success: false, error: 'WhatsApp not configured or no phone number' };
+  }
+
+  // 해당 알림 타입에 매핑된 Content Template 확인
+  const templateConfig = WHATSAPP_TEMPLATE_MAP[notificationType];
+  if (!templateConfig) {
+    console.log(`[WhatsApp] No template mapping for type: ${notificationType}, skipping WhatsApp`);
+    return { success: false, error: `No WhatsApp template for type: ${notificationType}` };
   }
 
   try {
@@ -298,11 +349,15 @@ async function sendWhatsAppMessage(phoneNumber, message) {
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+    const contentVariables = templateConfig.buildVars(data);
 
     const formData = new URLSearchParams();
     formData.append('From', formattedFrom);
     formData.append('To', `whatsapp:${formattedPhone}`);
-    formData.append('Body', message);
+    formData.append('ContentSid', templateConfig.contentSid);
+    formData.append('ContentVariables', JSON.stringify(contentVariables));
+
+    console.log(`[WhatsApp] Sending template ${templateConfig.contentSid} to ${formattedPhone}, vars:`, contentVariables);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -313,14 +368,14 @@ async function sendWhatsAppMessage(phoneNumber, message) {
       body: formData.toString()
     });
 
-    const data = await response.json();
+    const result = await response.json();
 
     if (!response.ok) {
-      console.log(`[WhatsApp] Error: ${response.status} - ${JSON.stringify(data)}`);
-      return { success: false, error: data.message || JSON.stringify(data), code: data.code };
+      console.log(`[WhatsApp] Error: ${response.status} - ${JSON.stringify(result)}`);
+      return { success: false, error: result.message || JSON.stringify(result), code: result.code };
     }
 
-    console.log(`[WhatsApp] Message sent. SID: ${data.sid}`);
+    console.log(`[WhatsApp] Template message sent. SID: ${result.sid}`);
 
     // DB에 메시지 저장
     try {
@@ -331,15 +386,15 @@ async function sendWhatsAppMessage(phoneNumber, message) {
       await supabase.from('whatsapp_messages').insert({
         phone_number: formattedPhone,
         direction: 'outgoing',
-        content: message,
-        twilio_sid: data.sid,
-        status: data.status
+        content: `[Template: ${notificationType}] ${JSON.stringify(contentVariables)}`,
+        twilio_sid: result.sid,
+        status: result.status
       });
     } catch (dbErr) {
       console.warn('[WhatsApp] DB save failed:', dbErr.message);
     }
 
-    return { success: true, sid: data.sid };
+    return { success: true, sid: result.sid };
   } catch (error) {
     console.error('[WhatsApp] Exception:', error);
     return { success: false, error: error.message };
@@ -477,10 +532,10 @@ exports.handler = async (event) => {
       email: { attempted: false, success: false }
     };
 
-    // 1. WhatsApp 메시지 시도 (전화번호 있을 때)
+    // 1. WhatsApp Content Template 발송 (전화번호 있을 때)
     if (creator.phone) {
       results.whatsapp.attempted = true;
-      const whatsappResult = await sendWhatsAppMessage(creator.phone, messages.line);
+      const whatsappResult = await sendWhatsAppMessage(creator.phone, type, data);
       results.whatsapp.success = whatsappResult.success;
       results.whatsapp.error = whatsappResult.error;
 
