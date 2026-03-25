@@ -41,6 +41,7 @@ export default function BulkAlimtalkPage() {
   const [mergedRecipients, setMergedRecipients] = useState([])
   const [loadingBiz, setLoadingBiz] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sendProgress, setSendProgress] = useState(null) // { current, total, success, fail }
   const [sendResult, setSendResult] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -126,28 +127,58 @@ export default function BulkAlimtalkPage() {
     for (const v of selectedTemplate.variables) {
       if (!variableValues[v]) return alert(`'${v}' 변수를 입력해주세요.`)
     }
-    if (!confirm(`총 ${mergedRecipients.length}명에게 알림톡을 발송하시겠습니까?`)) return
+    if (!confirm(`총 ${mergedRecipients.length}명에게 알림톡을 발송하시겠습니까?\n\n※ 발송 중 페이지를 닫지 마세요.`)) return
     setSending(true)
     setSendResult(null)
+
+    // 프론트에서 500건씩 나눠서 순차 호출 (Netlify 타임아웃 방지)
+    const BATCH_SIZE = 500
+    const allRecipients = mergedRecipients.map(r => ({ phone: r.phone, name: r.name }))
+    const totalBatches = Math.ceil(allRecipients.length / BATCH_SIZE)
+    let totalSuccess = 0
+    let totalFail = 0
+
+    setSendProgress({ current: 0, total: totalBatches, success: 0, fail: 0 })
+
     try {
-      const response = await fetch('/.netlify/functions/send-bulk-alimtalk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateCode: selectedTemplate.code,
-          templateContent: selectedTemplate.content,
-          variables: variableValues,
-          recipients: mergedRecipients.map(r => ({ phone: r.phone, name: r.name })),
-          buttons: selectedTemplate.buttons || null
-        })
-      })
-      const result = await response.json()
-      setSendResult(result)
-      if (result.success) {
-        alert(`발송 완료! 성공 ${result.totalSuccess}건, 실패 ${result.totalFail}건`)
-      } else {
-        alert('발송 실패: ' + (result.error || '알 수 없는 오류'))
+      for (let i = 0; i < totalBatches; i++) {
+        const batch = allRecipients.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE)
+        setSendProgress({ current: i + 1, total: totalBatches, success: totalSuccess, fail: totalFail })
+
+        try {
+          const response = await fetch('/.netlify/functions/send-bulk-alimtalk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              templateCode: selectedTemplate.code,
+              templateContent: selectedTemplate.content,
+              variables: variableValues,
+              recipients: batch,
+              buttons: selectedTemplate.buttons || null
+            })
+          })
+          const result = await response.json()
+          totalSuccess += result.totalSuccess || 0
+          totalFail += result.totalFail || 0
+        } catch (batchErr) {
+          totalFail += batch.length
+          console.error(`배치 ${i + 1} 실패:`, batchErr.message)
+        }
+
+        // 배치 간 0.5초 딜레이 (팝빌 부하 방지)
+        if (i < totalBatches - 1) await new Promise(r => setTimeout(r, 500))
       }
+
+      const finalResult = {
+        success: totalSuccess > 0,
+        message: `발송 완료: 성공 ${totalSuccess}건, 실패 ${totalFail}건`,
+        totalSuccess,
+        totalFail,
+        totalRecipients: allRecipients.length
+      }
+      setSendResult(finalResult)
+      setSendProgress(null)
+      alert(finalResult.message)
     } catch (error) {
       alert('발송 중 오류: ' + error.message)
     } finally {
@@ -457,17 +488,35 @@ export default function BulkAlimtalkPage() {
           </Card>
 
           {/* 발송 버튼 */}
-          <Button
-            onClick={handleSend}
-            disabled={sending || mergedRecipients.length === 0}
-            className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-bold py-5 text-base rounded-2xl shadow-lg shadow-[#6C5CE7]/20"
-          >
-            {sending ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> 발송 중...</>
-            ) : (
-              <><Send className="w-5 h-5 mr-2" /> {mergedRecipients.length}명에게 알림톡 발송</>
+          <div className="space-y-2">
+            <Button
+              onClick={handleSend}
+              disabled={sending || mergedRecipients.length === 0}
+              className="w-full bg-[#6C5CE7] hover:bg-[#5A4BD1] text-white font-bold py-5 text-base rounded-2xl shadow-lg shadow-[#6C5CE7]/20"
+            >
+              {sending ? (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> 발송 중...</>
+              ) : (
+                <><Send className="w-5 h-5 mr-2" /> {mergedRecipients.length}명에게 알림톡 발송</>
+              )}
+            </Button>
+            {sendProgress && (
+              <div className="bg-white border border-[#DFE6E9] rounded-xl p-3">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-[#636E72]">배치 {sendProgress.current}/{sendProgress.total}</span>
+                  <span className="text-[#6C5CE7] font-medium">
+                    성공 {sendProgress.success} / 실패 {sendProgress.fail}
+                  </span>
+                </div>
+                <div className="w-full bg-[#F0EDFF] rounded-full h-2">
+                  <div
+                    className="bg-[#6C5CE7] h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(sendProgress.current / sendProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
             )}
-          </Button>
+          </div>
 
           {/* 발송 결과 */}
           {sendResult && (
