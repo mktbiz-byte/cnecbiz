@@ -476,7 +476,7 @@ const CreatorMyPage = () => {
     }
 
     // 캠페인 타입별 가이드 반환
-    if (campaignData.campaign_type === 'regular') {
+    if (campaignData.campaign_type === 'regular' || campaignData.campaign_type === 'planned') {
       return campaign.personalized_guide || campaignData.ai_generated_guide || campaignData.ai_guide || '가이드가 아직 생성되지 않았습니다.'
     } else if (campaignData.campaign_type === 'oliveyoung' || campaignData.campaign_type === 'oliveyoung_sale') {
       return {
@@ -556,8 +556,12 @@ const CreatorMyPage = () => {
                   <div>
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{campaign.campaigns?.title}</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      캠페인 타입: {campaign.campaigns?.campaign_type === 'regular' ? '기획형' :
-                                   campaign.campaigns?.campaign_type === 'oliveyoung' ? '올영세일' : '4주 챌린지'}
+                      캠페인 타입: {(campaign.campaigns?.campaign_type === 'regular' || campaign.campaigns?.campaign_type === 'planned') ? '기획형' :
+                                   campaign.campaigns?.campaign_type === 'oliveyoung' ? '올영세일' :
+                                   campaign.campaigns?.campaign_type === '4week_challenge' ? '4주 챌린지' :
+                                   campaign.campaigns?.campaign_type === 'story_short' ? '스토리 숏폼' :
+                                   campaign.campaigns?.campaign_type === 'threads_post' ? '스레드 포스트' :
+                                   campaign.campaigns?.campaign_type === 'x_post' ? 'X 포스트' : '기획형'}
                     </p>
                     {/* 업로드 플랫폼 표시 */}
                     {campaign.main_channel && (
@@ -587,7 +591,7 @@ const CreatorMyPage = () => {
                     영상 촬영 마감일
                   </h3>
                   <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
-                    {campaign.campaigns?.campaign_type === 'regular' ? (
+                    {(campaign.campaigns?.campaign_type === 'regular' || campaign.campaigns?.campaign_type === 'planned') ? (
                       <div className="space-y-2">
                         <div className="flex items-center text-sm">
                           <span className="text-red-600 font-semibold mr-2">📹 영상 촬영 마감:</span>
