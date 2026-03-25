@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, CheckCircle, XCircle, Clock, Search, Link as LinkIcon, AlertTriangle, FileText, FileCheck, FileMinus } from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, Clock, Search, Link as LinkIcon, AlertTriangle, FileText, FileCheck, FileMinus, Zap } from 'lucide-react'
 
 export default function BankTransactionsTab() {
   const [transactions, setTransactions] = useState([])
@@ -11,6 +11,10 @@ export default function BankTransactionsTab() {
   const [syncing, setSyncing] = useState(false)
   const [dataSource, setDataSource] = useState('') // 'popbill' or 'db'
   const [popbillError, setPopbillError] = useState(null)
+
+  // 자동 매칭
+  const [autoMatching, setAutoMatching] = useState(false)
+  const [autoMatchResults, setAutoMatchResults] = useState(null) // 미리보기 결과
   const [startDate, setStartDate] = useState(() => {
     const date = new Date()
     date.setDate(date.getDate() - 14)
@@ -181,6 +185,56 @@ export default function BankTransactionsTab() {
     } catch (error) {
       console.error('매칭 오류:', error)
       alert('매칭 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 세금계산서 자동 매칭 (미리보기)
+  const handleAutoMatchPreview = async () => {
+    setAutoMatching(true)
+    try {
+      const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setAutoMatchResults(result)
+      } else {
+        alert('자동 매칭 조회 실패: ' + result.error)
+      }
+    } catch (error) {
+      console.error('자동 매칭 미리보기 오류:', error)
+      alert('자동 매칭 조회 중 오류가 발생했습니다.')
+    } finally {
+      setAutoMatching(false)
+    }
+  }
+
+  // 세금계산서 자동 매칭 실행
+  const handleAutoMatchApply = async () => {
+    if (!confirm(`${autoMatchResults?.matched || 0}건의 입금 내역에 세금계산서를 자동 매칭하시겠습니까?`)) return
+
+    setAutoMatching(true)
+    try {
+      const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false })
+      })
+      const result = await response.json()
+      if (result.success) {
+        alert(`${result.matched}건 자동 매칭 완료!`)
+        setAutoMatchResults(null)
+        fetchTransactions()
+      } else {
+        alert('자동 매칭 실패: ' + result.error)
+      }
+    } catch (error) {
+      console.error('자동 매칭 오류:', error)
+      alert('자동 매칭 중 오류가 발생했습니다.')
+    } finally {
+      setAutoMatching(false)
     }
   }
 
@@ -409,6 +463,15 @@ export default function BankTransactionsTab() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 수동 수집
               </Button>
+              <Button
+                onClick={handleAutoMatchPreview}
+                disabled={loading || autoMatching}
+                variant="outline"
+                className="border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
+                <Zap className={`w-4 h-4 mr-2 ${autoMatching ? 'animate-pulse' : ''}`} />
+                {autoMatching ? '매칭 중...' : '세금계산서 자동 매칭'}
+              </Button>
             </div>
 
             {/* 필터 */}
@@ -629,6 +692,105 @@ export default function BankTransactionsTab() {
                   취소
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 세금계산서 자동 매칭 결과 모달 */}
+      {autoMatchResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-3xl max-h-[80vh] overflow-hidden bg-white flex flex-col">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-purple-600" />
+                    세금계산서 자동 매칭 결과
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    미발행 {autoMatchResults.total}건 중 {autoMatchResults.matched}건 매칭 가능
+                    (세금계산서 {autoMatchResults.invoiceCount}건 비교)
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setAutoMatchResults(null)}>닫기</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1">
+              {autoMatchResults.results.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  매칭 가능한 건이 없습니다.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {autoMatchResults.results.map((match, idx) => (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-3 ${
+                        match.confidence === 'high' ? 'border-green-200 bg-green-50' :
+                        match.confidence === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                        'border-orange-200 bg-orange-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">입금:</span>
+                            <span>{match.depositName}</span>
+                            <span className="text-gray-500">|</span>
+                            <span className="font-bold text-green-700">{match.depositAmount.toLocaleString()}원</span>
+                            <span className="text-gray-500">|</span>
+                            <span className="text-gray-500 text-xs">
+                              {match.depositDate?.slice(0, 4)}-{match.depositDate?.slice(4, 6)}-{match.depositDate?.slice(6, 8)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <span className="font-medium">세금계산서:</span>
+                            <span>{match.invoiceCompany}</span>
+                            <span className="text-gray-500">|</span>
+                            <span className="font-bold">{match.invoiceAmount.toLocaleString()}원</span>
+                            {match.invoiceNtsNum && (
+                              <>
+                                <span className="text-gray-500">|</span>
+                                <span className="text-xs text-gray-500">#{match.invoiceNtsNum.slice(-8)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            match.confidence === 'high' ? 'bg-green-200 text-green-800' :
+                            match.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                            'bg-orange-200 text-orange-800'
+                          }`}>
+                            {match.matchType === 'charge_request_link' ? '충전 연동' :
+                             `유사도 ${match.similarity}%`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {autoMatchResults.results.length > 0 && (
+                <div className="flex gap-3 mt-6 pt-4 border-t">
+                  <Button
+                    onClick={handleAutoMatchApply}
+                    disabled={autoMatching}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  >
+                    {autoMatching ? '처리 중...' : `${autoMatchResults.matched}건 자동 매칭 적용`}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setAutoMatchResults(null)}
+                    disabled={autoMatching}
+                  >
+                    취소
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
