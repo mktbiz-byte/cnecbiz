@@ -3,20 +3,33 @@
  * transactionId(DB id), tid(팝빌 거래ID), chargeRequestId 중 하나로 업데이트
  */
 
-const { getBizClient } = require('./lib/supabase');
-const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
-
   try {
+    const headers = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
+
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 200, headers, body: '' };
+    }
+
     const { transactionId, tid, taxInvoiceStatus, ntsConfirmNum, chargeRequestId } = JSON.parse(event.body || '{}');
 
     if (!transactionId && !chargeRequestId && !tid) {
-      return errorResponse(400, 'transactionId, tid, 또는 chargeRequestId가 필요합니다.');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, error: 'transactionId, tid, 또는 chargeRequestId가 필요합니다.' })
+      };
     }
-
-    const supabaseAdmin = getBizClient();
 
     // charge_request가 있는 경우 (매칭된 입금)
     if (chargeRequestId) {
@@ -68,7 +81,11 @@ exports.handler = async (event, context) => {
       if (error) throw error;
     }
 
-    return successResponse({ success: true, message: '세금계산서 상태가 업데이트되었습니다.' });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, message: '세금계산서 상태가 업데이트되었습니다.' })
+    };
   } catch (error) {
     console.error('[update-deposit-tax-status] Error:', error);
 
@@ -77,13 +94,14 @@ exports.handler = async (event, context) => {
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'update-deposit-tax-status',
-          errorMessage: error.message
-        })
+        body: JSON.stringify({ functionName: 'update-deposit-tax-status', errorMessage: error.message })
       });
     } catch (e) { console.error('Error alert failed:', e.message); }
 
-    return errorResponse(500, error.message);
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 };

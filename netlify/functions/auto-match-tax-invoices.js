@@ -4,12 +4,18 @@
  * accountLabel 파라미터로 하우랩/하우파파 구분 지원
  */
 
-const { getBizClient } = require('./lib/supabase');
-const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+const { createClient } = require('@supabase/supabase-js');
 
-/**
- * 회사명 정규화
- */
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
 function normalizeName(name) {
   if (!name) return '';
   return name
@@ -19,9 +25,6 @@ function normalizeName(name) {
     .toLowerCase();
 }
 
-/**
- * 문자열 유사도 (Levenshtein)
- */
 function calculateSimilarity(str1, str2) {
   const s1 = normalizeName(str1);
   const s2 = normalizeName(str2);
@@ -47,19 +50,19 @@ function calculateSimilarity(str1, str2) {
 }
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
 
   try {
     let body = {};
     try { body = JSON.parse(event.body || '{}'); } catch (e) { body = {}; }
     const dryRun = body.dryRun || false;
-    const accountLabel = body.accountLabel || null; // 'howlab' | 'howpapa' | null
+    const accountLabel = body.accountLabel || null;
 
     const accountLabelKr = accountLabel === 'howlab' ? '하우랩' : accountLabel === 'howpapa' ? '하우파파' : null;
 
     console.log(`[auto-match] 시작 (dryRun: ${dryRun}, accountLabel: ${accountLabel})`);
-
-    const supabaseAdmin = getBizClient();
 
     // 1. 미발행 입금 내역 조회 (account_label 필터 적용)
     let depositQuery = supabaseAdmin
@@ -74,15 +77,13 @@ exports.handler = async (event, context) => {
     }
 
     const { data: unmatchedDeposits, error: depError } = await depositQuery;
-
     if (depError) throw depError;
 
     if (!unmatchedDeposits || unmatchedDeposits.length === 0) {
-      return successResponse({
-        success: true,
-        message: '매칭할 미발행 입금 건이 없습니다.',
-        matched: 0, total: 0, invoiceCount: 0, dryRun, results: []
-      });
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: true, message: '매칭할 미발행 입금 건이 없습니다.', matched: 0, total: 0, invoiceCount: 0, dryRun, results: [] })
+      };
     }
 
     console.log(`[auto-match] 미발행 입금 ${unmatchedDeposits.length}건 (${accountLabelKr || '전체'})`);
@@ -90,7 +91,7 @@ exports.handler = async (event, context) => {
     // 2. 세금계산서 소스 결정
     const issuedInvoices = [];
 
-    // 하우파파/전체인 경우: points_charge_requests에서 발행 완료된 세금계산서
+    // 하우파파/전체: points_charge_requests
     if (accountLabel !== 'howlab') {
       try {
         const { data: autoInvoices } = await supabaseAdmin
@@ -118,26 +119,23 @@ exports.handler = async (event, context) => {
           });
         });
       } catch (chargeErr) {
-        console.warn('[auto-match] points_charge_requests 조회 실패 (무시):', chargeErr.message);
+        console.warn('[auto-match] points_charge_requests 조회 실패:', chargeErr.message);
       }
     }
 
-    // manual_tax_invoices에서 발행 완료된 세금계산서 (전체 조회 후 JS에서 필터)
+    // manual_tax_invoices (전체 조회 후 JS 필터)
     try {
       const { data: allManualInvoices, error: manualErr } = await supabaseAdmin
         .from('manual_tax_invoices')
         .select('id, company_name, total_amount, nts_confirm_num, issued_at, status, mgt_key')
         .eq('status', 'issued');
 
-      if (manualErr) {
-        console.warn('[auto-match] manual_tax_invoices 조회 에러:', manualErr.message);
-      }
+      if (manualErr) console.warn('[auto-match] manual_tax_invoices 에러:', manualErr.message);
 
       (allManualInvoices || []).forEach(inv => {
         const mgtKey = inv.mgt_key || '';
         const isHowlab = mgtKey.startsWith('L');
 
-        // accountLabel에 따라 필터
         if (accountLabel === 'howlab' && !isHowlab) return;
         if (accountLabel === 'howpapa' && isHowlab) return;
 
@@ -150,7 +148,7 @@ exports.handler = async (event, context) => {
         });
       });
     } catch (manualErr) {
-      console.warn('[auto-match] manual_tax_invoices 조회 실패 (무시):', manualErr.message);
+      console.warn('[auto-match] manual_tax_invoices 조회 실패:', manualErr.message);
     }
 
     console.log(`[auto-match] 발행된 세금계산서 ${issuedInvoices.length}건`);
@@ -172,7 +170,7 @@ exports.handler = async (event, context) => {
       const depositAmount = parseInt(deposit.trade_balance);
       const depositName = deposit.briefs || '';
 
-      // charge_request 링크 매칭 (하우파파만 해당)
+      // charge_request 링크 매칭
       if (deposit.charge_request_id) {
         const linkedInvoice = issuedInvoices.find(
           inv => inv.source === 'charge_request' && inv.sourceId === deposit.charge_request_id
@@ -227,20 +225,12 @@ exports.handler = async (event, context) => {
             updates.tax_invoice_nts_confirm_num = match.matchedInvoice.ntsConfirmNum;
           }
 
-          // id가 있으면 id로, 없으면 tid로 업데이트
           let updateQuery;
           if (match.depositId) {
-            updateQuery = supabaseAdmin
-              .from('bank_transactions')
-              .update(updates)
-              .eq('id', match.depositId);
+            updateQuery = supabaseAdmin.from('bank_transactions').update(updates).eq('id', match.depositId);
           } else if (match.depositTid) {
-            updateQuery = supabaseAdmin
-              .from('bank_transactions')
-              .update(updates)
-              .eq('tid', match.depositTid);
+            updateQuery = supabaseAdmin.from('bank_transactions').update(updates).eq('tid', match.depositTid);
           } else {
-            console.warn('[auto-match] Skip: no id or tid for deposit', match.depositName);
             continue;
           }
 
@@ -252,21 +242,24 @@ exports.handler = async (event, context) => {
       }
     }
 
-    return successResponse({
-      success: true,
-      message: dryRun ? `${results.length}건 매칭 가능 (미리보기)` : `${updatedCount}건 자동 매칭 완료`,
-      matched: dryRun ? results.length : updatedCount,
-      total: unmatchedDeposits.length,
-      invoiceCount: issuedInvoices.length,
-      dryRun,
-      results: results.map(r => ({
-        depositId: r.depositId, depositTid: r.depositTid, depositName: r.depositName, depositAmount: r.depositAmount,
-        depositDate: r.depositDate, invoiceCompany: r.matchedInvoice.companyName,
-        invoiceAmount: r.matchedInvoice.amount, invoiceNtsNum: r.matchedInvoice.ntsConfirmNum,
-        invoiceIssuedAt: r.matchedInvoice.issuedAt, matchType: r.matchType,
-        similarity: r.similarity, confidence: r.confidence
-      }))
-    });
+    return {
+      statusCode: 200, headers,
+      body: JSON.stringify({
+        success: true,
+        message: dryRun ? `${results.length}건 매칭 가능 (미리보기)` : `${updatedCount}건 자동 매칭 완료`,
+        matched: dryRun ? results.length : updatedCount,
+        total: unmatchedDeposits.length,
+        invoiceCount: issuedInvoices.length,
+        dryRun,
+        results: results.map(r => ({
+          depositId: r.depositId, depositTid: r.depositTid, depositName: r.depositName, depositAmount: r.depositAmount,
+          depositDate: r.depositDate, invoiceCompany: r.matchedInvoice.companyName,
+          invoiceAmount: r.matchedInvoice.amount, invoiceNtsNum: r.matchedInvoice.ntsConfirmNum,
+          invoiceIssuedAt: r.matchedInvoice.issuedAt, matchType: r.matchType,
+          similarity: r.similarity, confidence: r.confidence
+        }))
+      })
+    };
   } catch (error) {
     console.error('[auto-match] Error:', error);
 
@@ -275,13 +268,14 @@ exports.handler = async (event, context) => {
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'auto-match-tax-invoices',
-          errorMessage: error.message
-        })
+        body: JSON.stringify({ functionName: 'auto-match-tax-invoices', errorMessage: error.message })
       });
     } catch (e) { console.error('Error alert failed:', e.message); }
 
-    return errorResponse(500, error.message || '알 수 없는 오류');
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: error.message || '알 수 없는 오류' })
+    };
   }
 };
