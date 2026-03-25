@@ -90,99 +90,57 @@ exports.handler = async (event, context) => {
     // 2. 세금계산서 소스 결정
     const issuedInvoices = [];
 
-    if (accountLabel === 'howlab') {
-      // 하우랩: manual_tax_invoices에서 mgt_key가 'L'로 시작하는 것만
-      const { data: manualInvoices } = await supabaseAdmin
+    // 하우파파/전체인 경우: points_charge_requests에서 발행 완료된 세금계산서
+    if (accountLabel !== 'howlab') {
+      try {
+        const { data: autoInvoices } = await supabaseAdmin
+          .from('points_charge_requests')
+          .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
+          .eq('tax_invoice_issued', true);
+
+        const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
+        let companyMap = {};
+        if (companyIds.length > 0) {
+          const { data: companies } = await supabaseAdmin
+            .from('companies')
+            .select('user_id, company_name')
+            .in('user_id', companyIds);
+          if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
+        }
+
+        (autoInvoices || []).forEach(inv => {
+          issuedInvoices.push({
+            source: 'charge_request', sourceId: inv.id,
+            companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
+            amount: inv.amount,
+            ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
+            issuedAt: inv.tax_invoice_info?.issued_at || null
+          });
+        });
+      } catch (chargeErr) {
+        console.warn('[auto-match] points_charge_requests 조회 실패 (무시):', chargeErr.message);
+      }
+    }
+
+    // manual_tax_invoices에서 발행 완료된 세금계산서 (전체 조회 후 JS에서 필터)
+    try {
+      const { data: allManualInvoices, error: manualErr } = await supabaseAdmin
         .from('manual_tax_invoices')
         .select('id, company_name, total_amount, nts_confirm_num, issued_at, status, mgt_key')
-        .eq('status', 'issued')
-        .like('mgt_key', 'L%');
-
-      (manualInvoices || []).forEach(inv => {
-        issuedInvoices.push({
-          source: 'manual', sourceId: inv.id,
-          companyName: inv.company_name || '',
-          amount: inv.total_amount,
-          ntsConfirmNum: inv.nts_confirm_num || null,
-          issuedAt: inv.issued_at || null
-        });
-      });
-    } else if (accountLabel === 'howpapa') {
-      // 하우파파: points_charge_requests + manual_tax_invoices(M* 또는 L이 아닌 것)
-      const { data: autoInvoices } = await supabaseAdmin
-        .from('points_charge_requests')
-        .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
-        .eq('tax_invoice_issued', true);
-
-      const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
-      let companyMap = {};
-      if (companyIds.length > 0) {
-        const { data: companies } = await supabaseAdmin
-          .from('companies')
-          .select('user_id, company_name')
-          .in('user_id', companyIds);
-        if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
-      }
-
-      (autoInvoices || []).forEach(inv => {
-        issuedInvoices.push({
-          source: 'charge_request', sourceId: inv.id,
-          companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
-          amount: inv.amount,
-          ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
-          issuedAt: inv.tax_invoice_info?.issued_at || null
-        });
-      });
-
-      // 하우파파 수동 세금계산서 (L이 아닌 것)
-      const { data: manualInvoices } = await supabaseAdmin
-        .from('manual_tax_invoices')
-        .select('id, company_name, total_amount, nts_confirm_num, issued_at, status, mgt_key')
-        .eq('status', 'issued')
-        .not('mgt_key', 'like', 'L%');
-
-      (manualInvoices || []).forEach(inv => {
-        issuedInvoices.push({
-          source: 'manual', sourceId: inv.id,
-          companyName: inv.company_name || '',
-          amount: inv.total_amount,
-          ntsConfirmNum: inv.nts_confirm_num || null,
-          issuedAt: inv.issued_at || null
-        });
-      });
-    } else {
-      // accountLabel 없음 → 전체 (기존 로직)
-      const { data: autoInvoices } = await supabaseAdmin
-        .from('points_charge_requests')
-        .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
-        .eq('tax_invoice_issued', true);
-
-      const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
-      let companyMap = {};
-      if (companyIds.length > 0) {
-        const { data: companies } = await supabaseAdmin
-          .from('companies')
-          .select('user_id, company_name')
-          .in('user_id', companyIds);
-        if (companies) companies.forEach(c => { companyMap[c.user_id] = c.company_name; });
-      }
-
-      (autoInvoices || []).forEach(inv => {
-        issuedInvoices.push({
-          source: 'charge_request', sourceId: inv.id,
-          companyName: inv.tax_invoice_info?.company_name || companyMap[inv.company_id] || inv.depositor_name || '',
-          amount: inv.amount,
-          ntsConfirmNum: inv.tax_invoice_info?.nts_confirm_num || null,
-          issuedAt: inv.tax_invoice_info?.issued_at || null
-        });
-      });
-
-      const { data: manualInvoices } = await supabaseAdmin
-        .from('manual_tax_invoices')
-        .select('id, company_name, total_amount, nts_confirm_num, issued_at, status')
         .eq('status', 'issued');
 
-      (manualInvoices || []).forEach(inv => {
+      if (manualErr) {
+        console.warn('[auto-match] manual_tax_invoices 조회 에러:', manualErr.message);
+      }
+
+      (allManualInvoices || []).forEach(inv => {
+        const mgtKey = inv.mgt_key || '';
+        const isHowlab = mgtKey.startsWith('L');
+
+        // accountLabel에 따라 필터
+        if (accountLabel === 'howlab' && !isHowlab) return;
+        if (accountLabel === 'howpapa' && isHowlab) return;
+
         issuedInvoices.push({
           source: 'manual', sourceId: inv.id,
           companyName: inv.company_name || '',
@@ -191,6 +149,8 @@ exports.handler = async (event, context) => {
           issuedAt: inv.issued_at || null
         });
       });
+    } catch (manualErr) {
+      console.warn('[auto-match] manual_tax_invoices 조회 실패 (무시):', manualErr.message);
     }
 
     console.log(`[auto-match] 발행된 세금계산서 ${issuedInvoices.length}건`);
