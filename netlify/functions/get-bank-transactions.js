@@ -14,19 +14,25 @@ exports.handler = async (event) => {
     const supabaseAdmin = getBizClient();
 
     const params = event.queryStringParameters || {};
-    const endDate = params.endDate || new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const startDate = params.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const startDate = params.startDate || null;
+    const endDate = params.endDate || null;
+    const accountLabel = params.accountLabel || null;
 
-    console.log(`[get-bank-transactions] 조회 기간: ${startDate} ~ ${endDate}`);
-
-    // bank_transactions 조회
-    const { data: transactions, error } = await supabaseAdmin
+    // bank_transactions 조회 (날짜 파라미터 없으면 전체 조회)
+    let query = supabaseAdmin
       .from('bank_transactions')
       .select('*')
-      .gte('trade_date', startDate)
-      .lte('trade_date', endDate)
       .order('trade_date', { ascending: false })
       .order('trade_time', { ascending: false });
+
+    if (startDate) query = query.gte('trade_date', startDate);
+    if (endDate) query = query.lte('trade_date', endDate);
+    if (accountLabel === 'howlab') query = query.eq('account_label', '하우랩');
+    else if (accountLabel === 'howpapa') query = query.eq('account_label', '하우파파');
+
+    console.log(`[get-bank-transactions] 조회: ${accountLabel || '전체'} / ${startDate || '전체'} ~ ${endDate || '전체'}`);
+
+    const { data: transactions, error } = await query;
 
     if (error) throw error;
 
