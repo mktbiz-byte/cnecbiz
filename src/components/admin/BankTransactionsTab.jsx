@@ -36,67 +36,13 @@ export default function BankTransactionsTab() {
     fetchTransactions()
   }, [])
 
-  // 팝빌에서 조회 → DB 매칭/세금계산서 정보 보강 → DB에 자동 저장
+  // 1차: DB에서 즉시 표시, 2차: 팝빌로 백그라운드 동기화 (1개월 이내만)
   const fetchTransactions = async () => {
     setLoading(true)
     setPopbillError(null)
 
     try {
-      // 1차: 팝빌 실시간 API 조회
-      const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
-      const popbillResponse = await fetch(popbillUrl)
-      const popbillData = await popbillResponse.json()
-
-      if (popbillData.success && popbillData.data && popbillData.data.length > 0) {
-        // DB에서 매칭 + 세금계산서 정보 조회
-        let dbMap = new Map()
-        try {
-          const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howpapa`
-          const dbResponse = await fetch(dbUrl)
-          const dbData = await dbResponse.json()
-          if (dbData.success && dbData.transactions) {
-            dbData.transactions.forEach(tx => {
-              if (tx.tid) dbMap.set(tx.tid, tx)
-            })
-          }
-        } catch (dbError) {
-          console.warn('[하우파파] DB 보완 실패:', dbError.message)
-        }
-
-        // 팝빌 데이터에 DB 정보 합침
-        const formattedTransactions = popbillData.data.map(tx => {
-          const dbTx = dbMap.get(tx.tid)
-          return {
-            id: dbTx?.id || null,
-            tid: tx.tid,
-            tradeDate: tx.tradeDate + (tx.tradeTime || ''),
-            tradeType: tx.tradeType || 'I',
-            tradeBalance: String(tx.tradeBalance),
-            briefs: tx.briefs,
-            isMatched: dbTx?.isMatched || false,
-            matchedRequest: dbTx?.matchedRequest || null,
-            accountLabel: '하우파파',
-            taxInvoiceStatus: dbTx?.taxInvoiceStatus || 'none',
-            taxInvoiceNtsConfirmNum: dbTx?.taxInvoiceNtsConfirmNum || null,
-            chargeRequestId: dbTx?.chargeRequestId || null
-          }
-        })
-
-        setTransactions(formattedTransactions)
-        updateStats(formattedTransactions)
-        setDataSource('popbill')
-
-        // DB에 자동 저장 (백그라운드)
-        syncToDb(popbillData.data)
-        return
-      }
-
-      // 팝빌 실패 시
-      if (!popbillData.success) {
-        setPopbillError(popbillData.error || '팝빌 API 오류')
-      }
-
-      // 2차: DB 폴백
+      // 1차: DB에서 즉시 조회 (날짜 제한 없음)
       const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howpapa`
       const response = await fetch(dbUrl)
       const data = await response.json()
@@ -105,29 +51,92 @@ export default function BankTransactionsTab() {
         setTransactions([...data.transactions])
         setStats({...data.stats})
         setDataSource('db')
-      } else {
-        alert(`거래 내역 조회 실패: ${data.error || '알 수 없는 오류'}`)
+      }
+
+      // 2차: 팝빌 백그라운드 동기화 (1개월 이내만 가능)
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+
+      if (diffDays <= 31) {
+        // 1개월 이내면 팝빌 동기화 시도 (백그라운드)
+        syncFromPopbill()
       }
     } catch (error) {
       console.error('[하우파파] 예외:', error)
-      alert(`거래 내역을 불러오는데 실패했습니다: ${error.message}`)
+
+      // DB 실패 시 팝빌 직접 조회 시도
+      try {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+
+        if (diffDays <= 31) {
+          const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
+          const popbillResponse = await fetch(popbillUrl)
+          const popbillData = await popbillResponse.json()
+
+          if (popbillData.success && popbillData.data) {
+            const formattedTransactions = popbillData.data.map(tx => ({
+              id: null, tid: tx.tid,
+              tradeDate: tx.tradeDate + (tx.tradeTime || ''),
+              tradeType: tx.tradeType || 'I',
+              tradeBalance: String(tx.tradeBalance),
+              briefs: tx.briefs,
+              isMatched: false, matchedRequest: null,
+              accountLabel: '하우파파',
+              taxInvoiceStatus: 'none', taxInvoiceNtsConfirmNum: null, chargeRequestId: null
+            }))
+            setTransactions(formattedTransactions)
+            updateStats(formattedTransactions)
+            setDataSource('popbill')
+          }
+        } else {
+          alert('조회 기간이 1개월을 초과합니다. DB에 저장된 데이터만 표시됩니다.')
+        }
+      } catch (popErr) {
+        console.error('[하우파파] 팝빌도 실패:', popErr)
+        alert(`거래 내역을 불러오는데 실패했습니다: ${error.message}`)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  // 팝빌 데이터를 DB에 백그라운드 저장
-  const syncToDb = async (popbillTransactions) => {
-    if (!popbillTransactions || popbillTransactions.length === 0) return
+  // 팝빌에서 가져와 DB 저장 후 다시 로드 (백그라운드)
+  const syncFromPopbill = async () => {
     try {
       setSyncing(true)
-      await fetch('/.netlify/functions/sync-deposits-to-db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: popbillTransactions, accountLabel: '하우파파' })
-      })
+      const popbillUrl = `/.netlify/functions/get-howpapa-deposits?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&filterType=input`
+      const popbillResponse = await fetch(popbillUrl)
+      const popbillData = await popbillResponse.json()
+
+      if (popbillData.success && popbillData.data && popbillData.data.length > 0) {
+        // DB에 저장
+        const saveResponse = await fetch('/.netlify/functions/sync-deposits-to-db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transactions: popbillData.data, accountLabel: '하우파파' })
+        })
+        const saveResult = await saveResponse.json()
+
+        if (saveResult.success && saveResult.savedCount > 0) {
+          console.log(`[하우파파] 팝빌 동기화: ${saveResult.savedCount}건 새로 저장`)
+          // 새 데이터 있으면 DB에서 다시 로드
+          const dbUrl = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}&accountLabel=howpapa`
+          const response = await fetch(dbUrl)
+          const data = await response.json()
+          if (data.success) {
+            setTransactions([...data.transactions])
+            setStats({...data.stats})
+          }
+        }
+        setDataSource('db+popbill')
+      } else if (!popbillData.success) {
+        setPopbillError(popbillData.error || '팝빌 API 오류')
+      }
     } catch (error) {
-      console.warn('[하우파파] DB 동기화 실패:', error.message)
+      console.warn('[하우파파] 팝빌 동기화 실패:', error.message)
     } finally {
       setSyncing(false)
     }
@@ -164,7 +173,7 @@ export default function BankTransactionsTab() {
 
       if (data.success) {
         alert('매칭이 완료되었습니다!')
-        loadFromDb()
+        fetchTransactions()
       } else {
         alert('매칭 실패: ' + data.error)
       }
@@ -212,7 +221,7 @@ export default function BankTransactionsTab() {
       if (result.success) {
         alert(`${result.matched}건 자동 매칭 완료!`)
         setAutoMatchResults(null)
-        loadFromDb()
+        fetchTransactions()
       } else {
         alert('자동 매칭 실패: ' + result.error)
       }

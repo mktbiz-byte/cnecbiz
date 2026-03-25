@@ -5,17 +5,14 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Supabase 클라이언트 초기화
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
+/**
+ * 회사명 정규화
+ */
 function normalizeName(name) {
   if (!name) return '';
   return name
@@ -25,6 +22,9 @@ function normalizeName(name) {
     .toLowerCase();
 }
 
+/**
+ * 문자열 유사도 (Levenshtein)
+ */
 function calculateSimilarity(str1, str2) {
   const s1 = normalizeName(str1);
   const s2 = normalizeName(str2);
@@ -49,12 +49,18 @@ function calculateSimilarity(str1, str2) {
   return Math.round(((maxLength - distance) / maxLength) * 100);
 }
 
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
+exports.handler = async (event, context) => {
   try {
+    const headers = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
+
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 200, headers, body: '' };
+    }
+
     let body = {};
     try { body = JSON.parse(event.body || '{}'); } catch (e) { body = {}; }
     const dryRun = body.dryRun || false;
@@ -62,7 +68,7 @@ exports.handler = async (event) => {
     console.log(`[auto-match] 시작 (dryRun: ${dryRun})`);
 
     // 1. 미발행 입금 내역 조회
-    const { data: unmatchedDeposits, error: depError } = await supabase
+    const { data: unmatchedDeposits, error: depError } = await supabaseAdmin
       .from('bank_transactions')
       .select('id, tid, briefs, trade_balance, trade_date, tax_invoice_status, charge_request_id')
       .or('tax_invoice_status.eq.none,tax_invoice_status.is.null')
@@ -73,13 +79,20 @@ exports.handler = async (event) => {
 
     if (!unmatchedDeposits || unmatchedDeposits.length === 0) {
       return {
-        statusCode: 200, headers,
-        body: JSON.stringify({ success: true, message: '매칭할 미발행 입금 건이 없습니다.', matched: 0, total: 0, invoiceCount: 0, dryRun, results: [] })
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          message: '매칭할 미발행 입금 건이 없습니다.',
+          matched: 0, total: 0, invoiceCount: 0, dryRun, results: []
+        })
       };
     }
 
+    console.log(`[auto-match] 미발행 입금 ${unmatchedDeposits.length}건`);
+
     // 2a. points_charge_requests에서 발행 완료된 세금계산서
-    const { data: autoInvoices } = await supabase
+    const { data: autoInvoices } = await supabaseAdmin
       .from('points_charge_requests')
       .select('id, amount, company_id, tax_invoice_info, tax_invoice_issued, depositor_name')
       .eq('tax_invoice_issued', true);
@@ -87,7 +100,7 @@ exports.handler = async (event) => {
     const companyIds = [...new Set((autoInvoices || []).map(inv => inv.company_id).filter(Boolean))];
     let companyMap = {};
     if (companyIds.length > 0) {
-      const { data: companies } = await supabase
+      const { data: companies } = await supabaseAdmin
         .from('companies')
         .select('user_id, company_name')
         .in('user_id', companyIds);
@@ -106,14 +119,10 @@ exports.handler = async (event) => {
     });
 
     // 2b. manual_tax_invoices에서 발행 완료된 세금계산서
-    const { data: manualInvoices, error: manualError } = await supabase
+    const { data: manualInvoices } = await supabaseAdmin
       .from('manual_tax_invoices')
       .select('id, company_name, total_amount, nts_confirm_num, issued_at, status')
       .eq('status', 'issued');
-
-    if (manualError) {
-      console.warn('[auto-match] manual_tax_invoices 조회 실패 (무시):', manualError.message);
-    }
 
     (manualInvoices || []).forEach(inv => {
       issuedInvoices.push({
@@ -125,8 +134,10 @@ exports.handler = async (event) => {
       });
     });
 
-    // 이미 매칭된 ntsConfirmNum 추적
-    const { data: alreadyMatched } = await supabase
+    console.log(`[auto-match] 발행된 세금계산서 ${issuedInvoices.length}건`);
+
+    // 이미 매칭된 ntsConfirmNum
+    const { data: alreadyMatched } = await supabaseAdmin
       .from('bank_transactions')
       .select('tax_invoice_nts_confirm_num')
       .eq('tax_invoice_status', 'issued')
@@ -185,6 +196,8 @@ exports.handler = async (event) => {
       }
     }
 
+    console.log(`[auto-match] ${results.length}건 매칭됨`);
+
     // 4. 실제 업데이트
     let updatedCount = 0;
     if (!dryRun && results.length > 0) {
@@ -194,7 +207,7 @@ exports.handler = async (event) => {
           if (match.matchedInvoice.ntsConfirmNum) {
             updates.tax_invoice_nts_confirm_num = match.matchedInvoice.ntsConfirmNum;
           }
-          const { error } = await supabase
+          const { error } = await supabaseAdmin
             .from('bank_transactions')
             .update(updates)
             .eq('id', match.depositId);
@@ -206,7 +219,8 @@ exports.handler = async (event) => {
     }
 
     return {
-      statusCode: 200, headers,
+      statusCode: 200,
+      headers,
       body: JSON.stringify({
         success: true,
         message: dryRun ? `${results.length}건 매칭 가능 (미리보기)` : `${updatedCount}건 자동 매칭 완료`,
@@ -226,7 +240,8 @@ exports.handler = async (event) => {
   } catch (error) {
     console.error('[auto-match] Error:', error);
     return {
-      statusCode: 500, headers,
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ success: false, error: error.message || '알 수 없는 오류' })
     };
   }
