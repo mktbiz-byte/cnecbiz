@@ -170,7 +170,7 @@ export default function BankTransactionsTab() {
       const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: true })
+        body: JSON.stringify({ dryRun: true, accountLabel: 'howpapa' })
       })
       if (!response.ok) {
         alert(`자동 매칭 조회 실패 (HTTP ${response.status}). 잠시 후 다시 시도해주세요.`)
@@ -199,7 +199,7 @@ export default function BankTransactionsTab() {
       const response = await fetch('/.netlify/functions/auto-match-tax-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: false })
+        body: JSON.stringify({ dryRun: false, accountLabel: 'howpapa' })
       })
       const result = await response.json()
       if (result.success) {
@@ -228,6 +228,7 @@ export default function BankTransactionsTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transactionId: taxModalTx.id || null,
+          tid: taxModalTx.tid || null,
           chargeRequestId: taxModalTx.chargeRequestId || null,
           taxInvoiceStatus: taxModalStatus,
           ntsConfirmNum: taxModalNtsNum || null

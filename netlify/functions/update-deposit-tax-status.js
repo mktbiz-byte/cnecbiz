@@ -1,35 +1,22 @@
 /**
  * 입금 내역의 세금계산서 발행 상태 업데이트 API
+ * transactionId(DB id), tid(팝빌 거래ID), chargeRequestId 중 하나로 업데이트
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+const { getBizClient } = require('./lib/supabase');
+const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
 
 exports.handler = async (event, context) => {
+  if (event.httpMethod === 'OPTIONS') return handleOptions();
+
   try {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    };
+    const { transactionId, tid, taxInvoiceStatus, ntsConfirmNum, chargeRequestId } = JSON.parse(event.body || '{}');
 
-    if (event.httpMethod === 'OPTIONS') {
-      return { statusCode: 200, headers, body: '' };
+    if (!transactionId && !chargeRequestId && !tid) {
+      return errorResponse(400, 'transactionId, tid, 또는 chargeRequestId가 필요합니다.');
     }
 
-    const { transactionId, taxInvoiceStatus, ntsConfirmNum, chargeRequestId } = JSON.parse(event.body || '{}');
-
-    if (!transactionId && !chargeRequestId) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, error: 'transactionId 또는 chargeRequestId가 필요합니다.' })
-      };
-    }
+    const supabaseAdmin = getBizClient();
 
     // charge_request가 있는 경우 (매칭된 입금)
     if (chargeRequestId) {
@@ -62,29 +49,41 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // bank_transactions 직접 업데이트
-    if (transactionId) {
+    // bank_transactions 직접 업데이트 (id 또는 tid로)
+    if (transactionId || tid) {
       const txUpdates = { tax_invoice_status: taxInvoiceStatus || 'none' };
       if (ntsConfirmNum) txUpdates.tax_invoice_nts_confirm_num = ntsConfirmNum;
 
-      const { error } = await supabaseAdmin
+      let updateQuery = supabaseAdmin
         .from('bank_transactions')
-        .update(txUpdates)
-        .eq('id', transactionId);
+        .update(txUpdates);
+
+      if (transactionId) {
+        updateQuery = updateQuery.eq('id', transactionId);
+      } else {
+        updateQuery = updateQuery.eq('tid', tid);
+      }
+
+      const { error } = await updateQuery;
       if (error) throw error;
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, message: '세금계산서 상태가 업데이트되었습니다.' })
-    };
+    return successResponse({ success: true, message: '세금계산서 상태가 업데이트되었습니다.' });
   } catch (error) {
     console.error('[update-deposit-tax-status] Error:', error);
-    return {
-      statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ success: false, error: error.message })
-    };
+
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'update-deposit-tax-status',
+          errorMessage: error.message
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
+    return errorResponse(500, error.message);
   }
 };
