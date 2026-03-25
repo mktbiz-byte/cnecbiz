@@ -3522,9 +3522,11 @@ JSON만 출력.`
                   await supabase.from('campaign_participants').upsert({
                     campaign_id: id,
                     creator_email: pEmail,
+                    creator_name: participant.applicant_name || participant.name || null,
                     user_id: participant.user_id || null,
                     selection_status: 'selected',
-                    personalized_guide: guideSaveValue
+                    personalized_guide: guideSaveValue,
+                    creator_status: 'filming'
                   }, { onConflict: 'campaign_id,creator_email', ignoreDuplicates: false })
                 } else if (participant.user_id) {
                   await supabase.from('campaign_participants').update({ personalized_guide: guideSaveValue }).eq('campaign_id', id).eq('user_id', participant.user_id)
@@ -6711,10 +6713,9 @@ Questions? Contact us.
                 .upsert({
                   campaign_id: id,
                   creator_email: pEmail,
+                  creator_name: participant.applicant_name || participant.name || null,
                   user_id: participant.user_id || null,
                   selection_status: 'selected',
-                  main_channel: participant.main_channel || null,
-                  guide_group: participant.guide_group || null,
                   selected_at: new Date().toISOString()
                 }, { onConflict: 'campaign_id,creator_email', ignoreDuplicates: false })
             } catch (cpErr) {
