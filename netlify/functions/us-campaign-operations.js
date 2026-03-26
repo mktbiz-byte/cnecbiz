@@ -172,18 +172,66 @@ exports.handler = async (event) => {
 
       // 크리에이터 확정 (status를 selected로)
       case 'confirm_selection': {
-        // confirm_selection은 여러 ID를 받으므로 첫 번째 ID로 테이블 판별
-        const firstId = data.application_ids?.[0]
-        const table = await getApplicationTable(firstId, campaign_id)
-        result = await supabaseUS
-          .from(table)
-          .update({
-            status: 'selected',
-            virtual_selected: false
-          })
-          .in('id', data.application_ids)
-          .eq('campaign_id', campaign_id)
-          .select()
+        const allIds = data.application_ids || []
+        if (allIds.length === 0) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'application_ids가 비어있습니다' })
+          }
+        }
+
+        // 각 ID가 어느 테이블에 있는지 분류
+        const caIds = []
+        const appIds = []
+        for (const aid of allIds) {
+          const t = await getApplicationTable(aid, campaign_id)
+          if (t === 'campaign_applications') {
+            caIds.push(aid)
+          } else {
+            appIds.push(aid)
+          }
+        }
+
+        let allData = []
+
+        // applications 테이블 업데이트
+        if (appIds.length > 0) {
+          const appResult = await supabaseUS
+            .from('applications')
+            .update({
+              status: 'selected',
+              virtual_selected: false
+            })
+            .in('id', appIds)
+            .eq('campaign_id', campaign_id)
+            .select()
+          if (appResult.error) {
+            result = appResult
+            break
+          }
+          allData = allData.concat(appResult.data || [])
+        }
+
+        // campaign_applications 테이블 업데이트
+        if (caIds.length > 0) {
+          const caResult = await supabaseUS
+            .from('campaign_applications')
+            .update({
+              status: 'selected',
+              virtual_selected: false
+            })
+            .in('id', caIds)
+            .eq('campaign_id', campaign_id)
+            .select()
+          if (caResult.error) {
+            result = caResult
+            break
+          }
+          allData = allData.concat(caResult.data || [])
+        }
+
+        result = { data: allData, error: null }
         break
       }
 

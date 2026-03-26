@@ -4221,14 +4221,8 @@ JSON만 출력.`
         return
       }
 
-      // 이미 applications에 존재하는지 확인
-      const { data: existingParticipants } = await supabase
-        .from('applications')
-        .select('creator_name')
-        .eq('campaign_id', id)
-        .in('creator_name', virtualSelected.map(app => app.applicant_name))
-      
-      const existingNames = new Set(existingParticipants?.map(p => p.creator_name) || [])
+      // 이미 확정된 크리에이터 중복 체크 (participants 상태에서 확인 - RLS 우회 불필요)
+      const existingNames = new Set(participants.map(p => p.applicant_name).filter(Boolean))
       const toAdd = virtualSelected.filter(app => !existingNames.has(app.applicant_name))
       
       if (toAdd.length === 0) {
@@ -6686,16 +6680,10 @@ Questions? Contact us.
     }
 
     try {
-      // 선택된 크리에이터들의 상태를 'selected'로 변경
-      for (const participantId of selectedParticipants) {
-        await supabase
-          .from('applications')
-          .update({
-            selection_status: 'selected',
-            selected_at: new Date().toISOString()
-          })
-          .eq('id', participantId)
-      }
+      // 선택된 크리에이터들의 상태를 'selected'로 변경 (리전 API 사용으로 RLS 우회)
+      await callRegionCampaignAPI(region, 'confirm_selection', id, null, {
+        application_ids: selectedParticipants
+      })
 
       // campaign_participants 테이블에 레코드 생성 (크리에이터 마이페이지 표시용)
       // US DB에는 campaign_participants 테이블이 없으므로 US 제외
