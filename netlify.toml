@@ -77,6 +77,9 @@
 [functions."scheduled-campaign-deadline-notification"]
   schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
 
+[functions."scheduled-video-upload-notification"]
+  schedule = "*/2 * * * *"  # 2분마다 실행 - 영상 업로드 알림 큐 처리 (네이버웍스+카카오+이메일)
+
 [functions."scheduled-video-deadline-notification"]
   schedule = "15 1 * * *"  # 매일 오전 10:15 (KST) - 마감 전 알림 (3일전/2일전/당일)
 
