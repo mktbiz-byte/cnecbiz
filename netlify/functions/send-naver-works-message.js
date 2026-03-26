@@ -127,6 +127,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
     });
     
     req.on('error', reject);
+    req.setTimeout(8000, () => { req.destroy(new Error('Token request timeout (8s)')); });
     req.write(postData);
     req.end();
   });
@@ -166,6 +167,7 @@ async function sendMessage(accessToken, botId, channelId, message) {
     });
 
     req.on('error', reject);
+    req.setTimeout(8000, () => { req.destroy(new Error('Message send timeout (8s)')); });
     req.write(postData);
     req.end();
   });
