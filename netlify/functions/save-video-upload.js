@@ -1,160 +1,4 @@
 const { createClient } = require('@supabase/supabase-js')
-const crypto = require('crypto')
-const https = require('https')
-
-// ===== 네이버웍스 직접 전송 (https.request 사용 — 스케줄러와 동일한 안정적 방식) =====
-const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
-MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
-veKKt2ZRAqV43wdYJpwxptx5GhWGX0FwAeDrItsEVrbAXnBjGEMtWzMks1cA0nxQ
-M7wc39d4IznKOJ0HqlkisPdRZnT0I3reaj7MW5B6GM3mscUC6pBLmPHClXdcWhft
-HirX8U0Y+l7EHtK8w92jFaR7SMy62LKYjC8Pyo6tnI4Wp4Q3OxCZ9WuGEhIP45EC
-wrgP8APCf4VoR1048gLmITUpF/Bm0t/idvl7Ebam4KJJm6E2w4+dEQvLx883lXq1
-L0gYXVYDAgMBAAECggEABQAjzTHkcnnnK48vxCUwPmMm3mAAKNtzkSXPkA/F1Ab2
-iY3bhCLZg/RqYPuP8Fr9joY6ahsLqYrYDsrFRh/KwBPKuzb9XaiHk4vKSI7nHdBb
-NUY2qF7TBEaKfjdZnnvJnuR2XmC8td6DCxJdhnHfTLHDC0tgSgJl98BgQnrCSBRV
-84vJqCr7Ouf56Oio1Fo8E7krYmqjsB3BaoKamuGUaAcAwUSEOpGSIsfP2aYOOZmk
-aNgWo8Lr19VIr4iWccqjA/CJ83/fk84bE4Bae1lKzjQY4WFKmGSdeOn/3cVr76fY
-Gt7qIBgWhe8DnKE6q3umNpAI5gC8j6mPhEbxmMUFsQKBgQDOkoC728Ay1PWoqP64
-ldniGatvTvHDTVgU/kRipEXO8xzCGj+C21cKoniF1a0bI4fWTSUTtASURZKvuXAQ
-Ij55GueWO5WjHAwskOacTYjUNpa8GlDDcBpSy/mYfNIh+IJE7bTO/rKX+wyJCAKp
-klz7FkS4dykWwAww3KHDGkNblQKBgQD5xsH2Ma/tkHrekV5i3A0mLBBJheYgkwgR
-YDSbkcp2pw+OIuby0bZlXiRrkDYBoCdLXyl4lmkmXwtcgOmuRpFnixb7YsJ7mTR1
-gqNunttaczTRQkkanxZe77qKIYV1dtnumjn6x5hU0+Q6sJ5uPbLUahrQ9ocD+eD0
-icJwkf/FNwKBgDHuRYGi900SHqL63j79saGuNLr96QAdFNpWL29sZ5dDOkNMludp
-Xxup89ndsS7rIq1RDlI55BV2z6L7/rNXo6QgNbQhiOTZJbQr/iHvt9AbtcmXzse+
-tA4pUZZjLWOarto8XsTd2YtU2k3RCtu0Dhd+5XN1EhB2sTuqSMtg8MEVAoGBAJ8Y
-itNWMskPDjRWQ9iUcYuu5XDvaPW2sZzfuqKc6mlJYA8ZDCH+kj9fB7O716qRaHYJ
-11CH/dIDGCmDs1Tefh+F6M2WymoP2+o9m/wKE445c5sWrZnXW1h9OkRhtbBsU8Q3
-WFb0a4MctHLtrPxrME08iHgxjy5pK3CXjtJFLLVhAoGAXjlxrXUIHcbaeFJ78J/G
-rv6RBqA2rzQOE0aaf/UcNnIAqJ4TUmgBfZ4TpXNkNHJ7YanXYdcKKVd2jGhoiZdH
-h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
-skmeYX6UpJwnuTP2xN5NDDI=
------END PRIVATE KEY-----`
-
-const NAVER_WORKS_SERVICE_ACCOUNT = '7c15c.serviceaccount@howlab.co.kr'
-
-function generateNaverWorksJWT(clientId) {
-  const now = Math.floor(Date.now() / 1000)
-  const header = { alg: 'RS256', typ: 'JWT' }
-  const payload = { iss: clientId, sub: NAVER_WORKS_SERVICE_ACCOUNT, iat: now, exp: now + 3600, scope: 'bot' }
-  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url')
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const signatureInput = `${base64Header}.${base64Payload}`
-  const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), NAVER_WORKS_PRIVATE_KEY)
-  return `${signatureInput}.${signature.toString('base64url')}`
-}
-
-// Access Token 발급 (https.request — 스케줄러와 동일한 안정적 방식)
-function getNaverWorksAccessToken(clientId, clientSecret) {
-  return new Promise((resolve, reject) => {
-    const jwt = generateNaverWorksJWT(clientId)
-    const postData = new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt, client_id: clientId, client_secret: clientSecret, scope: 'bot'
-    }).toString()
-
-    const options = {
-      hostname: 'auth.worksmobile.com',
-      path: '/oauth2/v2.0/token',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    }
-
-    const req = https.request(options, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          try {
-            resolve(JSON.parse(data).access_token)
-          } catch (e) {
-            reject(new Error(`Token parse error: ${data}`))
-          }
-        } else {
-          reject(new Error(`Token failed: ${res.statusCode} ${data}`))
-        }
-      })
-    })
-    req.on('error', reject)
-    req.setTimeout(15000, () => { req.destroy(new Error('Token request timeout (15s)')) })
-    req.write(postData)
-    req.end()
-  })
-}
-
-// 메시지 전송 (https.request — 스케줄러와 동일한 안정적 방식)
-function sendNaverWorksMsg(accessToken, botId, channelId, message) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({ content: { type: 'text', text: message } })
-    const options = {
-      hostname: 'www.worksapis.com',
-      path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    }
-
-    const req = https.request(options, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
-      res.on('end', () => {
-        if (res.statusCode === 200 || res.statusCode === 201) {
-          resolve({ success: true })
-        } else {
-          reject(new Error(`Send failed: ${res.statusCode} ${data}`))
-        }
-      })
-    })
-    req.on('error', reject)
-    req.setTimeout(15000, () => { req.destroy(new Error('Message send timeout (15s)')) })
-    req.write(postData)
-    req.end()
-  })
-}
-
-async function logNotificationDirect(channel, status, functionName, recipient, messagePreview, errorMessage) {
-  try {
-    await supabaseBiz.from('notification_send_logs').insert({
-      channel,
-      status,
-      function_name: functionName,
-      recipient: recipient || null,
-      message_preview: (messagePreview || '').substring(0, 200),
-      error_message: status === 'failed' ? (errorMessage || null) : null
-    })
-  } catch (e) { /* skip */ }
-}
-
-async function sendNaverWorksMessageDirect(channelId, message) {
-  const clientId = process.env.NAVER_WORKS_CLIENT_ID
-  const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET
-  const botId = process.env.NAVER_WORKS_BOT_ID
-  if (!clientId || !clientSecret || !botId) {
-    console.error('[알림] 네이버웍스 환경변수 누락:', { clientId: !!clientId, clientSecret: !!clientSecret, botId: !!botId })
-    await logNotificationDirect('naver_works', 'failed', 'save-video-upload', channelId, message, '네이버웍스 환경변수 누락')
-    return { success: false, error: '네이버웍스 환경변수 누락' }
-  }
-  try {
-    console.log('[알림] 네이버웍스 토큰 발급 시작...')
-    const accessToken = await getNaverWorksAccessToken(clientId, clientSecret)
-    console.log('[알림] 네이버웍스 토큰 발급 완료, 메시지 전송 시작...')
-    const result = await sendNaverWorksMsg(accessToken, botId, channelId, message)
-    console.log('[알림] 네이버웍스 메시지 전송 완료')
-    await logNotificationDirect('naver_works', 'success', 'save-video-upload', channelId, message)
-    return result
-  } catch (err) {
-    console.error('[알림] 네이버웍스 직접 전송 실패:', err.message)
-    await logNotificationDirect('naver_works', 'failed', 'save-video-upload', channelId, message, err.message)
-    return { success: false, error: err.message }
-  }
-}
 
 // Service role key로 RLS 우회하여 영상 업로드 관련 DB 작업 처리
 // 멀티 리전 지원: korea, japan, us, biz
@@ -193,301 +37,33 @@ function getRegionClient(region) {
   }
 }
 
-// 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었는지 확인
-async function isDuplicateNotification(campaignId) {
+// 영상 업로드 알림 큐 등록 (scheduled-video-upload-notification이 2분마다 자동 처리)
+async function sendVideoUploadNotifications({ campaignId, userId, region, version, isResubmission, videoFileCount, creatorEmail: paramCreatorEmail, participantCreatorName, hintCampaignTitle, hintCompanyName, hintCreatorName }) {
   try {
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    const { data } = await supabaseBiz
-      .from('notification_send_logs')
-      .select('id')
-      .in('function_name', ['save-video-upload', 'notify-video-upload'])
-      .eq('status', 'success')
-      .gte('created_at', fiveMinAgo)
-      .like('message_preview', `%${campaignId}%`)
-      .limit(1)
-    return data && data.length > 0
+    await supabaseBiz.from('notification_send_logs').insert({
+      channel: 'video_upload_queue',
+      status: 'queued',
+      function_name: 'save-video-upload',
+      message_preview: `campaign:${campaignId}|creator:${hintCreatorName || participantCreatorName || ''}|region:${region || 'korea'}`,
+      metadata: {
+        campaignId,
+        userId,
+        region: region || 'korea',
+        version: version || 1,
+        isResubmission: isResubmission || false,
+        videoFileCount: videoFileCount || null,
+        campaignTitle: hintCampaignTitle || null,
+        companyName: hintCompanyName || null,
+        creatorName: hintCreatorName || participantCreatorName || null,
+        creatorEmail: paramCreatorEmail || null
+      }
+    })
+    console.log('[save-video-upload] 알림 큐 등록:', { campaignId, region, creator: hintCreatorName || participantCreatorName })
+    return { queued: true }
   } catch (e) {
-    console.log('[dedup] notification_send_logs 조회 실패 (알림 계속 발송):', e.message)
-    return false
+    console.error('[save-video-upload] 알림 큐 등록 실패:', e.message)
+    return { queued: false, error: e.message }
   }
-}
-
-// 영상 업로드 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
-// 성능 최적화: 모든 독립적 쿼리를 병렬로 실행
-async function sendVideoUploadNotifications({ client, campaignId, userId, region, version, isResubmission, videoFileCount, creatorEmail: paramCreatorEmail, participantCreatorName, hintCampaignTitle, hintCompanyName, hintCreatorName }) {
-  const startTime = Date.now()
-  const baseUrl = process.env.URL || 'https://cnecbiz.com'
-
-  // 중복 알림 방지: 5분 이내 동일 캠페인에 대해 이미 알림이 발송되었으면 스킵
-  const isDup = await isDuplicateNotification(campaignId)
-  if (isDup) {
-    console.log('[알림] 중복 알림 감지 — 5분 이내 동일 캠페인 알림 이미 발송됨. 스킵:', { campaignId })
-    return { naverWorks: null, kakao: null, email: null, skipped: true, reason: 'duplicate' }
-  }
-  let campaignTitle = hintCampaignTitle || '(캠페인명 없음)'
-  let companyName = hintCompanyName || '(기업명 없음)'
-  let companyPhone = null
-  let companyEmail = null
-  let creatorName = participantCreatorName || hintCreatorName || '(크리에이터명 없음)'
-  let targetCountry = null
-
-  console.log('[알림] 시작:', { campaignId, userId, region, creatorEmail: paramCreatorEmail })
-
-  // ===== Phase 1: 캠페인 + 크리에이터 정보 병렬 조회 =====
-  // ★ select('*')를 사용하여 리전별 스키마 차이 문제 해결 (컬럼명 불일치로 쿼리 실패 방지)
-  const safeQuery = (promise) => promise.then(r => r.data).catch((e) => { console.log('[알림] safeQuery 에러:', e.message); return null })
-
-  // 모든 리전 DB에서 캠페인 병렬 조회 (어느 DB에 있든 찾을 수 있도록)
-  const allRegionClients = [
-    { name: 'current', c: client },
-    { name: 'korea', c: supabaseKorea },
-    { name: 'japan', c: getRegionClient('japan') },
-    { name: 'us', c: getRegionClient('us') },
-    { name: 'biz', c: supabaseBiz }
-  ]
-  // 중복 클라이언트 제거
-  const uniqueClients = []
-  const seenClients = new Set()
-  for (const rc of allRegionClients) {
-    if (rc.c && !seenClients.has(rc.c)) {
-      seenClients.add(rc.c)
-      uniqueClients.push(rc)
-    }
-  }
-
-  const campaignResults = await Promise.all(
-    uniqueClients.map(rc => safeQuery(rc.c.from('campaigns').select('*').eq('id', campaignId).maybeSingle()))
-  )
-  let campaignData = campaignResults.find(r => r) || null
-  console.log('[알림] 캠페인 조회:', { found: !!campaignData, region, checkedDBs: uniqueClients.map(c => c.name), elapsed: Date.now() - startTime + 'ms' })
-
-  if (campaignData) {
-    campaignTitle = campaignData.title || campaignData.brand || '(캠페인명 없음)'
-    companyName = campaignData.company_name || campaignData.brand_name || campaignData.brand || '(기업명 없음)'
-    targetCountry = campaignData.target_country
-    if (campaignData.company_email) companyEmail = campaignData.company_email
-  }
-
-  // ===== Phase 2: 기업 정보 + 크리에이터 정보 병렬 조회 =====
-  // ★★★ AdminCampaignDetail.jsx의 알림톡 발송 로직과 동일한 우선순위 ★★★
-  // 1순위: company_biz_id → companies.id (백필된 정확한 매칭 — 가장 신뢰)
-  // 2순위: company_email → companies.email
-  // 3순위: company_id → companies.user_id
-  // 4순위: company_id → companies.id (legacy)
-  // 최종 fallback: campaign.company_phone 직접 사용
-  const companyPromise = (async () => {
-    if (!campaignData) return
-    const selectFields = 'company_name, notification_phone, phone, notification_email, email'
-    let comp = null
-
-    // 1순위: company_biz_id로 BIZ DB 조회 (companies.id와 정확히 매칭 — AdminCampaignDetail.jsx와 동일)
-    if (campaignData.company_biz_id) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_biz_id).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 2순위: company_email로 companies.email 조회
-    if (!comp && campaignData.company_email) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('email', campaignData.company_email).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 3순위: company_id로 companies.id 조회 (직접 매칭 우선)
-    if (!comp && campaignData.company_id) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
-    }
-
-    // 4순위: company_id로 companies.user_id 조회 (auth user ID fallback)
-    if (!comp && campaignData.company_id) {
-      const { data } = await supabaseBiz.from('companies')
-        .select(selectFields).eq('user_id', campaignData.company_id).maybeSingle()
-      if (data) comp = data
-    }
-
-    if (comp) {
-      companyPhone = comp.notification_phone || comp.phone
-      companyEmail = comp.notification_email || comp.email
-      if (comp.company_name) companyName = comp.company_name
-      console.log('[알림] 기업 정보 (BIZ DB):', { companyName: comp.company_name, phone: companyPhone, email: companyEmail, usedBizId: !!campaignData.company_biz_id })
-    } else {
-      // ★ company_biz_id/company_email/company_id 모두 매칭 실패 시
-      // campaign.company_phone 직접 사용하지 않음 — 관리자 번호 발송 방지
-      // (캠페인 생성 시 관리자 번호가 company_phone에 저장되는 경우가 있음)
-      const fallbackEmail = campaignData.company_email
-      console.warn('[알림] BIZ DB 기업 매칭 실패. 카카오 발송 스킵:', {
-        company_biz_id: campaignData.company_biz_id,
-        company_id: campaignData.company_id,
-        company_email: campaignData.company_email,
-        company_phone: campaignData.company_phone
-      })
-      companyPhone = null
-      if (!companyEmail && fallbackEmail) companyEmail = fallbackEmail
-    }
-  })()
-
-  const creatorPromise = (async () => {
-    // 이미 크리에이터 이름이 있으면 DB 조회 스킵
-    if (!creatorName.startsWith('(')) return
-
-    // ★ 모든 리전 DB에서 동시에 크리에이터 이름 조회 (select('*')로 스키마 차이 대응)
-    const appPromises = []
-
-    // userId가 있으면 applications에서 조회
-    if (userId) {
-      for (const { name, c } of uniqueClients) {
-        appPromises.push(
-          safeQuery(c.from('applications').select('*').eq('campaign_id', campaignId).eq('user_id', userId).maybeSingle())
-            .then(d => d ? (d.creator_name || d.applicant_name || d.full_name || d.name || null) : null)
-        )
-      }
-      // user_profiles에서도 동시에 조회
-      appPromises.push(
-        safeQuery(supabaseBiz.from('user_profiles').select('name, full_name').eq('id', userId).maybeSingle())
-          .then(d => d ? (d.name || d.full_name || null) : null)
-      )
-    }
-
-    // creatorEmail이 있으면 applications에서 이메일로도 조회
-    if (paramCreatorEmail) {
-      for (const { name, c } of uniqueClients) {
-        appPromises.push(
-          safeQuery(c.from('applications').select('*').eq('campaign_id', campaignId).eq('applicant_email', paramCreatorEmail).maybeSingle())
-            .then(d => d ? (d.creator_name || d.applicant_name || d.full_name || d.name || null) : null)
-        )
-      }
-      // user_profiles에서 이메일로도 조회
-      appPromises.push(
-        safeQuery(supabaseBiz.from('user_profiles').select('name, full_name').eq('email', paramCreatorEmail).maybeSingle())
-          .then(d => d ? (d.name || d.full_name || null) : null)
-      )
-    }
-
-    const results = await Promise.all(appPromises)
-    // 첫 번째 non-null 결과 사용
-    for (const name of results) {
-      if (name) {
-        creatorName = name
-        break
-      }
-    }
-  })()
-
-  await Promise.all([companyPromise, creatorPromise])
-  console.log('[알림] 정보 조회 완료:', { campaignTitle, companyName, creatorName, companyPhone: !!companyPhone, companyEmail: !!companyEmail, elapsed: Date.now() - startTime + 'ms' })
-
-  // 리전/국가 표시 결정
-  const countryMap = { kr: '한국 🇰🇷', jp: '일본 🇯🇵', us: '미국 🇺🇸', tw: '대만 🇹🇼' }
-  const regionToCountry = { korea: 'kr', japan: 'jp', us: 'us', biz: null }
-  const countryCode = targetCountry || regionToCountry[region] || null
-  const countryLabel = countryMap[countryCode] || (region ? region.toUpperCase() : '알 수 없음')
-  const siteLabel = { kr: 'cnec.co.kr', jp: 'cnec.jp', us: 'cnec.us' }[countryCode] || 'cnecbiz.com'
-
-  const koreanDate = new Date().toLocaleString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })
-
-  // ===== Phase 3: 모든 알림 병렬 발송 =====
-  const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출'
-  const results = { naverWorks: null, kakao: null, email: null }
-  const notificationPromises = []
-
-  // 네이버 웍스 (영상 제출 알림) — 직접 API 호출 (fetch 호출 제거하여 타임아웃 방지)
-  {
-    const countryFlag = { kr: '🇰🇷 ', jp: '🇯🇵 ', us: '🇺🇸 ' }[countryCode] || ''
-    let naverWorksMessage = `${countryFlag}${actionLabel} 알림 (${siteLabel})\n\n`
-    naverWorksMessage += `📋 캠페인: ${campaignTitle}\n`
-    naverWorksMessage += `🏢 기업: ${companyName}\n`
-    naverWorksMessage += `👤 크리에이터: ${creatorName}\n`
-    naverWorksMessage += `📌 버전: V${version || 1}\n`
-    naverWorksMessage += `🌍 국가: ${countryLabel}\n`
-    naverWorksMessage += `⏰ 제출 시간: ${koreanDate}`
-    if (videoFileCount) naverWorksMessage += `\n📎 파일 수: ${videoFileCount}개`
-    if (isResubmission) naverWorksMessage += '\n\n※ 수정 후 재업로드'
-
-    notificationPromises.push(
-      sendNaverWorksMessageDirect('75c24874-e370-afd5-9da3-72918ba15a3c', naverWorksMessage)
-        .then(r => {
-          results.naverWorks = r
-          console.log('[알림] 네이버 웍스:', r.success ? '성공' : `실패: ${JSON.stringify(r)}`, `(${Date.now() - startTime}ms)`)
-        }).catch(e => console.error('[알림] 네이버 웍스 실패:', e.message))
-    )
-  }
-
-  // 카카오 알림톡
-  if (companyPhone) {
-    notificationPromises.push(
-      fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiverNum: companyPhone.replace(/-/g, ''),
-          receiverName: companyName,
-          templateCode: '025100001008',
-          variables: { '회사명': companyName, '캠페인명': campaignTitle, '크리에이터명': creatorName }
-        })
-      }).then(r => r.json()).then(r => {
-        results.kakao = r
-        console.log('[알림] 카카오:', r.success ? '성공' : JSON.stringify(r), `(${Date.now() - startTime}ms)`)
-      }).catch(e => console.error('[알림] 카카오 실패:', e.message))
-    )
-  }
-
-  // 이메일
-  if (companyEmail) {
-    const emailActionLabel = isResubmission ? '재제출' : '제출'
-    const emailHtml = `
-      <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); padding: 30px; border-radius: 16px 16px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 22px;">📹 영상 ${emailActionLabel} 알림</h1>
-        </div>
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 16px 16px;">
-          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            ${companyName}님, 캠페인의 크리에이터가 ${isResubmission ? '수정된 ' : ''}영상을 ${emailActionLabel}했습니다.
-          </p>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568; width: 120px;">캠페인</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${campaignTitle}</td></tr>
-            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">크리에이터</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">${creatorName}</td></tr>
-            <tr><td style="padding: 12px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">버전</td><td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #2d3748;">V${version || 1}</td></tr>
-            <tr><td style="padding: 12px; background: #f7fafc; font-weight: bold; color: #4a5568;">제출 시간</td><td style="padding: 12px; color: #2d3748;">${koreanDate}</td></tr>
-          </table>
-          <p style="color: #718096; font-size: 14px;">관리자 페이지에서 영상을 검토하시고, 수정 사항이 있으면 피드백을 남겨주세요.</p>
-          <a href="https://cnecbiz.com/company/campaigns" style="display: inline-block; background: #6C5CE7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">캠페인 관리 페이지로 이동</a>
-        </div>
-        <p style="text-align: center; color: #a0aec0; font-size: 12px; margin-top: 20px;">CNEC (크넥) | 문의: 1833-6025</p>
-      </div>`
-
-    notificationPromises.push(
-      fetch(`${baseUrl}/.netlify/functions/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: companyEmail,
-          subject: `[CNEC] ${campaignTitle} - 크리에이터 영상 ${emailActionLabel} 알림`,
-          html: emailHtml
-        })
-      }).then(r => r.json()).then(r => {
-        results.email = r
-        console.log('[알림] 이메일:', r.success ? '성공' : JSON.stringify(r), `(${Date.now() - startTime}ms)`)
-      }).catch(e => console.error('[알림] 이메일 실패:', e.message))
-    )
-  }
-
-  // 모든 알림 병렬 발송
-  await Promise.allSettled(notificationPromises)
-  console.log('[알림] 전체 완료:', { naverWorks: !!results.naverWorks?.success, kakao: !!results.kakao?.success, email: !!results.email?.success, totalElapsed: Date.now() - startTime + 'ms' })
-
-  // 성공 로그 기록 (중복 알림 방지용 dedup key로도 사용)
-  if (results.naverWorks?.success || results.kakao?.success || results.email?.success) {
-    logNotificationDirect('naver_works', 'success', 'save-video-upload', companyPhone || companyEmail, `campaign:${campaignId}|creator:${creatorName}|region:${region}`)
-  }
-
-  return results
 }
 
 exports.handler = async (event) => {
@@ -636,7 +212,6 @@ exports.handler = async (event) => {
           if (directCampaignId) {
             console.log('[save-video-upload] directCampaignId 사용 — participant 조회 생략:', { directCampaignId, directUserId })
             await sendVideoUploadNotifications({
-              client,
               campaignId: directCampaignId,
               userId: directUserId || participantId,
               region: region || 'korea',
@@ -797,7 +372,6 @@ exports.handler = async (event) => {
       if (updateData.video_file_url && !skipNotification) {
         try {
           await sendVideoUploadNotifications({
-            client,
             campaignId,
             userId,
             region: region || 'korea',
@@ -928,7 +502,6 @@ exports.handler = async (event) => {
         try {
           const record = data[0]
           await sendVideoUploadNotifications({
-            client,
             campaignId: record.campaign_id,
             userId: record.user_id,
             region: region || 'korea',
