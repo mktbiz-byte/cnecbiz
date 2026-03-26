@@ -379,7 +379,7 @@ exports.handler = async (event) => {
     const actionLabel = isResubmission ? '📹 영상 재제출' : '📹 영상 제출'
     const results = { naverWorks: false, kakao: false, email: false }
 
-    // --- 네이버 웍스 (별도 Netlify 함수로 호출 - 타임아웃 독립 실행) ---
+    // --- 네이버 웍스 (직접 API 호출 — fetch 호출 제거하여 타임아웃 방지) ---
     const naverWorksPromise = (async () => {
       try {
         let message = `${actionLabel} 알림 (${siteLabel})\n\n`
@@ -393,16 +393,7 @@ exports.handler = async (event) => {
         if (videoFileCount) message += `\n📎 파일 수: ${videoFileCount}개`
         if (isResubmission) message += '\n\n※ 수정 후 재업로드'
 
-        const res = await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-            message
-          })
-        })
-        const r = await res.json()
+        const r = await sendNaverWorksMessageDirect('75c24874-e370-afd5-9da3-72918ba15a3c', message)
         results.naverWorks = !!r.success
         console.log('[notify-video-upload] 네이버웍스:', r.success ? '성공' : JSON.stringify(r))
       } catch (e) {
