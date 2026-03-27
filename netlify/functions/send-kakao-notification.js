@@ -362,7 +362,25 @@ SNS 업로드 기한: #{업로드기한}
 }
 
 exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers, body: '' };
+  }
+
   try {
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Request body is required' })
+      };
+    }
+
     const { receiverNum, receiverName, templateCode, variables } = JSON.parse(event.body);
 
     console.log('[INFO] Kakao notification request:', {
@@ -375,6 +393,7 @@ exports.handler = async (event) => {
     if (!receiverNum || !templateCode) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({
           success: false,
           error: '수신자 번호와 템플릿 코드는 필수입니다.'
@@ -388,6 +407,7 @@ exports.handler = async (event) => {
     if (!message) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({
           success: false,
           error: `템플릿 코드 ${templateCode}를 찾을 수 없습니다.`
@@ -463,6 +483,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers,
       body: JSON.stringify({
         success: true,
         receiptNum: receiptNum,
@@ -533,6 +554,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify(errorDetails)
     };
   }
