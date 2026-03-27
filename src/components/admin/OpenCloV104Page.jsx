@@ -203,7 +203,8 @@ export default function OpenCloV104Page() {
 
   // ── Distribution bar helper ──
   const BarChart = ({ data, labels, colors }) => {
-    const max = Math.max(...Object.values(data), 1)
+    if (!data || Object.keys(data).length === 0) return <p className="text-sm text-gray-400">데이터 없음</p>
+    const max = Math.max(...Object.values(data).map(v => v || 0), 1)
     return (
       <div className="space-y-2">
         {Object.entries(data).map(([key, val]) => (
@@ -215,7 +216,7 @@ export default function OpenCloV104Page() {
                 style={{ width: `${Math.max((val / max) * 100, 2)}%` }}
               />
             </div>
-            <span className="w-16 text-right text-xs text-gray-500">{val.toLocaleString()}</span>
+            <span className="w-16 text-right text-xs text-gray-500">{(val || 0).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -255,7 +256,7 @@ export default function OpenCloV104Page() {
               </div>
               <span className="text-xs text-gray-500">{label}</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 font-['Outfit']">{value.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-gray-900 font-['Outfit']">{(value || 0).toLocaleString()}</p>
           </div>
         ))}
       </div>
