@@ -61,7 +61,7 @@ exports.handler = async (event) => {
 
       let query = supabase
         .from('oc_creators')
-        .select('id,username,platform,full_name,display_name,bio,followers,following,post_count,reels_count,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,email,has_email,email_verified,email_source,platform_url,website,tier,tier_score,is_fake,fake_score,is_korean,korean_score,profile_enriched,has_verified_badge,contact_status,created_at', { count: 'exact' })
+        .select('id,username,platform,full_name,display_name,bio,followers,following,post_count,reels_count,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,email,has_email,email_verified,email_source,platform_url,website,tier,tier_score,is_fake,fake_score,is_korean,korean_score,profile_enriched,has_verified_badge,contact_status,top_hashtags,created_at', { count: 'exact' })
         .eq('region', 'korea');
 
       if (platform && platform !== 'all') query = query.eq('platform', platform);
