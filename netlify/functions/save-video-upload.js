@@ -344,20 +344,59 @@ exports.handler = async (event) => {
 
     // 5. applications 업데이트 (RLS 우회)
     if (action === 'update_application') {
-      const { campaignId, userId, updateData } = body
-      if (!campaignId || !userId || !updateData) {
+      const { campaignId, userId, applicationId, updateData } = body
+      if ((!campaignId || !userId) && !applicationId) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ success: false, error: '필수 파라미터 누락' })
+          body: JSON.stringify({ success: false, error: '필수 파라미터 누락 (campaignId+userId 또는 applicationId 필요)' })
+        }
+      }
+      if (!updateData) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'updateData 필수' })
         }
       }
 
-      const { error: appError } = await client
-        .from('applications')
-        .update(updateData)
-        .eq('campaign_id', campaignId)
-        .eq('user_id', userId)
+      // 1차: campaignId + userId로 시도
+      let appError = null
+      let updated = false
+      if (campaignId && userId) {
+        const { data: appData, error } = await client
+          .from('applications')
+          .update(updateData)
+          .eq('campaign_id', campaignId)
+          .eq('user_id', userId)
+          .select('id')
+
+        if (!error && appData && appData.length > 0) {
+          updated = true
+        } else if (error) {
+          console.warn('[save-video-upload] Application update by campaignId+userId failed:', error.message)
+          appError = error
+        } else {
+          console.warn('[save-video-upload] Application update by campaignId+userId matched 0 rows')
+        }
+      }
+
+      // 2차: applicationId로 폴백 (1차 실패 또는 매칭 0건)
+      if (!updated && applicationId) {
+        const { data: appData2, error: error2 } = await client
+          .from('applications')
+          .update(updateData)
+          .eq('id', applicationId)
+          .select('id')
+
+        if (!error2 && appData2 && appData2.length > 0) {
+          updated = true
+          appError = null
+        } else if (error2) {
+          console.error('[save-video-upload] Application update by applicationId also failed:', error2.message)
+          appError = error2
+        }
+      }
 
       if (appError) {
         console.error('[save-video-upload] Application update failed:', appError)

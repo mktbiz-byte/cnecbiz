@@ -4331,7 +4331,7 @@ JSON만 출력.`
             }
           }
 
-          // 미국: send-us-notification (영어 이메일)
+          // 미국: send-us-notification (WhatsApp + 영어 이메일)
           if (region === 'us') {
             try {
               await fetch('/.netlify/functions/send-us-notification', {
@@ -4339,7 +4339,8 @@ JSON만 출력.`
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   type: 'campaign_selected',
-                  email: profile.email,
+                  creatorPhone: profile.phone || app.phone_number,
+                  creatorEmail: profile.email,
                   data: { creatorName, campaignName }
                 })
               })
@@ -5458,6 +5459,7 @@ Questions? Contact us.
               region,
               campaignId: submission.campaign_id || id,
               userId: submission.user_id,
+              applicationId: submission.application_id,
               updateData: {
                 status: 'approved',
                 upload_deadline: inputDeadline
@@ -15003,7 +15005,7 @@ Questions? Contact us.
                     }
 
                     await callRegionCampaignAPI(region, 'update_application', id, selectedParticipant.id, {
-                      video_status: 'revision_requested',
+                      status: 'revision_requested',
                       revision_requests: [...existingRequests, newRequest]
                     })
 
