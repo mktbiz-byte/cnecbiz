@@ -22,6 +22,23 @@ const TIER_COLORS = {
 
 const PLATFORM_LABELS = { instagram: 'Instagram', youtube: 'YouTube', tiktok: 'TikTok', x: 'X', threads: 'Threads' }
 
+const KOREAN_SIGNAL_LABELS = {
+  korean_name: '이름이 한글',
+  partial_korean_name: '이름에 한글 포함',
+  korean_bio_heavy: '바이오 대부분 한글',
+  korean_bio_light: '바이오에 한글 포함',
+  korean_captions: '게시물 캡션이 한국어',
+  korean_phone: '한국 전화번호 (010)',
+  korean_platform: '카카오/네이버 언급',
+}
+
+const formatSignal = (s) => {
+  if (KOREAN_SIGNAL_LABELS[s]) return KOREAN_SIGNAL_LABELS[s]
+  if (s.startsWith('keywords_')) return `한국 키워드 ${s.split('_')[1]}개 발견`
+  if (s.startsWith('city_')) return `${s.split('_')[1]} 거주 추정`
+  return s
+}
+
 const formatNum = (n) => {
   if (n == null || n === 0) return '0'
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
@@ -284,7 +301,7 @@ export default function OpenCloV104Page() {
                 <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">평균조회</th>
                 <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">평균댓글</th>
                 <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">주기(일)</th>
-                <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">정보</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">해시태그</th>
                 <th className="px-3 py-2.5 w-8"></th>
               </tr>
             </thead>
@@ -317,6 +334,7 @@ export default function OpenCloV104Page() {
                           {c.is_korean && <span title="한국인" className="text-xs">🇰🇷</span>}
                           {c.has_email && <span title={c.email || '이메일 있음'} className={`text-xs ${c.email_verified ? 'text-green-600' : 'text-gray-400'}`}>✉</span>}
                           {c.engagement_rate > 0 && <span className="text-[10px] text-gray-400">{Number(c.engagement_rate).toFixed(1)}%</span>}
+                          {c.created_at && <span className="text-[10px] text-gray-300">{c.created_at.split('T')[0].slice(5)}</span>}
                         </div>
                       </div>
                     </td>
@@ -327,8 +345,14 @@ export default function OpenCloV104Page() {
                     <td className="px-3 py-2 text-right text-gray-600 text-sm">{formatNum(c.avg_views)}</td>
                     <td className="px-3 py-2 text-right text-gray-600 text-sm">{formatNum(c.avg_comments)}</td>
                     <td className="px-3 py-2 text-right text-gray-600 text-sm">{c.upload_frequency_days ? Number(c.upload_frequency_days).toFixed(1) : '-'}</td>
-                    <td className="px-3 py-2 text-center">
-                      <span className="text-[10px] text-gray-400">{c.created_at ? c.created_at.split('T')[0].slice(5) : ''}</span>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-0.5 max-w-[150px]">
+                        {c.top_hashtags && Array.isArray(c.top_hashtags) && c.top_hashtags.slice(0, 3).map((h, i) => (
+                          <span key={i} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                            #{typeof h === 'string' ? h : h.tag}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-gray-400">
                       {expandedId === c.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -388,7 +412,7 @@ export default function OpenCloV104Page() {
                                   <span className="text-[10px] text-gray-500 block mb-1">한국인 판별 근거</span>
                                   <div className="flex flex-wrap gap-1">
                                     {detailData.korean_signals.map((s, i) => (
-                                      <span key={i} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{s}</span>
+                                      <span key={i} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{formatSignal(s)}</span>
                                     ))}
                                   </div>
                                 </div>
