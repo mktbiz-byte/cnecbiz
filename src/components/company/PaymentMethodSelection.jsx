@@ -469,7 +469,7 @@ const PaymentMethodSelection = () => {
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-[#6C5CE7] flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-[#636E72]">
-                        <span className="font-medium">캠페인 활성화 기준:</span> 크리에이터 선정 완료 시점
+                        <span className="font-medium">캠페인 활성화 기준:</span> 크리에이터 모집 시작 시점
                       </p>
                     </div>
                   </div>

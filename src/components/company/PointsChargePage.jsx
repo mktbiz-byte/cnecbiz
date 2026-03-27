@@ -585,7 +585,7 @@ function ChargeForm({ onSuccess }) {
             <span>50% 환불 가능</span>
           </li>
           <li className="text-[11px] text-blue-700 mt-2 pl-2 border-l-2 border-blue-300">
-            * 캠페인 활성화 기준: 크리에이터 선정 완료 시점
+            * 캠페인 활성화 기준: 크리에이터 모집 시작 시점
           </li>
         </ul>
       </div>

@@ -194,7 +194,7 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 활성화"의 기준: 크리에이터 모집이 시작되는 시점</p>
                   <p className="text-xs text-gray-500">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
                 </div>
               </div>
