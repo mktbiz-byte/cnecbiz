@@ -143,25 +143,51 @@ exports.handler = async (event) => {
     console.log(`[award-campaign-points] Points updated: ${currentPoints} → ${newPoints} for userId=${userId}`)
 
     // 3. point_transactions에 이력 저장 (지역별 컬럼 구조 대응)
-    const baseTxData = {
-      user_id: profileMatchField === 'user_id' ? userId : (profile.user_id || userId),
-      amount: pointAmount,
-      transaction_type: 'campaign_payment',
-      description: `캠페인 완료: ${campaignTitle || ''}`,
-      related_campaign_id: campaignId,
-      created_at: new Date().toISOString()
-    }
+    // JP: user_id, amount, transaction_type, description, reference_id, reference_type, created_by, region
+    // US: user_id, application_id, campaign_id, amount, transaction_type, description, status, platform_region, reference_id, reference_type
+    // Korea: user_id, amount, transaction_type, description, related_campaign_id, platform_region, country_code
+    const txUserId = profileMatchField === 'user_id' ? userId : (profile.user_id || userId)
+    const isJapan = region === 'japan' || region === 'jp'
+    const isUS = region === 'us' || region === 'usa'
 
-    // 리전별 컬럼 추가
-    const txData = { ...baseTxData }
-    if (region === 'japan' || region === 'jp') {
-      txData.region = 'jp'
-    } else if (region === 'us' || region === 'usa') {
-      txData.platform_region = 'us'
-      txData.country_code = 'US'
+    let txData = {}
+    if (isJapan) {
+      txData = {
+        user_id: txUserId,
+        amount: pointAmount,
+        transaction_type: 'campaign_payment',
+        description: `캠페인 완료: ${campaignTitle || ''}`,
+        reference_id: applicationId || campaignId,
+        reference_type: 'campaign',
+        created_by: 'system',
+        region: 'JP',
+        created_at: new Date().toISOString()
+      }
+    } else if (isUS) {
+      txData = {
+        user_id: txUserId,
+        application_id: applicationId || null,
+        campaign_id: campaignId,
+        amount: pointAmount,
+        transaction_type: 'campaign_payment',
+        description: `캠페인 완료: ${campaignTitle || ''}`,
+        status: 'completed',
+        platform_region: 'US',
+        reference_id: applicationId || campaignId,
+        reference_type: 'campaign',
+        created_at: new Date().toISOString()
+      }
     } else {
-      txData.platform_region = 'kr'
-      txData.country_code = 'KR'
+      txData = {
+        user_id: txUserId,
+        amount: pointAmount,
+        transaction_type: 'campaign_payment',
+        description: `캠페인 완료: ${campaignTitle || ''}`,
+        related_campaign_id: campaignId,
+        platform_region: 'kr',
+        country_code: 'KR',
+        created_at: new Date().toISOString()
+      }
     }
 
     let txError = null
@@ -170,19 +196,10 @@ exports.handler = async (event) => {
       .insert(txData)
 
     if (firstTxError) {
-      console.warn(`[award-campaign-points] point_transactions insert 실패 (리전 컬럼 포함), 기본 데이터로 재시도:`, firstTxError.message)
-      // 리전 컬럼 없이 재시도
-      const { error: retryError } = await supabase
-        .from('point_transactions')
-        .insert(baseTxData)
-      if (retryError) {
-        console.error(`[award-campaign-points] point_transactions 재시도도 실패:`, retryError)
-        txError = retryError
-      } else {
-        console.log(`[award-campaign-points] Transaction recorded (without region columns) for userId=${userId}, campaign=${campaignId}`)
-      }
+      console.error(`[award-campaign-points] point_transactions insert 실패:`, firstTxError.message)
+      txError = firstTxError
     } else {
-      console.log(`[award-campaign-points] Transaction recorded for userId=${userId}, campaign=${campaignId}`)
+      console.log(`[award-campaign-points] Transaction recorded for userId=${userId}, campaign=${campaignId}, region=${region}`)
     }
 
     // 4. application 상태를 completed로 업데이트 (applicationId가 전달된 경우)
