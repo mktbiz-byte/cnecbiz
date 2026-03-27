@@ -1,9 +1,38 @@
-const { getBizClient, CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+let getBizClient, CORS_HEADERS, handleOptions, successResponse, errorResponse;
+
+try {
+  const lib = require('./lib/supabase');
+  getBizClient = lib.getBizClient;
+  CORS_HEADERS = lib.CORS_HEADERS;
+  handleOptions = lib.handleOptions;
+  successResponse = lib.successResponse;
+  errorResponse = lib.errorResponse;
+} catch (e) {
+  console.error('[discovery-v104] Failed to load lib/supabase:', e.message);
+}
+
+const HEADERS = CORS_HEADERS || {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
+  // OPTIONS
+  if (event.httpMethod === 'OPTIONS') {
+    return handleOptions ? handleOptions() : { statusCode: 204, headers: HEADERS, body: '' };
+  }
+
+  // GET → health check
+  if (event.httpMethod === 'GET') {
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ ok: true, ts: Date.now() }) };
+  }
 
   try {
+    if (!getBizClient) {
+      return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: 'lib/supabase load failed' }) };
+    }
+
     const supabase = getBizClient();
     const body = JSON.parse(event.body || '{}');
     const { mode } = body;
@@ -21,12 +50,16 @@ exports.handler = async (event) => {
           .eq('region', 'korea').eq('is_fake', true),
       ]);
 
-      return successResponse({
-        total: totalRes.count || 0,
-        hasEmail: emailRes.count || 0,
-        today: todayRes.count || 0,
-        fake: fakeRes.count || 0,
-      });
+      return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({
+          total: totalRes.count ?? 0,
+          hasEmail: emailRes.count ?? 0,
+          today: todayRes.count ?? 0,
+          fake: fakeRes.count ?? 0,
+        })
+      };
     }
 
     // ===== mode: list =====
@@ -54,7 +87,11 @@ exports.handler = async (event) => {
       const { data, count, error } = await query;
       if (error) throw error;
 
-      return successResponse({ data, total: count, page, limit });
+      return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({ data: data || [], total: count ?? 0, page, limit })
+      };
     }
 
     // ===== mode: export =====
@@ -75,51 +112,60 @@ exports.handler = async (event) => {
       if (isFake === 'fake') query = query.eq('is_fake', true);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
 
-      query = query.order('tier_score', { ascending: false }).limit(10000);
+      query = query.order('tier_score', { ascending: false, nullsFirst: false }).limit(10000);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return successResponse({ data });
+      return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({ data: data || [] })
+      };
     }
 
     // ===== mode: distributions =====
     if (mode === 'distributions') {
-      const tierResults = {};
-      for (const t of ['S', 'A', 'B', 'C', 'D']) {
-        const { count } = await supabase.from('oc_creators')
-          .select('id', { count: 'exact', head: true })
-          .eq('region', 'korea').eq('tier', t).eq('is_fake', false);
-        tierResults[t] = count || 0;
+      // 병렬로 모든 tier+platform 카운트 실행
+      const tiers = ['S', 'A', 'B', 'C', 'D'];
+      const platforms = ['instagram', 'youtube', 'tiktok', 'x', 'threads'];
+
+      const allQueries = await Promise.all([
+        ...tiers.map(t =>
+          supabase.from('oc_creators').select('id', { count: 'exact', head: true })
+            .eq('region', 'korea').eq('tier', t).eq('is_fake', false)
+            .then(r => ({ type: 'tier', key: t, count: r.count ?? 0 }))
+            .catch(() => ({ type: 'tier', key: t, count: 0 }))
+        ),
+        ...platforms.map(p =>
+          supabase.from('oc_creators').select('id', { count: 'exact', head: true })
+            .eq('region', 'korea').eq('platform', p).eq('is_fake', false)
+            .then(r => ({ type: 'platform', key: p, count: r.count ?? 0 }))
+            .catch(() => ({ type: 'platform', key: p, count: 0 }))
+        ),
+      ]);
+
+      const tierDist = {};
+      const platformDist = {};
+      for (const q of allQueries) {
+        if (q.type === 'tier') tierDist[q.key] = q.count;
+        else platformDist[q.key] = q.count;
       }
 
-      const platformResults = {};
-      for (const p of ['instagram', 'youtube', 'tiktok', 'x', 'threads']) {
-        const { count } = await supabase.from('oc_creators')
-          .select('id', { count: 'exact', head: true })
-          .eq('region', 'korea').eq('platform', p).eq('is_fake', false);
-        platformResults[p] = count || 0;
-      }
-
-      return successResponse({ tierDist: tierResults, platformDist: platformResults });
+      return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({ tierDist, platformDist })
+      };
     }
 
-    return errorResponse(400, 'Invalid mode');
+    return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: 'Invalid mode' }) };
   } catch (err) {
     console.error('[discovery-v104] Error:', err);
-
-    try {
-      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
-      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName: 'discovery-v104',
-          errorMessage: err.message
-        })
-      });
-    } catch (e) { console.error('Error alert failed:', e.message); }
-
-    return errorResponse(500, err.message);
+    return {
+      statusCode: 500,
+      headers: HEADERS,
+      body: JSON.stringify({ error: err.message || 'Unknown error' })
+    };
   }
 };
