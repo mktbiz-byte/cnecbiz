@@ -978,7 +978,7 @@ const CampaignCreationKorea = () => {
     <tr><td><strong>캠페인 활성화 후</strong></td><td>캠페인 활성화 이후 ~ 콘텐츠 제작 진행 중</td><td><strong>50% 환불</strong></td></tr>
     <tr><td><strong>콘텐츠 제출 후</strong></td><td>크리에이터가 콘텐츠(영상/사진)를 제출한 이후</td><td><strong>환불 불가</strong></td></tr>
     </tbody></table>
-    <div class="highlight"><strong>※ "캠페인 활성화"의 기준:</strong> 회사가 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점을 의미합니다.</div>
+    <div class="highlight"><strong>※ "캠페인 활성화"의 기준:</strong> 크리에이터 모집이 시작되는 시점을 의미합니다.</div>
     <ol><li>환불 요청은 캠페인 관리 페이지 또는 고객센터를 통해 접수할 수 있습니다.</li><li>환불 금액은 결제 수단에 따라 영업일 기준 3~7일 이내에 처리됩니다.</li><li>부분 환불 시, 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</li><li>광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</li></ol>
 
     <h2>제3조 (광고주의 크리에이터 개별 연락 금지)</h2>
@@ -5260,7 +5260,7 @@ const CampaignCreationKorea = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">※ "캠페인 활성화"의 기준: 크리에이터 모집이 시작되는 시점</p>
                 <p className="text-[11px] text-gray-400 leading-relaxed">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
               </div>
 
