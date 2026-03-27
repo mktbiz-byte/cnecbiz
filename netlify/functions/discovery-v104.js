@@ -12,13 +12,13 @@ exports.handler = async (event) => {
     if (mode === 'stats') {
       const [totalRes, emailRes, todayRes, fakeRes] = await Promise.all([
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').eq('is_fake', false),
+          .eq('region', 'korea').eq('is_fake', false),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').eq('has_email', true).eq('is_fake', false),
+          .eq('region', 'korea').eq('has_email', true).eq('is_fake', false),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').gte('created_at', new Date().toISOString().split('T')[0]),
+          .eq('region', 'korea').gte('created_at', new Date().toISOString().split('T')[0]),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').eq('is_fake', true),
+          .eq('region', 'korea').eq('is_fake', true),
       ]);
 
       return successResponse({
@@ -36,7 +36,7 @@ exports.handler = async (event) => {
       let query = supabase
         .from('oc_creators')
         .select('id,username,platform,full_name,display_name,bio,followers,following,post_count,email,has_email,email_verified,email_verify_status,email_source,platform_url,website,tier,tier_score,is_fake,fake_score,fake_type,engagement_rate,kbeauty_score,contact_status,country,created_at', { count: 'exact' })
-        .eq('region', 'kr');
+        .eq('region', 'korea');
 
       if (platform && platform !== 'all') query = query.eq('platform', platform);
       if (tier && tier !== 'all') query = query.eq('tier', tier);
@@ -64,7 +64,7 @@ exports.handler = async (event) => {
       let query = supabase
         .from('oc_creators')
         .select('platform,username,full_name,display_name,email,email_verified,email_verify_status,followers,following,post_count,tier,tier_score,bio,website,platform_url,engagement_rate,is_fake,fake_type,contact_status,created_at')
-        .eq('region', 'kr');
+        .eq('region', 'korea');
 
       if (platform && platform !== 'all') query = query.eq('platform', platform);
       if (tier && tier !== 'all') query = query.eq('tier', tier);
@@ -89,7 +89,7 @@ exports.handler = async (event) => {
       for (const t of ['S', 'A', 'B', 'C', 'D']) {
         const { count } = await supabase.from('oc_creators')
           .select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').eq('tier', t).eq('is_fake', false);
+          .eq('region', 'korea').eq('tier', t).eq('is_fake', false);
         tierResults[t] = count || 0;
       }
 
@@ -97,7 +97,7 @@ exports.handler = async (event) => {
       for (const p of ['instagram', 'youtube', 'tiktok', 'x', 'threads']) {
         const { count } = await supabase.from('oc_creators')
           .select('id', { count: 'exact', head: true })
-          .eq('region', 'kr').eq('platform', p).eq('is_fake', false);
+          .eq('region', 'korea').eq('platform', p).eq('is_fake', false);
         platformResults[p] = count || 0;
       }
 
