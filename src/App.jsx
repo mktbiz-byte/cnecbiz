@@ -133,17 +133,7 @@ import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterTrafficAnalytics from './components/admin/NewsletterTrafficAnalytics'
 import GitUpdateHistory from './components/admin/GitUpdateHistory'
-import OpenCloDashboard from './components/admin/openclo/OpenCloDashboard'
-import OpenCloCreatorList from './components/admin/openclo/OpenCloCreatorList'
-import OpenCloReviewQueue from './components/admin/openclo/OpenCloReviewQueue'
-import OpenCloBotStatus from './components/admin/openclo/OpenCloBotStatus'
-import OpenCloBotConfig from './components/admin/openclo/OpenCloBotConfig'
-import OpenCloEmailManager from './components/admin/openclo/OpenCloEmailManager'
-import OpenCloKPI from './components/admin/openclo/OpenCloKPI'
-import OpenCloReport from './components/admin/openclo/OpenCloReport'
-import DiscoveryBlocklist from './components/admin/discovery/DiscoveryBlocklist'
-import DiscoveryServerStatus from './components/admin/discovery/DiscoveryServerStatus'
-import DiscoveryEmailStatus from './components/admin/discovery/DiscoveryEmailStatus'
+import OpenCloV104Page from './components/admin/OpenCloV104Page'
 import ChatbotDashboard from './components/admin/chatbot/ChatbotDashboard'
 import ChatbotFaqManagement from './components/admin/chatbot/ChatbotFaqManagement'
 import ChatbotGuardrails from './components/admin/chatbot/ChatbotGuardrails'
@@ -311,18 +301,9 @@ function App() {
         <Route path="/admin/test-approval" element={<TestApprovalSubmit />} />
         <Route path="/admin/package" element={<AdminPackageManager />} />
 
-        {/* Discovery (구 OpenClo 통합) */}
-        <Route path="/admin/discovery" element={<OpenCloDashboard />} />
-        <Route path="/admin/discovery/creators" element={<OpenCloCreatorList />} />
-        <Route path="/admin/discovery/review" element={<OpenCloReviewQueue />} />
-        <Route path="/admin/discovery/bot-status" element={<OpenCloBotStatus />} />
-        <Route path="/admin/discovery/bot-config" element={<OpenCloBotConfig />} />
-        <Route path="/admin/discovery/emails" element={<DiscoveryEmailStatus />} />
-        <Route path="/admin/discovery/kpi" element={<OpenCloKPI />} />
-        <Route path="/admin/discovery/report" element={<OpenCloReport />} />
-        <Route path="/admin/discovery/servers" element={<DiscoveryServerStatus />} />
-        <Route path="/admin/discovery/blocklist" element={<DiscoveryBlocklist />} />
-        {/* OpenClo → Discovery 리다이렉트 */}
+        {/* OpenClo V104 통합 */}
+        <Route path="/admin/discovery" element={<OpenCloV104Page />} />
+        <Route path="/admin/discovery/*" element={<Navigate to="/admin/discovery" replace />} />
         <Route path="/admin/openclo" element={<Navigate to="/admin/discovery" replace />} />
         <Route path="/admin/openclo/*" element={<Navigate to="/admin/discovery" replace />} />
 
