@@ -57,7 +57,7 @@ exports.handler = async (event) => {
 
     // ===== mode: list =====
     if (mode === 'list') {
-      const { platform, tier, hasEmail, isFake, isKorean, search, page = 1, limit = 50 } = body;
+      const { platform, tier, hasEmail, isFake, isKorean, search, page = 1, limit = 50, sortBy = 'created_at', sortAsc = false } = body;
 
       let query = supabase
         .from('oc_creators')
@@ -75,8 +75,10 @@ exports.handler = async (event) => {
       if (isKorean === 'no') query = query.eq('is_korean', false);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
 
+      const allowedSortCols = ['created_at','followers','post_count','reels_count','avg_views','avg_comments','upload_frequency_days','engagement_rate','tier_score'];
+      const orderCol = allowedSortCols.includes(sortBy) ? sortBy : 'created_at';
       const from = (page - 1) * limit;
-      query = query.order('created_at', { ascending: false }).range(from, from + limit - 1);
+      query = query.order(orderCol, { ascending: !!sortAsc, nullsFirst: false }).range(from, from + limit - 1);
 
       const { data, count, error } = await query;
       if (error) throw error;
