@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Download, Search, Database, Mail, CalendarPlus, ShieldAlert, Users, Activity, Instagram, Youtube, Music2, Twitter, AtSign, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import * as XLSX from 'xlsx'
 
 const PLATFORMS = [
   { value: 'all', label: '전체', icon: null },
@@ -79,6 +80,8 @@ export default function OpenCloV104Page() {
   const [isFake, setIsFake] = useState('clean')
   const [isKorean, setIsKorean] = useState('all')
   const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortAsc, setSortAsc] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const searchTimer = useRef(null)
 
@@ -123,15 +126,26 @@ export default function OpenCloV104Page() {
   const loadList = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, page, limit })
+      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, page, limit, sortBy, sortAsc })
       setCreators(res.data || [])
       setTotal(res.total || 0)
     } catch (e) { console.error('List error:', e) }
     finally { setLoading(false) }
-  }, [platform, tier, hasEmail, isFake, isKorean, debouncedSearch, page])
+  }, [platform, tier, hasEmail, isFake, isKorean, debouncedSearch, page, sortBy, sortAsc])
 
   useEffect(() => { loadList() }, [loadList])
-  useEffect(() => { setPage(1) }, [platform, tier, hasEmail, isFake, isKorean])
+  useEffect(() => { setPage(1) }, [platform, tier, hasEmail, isFake, isKorean, sortBy, sortAsc])
+
+  const toggleSort = (col) => {
+    if (sortBy === col) { setSortAsc(!sortAsc) }
+    else { setSortBy(col); setSortAsc(false) }
+  }
+  const SortHeader = ({ col, label, align = 'right' }) => (
+    <th onClick={() => toggleSort(col)}
+      className={`px-3 py-2.5 text-${align} text-xs font-medium cursor-pointer select-none hover:text-gray-900 transition-colors ${sortBy === col ? 'text-[#6C5CE7]' : 'text-gray-500'}`}>
+      {label} {sortBy === col ? (sortAsc ? '↑' : '↓') : ''}
+    </th>
+  )
 
   const handleExpand = async (id) => {
     if (expandedId === id) { setExpandedId(null); return }
@@ -152,31 +166,27 @@ export default function OpenCloV104Page() {
       const rows = res.data || []
       if (!rows.length) { alert('내보낼 데이터가 없습니다.'); return }
 
-      const headers = ['플랫폼','username','이름','이메일','이메일검증','팔로워','팔로잉','게시물수','릴스수','평균조회수','평균댓글','업로드주기(일)','광고건수','광고비율(%)','참여율(%)','Tier','Tier점수','한국인','한국인점수','바이오','웹사이트','프로필URL','수집일']
-      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""').replace(/[\n\r]/g, ' ')}"`
-      const csvRows = rows.map(r => [
-        r.platform, r.username, r.full_name || r.display_name || '',
-        r.email || '', r.email_verified ? 'Y' : 'N',
-        r.followers || 0, r.following || 0,
-        r.post_count || 0, r.reels_count || 0,
-        r.avg_views || 0, r.avg_comments || 0,
-        r.upload_frequency_days ?? '',
-        r.ad_post_count || 0, r.ad_ratio || 0, r.engagement_rate || 0,
-        r.tier || '', r.tier_score || 0,
-        r.is_korean ? 'Y' : 'N', r.korean_score || 0,
-        (r.bio || '').substring(0, 200),
-        r.website || '', r.platform_url || '',
-        r.created_at ? r.created_at.split('T')[0] : ''
-      ].map(esc).join(','))
-
-      const csv = '\uFEFF' + [headers.map(esc).join(','), ...csvRows].join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `openclo_creators_${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
+      const wsData = [
+        ['플랫폼','username','이름','이메일','이메일검증','팔로워','팔로잉','게시물수','릴스수','평균조회수','평균댓글','업로드주기(일)','광고건수','광고비율(%)','참여율(%)','Tier','Tier점수','한국인','한국인점수','바이오','웹사이트','프로필URL','수집일'],
+        ...rows.map(r => [
+          r.platform, r.username, r.full_name || r.display_name || '',
+          r.email || '', r.email_verified ? 'Y' : 'N',
+          r.followers || 0, r.following || 0,
+          r.post_count || 0, r.reels_count || 0,
+          r.avg_views || 0, r.avg_comments || 0,
+          r.upload_frequency_days ?? '',
+          r.ad_post_count || 0, r.ad_ratio || 0, r.engagement_rate || 0,
+          r.tier || '', r.tier_score || 0,
+          r.is_korean ? 'Y' : 'N', r.korean_score || 0,
+          (r.bio || '').replace(/[\n\r]/g, ' ').substring(0, 200),
+          r.website || '', r.platform_url || '',
+          r.created_at ? r.created_at.split('T')[0] : ''
+        ])
+      ]
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.aoa_to_sheet(wsData)
+      XLSX.utils.book_append_sheet(wb, ws, '크리에이터')
+      XLSX.writeFile(wb, `openclo_creators_${new Date().toISOString().split('T')[0]}.xlsx`)
     } catch (e) { alert('내보내기 실패: ' + e.message) }
     finally { setExporting(false) }
   }
@@ -295,12 +305,12 @@ export default function OpenCloV104Page() {
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 w-8"></th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">username</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">이름</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">팔로워</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">게시물</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">릴스</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">평균조회</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">평균댓글</th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">주기(일)</th>
+                <SortHeader col="followers" label="팔로워" />
+                <SortHeader col="post_count" label="게시물" />
+                <SortHeader col="reels_count" label="릴스" />
+                <SortHeader col="avg_views" label="평균조회" />
+                <SortHeader col="avg_comments" label="평균댓글" />
+                <SortHeader col="upload_frequency_days" label="주기(일)" />
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">해시태그</th>
                 <th className="px-3 py-2.5 w-8"></th>
               </tr>
