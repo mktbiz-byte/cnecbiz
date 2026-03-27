@@ -1,39 +1,27 @@
-let getBizClient, CORS_HEADERS, handleOptions, successResponse, errorResponse;
+const { createClient } = require('@supabase/supabase-js');
 
-try {
-  const lib = require('./lib/supabase');
-  getBizClient = lib.getBizClient;
-  CORS_HEADERS = lib.CORS_HEADERS;
-  handleOptions = lib.handleOptions;
-  successResponse = lib.successResponse;
-  errorResponse = lib.errorResponse;
-} catch (e) {
-  console.error('[discovery-v104] Failed to load lib/supabase:', e.message);
-}
+const supabase = createClient(
+  process.env.VITE_SUPABASE_BIZ_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-const HEADERS = CORS_HEADERS || {
+const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Content-Type': 'application/json'
 };
 
 exports.handler = async (event) => {
-  // OPTIONS
   if (event.httpMethod === 'OPTIONS') {
-    return handleOptions ? handleOptions() : { statusCode: 204, headers: HEADERS, body: '' };
+    return { statusCode: 204, headers: HEADERS, body: '' };
   }
 
-  // GET → health check
   if (event.httpMethod === 'GET') {
     return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ ok: true, ts: Date.now() }) };
   }
 
   try {
-    if (!getBizClient) {
-      return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: 'lib/supabase load failed' }) };
-    }
-
-    const supabase = getBizClient();
     const body = JSON.parse(event.body || '{}');
     const { mode } = body;
 
@@ -126,7 +114,6 @@ exports.handler = async (event) => {
 
     // ===== mode: distributions =====
     if (mode === 'distributions') {
-      // 병렬로 모든 tier+platform 카운트 실행
       const tiers = ['S', 'A', 'B', 'C', 'D'];
       const platforms = ['instagram', 'youtube', 'tiktok', 'x', 'threads'];
 
