@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Download, Search, Database, Mail, CalendarPlus, ShieldAlert, Users, Activity, Instagram, Youtube, Music2, Twitter, AtSign, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, Download, Search, Database, Mail, CalendarPlus, ShieldAlert, Users, Activity, Building2, Instagram, Youtube, Music2, Twitter, AtSign, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import * as XLSX from 'xlsx'
 
@@ -40,6 +40,20 @@ const formatSignal = (s) => {
   return s
 }
 
+const CORP_SIGNAL_LABELS = {
+  is_business_account: '비즈니스 계정',
+  low_following_ratio: '팔로잉 극소 (기업 특징)',
+}
+
+const formatCorpSignal = (s) => {
+  if (CORP_SIGNAL_LABELS[s]) return CORP_SIGNAL_LABELS[s]
+  if (s.startsWith('username_')) return `username에 ${s.split('_').slice(1).join('_')} 포함`
+  if (s.startsWith('bio_')) return `바이오에 '${s.split('_').slice(1).join('_')}' 포함`
+  if (s.startsWith('category_')) return `카테고리: ${s.split('_').slice(1).join('_')}`
+  if (s.startsWith('name_')) return `이름에 ${s.split('_').slice(1).join('_')} 포함`
+  return s
+}
+
 const formatNum = (n) => {
   if (n == null || n === 0) return '0'
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
@@ -73,12 +87,13 @@ export default function OpenCloV104Page() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
 
-  const [stats, setStats] = useState({ total: 0, hasEmail: 0, today: 0, fake: 0, korean: 0, enriched: 0 })
+  const [stats, setStats] = useState({ total: 0, hasEmail: 0, today: 0, fake: 0, korean: 0, enriched: 0, corporate: 0 })
   const [platform, setPlatform] = useState('all')
   const [tier, setTier] = useState('all')
   const [hasEmail, setHasEmail] = useState('all')
   const [isFake, setIsFake] = useState('clean')
   const [isKorean, setIsKorean] = useState('all')
+  const [isCorporate, setIsCorporate] = useState('personal')
   const [search, setSearch] = useState('')
   const [hashtagSearch, setHashtagSearch] = useState('')
   const [debouncedHashtag, setDebouncedHashtag] = useState('')
@@ -135,15 +150,15 @@ export default function OpenCloV104Page() {
   const loadList = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, hashtagSearch: debouncedHashtag, page, limit, sortBy, sortAsc })
+      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, isCorporate, search: debouncedSearch, hashtagSearch: debouncedHashtag, page, limit, sortBy, sortAsc })
       setCreators(res.data || [])
       setTotal(res.total || 0)
     } catch (e) { console.error('List error:', e) }
     finally { setLoading(false) }
-  }, [platform, tier, hasEmail, isFake, isKorean, debouncedSearch, debouncedHashtag, page, sortBy, sortAsc])
+  }, [platform, tier, hasEmail, isFake, isKorean, isCorporate, debouncedSearch, debouncedHashtag, page, sortBy, sortAsc])
 
   useEffect(() => { loadList() }, [loadList])
-  useEffect(() => { setPage(1) }, [platform, tier, hasEmail, isFake, isKorean, sortBy, sortAsc])
+  useEffect(() => { setPage(1) }, [platform, tier, hasEmail, isFake, isKorean, isCorporate, sortBy, sortAsc])
 
   const toggleSort = (col) => {
     if (sortBy === col) { setSortAsc(!sortAsc) }
@@ -171,12 +186,12 @@ export default function OpenCloV104Page() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const res = await api({ mode: 'export', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, hashtagSearch: debouncedHashtag })
+      const res = await api({ mode: 'export', platform, tier, hasEmail, isFake, isKorean, isCorporate, search: debouncedSearch, hashtagSearch: debouncedHashtag })
       const rows = res.data || []
       if (!rows.length) { alert('내보낼 데이터가 없습니다.'); return }
 
       const wsData = [
-        ['플랫폼','username','이름','이메일','이메일검증','팔로워','팔로잉','게시물수','릴스수','평균조회수','평균댓글','업로드주기(일)','광고건수','광고비율(%)','참여율(%)','Tier','Tier점수','한국인','한국인점수','바이오','웹사이트','프로필URL','수집일'],
+        ['플랫폼','username','이름','이메일','이메일검증','팔로워','팔로잉','게시물수','릴스수','평균조회수','평균댓글','업로드주기(일)','광고건수','광고비율(%)','참여율(%)','Tier','Tier점수','한국인','한국인점수','기업계정','바이오','웹사이트','프로필URL','해시태그','수집일'],
         ...rows.map(r => [
           r.platform, r.username, r.full_name || r.display_name || '',
           r.email || '', r.email_verified ? 'Y' : 'N',
@@ -187,8 +202,10 @@ export default function OpenCloV104Page() {
           r.ad_post_count || 0, r.ad_ratio || 0, r.engagement_rate || 0,
           r.tier || '', r.tier_score || 0,
           r.is_korean ? 'Y' : 'N', r.korean_score || 0,
+          r.is_corporate ? 'Y' : 'N',
           (r.bio || '').replace(/[\n\r]/g, ' ').substring(0, 200),
           r.website || '', r.platform_url || '',
+          (r.top_hashtags || []).map(h => '#' + (typeof h === 'string' ? h : h.tag)).join(' '),
           r.created_at ? r.created_at.split('T')[0] : ''
         ])
       ]
@@ -244,7 +261,7 @@ export default function OpenCloV104Page() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
         {[
           { label: '전체 DB', value: stats.total, icon: Database, bg: 'bg-gray-100', color: 'text-gray-700' },
           { label: '이메일 확보', value: stats.hasEmail, icon: Mail, bg: 'bg-blue-50', color: 'text-blue-600' },
@@ -252,6 +269,7 @@ export default function OpenCloV104Page() {
           { label: '프로필 조회', value: stats.enriched, icon: Activity, bg: 'bg-[#F0EDFF]', color: 'text-[#6C5CE7]' },
           { label: '오늘 수집', value: stats.today, icon: CalendarPlus, bg: 'bg-teal-50', color: 'text-teal-600' },
           { label: '가계정', value: stats.fake, icon: ShieldAlert, bg: 'bg-red-50', color: 'text-red-500' },
+          { label: '기업 계정', value: stats.corporate, icon: Building2, bg: 'bg-orange-50', color: 'text-orange-600' },
         ].map(({ label, value, icon: Icon, bg, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -292,6 +310,11 @@ export default function OpenCloV104Page() {
           <option value="all">한국인 전체</option>
           <option value="yes">한국인만</option>
           <option value="no">외국인만</option>
+        </select>
+        <select value={isCorporate} onChange={e => setIsCorporate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+          <option value="personal">개인만</option>
+          <option value="corporate">기업만</option>
+          <option value="all">전체</option>
         </select>
         <select value={isFake} onChange={e => setIsFake(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
           <option value="clean">정상만</option>
@@ -357,6 +380,7 @@ export default function OpenCloV104Page() {
                           {c.tier && <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TIER_COLORS[c.tier] || 'bg-gray-100 text-gray-600'}`}>{c.tier}</span>}
                           {c.is_korean && <span title="한국인" className="text-xs">🇰🇷</span>}
                           {c.has_email && <span title={c.email || '이메일 있음'} className={`text-xs ${c.email_verified ? 'text-green-600' : 'text-gray-400'}`}>✉</span>}
+                          {c.is_corporate && <span title="기업 계정" className="text-[10px] bg-orange-50 text-orange-600 px-1 py-0.5 rounded">🏢</span>}
                           {c.engagement_rate > 0 && <span className="text-[10px] text-gray-400">{Number(c.engagement_rate).toFixed(1)}%</span>}
                           {c.created_at && <span className="text-[10px] text-gray-300">{c.created_at.split('T')[0].slice(5)}</span>}
                         </div>
@@ -444,6 +468,16 @@ export default function OpenCloV104Page() {
                                   <div className="flex flex-wrap gap-1">
                                     {detailData.korean_signals.map((s, i) => (
                                       <span key={i} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{formatSignal(s)}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {detailData?.corporate_signals && detailData.corporate_signals.length > 0 && (
+                                <div>
+                                  <span className="text-[10px] text-gray-500 block mb-1">기업 계정 판별 근거</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {detailData.corporate_signals.map((s, i) => (
+                                      <span key={i} className="text-[10px] bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">{formatCorpSignal(s)}</span>
                                     ))}
                                   </div>
                                 </div>

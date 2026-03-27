@@ -27,11 +27,11 @@ exports.handler = async (event) => {
 
     // ===== mode: stats =====
     if (mode === 'stats') {
-      const [totalRes, emailRes, todayRes, fakeRes, koreanRes, enrichedRes] = await Promise.all([
+      const [totalRes, emailRes, todayRes, fakeRes, koreanRes, enrichedRes, corporateRes] = await Promise.all([
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'korea').eq('is_fake', false),
+          .eq('region', 'korea').eq('is_fake', false).eq('is_corporate', false),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-          .eq('region', 'korea').eq('has_email', true).eq('is_fake', false),
+          .eq('region', 'korea').eq('has_email', true).eq('is_fake', false).eq('is_corporate', false),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
           .eq('region', 'korea').gte('created_at', new Date().toISOString().split('T')[0]),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
@@ -40,6 +40,8 @@ exports.handler = async (event) => {
           .eq('region', 'korea').eq('is_korean', true),
         supabase.from('oc_creators').select('id', { count: 'exact', head: true })
           .eq('region', 'korea').eq('profile_enriched', true),
+        supabase.from('oc_creators').select('id', { count: 'exact', head: true })
+          .eq('region', 'korea').eq('is_corporate', true),
       ]);
 
       return {
@@ -51,17 +53,18 @@ exports.handler = async (event) => {
           fake: fakeRes.count ?? 0,
           korean: koreanRes.count ?? 0,
           enriched: enrichedRes.count ?? 0,
+          corporate: corporateRes.count ?? 0,
         })
       };
     }
 
     // ===== mode: list =====
     if (mode === 'list') {
-      const { platform, tier, hasEmail, isFake, isKorean, search, hashtagSearch, page = 1, limit = 50, sortBy = 'created_at', sortAsc = false } = body;
+      const { platform, tier, hasEmail, isFake, isKorean, isCorporate, search, hashtagSearch, page = 1, limit = 50, sortBy = 'created_at', sortAsc = false } = body;
 
       let query = supabase
         .from('oc_creators')
-        .select('id,username,platform,full_name,display_name,bio,followers,following,post_count,reels_count,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,email,has_email,email_verified,email_source,platform_url,website,tier,tier_score,is_fake,fake_score,is_korean,korean_score,profile_enriched,has_verified_badge,contact_status,top_hashtags,created_at', { count: 'exact' })
+        .select('id,username,platform,full_name,display_name,bio,followers,following,post_count,reels_count,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,email,has_email,email_verified,email_source,platform_url,website,tier,tier_score,is_fake,fake_score,is_korean,korean_score,is_corporate,profile_enriched,has_verified_badge,contact_status,top_hashtags,created_at', { count: 'exact' })
         .eq('region', 'korea');
 
       if (platform && platform !== 'all') query = query.eq('platform', platform);
@@ -73,6 +76,8 @@ exports.handler = async (event) => {
       if (isFake === 'fake') query = query.eq('is_fake', true);
       if (isKorean === 'yes') query = query.eq('is_korean', true);
       if (isKorean === 'no') query = query.eq('is_korean', false);
+      if (isCorporate === 'personal') query = query.eq('is_corporate', false);
+      if (isCorporate === 'corporate') query = query.eq('is_corporate', true);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
       if (hashtagSearch) {
         const tag = hashtagSearch.replace(/^#/, '');
@@ -102,7 +107,7 @@ exports.handler = async (event) => {
 
       const { data: profile, error } = await supabase
         .from('oc_creator_profiles')
-        .select('biography,profile_pic_url,business_category,business_email,business_phone,is_korean,korean_score,korean_signals,top_hashtags,recent_captions,reels_count,posts_count_regular,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,enriched_at')
+        .select('biography,profile_pic_url,business_category,business_email,business_phone,is_korean,korean_score,korean_signals,corporate_signals,top_hashtags,recent_captions,reels_count,posts_count_regular,avg_views,avg_likes,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,enriched_at')
         .eq('creator_id', creatorId)
         .order('enriched_at', { ascending: false })
         .limit(1)
@@ -116,11 +121,11 @@ exports.handler = async (event) => {
 
     // ===== mode: export =====
     if (mode === 'export') {
-      const { platform, tier, hasEmail, isFake, isKorean, search, hashtagSearch } = body;
+      const { platform, tier, hasEmail, isFake, isKorean, isCorporate, search, hashtagSearch } = body;
 
       let query = supabase
         .from('oc_creators')
-        .select('platform,username,full_name,display_name,email,email_verified,followers,following,post_count,reels_count,avg_views,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,tier,tier_score,is_korean,korean_score,bio,website,platform_url,contact_status,created_at')
+        .select('platform,username,full_name,display_name,email,email_verified,followers,following,post_count,reels_count,avg_views,avg_comments,upload_frequency_days,ad_post_count,ad_ratio,engagement_rate,tier,tier_score,is_korean,korean_score,is_corporate,bio,website,platform_url,top_hashtags,contact_status,created_at')
         .eq('region', 'korea');
 
       if (platform && platform !== 'all') query = query.eq('platform', platform);
@@ -131,6 +136,8 @@ exports.handler = async (event) => {
       if (isFake === 'clean') query = query.eq('is_fake', false);
       if (isFake === 'fake') query = query.eq('is_fake', true);
       if (isKorean === 'yes') query = query.eq('is_korean', true);
+      if (isCorporate === 'personal') query = query.eq('is_corporate', false);
+      if (isCorporate === 'corporate') query = query.eq('is_corporate', true);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
       if (hashtagSearch) {
         const tag = hashtagSearch.replace(/^#/, '');
@@ -156,7 +163,7 @@ exports.handler = async (event) => {
       const allQueries = await Promise.all([
         ...tiers.map(t =>
           supabase.from('oc_creators').select('id', { count: 'exact', head: true })
-            .eq('region', 'korea').eq('tier', t).eq('is_fake', false)
+            .eq('region', 'korea').eq('tier', t).eq('is_fake', false).eq('is_corporate', false)
             .then(r => ({ type: 'tier', key: t, count: r.count ?? 0 }))
             .catch(() => ({ type: 'tier', key: t, count: 0 }))
         ),
