@@ -4281,15 +4281,19 @@ JSON만 출력.`
           // 한국: 카카오 알림톡 + 이메일
           if (region === 'korea') {
             if (profile.phone) {
-              const result = await sendCampaignSelectedNotification(
-                profile.phone,
-                creatorName,
-                { campaignName }
-              )
-              if (result?.success === false) {
-                console.error('선정 알림톡 발송 실패 (Popbill 오류):', result)
-              } else {
-                successCount++
+              try {
+                const result = await sendCampaignSelectedNotification(
+                  profile.phone,
+                  creatorName,
+                  { campaignName }
+                )
+                if (result?.success === false) {
+                  console.error('선정 알림톡 발송 실패 (Popbill 오류):', result)
+                } else {
+                  successCount++
+                }
+              } catch (kakaoErr) {
+                console.error('선정 알림톡 예외:', kakaoErr.message, { phone: profile.phone, creatorName })
               }
             } else {
               console.error('선정 알림: 한국 크리에이터 전화번호 없음', { userId: app.user_id, name: creatorName })
@@ -6735,14 +6739,24 @@ Questions? Contact us.
             const pEmail = participant.email || participant.creator_email || participant.user_email || participant.applicant_email
             const pName = participant.applicant_name || participant.creator_name || '크리에이터'
 
-            // phone이 없으면 user_profiles에서 조회
+            // phone이 없으면 user_profiles에서 조회 (id → user_id 폴백)
             if (!pPhone && participant.user_id) {
               try {
-                const { data: profile } = await supabase
+                let profile = null
+                const { data: p1 } = await supabase
                   .from('user_profiles')
                   .select('phone')
                   .eq('id', participant.user_id)
                   .maybeSingle()
+                profile = p1
+                if (!profile) {
+                  const { data: p2 } = await supabase
+                    .from('user_profiles')
+                    .select('phone')
+                    .eq('user_id', participant.user_id)
+                    .maybeSingle()
+                  profile = p2
+                }
                 pPhone = profile?.phone || null
               } catch (e) { console.error('Phone lookup failed:', e.message) }
             }
