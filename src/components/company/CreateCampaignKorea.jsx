@@ -448,28 +448,28 @@ const CampaignCreationKorea = () => {
     const bonus = bonusAmount || 0
     if (bonus >= 300000) {
       return {
-        followerRange: '10만~30만',
+        followerRange: '1.5만~3만',
         qualityLevel: 5,
         characteristics: ['탑티어 뷰티 크리에이터', '강력한 구매 전환'],
         expectedApplicants: '25~45'
       }
     } else if (bonus >= 200000) {
       return {
-        followerRange: '7만~15만',
+        followerRange: '1만~1.5만',
         qualityLevel: 4,
         characteristics: ['인기 뷰티 크리에이터', '높은 영향력'],
         expectedApplicants: '20~35'
       }
     } else if (bonus >= 100000) {
       return {
-        followerRange: '3만~10만',
+        followerRange: '5천~1만',
         qualityLevel: 3,
         characteristics: ['중견 뷰티 크리에이터', '안정적 노출'],
         expectedApplicants: '15~30'
       }
     } else {
       return {
-        followerRange: '1만~5만',
+        followerRange: '1천~5천',
         qualityLevel: 2,
         characteristics: ['뷰티 전문 크리에이터', '인기 상품 추천'],
         expectedApplicants: '10~20'
@@ -482,10 +482,10 @@ const CampaignCreationKorea = () => {
       value: 'basic',
       label: '베이직',
       price: 200000,
-      description: '인스타그램 기준: 1만명 이하',
+      description: '인스타그램 기준: 1천~3천명',
       expectedApplicants: { instagram: '10~15', youtube: '5~8', tiktok: '5~8' },
-      followerRange: '1만 이하',
-      creatorLevel: '신규 크리에이터',
+      followerRange: '1천~3천',
+      creatorLevel: '나노 크리에이터',
       qualityLevel: 1,
       characteristics: ['성장 중인 크리에이터', '가성비 좋은 노출']
     },
@@ -493,10 +493,10 @@ const CampaignCreationKorea = () => {
       value: 'standard',
       label: '스탠다드',
       price: 300000,
-      description: '인스타그램 기준: 1만~3만명',
+      description: '인스타그램 기준: 3천~8천명',
       expectedApplicants: { instagram: '15~20', youtube: '8~12', tiktok: '8~12' },
-      followerRange: '1만~3만',
-      creatorLevel: '중급 크리에이터',
+      followerRange: '3천~8천',
+      creatorLevel: '마이크로 크리에이터',
       qualityLevel: 2,
       characteristics: ['안정적인 팔로워층', '기획형 숏폼 제작']
     },
@@ -504,9 +504,9 @@ const CampaignCreationKorea = () => {
       value: 'premium',
       label: '프리미엄',
       price: 400000,
-      description: '인스타그램 기준: 3만~10만명',
+      description: '인스타그램 기준: 8천~1.5만명',
       expectedApplicants: { instagram: '20~40', youtube: '10~20', tiktok: '10~20' },
-      followerRange: '3만~10만',
+      followerRange: '8천~1.5만',
       creatorLevel: '인기 크리에이터',
       qualityLevel: 3,
       characteristics: ['높은 영향력', '구매 전환 유도']
@@ -515,9 +515,9 @@ const CampaignCreationKorea = () => {
       value: 'professional',
       label: '프로페셔널',
       price: 600000,
-      description: '인스타그램 기준: 10만~30만명',
+      description: '인스타그램 기준: 1.5만~3만명',
       expectedApplicants: { instagram: '40~60', youtube: '20~30', tiktok: '20~30' },
-      followerRange: '10만~30만',
+      followerRange: '1.5만~3만',
       creatorLevel: '탑티어 크리에이터',
       qualityLevel: 4,
       characteristics: ['프리미엄 영상미', '높은 팬 충성도']
@@ -526,9 +526,9 @@ const CampaignCreationKorea = () => {
       value: 'enterprise',
       label: '엔터프라이즈',
       price: 1000000,
-      description: '인스타그램 기준: 30만명 이상',
+      description: '인스타그램 기준: 3만명 이상',
       expectedApplicants: { instagram: '60~100', youtube: '30~50', tiktok: '30~50' },
-      followerRange: '30만 이상',
+      followerRange: '3만 이상',
       creatorLevel: '메가 인플루언서',
       qualityLevel: 5,
       characteristics: ['TVC급 영상미', '강력한 바이럴 효과']
@@ -974,11 +974,11 @@ const CampaignCreationKorea = () => {
     <h2>제2조 (환불 규정)</h2>
     <p>환불은 아래 기준에 따라 처리됩니다.</p>
     <table><thead><tr><th>구분</th><th>환불 기준</th><th>환불 비율</th></tr></thead><tbody>
-    <tr><td><strong>캠페인 진행 전</strong></td><td>크리에이터 선정 완료 이전 단계</td><td><strong>전액(100%) 환불</strong></td></tr>
-    <tr><td><strong>캠페인 진행 후</strong></td><td>크리에이터 선정 완료 이후 ~ 콘텐츠 제작 진행 중</td><td><strong>50% 환불</strong></td></tr>
+    <tr><td><strong>캠페인 활성화 전</strong></td><td>캠페인 활성화 이전 단계</td><td><strong>전액(100%) 환불</strong></td></tr>
+    <tr><td><strong>캠페인 활성화 후</strong></td><td>캠페인 활성화 이후 ~ 콘텐츠 제작 진행 중</td><td><strong>50% 환불</strong></td></tr>
     <tr><td><strong>콘텐츠 제출 후</strong></td><td>크리에이터가 콘텐츠(영상/사진)를 제출한 이후</td><td><strong>환불 불가</strong></td></tr>
     </tbody></table>
-    <div class="highlight"><strong>※ "캠페인 진행"의 기준:</strong> 회사가 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점을 의미합니다.</div>
+    <div class="highlight"><strong>※ "캠페인 활성화"의 기준:</strong> 회사가 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점을 의미합니다.</div>
     <ol><li>환불 요청은 캠페인 관리 페이지 또는 고객센터를 통해 접수할 수 있습니다.</li><li>환불 금액은 결제 수단에 따라 영업일 기준 3~7일 이내에 처리됩니다.</li><li>부분 환불 시, 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</li><li>광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</li></ol>
 
     <h2>제3조 (광고주의 크리에이터 개별 연락 금지)</h2>
@@ -1946,7 +1946,7 @@ const CampaignCreationKorea = () => {
                               {(pkg.value === 'professional' || pkg.value === 'enterprise') && (
                                 <div className="flex items-center gap-1">
                                   <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                                  <span>{pkg.value === 'enterprise' ? 'TVC급 영상미' : '팔로워 30만+'}</span>
+                                  <span>{pkg.value === 'enterprise' ? 'TVC급 영상미' : '팔로워 1.5만+'}</span>
                                 </div>
                               )}
                             </div>
@@ -5241,15 +5241,15 @@ const CampaignCreationKorea = () => {
                   <div className="flex items-center gap-3 p-3.5 rounded-xl border border-green-200 bg-green-50/50">
                     <span className="flex-shrink-0 text-green-700 font-bold text-sm w-12 text-center">100%</span>
                     <div className="border-l border-green-200 pl-3">
-                      <p className="font-semibold text-gray-900 text-sm">캠페인 진행 전</p>
-                      <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
+                      <p className="font-semibold text-gray-900 text-sm">캠페인 활성화 전</p>
+                      <p className="text-xs text-gray-500">캠페인 활성화 이전 → 전액 환불</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50/50">
                     <span className="flex-shrink-0 text-amber-700 font-bold text-sm w-12 text-center">50%</span>
                     <div className="border-l border-amber-200 pl-3">
-                      <p className="font-semibold text-gray-900 text-sm">캠페인 진행 후</p>
-                      <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                      <p className="font-semibold text-gray-900 text-sm">캠페인 활성화 후</p>
+                      <p className="text-xs text-gray-500">캠페인 활성화 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50/50">
@@ -5260,7 +5260,7 @@ const CampaignCreationKorea = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
                 <p className="text-[11px] text-gray-400 leading-relaxed">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
               </div>
 

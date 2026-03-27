@@ -218,8 +218,8 @@ const CreateCampaignUS = () => {
       label: '초급',
       labelEn: 'Junior',
       priceAddon: 0,
-      description: '팔로워 1만~5만',
-      descriptionEn: 'Followers 10K-50K',
+      description: '팔로워 1천~5천',
+      descriptionEn: 'Followers 1K-5K',
       rewardUSD: 90
     },
     {
@@ -227,8 +227,8 @@ const CreateCampaignUS = () => {
       label: '중급',
       labelEn: 'Intermediate',
       priceAddon: 100000,
-      description: '팔로워 5만~20만',
-      descriptionEn: 'Followers 50K-200K',
+      description: '팔로워 5천~2만',
+      descriptionEn: 'Followers 5K-20K',
       rewardUSD: 135
     },
     {
@@ -236,8 +236,8 @@ const CreateCampaignUS = () => {
       label: '상급',
       labelEn: 'Senior',
       priceAddon: 200000,
-      description: '팔로워 20만 이상',
-      descriptionEn: 'Followers 200K+',
+      description: '팔로워 2만 이상',
+      descriptionEn: 'Followers 20K+',
       rewardUSD: 180
     },
     {

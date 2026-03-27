@@ -61,11 +61,11 @@ const CAMPAIGN_TYPES = [
 
 // 패키지 옵션 정의
 const PACKAGE_OPTIONS = [
-  { value: 'basic', label: '베이직', price: 200000, description: '팔로워 1만~3만명' },
-  { value: 'standard', label: '스탠다드', price: 300000, description: '팔로워 3만~10만명', badge: 'BEST', extra: '기획형 숏폼' },
-  { value: 'premium', label: '프리미엄', price: 400000, description: '팔로워 10만~30만명', extra: '구매 전환 유도' },
-  { value: 'professional', label: '프로페셔널', price: 600000, description: '팔로워 30만~50만명', extra: '팔로워 30만+' },
-  { value: 'enterprise', label: '엔터프라이즈', price: 1000000, description: '팔로워 50만명 이상', extra: 'TVC급 영상미' },
+  { value: 'basic', label: '베이직', price: 200000, description: '팔로워 1천~3천명' },
+  { value: 'standard', label: '스탠다드', price: 300000, description: '팔로워 3천~8천명', badge: 'BEST', extra: '기획형 숏폼' },
+  { value: 'premium', label: '프리미엄', price: 400000, description: '팔로워 8천~1.5만명', extra: '구매 전환 유도' },
+  { value: 'professional', label: '프로페셔널', price: 600000, description: '팔로워 1.5만~3만명', extra: '팔로워 1.5만+' },
+  { value: 'enterprise', label: '엔터프라이즈', price: 1000000, description: '팔로워 3만명 이상', extra: 'TVC급 영상미' },
 ]
 
 // 필수 미션 옵션

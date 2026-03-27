@@ -238,8 +238,8 @@ const CreateCampaignJapan = () => {
       label: '베이직',
       labelJa: 'ベーシック',
       priceAddon: 0,
-      description: '팔로워 1만 이하',
-      descriptionJa: 'フォロワー1万以下',
+      description: '팔로워 1천 이하',
+      descriptionJa: 'フォロワー1千以下',
       rewardYen: 12000
     },
     {
@@ -247,8 +247,8 @@ const CreateCampaignJapan = () => {
       label: '초급',
       labelJa: '初級',
       priceAddon: 100000,
-      description: '팔로워 1만~5만',
-      descriptionJa: 'フォロワー1万~5万',
+      description: '팔로워 1천~5천',
+      descriptionJa: 'フォロワー1千~5千',
       rewardYen: 18000
     },
     {
@@ -256,8 +256,8 @@ const CreateCampaignJapan = () => {
       label: '중급',
       labelJa: '中級',
       priceAddon: 200000,
-      description: '팔로워 5만~20만',
-      descriptionJa: 'フォロワー5万~20万',
+      description: '팔로워 5천~2만',
+      descriptionJa: 'フォロワー5千~2万',
       rewardYen: 24000
     },
     {
@@ -265,8 +265,8 @@ const CreateCampaignJapan = () => {
       label: '상급',
       labelJa: '上級',
       priceAddon: 300000,
-      description: '팔로워 20만 이상',
-      descriptionJa: 'フォロワー20万以上',
+      description: '팔로워 2만 이상',
+      descriptionJa: 'フォロワー2万以上',
       rewardYen: 30000
     },
     {

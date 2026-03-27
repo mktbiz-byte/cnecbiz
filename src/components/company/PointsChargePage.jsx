@@ -577,15 +577,15 @@ function ChargeForm({ onSuccess }) {
         </h4>
         <ul className="text-xs text-blue-800 space-y-1.5">
           <li className="flex items-start gap-2">
-            <span className="font-semibold min-w-[90px]">캠페인 진행 전:</span>
+            <span className="font-semibold min-w-[90px]">캠페인 활성화 전:</span>
             <span>100% 환불 가능</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-semibold min-w-[90px]">캠페인 진행 후:</span>
+            <span className="font-semibold min-w-[90px]">캠페인 활성화 후:</span>
             <span>50% 환불 가능</span>
           </li>
           <li className="text-[11px] text-blue-700 mt-2 pl-2 border-l-2 border-blue-300">
-            * 캠페인 진행 기준: 크리에이터 선정 완료 시점
+            * 캠페인 활성화 기준: 크리에이터 선정 완료 시점
           </li>
         </ul>
       </div>
