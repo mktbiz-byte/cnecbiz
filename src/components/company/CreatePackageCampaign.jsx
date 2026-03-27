@@ -194,7 +194,7 @@ export default function CreatePackageCampaign() {
 
   // 약관 다운로드
   const handleDownloadContract = () => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>캠페인 등록 동의서</title><style>body{font-family:'Pretendard',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1a1a2e}h1{text-align:center;margin-bottom:40px}h2{margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:8px}.warning{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin:12px 0}</style></head><body><h1>캠페인 등록 동의서</h1><h2>1. 환불 규정</h2><p><strong>캠페인 진행 전</strong>: 크리에이터 선정 완료 이전 → 전액 환불</p><p><strong>캠페인 진행 후</strong>: 크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p><p><strong>콘텐츠 제출 후</strong>: 크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p><p>※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p><p>※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p><h2>2. 크리에이터 개별 연락 금지</h2><p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위를 해서는 안 됩니다.</p><p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p><p>본 조항은 캠페인 종료 후 6개월간 유효합니다.</p><div class="warning">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</div><h2>3. 콘텐츠 저작권 및 2차 활용</h2><p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p><p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p><p>2차 활용 기간은 크리에이터의 SNS 업로드일로부터 1년입니다.</p><div class="warning">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가: 2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</div></body></html>`
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>캠페인 등록 동의서</title><style>body{font-family:'Pretendard',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1a1a2e}h1{text-align:center;margin-bottom:40px}h2{margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:8px}.warning{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin:12px 0}</style></head><body><h1>캠페인 등록 동의서</h1><h2>1. 환불 규정</h2><p><strong>캠페인 활성화 전</strong>: 캠페인 활성화 이전 → 전액 환불</p><p><strong>캠페인 활성화 후</strong>: 캠페인 활성화 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p><p><strong>콘텐츠 제출 후</strong>: 크리에이터가 콘텐츠를 제출한 이후 → 환불 불가</p><p>※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p><p>※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p><h2>2. 크리에이터 개별 연락 금지</h2><p>플랫폼을 통해 매칭된 크리에이터에게 회사의 사전 서면 동의 없이 직접 연락(DM, 이메일, 전화, SNS 댓글 등)하여 별도 거래를 제안하거나 유인하는 행위를 해서는 안 됩니다.</p><p>크리에이터와의 모든 커뮤니케이션은 크넥(CNEC) 플랫폼을 통해 이루어져야 합니다.</p><p>본 조항은 캠페인 종료 후 6개월간 유효합니다.</p><div class="warning">⚠ 위반 시 해당 캠페인 결제 금액의 200%에 해당하는 위약금이 청구될 수 있습니다.</div><h2>3. 콘텐츠 저작권 및 2차 활용</h2><p>크리에이터가 제작한 콘텐츠의 1차 저작권은 크리에이터에게 귀속됩니다.</p><p>캠페인 계약 범위를 초과하는 2차 활용은 별도 동의가 필요합니다.</p><p>2차 활용 기간은 크리에이터의 SNS 업로드일로부터 1년입니다.</p><div class="warning">⚠ 2차 활용 기간 만료 후 Meta 광고 사용 불가: 2차 활용 기간(SNS 업로드일로부터 1년)이 만료된 후에는 크리에이터 콘텐츠를 Meta(Facebook/Instagram) 광고 소재로 사용할 수 없습니다.</div></body></html>`
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -425,8 +425,8 @@ export default function CreatePackageCampaign() {
                           <span className="text-green-700 font-bold text-xs">100%</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-[#1A1A2E]">캠페인 진행 전</p>
-                          <p className="text-xs text-[#636E72]">크리에이터 선정 완료 이전 → 전액 환불</p>
+                          <p className="font-semibold text-[#1A1A2E]">캠페인 활성화 전</p>
+                          <p className="text-xs text-[#636E72]">캠페인 활성화 이전 → 전액 환불</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
@@ -434,8 +434,8 @@ export default function CreatePackageCampaign() {
                           <span className="text-amber-700 font-bold text-xs">50%</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-[#1A1A2E]">캠페인 진행 후</p>
-                          <p className="text-xs text-[#636E72]">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                          <p className="font-semibold text-[#1A1A2E]">캠페인 활성화 후</p>
+                          <p className="text-xs text-[#636E72]">캠페인 활성화 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-[#DFE6E9]">
@@ -448,7 +448,7 @@ export default function CreatePackageCampaign() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-[#B2BEC3] mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                    <p className="text-xs text-[#B2BEC3] mt-2">※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
                     <p className="text-xs text-[#B2BEC3]">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
                     <p className="text-xs text-[#B2BEC3]">※ 광고주의 귀책사유(허위 정보 등록, 약관 위반 등)로 인한 캠페인 중단 시 환불이 제한될 수 있습니다.</p>
                   </div>

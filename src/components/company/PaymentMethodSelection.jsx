@@ -449,7 +449,7 @@ const PaymentMethodSelection = () => {
                         <span className="text-[#6C5CE7] font-bold text-sm font-['Outfit']">100%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-[#1A1A2E]">캠페인 진행 전</p>
+                        <p className="font-semibold text-[#1A1A2E]">캠페인 활성화 전</p>
                         <p className="text-sm text-[#636E72]">전액 환불 가능</p>
                       </div>
                     </div>
@@ -459,7 +459,7 @@ const PaymentMethodSelection = () => {
                         <span className="text-[#6C5CE7] font-bold text-sm font-['Outfit']">50%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-[#1A1A2E]">캠페인 진행 후</p>
+                        <p className="font-semibold text-[#1A1A2E]">캠페인 활성화 후</p>
                         <p className="text-sm text-[#636E72]">50% 환불 가능</p>
                       </div>
                     </div>
@@ -469,7 +469,7 @@ const PaymentMethodSelection = () => {
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-[#6C5CE7] flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-[#636E72]">
-                        <span className="font-medium">캠페인 진행 기준:</span> 크리에이터 선정 완료 시점
+                        <span className="font-medium">캠페인 활성화 기준:</span> 크리에이터 선정 완료 시점
                       </p>
                     </div>
                   </div>

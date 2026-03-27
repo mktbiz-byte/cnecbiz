@@ -171,8 +171,8 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                         <span className="text-green-700 font-bold text-xs">100%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
-                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이전 → 전액 환불</p>
+                        <p className="font-semibold text-gray-800">캠페인 활성화 전</p>
+                        <p className="text-xs text-gray-500">캠페인 활성화 이전 → 전액 환불</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
@@ -180,8 +180,8 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                         <span className="text-amber-700 font-bold text-xs">50%</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
-                        <p className="text-xs text-gray-500">크리에이터 선정 완료 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
+                        <p className="font-semibold text-gray-800">캠페인 활성화 후</p>
+                        <p className="text-xs text-gray-500">캠페인 활성화 이후 ~ 콘텐츠 제작 중 → 50% 환불 (실비 공제)</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
@@ -194,7 +194,7 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 진행"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
+                  <p className="text-xs text-gray-500 mt-2">※ "캠페인 활성화"의 기준: 크리에이터 선정을 완료하고, 선정된 크리에이터에게 가이드 및 제품 배송이 시작된 시점</p>
                   <p className="text-xs text-gray-500">※ 부분 환불 시 이미 집행된 크리에이터 보상금, 제품 배송비 등 실비용은 공제 후 환불됩니다.</p>
                 </div>
               </div>

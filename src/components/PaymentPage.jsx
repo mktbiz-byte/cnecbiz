@@ -168,7 +168,7 @@ function CheckoutForm({ campaignData, amount, onSuccess, onError }) {
 
         <div className="text-xs text-gray-500 space-y-1">
           <p>• 결제 완료 후 즉시 캠페인이 활성화됩니다</p>
-          <p>• 환불 정책: 캠페인 시작 전 100% 환불 가능</p>
+          <p>• 환불 정책: 캠페인 활성화 전 100% 환불 가능</p>
           <p>• 문의: help@cnecbiz.com</p>
         </div>
       </div>
