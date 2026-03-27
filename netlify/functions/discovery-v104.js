@@ -57,7 +57,7 @@ exports.handler = async (event) => {
 
     // ===== mode: list =====
     if (mode === 'list') {
-      const { platform, tier, hasEmail, isFake, isKorean, search, page = 1, limit = 50, sortBy = 'created_at', sortAsc = false } = body;
+      const { platform, tier, hasEmail, isFake, isKorean, search, hashtagSearch, page = 1, limit = 50, sortBy = 'created_at', sortAsc = false } = body;
 
       let query = supabase
         .from('oc_creators')
@@ -74,6 +74,10 @@ exports.handler = async (event) => {
       if (isKorean === 'yes') query = query.eq('is_korean', true);
       if (isKorean === 'no') query = query.eq('is_korean', false);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
+      if (hashtagSearch) {
+        const tag = hashtagSearch.replace(/^#/, '');
+        query = query.ilike('bio', `%#${tag}%`);
+      }
 
       const allowedSortCols = ['created_at','followers','post_count','reels_count','avg_views','avg_comments','upload_frequency_days','engagement_rate','tier_score'];
       const orderCol = allowedSortCols.includes(sortBy) ? sortBy : 'created_at';
@@ -112,7 +116,7 @@ exports.handler = async (event) => {
 
     // ===== mode: export =====
     if (mode === 'export') {
-      const { platform, tier, hasEmail, isFake, isKorean, search } = body;
+      const { platform, tier, hasEmail, isFake, isKorean, search, hashtagSearch } = body;
 
       let query = supabase
         .from('oc_creators')
@@ -128,6 +132,10 @@ exports.handler = async (event) => {
       if (isFake === 'fake') query = query.eq('is_fake', true);
       if (isKorean === 'yes') query = query.eq('is_korean', true);
       if (search) query = query.or(`username.ilike.%${search}%,full_name.ilike.%${search}%`);
+      if (hashtagSearch) {
+        const tag = hashtagSearch.replace(/^#/, '');
+        query = query.ilike('bio', `%#${tag}%`);
+      }
 
       query = query.order('tier_score', { ascending: false, nullsFirst: false }).limit(10000);
 
