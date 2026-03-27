@@ -127,19 +127,26 @@ exports.handler = async (event) => {
         };
       });
 
+      // 버튼 포맷 변환 (프론트엔드 형식 → 팝빌 형식)
+      const popbillBtns = buttons ? buttons.map(b => ({
+        n: b.n,
+        t: b.t,
+        u1: b.u1 || '',
+        u2: b.u2 || ''
+      })) : null;
+
       try {
         const result = await new Promise((resolve, reject) => {
-          kakaoService.sendATS(
+          kakaoService.sendATS_multi(
             POPBILL_CORP_NUM,
             templateCode,
             senderNum || POPBILL_SENDER_NUM,
-            '',   // content (개별 msg 사용 시 빈값)
-            '',   // altContent
+            'C',  // altSendType: C=동일내용 대체문자
+            null, // sndDT (즉시발송)
             receivers,
-            null, // reserveDT (즉시발송)
             POPBILL_USER_ID,
             '',   // requestNum
-            buttons || null,
+            popbillBtns,
             (receiptNum) => {
               console.log(`[bulk-alimtalk] Batch ${Math.floor(i / BATCH_SIZE) + 1} 성공, receiptNum: ${receiptNum}`);
               resolve({ success: true, receiptNum, count: batch.length });
