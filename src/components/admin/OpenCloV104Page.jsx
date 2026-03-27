@@ -80,6 +80,9 @@ export default function OpenCloV104Page() {
   const [isFake, setIsFake] = useState('clean')
   const [isKorean, setIsKorean] = useState('all')
   const [search, setSearch] = useState('')
+  const [hashtagSearch, setHashtagSearch] = useState('')
+  const [debouncedHashtag, setDebouncedHashtag] = useState('')
+  const hashtagTimer = useRef(null)
   const [sortBy, setSortBy] = useState('created_at')
   const [sortAsc, setSortAsc] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -106,6 +109,12 @@ export default function OpenCloV104Page() {
   }, [navigate])
 
   useEffect(() => {
+    if (hashtagTimer.current) clearTimeout(hashtagTimer.current)
+    hashtagTimer.current = setTimeout(() => { setDebouncedHashtag(hashtagSearch); setPage(1) }, 300)
+    return () => clearTimeout(hashtagTimer.current)
+  }, [hashtagSearch])
+
+  useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)
     return () => clearTimeout(searchTimer.current)
@@ -126,12 +135,12 @@ export default function OpenCloV104Page() {
   const loadList = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, page, limit, sortBy, sortAsc })
+      const res = await api({ mode: 'list', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, hashtagSearch: debouncedHashtag, page, limit, sortBy, sortAsc })
       setCreators(res.data || [])
       setTotal(res.total || 0)
     } catch (e) { console.error('List error:', e) }
     finally { setLoading(false) }
-  }, [platform, tier, hasEmail, isFake, isKorean, debouncedSearch, page, sortBy, sortAsc])
+  }, [platform, tier, hasEmail, isFake, isKorean, debouncedSearch, debouncedHashtag, page, sortBy, sortAsc])
 
   useEffect(() => { loadList() }, [loadList])
   useEffect(() => { setPage(1) }, [platform, tier, hasEmail, isFake, isKorean, sortBy, sortAsc])
@@ -162,7 +171,7 @@ export default function OpenCloV104Page() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const res = await api({ mode: 'export', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch })
+      const res = await api({ mode: 'export', platform, tier, hasEmail, isFake, isKorean, search: debouncedSearch, hashtagSearch: debouncedHashtag })
       const rows = res.data || []
       if (!rows.length) { alert('내보낼 데이터가 없습니다.'); return }
 
@@ -289,10 +298,15 @@ export default function OpenCloV104Page() {
           <option value="fake">가계정만</option>
           <option value="all">전체</option>
         </select>
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="username 또는 이름 검색" className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            placeholder="username / 이름" className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div className="relative min-w-[160px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">#</span>
+          <input type="text" value={hashtagSearch} onChange={e => setHashtagSearch(e.target.value)}
+            placeholder="해시태그 검색" className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm bg-blue-50/30 focus:bg-white" />
         </div>
       </div>
 
@@ -357,11 +371,18 @@ export default function OpenCloV104Page() {
                     <td className="px-3 py-2 text-right text-gray-600 text-sm">{c.upload_frequency_days ? Number(c.upload_frequency_days).toFixed(1) : '-'}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-0.5 max-w-[150px]">
-                        {c.top_hashtags && Array.isArray(c.top_hashtags) && c.top_hashtags.slice(0, 3).map((h, i) => (
-                          <span key={i} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                            #{typeof h === 'string' ? h : h.tag}
-                          </span>
-                        ))}
+                        {(() => {
+                          // top_hashtags 우선, 없으면 bio에서 # 파싱
+                          let tags = []
+                          if (c.top_hashtags && Array.isArray(c.top_hashtags) && c.top_hashtags.length > 0) {
+                            tags = c.top_hashtags.slice(0, 3).map(h => typeof h === 'string' ? h : h.tag)
+                          } else if (c.bio) {
+                            tags = (c.bio.match(/#[^\s#,]+/g) || []).slice(0, 3).map(t => t.replace(/^#/, ''))
+                          }
+                          return tags.map((t, i) => (
+                            <span key={i} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">#{t}</span>
+                          ))
+                        })()}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-gray-400">
