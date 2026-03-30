@@ -1628,7 +1628,7 @@ export default function CampaignDetail() {
           console.log('[fetchParticipants] Korea DB 직접 쿼리 시도...')
           const { data: koreaApps } = await supabaseKorea
             .from('applications')
-            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, step1_clean_video_url, step2_clean_video_url, sns_upload_url, partnership_code, ad_code, status, guide_group, step1_url, step2_url, step3_url, step1_2_partnership_code, step3_partnership_code, week1_url, week2_url, week3_url, week4_url, week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code')
+            .select('id, user_id, applicant_name, clean_video_url, week1_clean_video_url, week2_clean_video_url, week3_clean_video_url, week4_clean_video_url, step1_clean_video_url, step2_clean_video_url, sns_upload_url, partnership_code, status, guide_group, step1_url, step2_url, step3_url, step1_2_partnership_code, step3_partnership_code, week1_url, week2_url, week3_url, week4_url, week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code')
             .eq('campaign_id', id)
 
           if (koreaApps && koreaApps.length > 0) {
@@ -4134,10 +4134,14 @@ JSON만 출력.`
         updateData.main_channel = mainChannel
       }
 
-      // story_short 등 기획안 캠페인은 user_id도 전송 (proposal-only 크리에이터 대응)
+      // story_short 등 기획안 캠페인은 user_id + 크리에이터 정보도 전송
+      // (proposal-only 크리에이터: Korea DB에 application 레코드가 없을 수 있음 → 서버에서 자동 생성)
       const app = applications.find(a => a.id === applicationId)
       if (app?.user_id && ['story_short', 'threads_post', 'x_post'].includes(campaign?.campaign_type)) {
         updateData.user_id = app.user_id
+        updateData.applicant_name = app.applicant_name || ''
+        updateData.phone = app.phone || app.phone_number || ''
+        updateData.instagram_url = app.instagram_url || ''
       }
 
       // 리전 API 사용 (RLS 우회)
@@ -4257,8 +4261,8 @@ JSON만 출력.`
           if (app.user_id) {
             creatorsInfo[app.user_id] = {
               name: app.applicant_name || '',
-              email: app.email || '',
-              phone: app.phone || app.phone_number || ''
+              phone: app.phone || app.phone_number || '',
+              instagram_url: app.instagram_url || ''
             }
           }
         })
