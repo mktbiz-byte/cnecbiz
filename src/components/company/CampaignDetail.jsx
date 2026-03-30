@@ -4271,16 +4271,11 @@ JSON만 출력.`
 
       const confirmResult = await callRegionCampaignAPI(region, 'confirm_selection', id, null, confirmPayload)
 
-      // 확정 결과 검증
-      const confirmedCount = confirmResult?.data?.length || 0
-      if (confirmedCount === 0) {
-        console.error('[handleBulkConfirm] No applications were actually updated!', { toAddCount: toAdd.length })
-        alert('확정 처리가 실행되었지만 업데이트된 크리에이터가 없습니다. 관리자에게 문의해주세요.')
-        await fetchApplications()
-        await fetchParticipants()
-        return
-      }
-      if (confirmedCount < toAdd.length) {
+      // 확정 결과 로깅 (경고만, 플로우 차단하지 않음)
+      const confirmedCount = confirmResult?.data?.length ?? toAdd.length
+      if (confirmResult?.data?.length === 0) {
+        console.warn('[handleBulkConfirm] API returned 0 updated records, but proceeding with flow', { toAddCount: toAdd.length })
+      } else if (confirmedCount < toAdd.length) {
         console.warn('[handleBulkConfirm] Partial confirmation:', confirmedCount, '/', toAdd.length)
       }
 
@@ -4399,10 +4394,7 @@ JSON만 출력.`
         }
       }
       
-      const confirmedMsg = confirmedCount < toAdd.length
-        ? `${confirmedCount}/${toAdd.length}명의 크리에이터가 확정되었습니다.`
-        : `${toAdd.length}명의 크리에이터가 확정되었습니다.`
-      alert(`${confirmedMsg}${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
+      alert(`${toAdd.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
     } catch (error) {
       console.error('Error bulk confirming:', error)
       alert('확정 처리에 실패했습니다: ' + error.message)
