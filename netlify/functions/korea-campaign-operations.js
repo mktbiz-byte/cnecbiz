@@ -162,7 +162,7 @@ exports.handler = async (event) => {
           .select('*')
         break
 
-      case 'virtual_select':
+      case 'virtual_select': {
         const virtualSelectData = { virtual_selected: data.virtual_selected }
         if (data.main_channel) {
           virtualSelectData.main_channel = data.main_channel
@@ -173,7 +173,25 @@ exports.handler = async (event) => {
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
+
+        // application_id가 story_proposals ID인 경우 → user_id로 재시도
+        if ((!result.data || result.data.length === 0) && data.user_id) {
+          console.log('[Korea API] virtual_select: retrying with user_id', data.user_id)
+          const { data: retryData, error: retryError } = await supabaseKorea
+            .from('applications')
+            .update(virtualSelectData)
+            .eq('user_id', data.user_id)
+            .eq('campaign_id', campaign_id)
+            .select()
+          if (retryData && retryData.length > 0) {
+            result = { data: retryData, error: null }
+            console.log('[Korea API] virtual_select: found via user_id')
+          } else {
+            console.log('[Korea API] virtual_select: no application found for user_id', data.user_id)
+          }
+        }
         break
+      }
 
       case 'update_channel':
         result = await supabaseKorea
@@ -184,7 +202,8 @@ exports.handler = async (event) => {
           .select()
         break
 
-      case 'confirm_selection':
+      case 'confirm_selection': {
+        // 1차: application_ids로 업데이트 시도
         result = await supabaseKorea
           .from('applications')
           .update({
@@ -194,7 +213,69 @@ exports.handler = async (event) => {
           .in('id', data.application_ids)
           .eq('campaign_id', campaign_id)
           .select()
+
+        const updatedIds = (result.data || []).map(r => r.id)
+        const updatedUserIds = (result.data || []).map(r => r.user_id)
+
+        // 2차: story_short 등에서 application_ids가 story_proposals ID인 경우
+        // user_ids로 재시도 (proposal-only 크리에이터 처리)
+        if (data.user_ids && data.user_ids.length > 0) {
+          const missingUserIds = data.user_ids.filter(uid => !updatedUserIds.includes(uid))
+          if (missingUserIds.length > 0) {
+            console.log('[Korea API] confirm_selection: retrying with user_ids for', missingUserIds.length, 'creators')
+            const { data: extraUpdated, error: extraError } = await supabaseKorea
+              .from('applications')
+              .update({
+                status: 'selected',
+                virtual_selected: false
+              })
+              .in('user_id', missingUserIds)
+              .eq('campaign_id', campaign_id)
+              .eq('status', 'pending')
+              .select()
+
+            if (extraUpdated && extraUpdated.length > 0) {
+              result.data = [...(result.data || []), ...extraUpdated]
+              console.log('[Korea API] confirm_selection: extra updated', extraUpdated.length, 'via user_id')
+            }
+
+            // 3차: 아직 없는 크리에이터는 application 레코드 생성 (story proposal만 있는 경우)
+            const allUpdatedUserIds = (result.data || []).map(r => r.user_id)
+            const stillMissing = missingUserIds.filter(uid => !allUpdatedUserIds.includes(uid))
+            if (stillMissing.length > 0 && data.creators_info) {
+              console.log('[Korea API] confirm_selection: creating applications for', stillMissing.length, 'proposal-only creators')
+              for (const uid of stillMissing) {
+                const info = data.creators_info[uid] || {}
+                try {
+                  const { data: newApp } = await supabaseKorea
+                    .from('applications')
+                    .insert({
+                      campaign_id,
+                      user_id: uid,
+                      status: 'selected',
+                      virtual_selected: false,
+                      applicant_name: info.name || '',
+                      email: info.email || null,
+                      phone: info.phone || null,
+                      created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single()
+                  if (newApp) {
+                    result.data = [...(result.data || []), newApp]
+                    console.log('[Korea API] Created application for user:', uid)
+                  }
+                } catch (insertErr) {
+                  console.error('[Korea API] Failed to create application for user:', uid, insertErr.message)
+                }
+              }
+            }
+          }
+        }
+
+        console.log('[Korea API] confirm_selection: total confirmed', (result.data || []).length, '/', data.application_ids.length)
         break
+      }
 
       case 'cancel_selection':
         result = await supabaseKorea

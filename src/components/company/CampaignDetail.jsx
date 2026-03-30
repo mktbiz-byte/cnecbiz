@@ -4134,6 +4134,12 @@ JSON만 출력.`
         updateData.main_channel = mainChannel
       }
 
+      // story_short 등 기획안 캠페인은 user_id도 전송 (proposal-only 크리에이터 대응)
+      const app = applications.find(a => a.id === applicationId)
+      if (app?.user_id && ['story_short', 'threads_post', 'x_post'].includes(campaign?.campaign_type)) {
+        updateData.user_id = app.user_id
+      }
+
       // 리전 API 사용 (RLS 우회)
       await callRegionCampaignAPI(region, 'virtual_select', id, applicationId, updateData)
 
@@ -4239,9 +4245,40 @@ JSON만 출력.`
       console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
 
       // 리전 API 사용 (RLS 우회)
-      await callRegionCampaignAPI(region, 'confirm_selection', id, null, {
+      // story_short 등 기획안 기반 캠페인은 user_ids도 함께 전송 (proposal-only 크리에이터 대응)
+      const confirmPayload = {
         application_ids: toAdd.map(app => app.id)
-      })
+      }
+      if (['story_short', 'threads_post', 'x_post'].includes(campaign?.campaign_type)) {
+        confirmPayload.user_ids = toAdd.map(app => app.user_id).filter(Boolean)
+        // proposal-only 크리에이터 정보 (application 생성 시 필요)
+        const creatorsInfo = {}
+        toAdd.forEach(app => {
+          if (app.user_id) {
+            creatorsInfo[app.user_id] = {
+              name: app.applicant_name || '',
+              email: app.email || '',
+              phone: app.phone || app.phone_number || ''
+            }
+          }
+        })
+        confirmPayload.creators_info = creatorsInfo
+      }
+
+      const confirmResult = await callRegionCampaignAPI(region, 'confirm_selection', id, null, confirmPayload)
+
+      // 확정 결과 검증
+      const confirmedCount = confirmResult?.data?.length || 0
+      if (confirmedCount === 0) {
+        console.error('[handleBulkConfirm] No applications were actually updated!', { toAddCount: toAdd.length })
+        alert('확정 처리가 실행되었지만 업데이트된 크리에이터가 없습니다. 관리자에게 문의해주세요.')
+        await fetchApplications()
+        await fetchParticipants()
+        return
+      }
+      if (confirmedCount < toAdd.length) {
+        console.warn('[handleBulkConfirm] Partial confirmation:', confirmedCount, '/', toAdd.length)
+      }
 
       // 목록 새로고침
       await fetchApplications()
@@ -4358,7 +4395,10 @@ JSON만 출력.`
         }
       }
       
-      alert(`${toAdd.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
+      const confirmedMsg = confirmedCount < toAdd.length
+        ? `${confirmedCount}/${toAdd.length}명의 크리에이터가 확정되었습니다.`
+        : `${toAdd.length}명의 크리에이터가 확정되었습니다.`
+      alert(`${confirmedMsg}${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
     } catch (error) {
       console.error('Error bulk confirming:', error)
       alert('확정 처리에 실패했습니다: ' + error.message)

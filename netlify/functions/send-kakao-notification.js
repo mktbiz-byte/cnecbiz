@@ -452,8 +452,13 @@ exports.handler = async (event) => {
     };
     const btns = templateButtons[templateCode] || null;
 
-    // 팝빌 API 호출 - sendATS_one으로 단일 수신자 발송
+    // 팝빌 API 호출 - sendATS_one으로 단일 수신자 발송 (8초 타임아웃 설정)
+    const POPBILL_TIMEOUT_MS = 8000;
     const result = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('Popbill API timeout (' + POPBILL_TIMEOUT_MS + 'ms) - 팝빌 서버 응답 지연'));
+      }, POPBILL_TIMEOUT_MS);
+
       kakaoService.sendATS_one(
         POPBILL_CORP_NUM,
         templateCode,
@@ -468,10 +473,12 @@ exports.handler = async (event) => {
         '', // reserveDT (예약시간, 빈값=즉시발송)
         btns, // 템플릿 버튼
         (receiptNum) => {
+          clearTimeout(timer);
           console.log('[SUCCESS] Popbill API result:', receiptNum);
           resolve({ receiptNum });
         },
         (error) => {
+          clearTimeout(timer);
           console.error('[ERROR] Popbill API error:', error);
           reject(error);
         }
