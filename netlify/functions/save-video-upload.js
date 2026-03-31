@@ -342,7 +342,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // 5. applications 업데이트 (RLS 우회)
+    // 5. applications 업데이트 (RLS 우회) - 멀티 리전 fallback 지원
     if (action === 'update_application') {
       const { campaignId, userId, applicationId, updateData } = body
       if ((!campaignId || !userId) && !applicationId) {
@@ -360,51 +360,77 @@ exports.handler = async (event) => {
         }
       }
 
-      // 1차: campaignId + userId로 시도
-      let appError = null
-      let updated = false
-      if (campaignId && userId) {
-        const { data: appData, error } = await client
-          .from('applications')
-          .update(updateData)
-          .eq('campaign_id', campaignId)
-          .eq('user_id', userId)
-          .select('id')
+      // 지정된 리전 DB에서 applications 업데이트 시도하는 헬퍼
+      const tryUpdateApplication = async (dbClient) => {
+        let updated = false
+        let lastError = null
 
-        if (!error && appData && appData.length > 0) {
-          updated = true
-        } else if (error) {
-          console.warn('[save-video-upload] Application update by campaignId+userId failed:', error.message)
-          appError = error
-        } else {
-          console.warn('[save-video-upload] Application update by campaignId+userId matched 0 rows')
+        // 1차: campaignId + userId로 시도
+        if (campaignId && userId) {
+          const { data: appData, error } = await dbClient
+            .from('applications')
+            .update(updateData)
+            .eq('campaign_id', campaignId)
+            .eq('user_id', userId)
+            .select('id')
+
+          if (!error && appData && appData.length > 0) return { updated: true }
+          if (error) lastError = error
+        }
+
+        // 2차: applicationId로 폴백
+        if (!updated && applicationId) {
+          const { data: appData2, error: error2 } = await dbClient
+            .from('applications')
+            .update(updateData)
+            .eq('id', applicationId)
+            .select('id')
+
+          if (!error2 && appData2 && appData2.length > 0) return { updated: true }
+          if (error2) lastError = error2
+        }
+
+        return { updated: false, error: lastError }
+      }
+
+      // 지정된 리전 DB에서 먼저 시도
+      let result = await tryUpdateApplication(client)
+
+      // 지정된 DB에서 실패 시 다른 DB들도 순회하여 시도
+      if (!result.updated) {
+        console.warn(`[save-video-upload] Application update matched 0 rows in ${region || 'korea'}, trying other DBs`)
+        const fallbackClients = [
+          { name: 'biz', client: supabaseBiz },
+          { name: 'korea', client: supabaseKorea },
+          { name: 'japan', client: getRegionClient('japan') },
+          { name: 'us', client: getRegionClient('us') }
+        ].filter(c => c.client && c.client !== client)
+
+        for (const fb of fallbackClients) {
+          try {
+            const fbResult = await tryUpdateApplication(fb.client)
+            if (fbResult.updated) {
+              console.log(`[save-video-upload] Application updated successfully in ${fb.name} DB`)
+              result = fbResult
+              break
+            }
+          } catch (fbErr) {
+            console.log(`[save-video-upload] ${fb.name} application fallback error:`, fbErr.message)
+          }
         }
       }
 
-      // 2차: applicationId로 폴백 (1차 실패 또는 매칭 0건)
-      if (!updated && applicationId) {
-        const { data: appData2, error: error2 } = await client
-          .from('applications')
-          .update(updateData)
-          .eq('id', applicationId)
-          .select('id')
-
-        if (!error2 && appData2 && appData2.length > 0) {
-          updated = true
-          appError = null
-        } else if (error2) {
-          console.error('[save-video-upload] Application update by applicationId also failed:', error2.message)
-          appError = error2
-        }
-      }
-
-      if (appError) {
-        console.error('[save-video-upload] Application update failed:', appError)
+      if (!result.updated && result.error) {
+        console.error('[save-video-upload] Application update failed in all DBs:', result.error)
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({ success: false, error: `applications 업데이트 실패: ${appError.message}` })
+          body: JSON.stringify({ success: false, error: `applications 업데이트 실패: ${result.error.message}` })
         }
+      }
+
+      if (!result.updated) {
+        console.warn('[save-video-upload] Application update matched 0 rows in all DBs')
       }
 
       // video_file_url이 포함된 업데이트면 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
@@ -509,8 +535,9 @@ exports.handler = async (event) => {
     }
 
     // 7. video_submissions UPDATE (RLS 우회) - 검수 완료/상태 변경용
+    // 멀티 리전 fallback: 지정된 리전에서 0건 매칭 시 다른 DB도 시도
     if (action === 'update_video_submission') {
-      const { submissionId, updateData } = body
+      const { submissionId, updateData, sourceRegion } = body
       if (!submissionId || !updateData) {
         return {
           statusCode: 400,
@@ -519,7 +546,9 @@ exports.handler = async (event) => {
         }
       }
 
-      const { data, error } = await client
+      // sourceRegion이 있으면 해당 DB 우선, 없으면 region 사용
+      const primaryClient = sourceRegion ? getRegionClient(sourceRegion) : client
+      const { data, error } = await primaryClient
         .from('video_submissions')
         .update(updateData)
         .eq('id', submissionId)
@@ -527,6 +556,38 @@ exports.handler = async (event) => {
 
       if (error) {
         console.error('[save-video-upload] video_submissions update failed:', error)
+      }
+
+      // 지정된 DB에서 0건 매칭 시 다른 DB들도 순회하여 시도
+      let updatedRecord = data?.[0] || null
+      if (!updatedRecord && !error) {
+        console.warn(`[save-video-upload] video_submissions update matched 0 rows in ${sourceRegion || region || 'korea'}, trying other DBs`)
+        const fallbackClients = [
+          { name: 'biz', client: supabaseBiz },
+          { name: 'korea', client: supabaseKorea },
+          { name: 'japan', client: getRegionClient('japan') },
+          { name: 'us', client: getRegionClient('us') }
+        ].filter(c => c.client && c.client !== primaryClient)
+
+        for (const fb of fallbackClients) {
+          try {
+            const { data: fbData, error: fbError } = await fb.client
+              .from('video_submissions')
+              .update(updateData)
+              .eq('id', submissionId)
+              .select()
+            if (!fbError && fbData && fbData.length > 0) {
+              updatedRecord = fbData[0]
+              console.log(`[save-video-upload] video_submissions updated successfully in ${fb.name} DB`)
+              break
+            }
+          } catch (fbErr) {
+            console.log(`[save-video-upload] ${fb.name} fallback update error:`, fbErr.message)
+          }
+        }
+      }
+
+      if (!updatedRecord && error) {
         return {
           statusCode: 500,
           headers,
@@ -534,17 +595,16 @@ exports.handler = async (event) => {
         }
       }
 
-      console.log(`[save-video-upload] Updated video_submission ${submissionId}`)
+      console.log(`[save-video-upload] Updated video_submission ${submissionId}`, updatedRecord ? 'success' : 'no matching record found')
 
       // video_file_url이 업데이트된 경우 (재업로드) 알림 발송 (네이버 웍스 + 카카오 알림톡 + 이메일)
-      if (updateData.video_file_url && data?.[0]) {
+      if (updateData.video_file_url && updatedRecord) {
         try {
-          const record = data[0]
           await sendVideoUploadNotifications({
-            campaignId: record.campaign_id,
-            userId: record.user_id,
+            campaignId: updatedRecord.campaign_id,
+            userId: updatedRecord.user_id,
             region: region || 'korea',
-            version: record.version || 1,
+            version: updatedRecord.version || 1,
             isResubmission: true,
             hintCampaignTitle,
             hintCompanyName,
@@ -558,7 +618,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, data: data?.[0] || null })
+        body: JSON.stringify({ success: true, data: updatedRecord })
       }
     }
 
