@@ -887,6 +887,46 @@ export default function CampaignDetail() {
     }
   })
 
+  // AI 추천 크리에이터에게 초대장 발송
+  const handleSendInvitation = async (creator) => {
+    if (!creator) return
+    try {
+      const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+      if (!currentUser) {
+        alert('로그인이 필요합니다.')
+        return
+      }
+
+      if (!confirm(`${creator.name || '크리에이터'}님에게 캠페인 초대장을 발송하시겠습니까?`)) {
+        return
+      }
+
+      const response = await fetch('/.netlify/functions/send-creator-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: id,
+          creatorId: creator.id,
+          invitedBy: currentUser.id,
+          companyEmail: currentUser.email,
+          sendKakao: true,
+          sendEmail: true
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(result.message || '초대장을 성공적으로 발송했습니다!')
+      } else {
+        alert(result.error || '초대장 발송에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error)
+      alert('초대장 발송 중 오류가 발생했습니다.')
+    }
+  }
+
   useEffect(() => {
     const initPage = async () => {
       // Get current user from supabaseBiz (where login happens)
