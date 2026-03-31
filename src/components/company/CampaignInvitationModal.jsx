@@ -39,9 +39,11 @@ export default function CampaignInvitationModal({
       // 기업이 만든 활성 캠페인만 조회
       const { data: campaignsData, error } = await client
         .from('campaigns')
-        .select('id, title, campaign_type, status, deadline, reward_amount, package_type, main_image, thumbnail')
+        .select('id, title, campaign_type, status, approval_status, payment_status, application_deadline, recruitment_deadline, reward_points, package_type, image_url')
         .eq('company_email', companyEmail)
-        .in('status', ['active', 'approved', 'recruiting'])
+        .eq('status', 'active')
+        .eq('approval_status', 'approved')
+        .eq('payment_status', 'confirmed')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -215,9 +217,9 @@ export default function CampaignInvitationModal({
                             {campaign.title}
                           </p>
                           <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                            <span>{formatAmount(campaign.reward_amount)}</span>
+                            <span>{formatAmount(campaign.reward_points)}</span>
                             <span className="text-gray-300">|</span>
-                            <span>{formatDate(campaign.deadline)}</span>
+                            <span>{formatDate(campaign.application_deadline || campaign.recruitment_deadline)}</span>
                           </div>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
