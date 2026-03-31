@@ -1,30 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
-
-// 환경변수 안전하게 로드
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// BIZ Supabase 클라이언트 (안전하게 생성)
-let supabase = null;
-try {
-  if (supabaseUrl && supabaseServiceKey) {
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
-  }
-} catch (e) {
-  console.error('[INIT ERROR] Failed to create BIZ supabase client:', e.message);
-}
-
-// Korea Supabase 클라이언트
-const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
-const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
-let supabaseKorea = null;
-try {
-  if (supabaseKoreaUrl && supabaseKoreaServiceKey) {
-    supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaServiceKey);
-  }
-} catch (e) {
-  console.error('[INIT ERROR] Failed to create Korea supabase client:', e.message);
-}
+const { getBizClient, getKoreaClient } = require('./lib/supabase');
+const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
 
 /**
  * 캠페인 타입을 한글 라벨로 변환
@@ -70,15 +45,7 @@ const calculateCreatorPoints = (campaign) => {
  * - 이메일 발송
  */
 exports.handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
+  if (event.httpMethod === 'OPTIONS') return handleOptions();
 
   try {
     const {
@@ -93,28 +60,20 @@ exports.handler = async (event) => {
     console.log('[INFO] Creator invitation request:', { campaignId, creatorId, invitedBy });
 
     if (!campaignId || !creatorId || !invitedBy) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, error: '필수 파라미터가 누락되었습니다.' })
-      };
+      return errorResponse(400, '필수 파라미터가 누락되었습니다.');
     }
 
-    // Supabase 클라이언트 확인
-    if (!supabase) {
-      console.error('[ERROR] BIZ Supabase client not initialized');
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ success: false, error: '데이터베이스 연결 오류가 발생했습니다.' })
-      };
+    const supabase = getBizClient();
+    let supabaseKorea = null;
+    try { supabaseKorea = getKoreaClient(); } catch (e) {
+      console.error('[INIT] Korea client not available:', e.message);
     }
 
     // 1. 캠페인 정보 조회 (Korea DB 우선, 없으면 BIZ DB)
     let campaign = null;
     let campaignClient = null;
 
-    // Korea DB에서 먼저 조회 (select * 사용으로 스키마 차이 해결)
+    // Korea DB에서 먼저 조회
     console.log('[DEBUG] Checking Korea DB for campaign...');
     if (supabaseKorea) {
       const { data: koreaCampaign, error: koreaError } = await supabaseKorea
@@ -127,7 +86,6 @@ exports.handler = async (event) => {
       if (koreaCampaign && !koreaError) {
         campaign = {
           ...koreaCampaign,
-          // 통일된 필드명으로 매핑
           deadline: koreaCampaign.application_deadline || koreaCampaign.recruitment_deadline || koreaCampaign.deadline
         };
         campaignClient = supabaseKorea;
@@ -143,7 +101,7 @@ exports.handler = async (event) => {
       console.log('[DEBUG] Korea Supabase client not available');
     }
 
-    // Korea에 없으면 BIZ DB에서 조회 (select * 사용)
+    // Korea에 없으면 BIZ DB에서 조회
     if (!campaign) {
       console.log('[DEBUG] Checking BIZ DB for campaign...');
       const { data: bizCampaign, error: bizError } = await supabase
@@ -156,7 +114,6 @@ exports.handler = async (event) => {
       if (bizCampaign && !bizError) {
         campaign = {
           ...bizCampaign,
-          // 통일된 필드명으로 매핑
           deadline: bizCampaign.deadline || bizCampaign.application_deadline || bizCampaign.recruitment_deadline
         };
         campaignClient = supabase;
@@ -172,20 +129,20 @@ exports.handler = async (event) => {
 
     if (!campaign) {
       console.error('[ERROR] Campaign not found in any DB:', campaignId);
-      return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' }) };
+      return errorResponse(404, '캠페인을 찾을 수 없습니다.');
     }
 
     // 2. 캠페인 소유권 확인 (대소문자 무시)
     console.log('[INFO] Checking ownership:', { campaignEmail: campaign.company_email, userEmail: companyEmail });
     if (campaign.company_email?.toLowerCase() !== companyEmail?.toLowerCase()) {
       console.error('[ERROR] Ownership mismatch:', { campaignEmail: campaign.company_email, userEmail: companyEmail });
-      return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다.' }) };
+      return errorResponse(403, '이 캠페인에 대한 권한이 없습니다.');
     }
 
     // 3. 크리에이터 정보 조회 (featured_creators 또는 user_profiles에서)
     let creator = null;
 
-    // 먼저 featured_creators에서 조회 (select * 사용)
+    // 먼저 featured_creators에서 조회
     console.log('[DEBUG] Checking featured_creators for creator:', creatorId);
     const { data: featuredCreator, error: featuredError } = await supabase
       .from('featured_creators')
@@ -230,7 +187,7 @@ exports.handler = async (event) => {
     }
 
     if (!creator) {
-      return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '크리에이터를 찾을 수 없습니다.' }) };
+      return errorResponse(404, '크리에이터를 찾을 수 없습니다.');
     }
 
     const creatorName = creator.name || creator.creator_name || '크리에이터';
@@ -253,11 +210,7 @@ exports.handler = async (event) => {
       .single();
 
     if (existingInvitation) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, message: '이미 초대장을 보냈습니다.', invitationId: existingInvitation.id })
-      };
+      return successResponse({ success: true, message: '이미 초대장을 보냈습니다.', invitationId: existingInvitation.id });
     }
 
     // 6. 만료일 계산
@@ -285,7 +238,7 @@ exports.handler = async (event) => {
       .single();
 
     if (invitationError) {
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: '초대장 생성에 실패했습니다.' }) };
+      return errorResponse(500, '초대장 생성에 실패했습니다.');
     }
 
     console.log('[SUCCESS] Invitation created:', invitation.id);
@@ -305,7 +258,7 @@ exports.handler = async (event) => {
     // 8. 카카오톡 발송
     if (sendKakao && creator.phone) {
       try {
-        const kakaoResponse = await fetch(`${process.env.URL}/.netlify/functions/send-kakao-notification`, {
+        const kakaoResponse = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -370,7 +323,7 @@ exports.handler = async (event) => {
 </td></tr></table>
 </body></html>`;
 
-        await fetch(`${process.env.URL}/.netlify/functions/send-email`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -385,14 +338,25 @@ exports.handler = async (event) => {
       }
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, invitationId: invitation.id, message: '초대장을 성공적으로 발송했습니다.', results })
-    };
+    return successResponse({ success: true, invitationId: invitation.id, message: '초대장을 성공적으로 발송했습니다.', results });
 
   } catch (error) {
-    console.error('[ERROR] Creator invitation error:', error);
-    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    console.error('[send-creator-invitation] Error:', error);
+
+    // 에러 알림 발송
+    try {
+      const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
+      await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          functionName: 'send-creator-invitation',
+          errorMessage: error.message,
+          context: { body: event.body?.substring(0, 500) }
+        })
+      });
+    } catch (e) { console.error('Error alert failed:', e.message); }
+
+    return errorResponse(500, error.message);
   }
 };
