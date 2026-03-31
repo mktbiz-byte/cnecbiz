@@ -24,6 +24,31 @@ const MOCK_AD_ACCOUNTS = [
   { id: 'act_456789123', name: 'Sister&', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
 ]
 
+const MOCK_PERFORMANCE = {
+  act_123456789: {
+    summary: { impressions: 284500, clicks: 3420, ctr: 1.20, cpc: 287, spend: 982140, conversions: 89, roas: 4.2 },
+    campaigns: [
+      { id: 1, name: 'Risebee x Creator_A Video Ad', status: 'ACTIVE', impressions: 145200, clicks: 1840, spend: 528340, ctr: 1.27 },
+      { id: 2, name: 'Risebee x Creator_B Reel Campaign', status: 'ACTIVE', impressions: 98300, clicks: 1120, spend: 321400, ctr: 1.14 },
+      { id: 3, name: 'Risebee Retargeting', status: 'PAUSED', impressions: 41000, clicks: 460, spend: 132400, ctr: 1.12 },
+    ],
+  },
+  act_987654321: {
+    summary: { impressions: 156800, clicks: 2100, ctr: 1.34, cpc: 312, spend: 655200, conversions: 52, roas: 3.8 },
+    campaigns: [
+      { id: 4, name: 'Medisection x Creator_C Product Launch', status: 'ACTIVE', impressions: 98500, clicks: 1350, spend: 421200, ctr: 1.37 },
+      { id: 5, name: 'Medisection Promotion', status: 'ACTIVE', impressions: 58300, clicks: 750, spend: 234000, ctr: 1.29 },
+    ],
+  },
+  act_456789123: {
+    summary: { impressions: 203100, clicks: 2780, ctr: 1.37, cpc: 265, spend: 736700, conversions: 67, roas: 3.5 },
+    campaigns: [
+      { id: 6, name: 'Sister& x Creator_D Summer Collection', status: 'ACTIVE', impressions: 132000, clicks: 1820, spend: 482350, ctr: 1.38 },
+      { id: 7, name: 'Sister& Discount Event', status: 'PAUSED', impressions: 71100, clicks: 960, spend: 254350, ctr: 1.35 },
+    ],
+  },
+}
+
 // ── Utilities ──────────────────────────────────────────
 const fmt = (n) => n?.toLocaleString('en-US') ?? '-'
 const fmtKRW = (n) => `₩${fmt(n)}`
@@ -71,7 +96,7 @@ export default function MetaAdsPage() {
     }, 1800)
   }
 
-  const perf = activeAccount ? {} : null
+  const perf = activeAccount ? MOCK_PERFORMANCE[activeAccount.id] : null
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -465,9 +490,201 @@ function ConnectingView() {
 }
 
 function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf }) {
+  const [activeTab, setActiveTab] = useState('performance')
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Permission banner */}
+      <PermissionBanner />
+
+      {/* Account tabs */}
+      <div className="flex items-center gap-2">
+        {connectedAccounts.map((acc) => (
+          <button
+            key={acc.id}
+            onClick={() => onSelectAccount(acc)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              activeAccount?.id === acc.id
+                ? 'bg-[#6C5CE7] text-white shadow-md'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            {acc.name}
+          </button>
+        ))}
+        <Badge variant="outline" className="ml-2 text-green-600 border-green-200 bg-green-50">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
+          Connected
+        </Badge>
+      </div>
+
+      {/* Feature tabs */}
+      <FeatureTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'performance' ? (
+        <AdPerformanceTab perf={perf} />
+      ) : (
+        <CreatorDiscoveryTab />
+      )}
+    </div>
+  )
+}
+
+function PermissionBanner() {
+  return (
+    <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+      <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+        <span className="text-blue-600 text-xs font-bold">i</span>
+      </div>
+      <div>
+        <p className="text-sm text-blue-800 font-medium">
+          This dashboard uses the following read-only permissions:
+        </p>
+        <ul className="text-xs text-blue-700 mt-1.5 space-y-0.5">
+          <li>• <strong>ads_read</strong> — View ad performance data (impressions, clicks, CTR, CPC, spend, ROAS)</li>
+          <li>• <strong>instagram_basic</strong> — View public Instagram Business/Creator profiles and media</li>
+        </ul>
+        <p className="text-xs text-blue-600 mt-1.5">
+          No data is created, modified, or deleted. Data is not shared with third parties.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function FeatureTabs({ activeTab, onTabChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onTabChange('performance')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          activeTab === 'performance'
+            ? 'bg-[#6C5CE7] text-white shadow-md'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+        }`}
+      >
+        <BarChart3 className="w-4 h-4" />
+        Ad Performance
+      </button>
+      <button
+        onClick={() => onTabChange('discovery')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          activeTab === 'discovery'
+            ? 'bg-[#6C5CE7] text-white shadow-md'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+        }`}
+      >
+        <Search className="w-4 h-4" />
+        Creator Discovery
+      </button>
+    </div>
+  )
+}
+
+function AdPerformanceTab({ perf }) {
+  const { summary, campaigns } = perf
+
+  const kpiCards = [
+    { label: 'Impressions', value: fmt(summary.impressions), icon: Eye, change: '+18.5%', up: true },
+    { label: 'Clicks', value: fmt(summary.clicks), icon: MousePointerClick, change: '+22.3%', up: true },
+    { label: 'CTR', value: `${summary.ctr.toFixed(2)}%`, icon: Target, change: '+0.4%', up: true },
+    { label: 'CPC', value: fmtKRW(summary.cpc), icon: DollarSign, change: '-8.1%', up: false },
+    { label: 'Spend', value: fmtKRW(summary.spend), icon: BarChart3, change: '+12.4%', up: true },
+    { label: 'Conversions', value: fmt(summary.conversions), icon: ShoppingCart, change: '+25.7%', up: true },
+    { label: 'ROAS', value: `${summary.roas}x`, icon: TrendingUp, change: '+0.6', up: true },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {kpiCards.map((kpi) => (
+          <Card key={kpi.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-lg bg-[#F0EDFF] flex items-center justify-center">
+                  <kpi.icon className="w-4 h-4 text-[#6C5CE7]" />
+                </div>
+                <span className={`text-xs font-medium flex items-center gap-0.5 ${
+                  kpi.up ? 'text-green-600' : 'text-blue-600'
+                }`}>
+                  {kpi.up
+                    ? <ArrowUpRight className="w-3 h-3" />
+                    : <ArrowDownRight className="w-3 h-3" />
+                  }
+                  {kpi.change}
+                </span>
+              </div>
+              <p className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                {kpi.value}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">{kpi.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Campaign Table */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Target className="w-4 h-4 text-[#6C5CE7]" />
+            Campaign Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Campaign</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right">Impressions</TableHead>
+                <TableHead className="text-right">Clicks</TableHead>
+                <TableHead className="text-right">CTR</TableHead>
+                <TableHead className="text-right">Spend</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {campaigns.map((camp) => (
+                <TableRow key={camp.id}>
+                  <TableCell className="font-medium text-sm">{camp.name}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={
+                      camp.status === 'ACTIVE'
+                        ? 'bg-green-50 text-green-700 border-0'
+                        : 'bg-gray-50 text-gray-500 border-0'
+                    }>
+                      {camp.status === 'ACTIVE' ? 'Active' : 'Paused'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{fmt(camp.impressions)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{fmt(camp.clicks)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{camp.ctr.toFixed(2)}%</TableCell>
+                  <TableCell className="text-right text-sm font-medium tabular-nums" style={{ color: '#6C5CE7' }}>
+                    {fmtKRW(camp.spend)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Footer */}
+      <div className="text-center py-4">
+        <p className="text-xs text-gray-400">
+          Data period: Last 30 days · Last synced: {new Date().toLocaleDateString('en-US')} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          · Permission: ads_read (read-only)
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function CreatorDiscoveryTab() {
   return (
     <div className="p-8 text-center text-gray-400">
-      Dashboard — will be implemented in next step
+      Creator Discovery — will be implemented in next step
     </div>
   )
 }
