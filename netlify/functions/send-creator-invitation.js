@@ -139,8 +139,22 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. 캠페인 소유권 확인
-    if (companyEmail && campaign.company_email?.toLowerCase() !== companyEmail?.toLowerCase()) {
+    // 2. 캠페인 소유권 확인 (관리자는 건너뜀)
+    let isAdmin = false;
+    if (companyEmail) {
+      const { data: adminData } = await supabase
+        .from('admin_users')
+        .select('id, role')
+        .eq('email', companyEmail)
+        .maybeSingle();
+
+      if (adminData) {
+        isAdmin = true;
+        console.log('[INFO] Admin user detected:', { email: companyEmail, role: adminData.role });
+      }
+    }
+
+    if (!isAdmin && companyEmail && campaign.company_email?.toLowerCase() !== companyEmail?.toLowerCase()) {
       console.error('[ERROR] Ownership mismatch:', { campaignEmail: campaign.company_email, userEmail: companyEmail });
       return {
         statusCode: 403,
