@@ -5432,6 +5432,7 @@ Questions? Contact us.
             body: JSON.stringify({
               action: 'update_video_submission',
               region,
+              sourceRegion: submission._source_region || region,
               submissionId: submission.id,
               updateData: { status: 'approved', updated_at: now }
             })
@@ -5814,6 +5815,7 @@ Questions? Contact us.
         body: JSON.stringify({
           action: 'update_video_submission',
           region,
+          sourceRegion: submission._source_region || region,
           submissionId: submission.id,
           updateData: { status: 'completed', final_confirmed_at: confirmedAt }
         })
@@ -5832,11 +5834,22 @@ Questions? Contact us.
       ))
 
       // 2. application 정보 가져오기 (user_id 포함)
-      const { data: applicationData } = await supabase
-        .from('applications')
-        .select('id, user_id, creator_name, applicant_name')
-        .eq('id', submission.application_id)
-        .single()
+      // 먼저 로컬 participants에서 찾기 (RLS 문제 회피)
+      const localParticipant = participants.find(p => p.id === submission.application_id || p.user_id === submission.user_id)
+      let applicationData = localParticipant ? {
+        id: localParticipant.id,
+        user_id: localParticipant.user_id,
+        creator_name: localParticipant.creator_name,
+        applicant_name: localParticipant.applicant_name
+      } : null
+      if (!applicationData) {
+        const { data: appFromDb } = await supabase
+          .from('applications')
+          .select('id, user_id, creator_name, applicant_name')
+          .eq('id', submission.application_id)
+          .single()
+        applicationData = appFromDb
+      }
 
       // 3. applications를 completed로 업데이트 (리전 API 사용)
       await callRegionCampaignAPI(region, 'update_application', id, submission.application_id, {
@@ -6357,31 +6370,49 @@ Questions? Contact us.
 
     setSavingAdminSnsEdit(true)
     try {
-      const videoClient = supabase  // 리전별 Supabase 클라이언트 사용
-
-      // video_submissions 테이블에 SNS URL 및 광고코드 업데이트
+      // video_submissions 테이블에 SNS URL 및 광고코드 업데이트 (Netlify Function으로 RLS 우회)
       if (adminSnsEditData.submissionId) {
         const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
         if (adminSnsEditData.adCode?.trim()) {
           updateData.ad_code = adminSnsEditData.adCode.trim()
           updateData.partnership_code = adminSnsEditData.adCode.trim() // 호환성
         }
-        await videoClient
-          .from('video_submissions')
-          .update(updateData)
-          .eq('id', adminSnsEditData.submissionId)
+        const snsUpdateRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_video_submission',
+            region,
+            submissionId: adminSnsEditData.submissionId,
+            updateData
+          })
+        })
+        const snsUpdateResult = await snsUpdateRes.json()
+        if (!snsUpdateResult.success) {
+          console.error('video_submissions SNS URL 업데이트 실패:', snsUpdateResult.error)
+        }
       }
 
-      // applications 테이블에도 SNS URL 및 광고코드 업데이트 (단일 영상용 호환성)
+      // applications 테이블에도 SNS URL 및 광고코드 업데이트 (Netlify Function으로 RLS 우회)
       if (adminSnsEditData.participantId) {
         const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
         if (adminSnsEditData.adCode?.trim()) {
           updateData.partnership_code = adminSnsEditData.adCode.trim()
         }
-        await supabase
-          .from('applications')
-          .update(updateData)
-          .eq('id', adminSnsEditData.participantId)
+        const appUpdateRes = await fetch('/.netlify/functions/save-video-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_application',
+            region,
+            applicationId: adminSnsEditData.participantId,
+            updateData
+          })
+        })
+        const appUpdateResult = await appUpdateRes.json()
+        if (!appUpdateResult.success) {
+          console.error('applications SNS URL 업데이트 실패:', appUpdateResult.error)
+        }
       }
 
       setShowAdminSnsEditModal(false)
@@ -6429,11 +6460,8 @@ Questions? Contact us.
 
       // 신규 등록 모드일 때는 최종 확정 진행
       const submissionId = adminSnsEditData.submissionId
-      const { data: submission } = await videoClient
-        .from('video_submissions')
-        .select('*')
-        .eq('id', submissionId)
-        .single()
+      // videoSubmissions 로컬 상태에서 해당 submission 찾기 (RLS 우회 불필요)
+      const submission = videoSubmissions.find(v => v.id === submissionId)
 
       setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
 
