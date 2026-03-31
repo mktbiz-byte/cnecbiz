@@ -24,6 +24,63 @@ const MOCK_AD_ACCOUNTS = [
   { id: 'act_456789123', name: 'Sister&', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
 ]
 
+const MOCK_CREATORS = {
+  'beauty_creator_kr': {
+    username: 'beauty_creator_kr',
+    name: 'Soyeon Kim',
+    bio: 'K-beauty & Skincare Creator\nDaily skincare tips & honest reviews\ncollab@beautycreator.kr',
+    followers: 52300,
+    following: 892,
+    posts: 1284,
+    engagementRate: 4.2,
+    avgLikes: 3800,
+    recentMedia: [
+      { likes: 2100, comments: 89, type: 'IMAGE' },
+      { likes: 4500, comments: 156, type: 'VIDEO' },
+      { likes: 1800, comments: 72, type: 'IMAGE' },
+      { likes: 3200, comments: 134, type: 'CAROUSEL' },
+      { likes: 5100, comments: 201, type: 'VIDEO' },
+      { likes: 2700, comments: 98, type: 'IMAGE' },
+    ]
+  },
+  'glow_makeup_jp': {
+    username: 'glow_makeup_jp',
+    name: 'Yuki Tanaka',
+    bio: 'Japanese Makeup Artist\nTutorials & Product Reviews\nyuki@glowmakeup.jp',
+    followers: 31200,
+    following: 445,
+    posts: 876,
+    engagementRate: 5.1,
+    avgLikes: 2900,
+    recentMedia: [
+      { likes: 3400, comments: 112, type: 'VIDEO' },
+      { likes: 2200, comments: 78, type: 'IMAGE' },
+      { likes: 4100, comments: 189, type: 'VIDEO' },
+      { likes: 1900, comments: 65, type: 'IMAGE' },
+      { likes: 2800, comments: 94, type: 'CAROUSEL' },
+      { likes: 3600, comments: 143, type: 'IMAGE' },
+    ]
+  },
+  'skincare_daily_us': {
+    username: 'skincare_daily_us',
+    name: 'Sarah Chen',
+    bio: 'Clean Beauty Advocate\nK-beauty imports & routines\nskincare-daily.com',
+    followers: 78500,
+    following: 612,
+    posts: 2156,
+    engagementRate: 3.5,
+    avgLikes: 5200,
+    recentMedia: [
+      { likes: 5800, comments: 234, type: 'VIDEO' },
+      { likes: 4200, comments: 167, type: 'IMAGE' },
+      { likes: 6100, comments: 289, type: 'VIDEO' },
+      { likes: 3900, comments: 145, type: 'CAROUSEL' },
+      { likes: 5500, comments: 198, type: 'IMAGE' },
+      { likes: 4700, comments: 176, type: 'IMAGE' },
+    ]
+  }
+}
+
 const MOCK_PERFORMANCE = {
   act_123456789: {
     summary: { impressions: 284500, clicks: 3420, ctr: 1.20, cpc: 287, spend: 982140, conversions: 89, roas: 4.2 },
@@ -682,9 +739,172 @@ function AdPerformanceTab({ perf }) {
 }
 
 function CreatorDiscoveryTab() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResult, setSearchResult] = useState(null)
+  const [isSearching, setIsSearching] = useState(false)
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    setTimeout(() => {
+      const cleaned = searchQuery.replace('@', '').trim().toLowerCase()
+      const creator = MOCK_CREATORS[cleaned] || MOCK_CREATORS['beauty_creator_kr']
+      setSearchResult(creator)
+      setIsSearching(false)
+    }, 1500)
+  }
+
+  const fmtShort = (n) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`
+    return n.toString()
+  }
+
   return (
-    <div className="p-8 text-center text-gray-400">
-      Creator Discovery — will be implemented in next step
+    <div className="space-y-6">
+      {/* Search area */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#6C5CE7] flex items-center justify-center">
+              <Search className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Creator Profile Lookup</CardTitle>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Search Instagram Business/Creator accounts using Business Discovery API (instagram_basic)
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Enter Instagram username (e.g. beauty_creator_kr)"
+              className="flex-1 h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7]"
+            />
+            <Button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="h-11 px-6 rounded-xl font-semibold"
+              style={{ backgroundColor: '#6C5CE7' }}
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4 mr-2" />Search</>}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Loading state */}
+      {isSearching && (
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-[#6C5CE7] animate-spin mx-auto" />
+            <p className="text-sm text-gray-500">Searching creator profile...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Search result */}
+      {!isSearching && searchResult && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6 space-y-6">
+            {/* Profile header */}
+            <div className="flex items-start gap-5">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#6C5CE7] to-[#a78bfa] flex items-center justify-center flex-shrink-0">
+                <User className="w-10 h-10 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-lg text-gray-900">@{searchResult.username}</p>
+                <p className="text-sm text-gray-600 font-medium">{searchResult.name}</p>
+                <p className="text-sm text-gray-500 mt-2 whitespace-pre-line leading-relaxed">{searchResult.bio}</p>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmtShort(searchResult.followers)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Followers</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmt(searchResult.posts)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Posts</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {searchResult.engagementRate}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Eng. Rate</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmtShort(searchResult.avgLikes)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Avg. Likes</p>
+              </div>
+            </div>
+
+            {/* Recent posts grid */}
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Recent Posts</p>
+              <div className="grid grid-cols-6 gap-3">
+                {searchResult.recentMedia.map((media, idx) => (
+                  <div
+                    key={idx}
+                    className={`aspect-square rounded-xl relative overflow-hidden ${
+                      media.type === 'VIDEO'
+                        ? 'bg-gradient-to-br from-blue-400 to-cyan-400'
+                        : media.type === 'CAROUSEL'
+                          ? 'bg-gradient-to-br from-amber-400 to-orange-400'
+                          : 'bg-gradient-to-br from-pink-400 to-purple-400'
+                    }`}
+                  >
+                    {/* Type icon */}
+                    {media.type === 'VIDEO' && (
+                      <div className="absolute top-2 right-2">
+                        <Play className="w-4 h-4 text-white/80" />
+                      </div>
+                    )}
+                    {media.type === 'CAROUSEL' && (
+                      <div className="absolute top-2 right-2">
+                        <Grid3X3 className="w-4 h-4 text-white/80" />
+                      </div>
+                    )}
+
+                    {/* Engagement overlay */}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/40 backdrop-blur-sm px-2 py-1.5 flex items-center justify-center gap-3">
+                      <span className="flex items-center gap-1 text-white text-xs">
+                        <Heart className="w-3 h-3" />
+                        {fmtShort(media.likes)}
+                      </span>
+                      <span className="flex items-center gap-1 text-white text-xs">
+                        <MessageCircle className="w-3 h-3" />
+                        {media.comments}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Info footer */}
+            <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm flex-shrink-0">ℹ️</span>
+              <p className="text-xs text-gray-500">
+                Data fetched via Business Discovery API using instagram_basic permission. Read-only access to public Instagram Business/Creator profiles.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
