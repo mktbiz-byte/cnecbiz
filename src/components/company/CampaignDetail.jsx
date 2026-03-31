@@ -2020,15 +2020,19 @@ export default function CampaignDetail() {
           personal_color: profile?.personal_color || app.personal_color || null,
           hair_type: profile?.hair_type || app.hair_type || null,
           age_range: profile?.age_range || app.age_range || null,
-          // 배송 정보 (application 우선 → profile fallback)
+          // 주소 정보 (application 우선 → profile fallback) - Korea: address/detail_address/postal_code
+          address: app.address || profile?.address || null,
+          detail_address: app.detail_address || profile?.detail_address || null,
+          postal_code: app.postal_code || profile?.postal_code || profile?.postcode || null,
+          // 배송 정보 (application 우선 → profile fallback) - US/Japan: shipping_* fields
           shipping_country: app.shipping_country || profile?.shipping_country || null,
           shipping_state: app.shipping_state || profile?.shipping_state || null,
           shipping_city: app.shipping_city || profile?.shipping_city || null,
-          shipping_zip: app.shipping_zip || profile?.shipping_zip || null,
+          shipping_zip: app.shipping_zip || profile?.shipping_zip || profile?.postal_code || profile?.postcode || null,
           shipping_phone: app.shipping_phone || profile?.shipping_phone || null,
           shipping_recipient_name: app.shipping_recipient_name || profile?.shipping_recipient_name || null,
-          shipping_address_line1: app.shipping_address_line1 || profile?.shipping_address_line1 || null,
-          shipping_address_line2: app.shipping_address_line2 || profile?.shipping_address_line2 || null,
+          shipping_address_line1: app.shipping_address_line1 || profile?.shipping_address_line1 || profile?.address || null,
+          shipping_address_line2: app.shipping_address_line2 || profile?.shipping_address_line2 || profile?.detail_address || null,
           shipping_address_confirmed: app.shipping_address_confirmed ?? false,
           shipping_address_confirmed_at: app.shipping_address_confirmed_at || null
         }
