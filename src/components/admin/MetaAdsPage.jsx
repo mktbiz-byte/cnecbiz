@@ -1,97 +1,131 @@
 /**
- * Meta Ads Demo Page — ads_read 권한 심사용 데모
- * 실제 API 호출 없이 목업 데이터로 작동
+ * Meta Ads Demo Page — ads_read + instagram_basic permission review demo
+ * Uses mock data only, no real API calls
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import {
   Loader2, Link2, Eye, MousePointerClick, DollarSign, TrendingUp,
   CheckCircle2, Target, BarChart3, ShoppingCart, ArrowUpRight, ArrowDownRight,
-  Info, User, AlertCircle,
+  Search, User, Heart, MessageCircle, Image as ImageIcon, Play, Grid3X3,
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import AdminNavigation from './AdminNavigation'
 
-// ── 목업 데이터 ──────────────────────────────────────────
+// ── Mock Data ──────────────────────────────────────────
 const MOCK_AD_ACCOUNTS = [
-  { id: 'act_123456789', name: '라이즈비', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
-  { id: 'act_987654321', name: '메디셕션', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
-  { id: 'act_456789123', name: '씨스터앤', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
+  { id: 'act_123456789', name: 'Risebee', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
+  { id: 'act_987654321', name: 'Medisection', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
+  { id: 'act_456789123', name: 'Sister&', currency: 'KRW', timezone: 'Asia/Seoul', status: 1 },
 ]
+
+const MOCK_CREATORS = {
+  'beauty_creator_kr': {
+    username: 'beauty_creator_kr',
+    name: 'Soyeon Kim',
+    bio: 'K-beauty & Skincare Creator\nDaily skincare tips & honest reviews\ncollab@beautycreator.kr',
+    followers: 52300,
+    following: 892,
+    posts: 1284,
+    engagementRate: 4.2,
+    avgLikes: 3800,
+    recentMedia: [
+      { likes: 2100, comments: 89, type: 'IMAGE' },
+      { likes: 4500, comments: 156, type: 'VIDEO' },
+      { likes: 1800, comments: 72, type: 'IMAGE' },
+      { likes: 3200, comments: 134, type: 'CAROUSEL' },
+      { likes: 5100, comments: 201, type: 'VIDEO' },
+      { likes: 2700, comments: 98, type: 'IMAGE' },
+    ]
+  },
+  'glow_makeup_jp': {
+    username: 'glow_makeup_jp',
+    name: 'Yuki Tanaka',
+    bio: 'Japanese Makeup Artist\nTutorials & Product Reviews\nyuki@glowmakeup.jp',
+    followers: 31200,
+    following: 445,
+    posts: 876,
+    engagementRate: 5.1,
+    avgLikes: 2900,
+    recentMedia: [
+      { likes: 3400, comments: 112, type: 'VIDEO' },
+      { likes: 2200, comments: 78, type: 'IMAGE' },
+      { likes: 4100, comments: 189, type: 'VIDEO' },
+      { likes: 1900, comments: 65, type: 'IMAGE' },
+      { likes: 2800, comments: 94, type: 'CAROUSEL' },
+      { likes: 3600, comments: 143, type: 'IMAGE' },
+    ]
+  },
+  'skincare_daily_us': {
+    username: 'skincare_daily_us',
+    name: 'Sarah Chen',
+    bio: 'Clean Beauty Advocate\nK-beauty imports & routines\nskincare-daily.com',
+    followers: 78500,
+    following: 612,
+    posts: 2156,
+    engagementRate: 3.5,
+    avgLikes: 5200,
+    recentMedia: [
+      { likes: 5800, comments: 234, type: 'VIDEO' },
+      { likes: 4200, comments: 167, type: 'IMAGE' },
+      { likes: 6100, comments: 289, type: 'VIDEO' },
+      { likes: 3900, comments: 145, type: 'CAROUSEL' },
+      { likes: 5500, comments: 198, type: 'IMAGE' },
+      { likes: 4700, comments: 176, type: 'IMAGE' },
+    ]
+  }
+}
 
 const MOCK_PERFORMANCE = {
   act_123456789: {
-    summary: { impressions: 384200, clicks: 11526, ctr: 3.0, cpc: 215, spend: 2478090, conversions: 312, roas: 4.8 },
+    summary: { impressions: 284500, clicks: 3420, ctr: 1.20, cpc: 287, spend: 982140, conversions: 89, roas: 4.2 },
     campaigns: [
-      { id: 1, name: '라이즈비 x 크리에이터A 영상 광고', status: 'ACTIVE', impressions: 182400, clicks: 5840, spend: 1255600, ctr: 3.20, roas: 5.1 },
-      { id: 2, name: '라이즈비 x 크리에이터B 릴스 전환', status: 'ACTIVE', impressions: 128300, clicks: 3820, spend: 821500, ctr: 2.98, roas: 4.6 },
-      { id: 3, name: '라이즈비 크리에이터 리뷰 리타겟팅', status: 'PAUSED', impressions: 73500, clicks: 1866, spend: 400990, ctr: 2.54, roas: 4.2 },
+      { id: 1, name: 'Risebee x Creator_A Video Ad', status: 'ACTIVE', impressions: 145200, clicks: 1840, spend: 528340, ctr: 1.27 },
+      { id: 2, name: 'Risebee x Creator_B Reel Campaign', status: 'ACTIVE', impressions: 98300, clicks: 1120, spend: 321400, ctr: 1.14 },
+      { id: 3, name: 'Risebee Retargeting', status: 'PAUSED', impressions: 41000, clicks: 460, spend: 132400, ctr: 1.12 },
     ],
   },
   act_987654321: {
-    summary: { impressions: 256800, clicks: 6420, ctr: 2.5, cpc: 278, spend: 1784760, conversions: 198, roas: 3.6 },
+    summary: { impressions: 156800, clicks: 2100, ctr: 1.34, cpc: 312, spend: 655200, conversions: 52, roas: 3.8 },
     campaigns: [
-      { id: 4, name: '메디셕션 x 뷰티크리에이터 영상 광고', status: 'ACTIVE', impressions: 168500, clicks: 4372, spend: 1215400, ctr: 2.59, roas: 3.9 },
-      { id: 5, name: '메디셕션 크리에이터 후기 프로모션', status: 'ACTIVE', impressions: 88300, clicks: 2048, spend: 569360, ctr: 2.32, roas: 3.1 },
+      { id: 4, name: 'Medisection x Creator_C Product Launch', status: 'ACTIVE', impressions: 98500, clicks: 1350, spend: 421200, ctr: 1.37 },
+      { id: 5, name: 'Medisection Promotion', status: 'ACTIVE', impressions: 58300, clicks: 750, spend: 234000, ctr: 1.29 },
     ],
   },
   act_456789123: {
-    summary: { impressions: 423100, clicks: 14808, ctr: 3.5, cpc: 198, spend: 2931984, conversions: 421, roas: 5.2 },
+    summary: { impressions: 203100, clicks: 2780, ctr: 1.37, cpc: 265, spend: 736700, conversions: 67, roas: 3.5 },
     campaigns: [
-      { id: 6, name: '씨스터앤 x 크리에이터C 썸머 영상', status: 'ACTIVE', impressions: 245000, clicks: 9310, spend: 1843380, ctr: 3.80, roas: 5.8 },
-      { id: 7, name: '씨스터앤 크리에이터 콘텐츠 전환', status: 'ACTIVE', impressions: 112600, clicks: 3488, spend: 690604, ctr: 3.10, roas: 4.5 },
-      { id: 8, name: '씨스터앤 인플루언서 리타겟팅', status: 'PAUSED', impressions: 65500, clicks: 2010, spend: 398000, ctr: 3.07, roas: 4.0 },
+      { id: 6, name: 'Sister& x Creator_D Summer Collection', status: 'ACTIVE', impressions: 132000, clicks: 1820, spend: 482350, ctr: 1.38 },
+      { id: 7, name: 'Sister& Discount Event', status: 'PAUSED', impressions: 71100, clicks: 960, spend: 254350, ctr: 1.35 },
     ],
   },
 }
 
-// 크리에이터별 광고 효율 목업
-const MOCK_CREATOR_PERFORMANCE = [
-  { creator: '크리에이터C (김소연)', campaign: '씨스터앤 x 크리에이터C 썸머 영상', impressions: 245000, clicks: 9310, ctr: 3.80, roas: 5.8 },
-  { creator: '크리에이터A (박지은)', campaign: '라이즈비 x 크리에이터A 영상 광고', impressions: 182400, clicks: 5840, ctr: 3.20, roas: 5.1 },
-  { creator: '크리에이터B (이수빈)', campaign: '라이즈비 x 크리에이터B 릴스 전환', impressions: 128300, clicks: 3820, ctr: 2.98, roas: 4.6 },
-  { creator: '크리에이터F (정유나)', campaign: '씨스터앤 크리에이터 콘텐츠 전환', impressions: 112600, clicks: 3488, ctr: 3.10, roas: 4.5 },
-  { creator: '크리에이터D (최혜원)', campaign: '라이즈비 크리에이터 리뷰 리타겟팅', impressions: 73500, clicks: 1866, ctr: 2.54, roas: 4.2 },
-  { creator: '크리에이터G (한서윤)', campaign: '씨스터앤 인플루언서 리타겟팅', impressions: 65500, clicks: 2010, ctr: 3.07, roas: 4.0 },
-  { creator: '크리에이터E (오민지)', campaign: '메디셕션 x 뷰티크리에이터 영상 광고', impressions: 168500, clicks: 4372, ctr: 2.59, roas: 3.9 },
-  { creator: '크리에이터H (송다영)', campaign: '메디셕션 크리에이터 후기 프로모션', impressions: 88300, clicks: 2048, ctr: 2.32, roas: 3.1 },
-]
-
-// 일별 ROAS 추이 (최근 30일)
-function generateDailyRoas() {
-  const data = []
-  const now = new Date()
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    const base = 3.8 + Math.sin(i * 0.3) * 1.2
-    const noise = (Math.random() - 0.5) * 0.8
-    data.push({
-      date: `${d.getMonth() + 1}/${d.getDate()}`,
-      roas: Math.max(1.8, +(base + noise).toFixed(2)),
-    })
-  }
-  return data
-}
-
-// ── 유틸 ──────────────────────────────────────────────────
-const fmt = (n) => n?.toLocaleString('ko-KR') ?? '-'
+// ── Utilities ──────────────────────────────────────────
+const fmt = (n) => n?.toLocaleString('en-US') ?? '-'
 const fmtKRW = (n) => `₩${fmt(n)}`
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────
+// ── Facebook Logo SVG ──────────────────────────────────
+function FacebookIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  )
+}
+
+// ── Main Component ─────────────────────────────────────
 export default function MetaAdsPage() {
-  // 단계: idle → oauth → auth_complete → selecting → connecting → dashboard
+  // Steps: idle → login → consent → selecting → connecting → dashboard
   const [step, setStep] = useState('idle')
   const [selectedAccounts, setSelectedAccounts] = useState([])
   const [connectedAccounts, setConnectedAccounts] = useState([])
   const [activeAccount, setActiveAccount] = useState(null)
-  const [oauthProgress, setOauthProgress] = useState(0)
 
   useEffect(() => {
     if (connectedAccounts.length > 0) {
@@ -100,20 +134,8 @@ export default function MetaAdsPage() {
     }
   }, [connectedAccounts])
 
-  // ── OAuth 시뮬레이션 (팝업 → 인증완료 모달 → 계정선택) ──
   const handleOAuthStart = () => {
-    setStep('oauth')
-    setOauthProgress(0)
-    const steps = [10, 25, 45, 65, 80, 95, 100]
-    steps.forEach((pct, i) => {
-      setTimeout(() => {
-        setOauthProgress(pct)
-        if (pct === 100) {
-          // 2초 후 인증 완료 모달 표시
-          setTimeout(() => setStep('auth_complete'), 800)
-        }
-      }, 600 + i * 400)
-    })
+    setStep('login')
   }
 
   const toggleAccountSelect = (acc) => {
@@ -137,26 +159,15 @@ export default function MetaAdsPage() {
     <div className="flex min-h-screen bg-gray-50">
       <AdminNavigation />
       <div className="flex-1 ml-60 p-6 space-y-6">
-        {/* 권한 안내 문구 */}
-        <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
-          <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">
-              이 기능은 ads_read 권한을 사용하여 광고 성과 데이터를 읽기 전용으로 조회합니다. 광고를 생성하거나 수정하지 않습니다.
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              수집된 데이터는 광고 효율 분석 대시보드 제공 목적으로만 사용되며, 제3자에게 판매되거나 공유되지 않습니다.
-            </p>
-          </div>
-        </div>
-
-        {/* 헤더 */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              Meta 광고 관리
+              Meta Ad Analytics
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Facebook & Instagram 광고 계정을 연동하고 크리에이터 영상 광고 성과를 확인하세요</p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Connect your Facebook & Instagram ad accounts to view campaign performance
+            </p>
           </div>
           {step === 'dashboard' && (
             <Button
@@ -169,14 +180,24 @@ export default function MetaAdsPage() {
                 setSelectedAccounts([])
               }}
             >
-              계정 재연동
+              Reconnect Accounts
             </Button>
           )}
         </div>
 
         {step === 'idle' && <IdleView onStart={handleOAuthStart} />}
-        {step === 'oauth' && <OAuthModal progress={oauthProgress} />}
-        {step === 'auth_complete' && <AuthCompleteModal onContinue={() => setStep('selecting')} />}
+        {step === 'login' && (
+          <LoginView
+            onSuccess={() => setStep('consent')}
+            onCancel={() => setStep('idle')}
+          />
+        )}
+        {step === 'consent' && (
+          <ConsentView
+            onContinue={() => setStep('selecting')}
+            onCancel={() => setStep('idle')}
+          />
+        )}
         {step === 'selecting' && (
           <AccountSelectView
             accounts={MOCK_AD_ACCOUNTS}
@@ -186,7 +207,7 @@ export default function MetaAdsPage() {
           />
         )}
         {step === 'connecting' && <ConnectingView />}
-        {step === 'dashboard' && perf && (
+        {step === 'dashboard' && (
           <DashboardView
             connectedAccounts={connectedAccounts}
             activeAccount={activeAccount}
@@ -208,6 +229,7 @@ function IdleView({ onStart }) {
     <div className="flex items-center justify-center min-h-[60vh]">
       <Card className="w-full max-w-lg text-center shadow-lg border-0">
         <CardContent className="py-16 px-10 space-y-6">
+          {/* Meta logo icon */}
           <div className="w-20 h-20 mx-auto rounded-2xl bg-[#1877F2] flex items-center justify-center shadow-lg">
             <svg viewBox="0 0 36 36" className="w-10 h-10" fill="white">
               <path d="M20.181 35.87C29.094 34.791 36 27.202 36 18c0-9.941-8.059-18-18-18S0 8.059 0 18c0 4.991 2.035 9.5 5.322 12.756l.002-.001 1.621-1.06A15.932 15.932 0 013 18C3 9.716 9.716 3 18 3s15 6.716 15 15-6.716 15-15 15c-.644 0-1.278-.04-1.9-.12l.081.99z" />
@@ -217,48 +239,54 @@ function IdleView({ onStart }) {
 
           <div>
             <h2 className="text-lg font-bold text-[#1A1A2E] mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              Meta 광고 계정 연동
+              Meta Ad Analytics
             </h2>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Facebook & Instagram 광고 계정을 연동하면<br />
-              크리에이터 영상 광고 성과를 실시간으로 확인하고 관리할 수 있습니다.
+              Connect your Facebook & Instagram ad accounts<br />
+              to view campaign performance and discover creator profiles
             </p>
           </div>
 
           <div className="space-y-3">
             <Button
               onClick={onStart}
-              className="w-full h-12 text-base font-semibold rounded-xl"
+              className="w-full h-12 text-base font-semibold rounded-xl text-white"
               style={{ backgroundColor: '#1877F2' }}
             >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 mr-2" fill="white">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-              </svg>
-              Facebook으로 로그인하여 연동
+              <FacebookIcon className="w-5 h-5 mr-2 text-white" />
+              Continue with Facebook
             </Button>
             <p className="text-xs text-gray-400">
-              연동 시 광고 계정 읽기(ads_read) 권한만 요청합니다
+              This app requires ads_read and instagram_basic permissions (read-only)
             </p>
           </div>
 
           <div className="pt-4 border-t border-gray-100 text-left">
-            <p className="text-xs font-semibold text-gray-600 mb-2">연동 후 사용 가능한 기능</p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+            <p className="text-xs font-semibold text-gray-600 mb-3">Available features after connecting</p>
+            <div className="grid grid-cols-2 gap-2.5 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                광고 계정 조회
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                View ad accounts
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                캠페인 성과 분석
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                Campaign analytics
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                실시간 지출 모니터링
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                Spend monitoring
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                크리에이터별 ROAS 분석
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                ROAS tracking
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                Creator profile lookup
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                Engagement analysis
               </div>
             </div>
           </div>
@@ -268,134 +296,165 @@ function IdleView({ onStart }) {
   )
 }
 
-function OAuthModal({ progress }) {
+function LoginView({ onSuccess, onCancel }) {
+  const [loggingIn, setLoggingIn] = useState(false)
+
+  const handleLogin = () => {
+    setLoggingIn(true)
+    setTimeout(() => {
+      onSuccess()
+    }, 2000)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-[420px] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        <div className="h-14 flex items-center px-5" style={{ backgroundColor: '#1877F2' }}>
-          <svg viewBox="0 0 24 24" className="w-6 h-6 mr-2" fill="white">
-            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-          </svg>
-          <span className="text-white font-semibold text-sm">Facebook 로그인</span>
-          <div className="ml-auto flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-white/40" />
-            <div className="w-2 h-2 rounded-full bg-white/40" />
-            <div className="w-2 h-2 rounded-full bg-white/40" />
-          </div>
+      <div className="bg-white rounded-2xl shadow-2xl w-[400px] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+        {/* Blue header */}
+        <div className="h-14 flex items-center justify-center gap-2" style={{ backgroundColor: '#1877F2' }}>
+          <FacebookIcon className="w-6 h-6 text-white" />
+          <span className="text-white font-bold text-lg tracking-tight">facebook</span>
         </div>
 
-        <div className="p-8 space-y-6 text-center">
-          {progress < 100 ? (
-            <>
-              <div className="w-16 h-16 mx-auto rounded-full bg-[#1877F2]/10 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-[#1877F2] animate-spin" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800 mb-1">Facebook 인증 중...</p>
-                <p className="text-xs text-gray-400">광고 계정 접근 권한을 확인하고 있습니다</p>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${progress}%`, backgroundColor: '#1877F2' }}
-                />
-              </div>
-              <div className="space-y-2 text-left text-xs text-gray-500">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${progress >= 25 ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={progress >= 25 ? 'text-gray-700' : ''}>사용자 인증 확인</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${progress >= 50 ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={progress >= 50 ? 'text-gray-700' : ''}>ads_read 권한 승인</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${progress >= 80 ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={progress >= 80 ? 'text-gray-700' : ''}>Business Manager 연결</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${progress >= 95 ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={progress >= 95 ? 'text-gray-700' : ''}>광고 계정 목록 조회</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-16 h-16 mx-auto rounded-full bg-green-50 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-500" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800 mb-1">인증 완료!</p>
-                <p className="text-xs text-gray-400">광고 계정을 불러오고 있습니다...</p>
-              </div>
-            </>
-          )}
+        {/* Form body */}
+        <div className="p-8 space-y-5">
+          <h3 className="text-center text-lg font-semibold text-gray-900">
+            Log in to Facebook
+          </h3>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value="demo@cnecbiz.com"
+                readOnly
+                className="w-full h-11 px-3 rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-700 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value="••••••••"
+                readOnly
+                className="w-full h-11 px-3 rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-700 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleLogin}
+            disabled={loggingIn}
+            className="w-full h-11 rounded-lg text-base font-semibold text-white"
+            style={{ backgroundColor: '#1877F2' }}
+          >
+            {loggingIn ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              'Log In'
+            )}
+          </Button>
+
+          <div className="text-center">
+            <button
+              onClick={onCancel}
+              className="text-sm text-[#1877F2] hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function AuthCompleteModal({ onContinue }) {
+function ConsentView({ onContinue, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-[460px] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        <div className="h-14 flex items-center px-5" style={{ backgroundColor: '#1877F2' }}>
-          <svg viewBox="0 0 24 24" className="w-6 h-6 mr-2" fill="white">
-            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-          </svg>
-          <span className="text-white font-semibold text-sm">인증 완료</span>
+        {/* Blue header */}
+        <div className="h-14 flex items-center justify-center gap-2" style={{ backgroundColor: '#1877F2' }}>
+          <FacebookIcon className="w-6 h-6 text-white" />
+          <span className="text-white font-bold text-lg tracking-tight">facebook</span>
         </div>
 
-        <div className="p-8 space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto rounded-full bg-green-50 flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+        {/* Body */}
+        <div className="p-8 space-y-5">
+          {/* App identity */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#6C5CE7] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">CNEC</span>
             </div>
-            <h3 className="font-bold text-gray-900 text-lg mb-1">Facebook 인증이 완료되었습니다</h3>
-            <p className="text-sm text-gray-500">아래 정보로 로그인되었습니다</p>
-          </div>
-
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm text-gray-900">CNEC Admin</p>
-                <p className="text-xs text-gray-500">admin@howpapa.co.kr</p>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 pt-3 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">승인된 권한</span>
-                <Badge className="bg-green-50 text-green-700 border-0 text-xs">ads_read</Badge>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Business Manager</span>
-                <span className="text-gray-700 font-medium">HOWPAPA Inc.</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">연결 가능 계정</span>
-                <span className="text-gray-700 font-medium">{MOCK_AD_ACCOUNTS.length}개</span>
-              </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">CNEC Ad Analytics</p>
+              <p className="text-xs text-gray-500">wants to access your information</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-amber-700">
-              ads_read 권한만 승인되었습니다. 광고 데이터는 읽기 전용으로만 조회되며, 광고 생성/수정/삭제는 수행되지 않습니다.
-            </p>
+          <div className="border-t border-gray-200" />
+
+          {/* Permissions list */}
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-700">This app will receive:</p>
+
+            <div className="space-y-3">
+              {/* Permission 1 */}
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-gray-700">Your public profile (name, profile picture)</p>
+              </div>
+
+              {/* Permission 2 */}
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-gray-700">Read your ad account performance data (ads_read)</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Includes: impressions, clicks, CTR, CPC, spend, conversions, ROAS
+                  </p>
+                </div>
+              </div>
+
+              {/* Permission 3 */}
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-gray-700">Read your Instagram Business profile and media (instagram_basic)</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Includes: followers count, posts, bio, media, likes, comments
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
+          <div className="border-t border-gray-200" />
+
+          {/* Warning */}
+          <div className="p-3 bg-amber-50 rounded-lg">
+            <p className="text-xs font-medium text-amber-800 mb-1.5">This app will NOT:</p>
+            <ul className="text-xs text-amber-700 space-y-1">
+              <li>• Create, modify, or delete any ads</li>
+              <li>• Post content on your behalf</li>
+              <li>• Access your private messages</li>
+            </ul>
+          </div>
+
+          {/* Actions */}
           <Button
             onClick={onContinue}
-            className="w-full h-11 rounded-xl font-semibold"
-            style={{ backgroundColor: '#6C5CE7' }}
+            className="w-full h-11 rounded-lg text-base font-semibold text-white"
+            style={{ backgroundColor: '#1877F2' }}
           >
-            광고 계정 선택하기
+            Continue as Demo User
           </Button>
+          <button
+            onClick={onCancel}
+            className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -411,8 +470,8 @@ function AccountSelectView({ accounts, selected, onToggle, onConnect }) {
             <Link2 className="w-4 h-4 text-white" />
           </div>
           <div>
-            <CardTitle className="text-base">광고 계정 선택</CardTitle>
-            <p className="text-xs text-gray-500 mt-0.5">연동할 Meta 광고 계정을 선택하세요 (ads_read 전용)</p>
+            <CardTitle className="text-base">Select Ad Accounts</CardTitle>
+            <p className="text-xs text-gray-500 mt-0.5">Choose the Meta ad accounts you want to connect</p>
           </div>
         </div>
       </CardHeader>
@@ -459,7 +518,7 @@ function AccountSelectView({ accounts, selected, onToggle, onConnect }) {
             style={{ backgroundColor: '#6C5CE7' }}
           >
             <Link2 className="w-4 h-4 mr-2" />
-            {selected.length > 0 ? `${selected.length}개 계정 연동하기` : '계정을 선택하세요'}
+            {selected.length > 0 ? `Connect ${selected.length} account(s)` : 'Select an account'}
           </Button>
         </div>
       </CardContent>
@@ -479,8 +538,8 @@ function ConnectingView() {
           </div>
         </div>
         <div>
-          <p className="font-semibold text-gray-800">광고 계정 연동 중...</p>
-          <p className="text-sm text-gray-400 mt-1">성과 데이터를 동기화하고 있습니다</p>
+          <p className="font-semibold text-gray-800">Connecting ad accounts...</p>
+          <p className="text-sm text-gray-400 mt-1">Please wait a moment</p>
         </div>
       </div>
     </div>
@@ -488,26 +547,14 @@ function ConnectingView() {
 }
 
 function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf }) {
-  const { summary, campaigns } = perf
-  const dailyRoas = useMemo(() => generateDailyRoas(), [activeAccount?.id])
-  const avgRoas = +(dailyRoas.reduce((s, d) => s + d.roas, 0) / dailyRoas.length).toFixed(2)
-
-  const prevSpend = summary.spend * 0.88
-  const spendChange = ((summary.spend - prevSpend) / prevSpend * 100).toFixed(1)
-
-  const kpiCards = [
-    { label: '노출수', value: fmt(summary.impressions), icon: Eye, change: '+18.5%', up: true },
-    { label: '클릭수', value: fmt(summary.clicks), icon: MousePointerClick, change: '+22.3%', up: true },
-    { label: 'CTR', value: `${summary.ctr.toFixed(1)}%`, icon: Target, change: '+0.4%', up: true },
-    { label: 'CPC', value: fmtKRW(summary.cpc), icon: DollarSign, change: '-8.1%', up: false },
-    { label: '총 지출', value: fmtKRW(summary.spend), icon: BarChart3, change: `+${spendChange}%`, up: true },
-    { label: '전환수', value: fmt(summary.conversions), icon: ShoppingCart, change: '+25.7%', up: true },
-    { label: 'ROAS', value: `${summary.roas}x`, icon: TrendingUp, change: '+0.6', up: true },
-  ]
+  const [activeTab, setActiveTab] = useState('performance')
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* 계정 탭 */}
+      {/* Permission banner */}
+      <PermissionBanner />
+
+      {/* Account tabs */}
       <div className="flex items-center gap-2">
         {connectedAccounts.map((acc) => (
           <button
@@ -524,11 +571,89 @@ function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf
         ))}
         <Badge variant="outline" className="ml-2 text-green-600 border-green-200 bg-green-50">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
-          연동됨
+          Connected
         </Badge>
       </div>
 
-      {/* KPI 카드 */}
+      {/* Feature tabs */}
+      <FeatureTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'performance' ? (
+        <AdPerformanceTab perf={perf} />
+      ) : (
+        <CreatorDiscoveryTab />
+      )}
+    </div>
+  )
+}
+
+function PermissionBanner() {
+  return (
+    <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+      <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+        <span className="text-blue-600 text-xs font-bold">i</span>
+      </div>
+      <div>
+        <p className="text-sm text-blue-800 font-medium">
+          This dashboard uses the following read-only permissions:
+        </p>
+        <ul className="text-xs text-blue-700 mt-1.5 space-y-0.5">
+          <li>• <strong>ads_read</strong> — View ad performance data (impressions, clicks, CTR, CPC, spend, ROAS)</li>
+          <li>• <strong>instagram_basic</strong> — View public Instagram Business/Creator profiles and media</li>
+        </ul>
+        <p className="text-xs text-blue-600 mt-1.5">
+          No data is created, modified, or deleted. Data is not shared with third parties.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function FeatureTabs({ activeTab, onTabChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onTabChange('performance')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          activeTab === 'performance'
+            ? 'bg-[#6C5CE7] text-white shadow-md'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+        }`}
+      >
+        <BarChart3 className="w-4 h-4" />
+        Ad Performance
+      </button>
+      <button
+        onClick={() => onTabChange('discovery')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          activeTab === 'discovery'
+            ? 'bg-[#6C5CE7] text-white shadow-md'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+        }`}
+      >
+        <Search className="w-4 h-4" />
+        Creator Discovery
+      </button>
+    </div>
+  )
+}
+
+function AdPerformanceTab({ perf }) {
+  const { summary, campaigns } = perf
+
+  const kpiCards = [
+    { label: 'Impressions', value: fmt(summary.impressions), icon: Eye, change: '+18.5%', up: true },
+    { label: 'Clicks', value: fmt(summary.clicks), icon: MousePointerClick, change: '+22.3%', up: true },
+    { label: 'CTR', value: `${summary.ctr.toFixed(2)}%`, icon: Target, change: '+0.4%', up: true },
+    { label: 'CPC', value: fmtKRW(summary.cpc), icon: DollarSign, change: '-8.1%', up: false },
+    { label: 'Spend', value: fmtKRW(summary.spend), icon: BarChart3, change: '+12.4%', up: true },
+    { label: 'Conversions', value: fmt(summary.conversions), icon: ShoppingCart, change: '+25.7%', up: true },
+    { label: 'ROAS', value: `${summary.roas}x`, icon: TrendingUp, change: '+0.6', up: true },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         {kpiCards.map((kpi) => (
           <Card key={kpi.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
@@ -556,53 +681,24 @@ function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf
         ))}
       </div>
 
-      {/* ROAS 추이 차트 */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#6C5CE7]" />
-            일별 ROAS 추이 (최근 30일)
-          </CardTitle>
-          <p className="text-xs text-gray-400 mt-1">평균 ROAS: {avgRoas}x</p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyRoas} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#999' }} interval={4} />
-                <YAxis tick={{ fontSize: 11, fill: '#999' }} domain={[1, 'auto']} tickFormatter={(v) => `${v}x`} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(v) => [`${v}x`, 'ROAS']}
-                />
-                <ReferenceLine y={avgRoas} stroke="#6C5CE7" strokeDasharray="6 4" strokeWidth={1.5} label={{ value: `평균 ${avgRoas}x`, position: 'right', fill: '#6C5CE7', fontSize: 11 }} />
-                <Line type="monotone" dataKey="roas" stroke="#6C5CE7" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#6C5CE7' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 캠페인별 성과 */}
+      {/* Campaign Table */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Target className="w-4 h-4 text-[#6C5CE7]" />
-            캠페인별 성과
+            Campaign Performance
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>캠페인명</TableHead>
-                <TableHead className="text-center">상태</TableHead>
-                <TableHead className="text-right">노출수</TableHead>
-                <TableHead className="text-right">클릭수</TableHead>
+                <TableHead>Campaign</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right">Impressions</TableHead>
+                <TableHead className="text-right">Clicks</TableHead>
                 <TableHead className="text-right">CTR</TableHead>
-                <TableHead className="text-right">ROAS</TableHead>
-                <TableHead className="text-right">지출</TableHead>
+                <TableHead className="text-right">Spend</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -615,13 +711,12 @@ function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf
                         ? 'bg-green-50 text-green-700 border-0'
                         : 'bg-gray-50 text-gray-500 border-0'
                     }>
-                      {camp.status === 'ACTIVE' ? '활성' : '일시정지'}
+                      {camp.status === 'ACTIVE' ? 'Active' : 'Paused'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{fmt(camp.impressions)}</TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{fmt(camp.clicks)}</TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{camp.ctr.toFixed(2)}%</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums font-medium">{camp.roas}x</TableCell>
                   <TableCell className="text-right text-sm font-medium tabular-nums" style={{ color: '#6C5CE7' }}>
                     {fmtKRW(camp.spend)}
                   </TableCell>
@@ -632,53 +727,184 @@ function DashboardView({ connectedAccounts, activeAccount, onSelectAccount, perf
         </CardContent>
       </Card>
 
-      {/* 크리에이터별 광고 효율 */}
+      {/* Footer */}
+      <div className="text-center py-4">
+        <p className="text-xs text-gray-400">
+          Data period: Last 30 days · Last synced: {new Date().toLocaleDateString('en-US')} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          · Permission: ads_read (read-only)
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function CreatorDiscoveryTab() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResult, setSearchResult] = useState(null)
+  const [isSearching, setIsSearching] = useState(false)
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    setTimeout(() => {
+      const cleaned = searchQuery.replace('@', '').trim().toLowerCase()
+      const creator = MOCK_CREATORS[cleaned] || MOCK_CREATORS['beauty_creator_kr']
+      setSearchResult(creator)
+      setIsSearching(false)
+    }, 1500)
+  }
+
+  const fmtShort = (n) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`
+    return n.toString()
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Search area */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <User className="w-4 h-4 text-[#6C5CE7]" />
-            크리에이터별 광고 효율 (ROAS 순)
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#6C5CE7] flex items-center justify-center">
+              <Search className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Creator Profile Lookup</CardTitle>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Search Instagram Business/Creator accounts using Business Discovery API (instagram_basic)
+              </p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>크리에이터</TableHead>
-                <TableHead>캠페인</TableHead>
-                <TableHead className="text-right">노출수</TableHead>
-                <TableHead className="text-right">클릭수</TableHead>
-                <TableHead className="text-right">CTR</TableHead>
-                <TableHead className="text-right">ROAS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_CREATOR_PERFORMANCE.map((row, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium text-sm">{row.creator}</TableCell>
-                  <TableCell className="text-sm text-gray-600 max-w-[200px] truncate">{row.campaign}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">{fmt(row.impressions)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">{fmt(row.clicks)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">{row.ctr.toFixed(2)}%</TableCell>
-                  <TableCell className="text-right">
-                    <span className={`text-sm font-bold tabular-nums ${row.roas >= 4.5 ? 'text-green-600' : row.roas >= 3.5 ? 'text-[#6C5CE7]' : 'text-amber-600'}`}>
-                      {row.roas}x
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Enter Instagram username (e.g. beauty_creator_kr)"
+              className="flex-1 h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7]"
+            />
+            <Button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="h-11 px-6 rounded-xl font-semibold"
+              style={{ backgroundColor: '#6C5CE7' }}
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4 mr-2" />Search</>}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {/* 푸터 */}
-      <div className="text-center py-4">
-        <p className="text-xs text-gray-400">
-          데이터 기간: 최근 30일 · 마지막 동기화: {new Date().toLocaleDateString('ko-KR')} {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-          · 권한: ads_read (읽기 전용)
-        </p>
-      </div>
+      {/* Loading state */}
+      {isSearching && (
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-[#6C5CE7] animate-spin mx-auto" />
+            <p className="text-sm text-gray-500">Searching creator profile...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Search result */}
+      {!isSearching && searchResult && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6 space-y-6">
+            {/* Profile header */}
+            <div className="flex items-start gap-5">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#6C5CE7] to-[#a78bfa] flex items-center justify-center flex-shrink-0">
+                <User className="w-10 h-10 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-lg text-gray-900">@{searchResult.username}</p>
+                <p className="text-sm text-gray-600 font-medium">{searchResult.name}</p>
+                <p className="text-sm text-gray-500 mt-2 whitespace-pre-line leading-relaxed">{searchResult.bio}</p>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmtShort(searchResult.followers)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Followers</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmt(searchResult.posts)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Posts</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {searchResult.engagementRate}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Eng. Rate</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-xl font-bold text-[#1A1A2E]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {fmtShort(searchResult.avgLikes)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Avg. Likes</p>
+              </div>
+            </div>
+
+            {/* Recent posts grid */}
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Recent Posts</p>
+              <div className="grid grid-cols-6 gap-3">
+                {searchResult.recentMedia.map((media, idx) => (
+                  <div
+                    key={idx}
+                    className={`aspect-square rounded-xl relative overflow-hidden ${
+                      media.type === 'VIDEO'
+                        ? 'bg-gradient-to-br from-blue-400 to-cyan-400'
+                        : media.type === 'CAROUSEL'
+                          ? 'bg-gradient-to-br from-amber-400 to-orange-400'
+                          : 'bg-gradient-to-br from-pink-400 to-purple-400'
+                    }`}
+                  >
+                    {/* Type icon */}
+                    {media.type === 'VIDEO' && (
+                      <div className="absolute top-2 right-2">
+                        <Play className="w-4 h-4 text-white/80" />
+                      </div>
+                    )}
+                    {media.type === 'CAROUSEL' && (
+                      <div className="absolute top-2 right-2">
+                        <Grid3X3 className="w-4 h-4 text-white/80" />
+                      </div>
+                    )}
+
+                    {/* Engagement overlay */}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/40 backdrop-blur-sm px-2 py-1.5 flex items-center justify-center gap-3">
+                      <span className="flex items-center gap-1 text-white text-xs">
+                        <Heart className="w-3 h-3" />
+                        {fmtShort(media.likes)}
+                      </span>
+                      <span className="flex items-center gap-1 text-white text-xs">
+                        <MessageCircle className="w-3 h-3" />
+                        {media.comments}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Info footer */}
+            <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm flex-shrink-0">ℹ️</span>
+              <p className="text-xs text-gray-500">
+                Data fetched via Business Discovery API using instagram_basic permission. Read-only access to public Instagram Business/Creator profiles.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
