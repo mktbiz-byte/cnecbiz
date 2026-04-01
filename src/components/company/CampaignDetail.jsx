@@ -981,10 +981,11 @@ export default function CampaignDetail() {
   // 캠페인 자동 완료 체크: 페이지 로드 시 / 참가자 데이터 변경 시 모든 선정 크리에이터가 completed인지 확인
   useEffect(() => {
     if (campaign && campaign.status !== 'completed' && participants.length > 0) {
-      const selectedParticipantStatuses = participants.filter(p =>
-        ['selected', 'guide_sent', 'product_shipped', 'video_submitted', 'video_approved', 'completed'].includes(p.status)
+      // 선정된 참가자 필터 (force_cancelled 제외한 모든 선정 상태)
+      const selectedParticipants = participants.filter(p =>
+        ['selected', 'approved', 'virtual_selected', 'guide_sent', 'guide_confirmation', 'product_shipped', 'filming', 'video_submitted', 'video_approved', 'revision_requested', 'sns_uploaded', 'completed'].includes(p.status)
       )
-      if (selectedParticipantStatuses.length > 0 && selectedParticipantStatuses.every(p => p.status === 'completed')) {
+      if (selectedParticipants.length > 0 && selectedParticipants.every(p => p.status === 'completed')) {
         console.log('[자동완료 체크] 페이지 로드 시 모든 크리에이터 완료 감지 - 캠페인 자동 완료 실행')
         checkAndCompleteCampaign()
       }
@@ -5738,62 +5739,37 @@ Questions? Contact us.
   const checkAndCompleteCampaign = async () => {
     if (!campaign || campaign.status === 'completed') return
 
-    const supabase = getSupabaseClient(region)
-    if (!supabase) return
+    // 이미 로드된 participants 상태를 사용 (anon key로 리전 DB 직접 조회 불가하므로)
+    const selectedStatuses = ['selected', 'approved', 'virtual_selected', 'guide_sent', 'guide_confirmation', 'product_shipped', 'filming', 'video_submitted', 'video_approved', 'revision_requested', 'sns_uploaded', 'completed']
+    const selectedApps = participants.filter(p => selectedStatuses.includes(p.status))
 
-    // 선정된(selected 이상) 크리에이터의 applications 조회
-    const { data: apps, error } = await supabase
-      .from('applications')
-      .select('id, status, user_id')
-      .eq('campaign_id', campaign.id)
-      .in('status', ['selected', 'guide_sent', 'product_shipped', 'video_submitted', 'video_approved', 'completed'])
-
-    if (error || !apps || apps.length === 0) return
+    if (selectedApps.length === 0) return
 
     // 모든 선정 크리에이터가 completed 상태인지 확인
-    const allCompleted = apps.every(app => app.status === 'completed')
+    const allCompleted = selectedApps.every(app => app.status === 'completed')
     if (!allCompleted) return
 
-    console.log(`[자동완료] 캠페인 "${campaign.title}" - 선정 크리에이터 ${apps.length}명 모두 완료. 캠페인 상태를 completed로 변경`)
+    console.log(`[자동완료] 캠페인 "${campaign.title}" - 선정 크리에이터 ${selectedApps.length}명 모두 완료. 캠페인 상태를 completed로 변경`)
 
-    // 캠페인 상태를 completed로 변경
-    const { error: updateError } = await (async () => {
-      try {
-        await callRegionCampaignAPI(region, 'update_campaign', campaign.id, null, { status: 'completed', updated_at: new Date().toISOString() })
-        return { error: null }
-      } catch (e) { return { error: e } }
-    })()
-
-    if (updateError) {
-      console.error('[자동완료] 캠페인 상태 업데이트 실패:', updateError)
-      return
-    }
-
-    // biz DB에도 동기화
-    if (region !== 'biz') {
-      try {
-        await supabaseBiz
-          .from('campaigns')
-          .update({ status: 'completed', updated_at: new Date().toISOString() })
-          .eq('id', campaign.id)
-      } catch (e) {
-        console.warn('[자동완료] biz DB 동기화 실패:', e.message)
-      }
-    }
-
-    // 네이버 웍스 알림
+    // update-campaign-status Netlify Function 사용 (service role key로 리전 DB + biz DB 동기화 + 알림 처리)
     try {
-      await fetch('/.netlify/functions/send-naver-works-message', {
+      const response = await fetch('/.netlify/functions/update-campaign-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          isAdminNotification: true,
-          channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-          message: `✅ 캠페인 자동 완료\n\n캠페인: ${campaign.title}\n크리에이터: ${apps.length}명 전원 완료\n리전: ${region}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+          campaignId: campaign.id,
+          region,
+          newStatus: 'completed'
         })
       })
+      const result = await response.json()
+      if (!result.success) {
+        console.error('[자동완료] 캠페인 상태 업데이트 실패:', result.error)
+        return
+      }
     } catch (e) {
-      console.warn('[자동완료] 네이버 웍스 알림 실패:', e.message)
+      console.error('[자동완료] 캠페인 상태 업데이트 실패:', e.message)
+      return
     }
 
     // 로컬 상태 업데이트
