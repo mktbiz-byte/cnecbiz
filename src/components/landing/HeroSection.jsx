@@ -217,7 +217,7 @@ export default function HeroSection({ user, navigate, brochureUrl }) {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-600" />
             </div>
             <TrendingUp className="w-4 h-4 text-purple-600" />
-            <p className="text-sm font-semibold text-gray-800">전환율 평균 3.8% 달성</p>
+            <p className="text-sm font-semibold text-gray-800">AI 매칭 적합도 95%</p>
           </div>
         </motion.div>
       </div>

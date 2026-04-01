@@ -13,6 +13,8 @@ import ResultsSection from './landing/ResultsSection'
 import GlobalSection from './landing/GlobalSection'
 import ProductTiersSection from './landing/ProductTiersSection'
 import FinalCTASection from './landing/FinalCTASection'
+import CaseStudySection from './landing/CaseStudySection'
+import AIMatchingSection from './landing/AIMatchingSection'
 
 // 국기 이미지 컴포넌트
 const FlagKR = ({ className = "w-5 h-3.5" }) => (
@@ -262,7 +264,7 @@ const PortfolioSlider = ({ shorts, page, setPage, totalPages, totalPagesMobile, 
               key={i}
               onClick={() => setPage(i)}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                page === i ? 'w-6 bg-white' : 'w-1.5 bg-[#24243A]'
+                page === i ? 'w-6 bg-purple-600' : 'w-1.5 bg-gray-300'
               }`}
             />
           ))}
@@ -612,6 +614,7 @@ export default function LandingPage() {
 
 
       <PainSolutionSection navigate={navigate} />
+      <AIMatchingSection />
       <PricingCompareSection user={user} navigate={navigate} />
       <ProcessSection user={user} navigate={navigate} />
 
@@ -641,8 +644,10 @@ export default function LandingPage() {
       <GlobalSection navigate={navigate} />
       <ProductTiersSection user={user} navigate={navigate} />
 
+      <CaseStudySection />
+
       {/* [섹션 9] Partner Brands */}
-      <section className="py-10 sm:py-16 lg:py-24 bg-white">
+      <section className="py-10 sm:py-16 lg:py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
@@ -675,41 +680,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* [섹션 10] Testimonials */}
-      <section id="testimonials" className="py-12 sm:py-16 lg:py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-            <p className="text-purple-600 text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3">
-              SOCIAL PROOF
-            </p>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
-              브랜드 담당자들의 <span className="text-purple-600">실제 후기</span>
-            </h2>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-white rounded-2xl p-5 sm:p-6 lg:p-8 border border-gray-200 shadow-sm snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
-                <div className="flex items-center gap-1 mb-3 sm:mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">"{testimonial.content}"</p>
-                <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-base sm:text-lg font-semibold text-purple-600">{testimonial.name[0]}</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm sm:text-base">{testimonial.name}</div>
-                    <div className="text-xs sm:text-sm text-gray-400">{testimonial.role} | {testimonial.company}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Testimonials section replaced by CaseStudySection above */}
 
       {/* [섹션 11] Voucher */}
       <section id="voucher" className="py-12 sm:py-16 lg:py-24 bg-white">
@@ -800,7 +771,7 @@ export default function LandingPage() {
                   onClick={() => navigate(`/newsletter/${newsletter.id}`)}
                   className="bg-white rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-gray-200"
                 >
-                  <div className="h-28 sm:h-36 lg:h-40 bg-[#24243A] relative overflow-hidden">
+                  <div className="h-28 sm:h-36 lg:h-40 bg-gray-100 relative overflow-hidden">
                     {newsletter.thumbnail_url ? (
                       <img
                         src={newsletter.thumbnail_url}
@@ -809,7 +780,7 @@ export default function LandingPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-gray-300" />
+                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
                       </div>
                     )}
                     {newsletter.is_featured && (
