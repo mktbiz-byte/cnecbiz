@@ -1,5 +1,34 @@
-const { getBizClient, getKoreaClient } = require('./lib/supabase');
-const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require('./lib/supabase');
+const { createClient } = require('@supabase/supabase-js');
+
+// BIZ Supabase 클라이언트
+const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseBizKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase = null;
+try {
+  if (supabaseBizUrl && supabaseBizKey) {
+    supabase = createClient(supabaseBizUrl, supabaseBizKey);
+  }
+} catch (e) {
+  console.error('[INIT ERROR] Failed to create BIZ supabase client:', e.message);
+}
+
+// Korea Supabase 클라이언트
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
+const supabaseKoreaKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
+let supabaseKorea = null;
+try {
+  if (supabaseKoreaUrl && supabaseKoreaKey) {
+    supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaKey);
+  }
+} catch (e) {
+  console.error('[INIT ERROR] Failed to create Korea supabase client:', e.message);
+}
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
 
 /**
  * 크리에이터에게 캠페인 초대 알림톡 발송
@@ -11,7 +40,9 @@ const { CORS_HEADERS, handleOptions, successResponse, errorResponse } = require(
  * }
  */
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  }
 
   try {
     const { campaignId, creatorId, invitedBy } = JSON.parse(event.body);
@@ -19,12 +50,20 @@ exports.handler = async (event) => {
     console.log('[INFO] Campaign invitation request:', { campaignId, creatorId, invitedBy });
 
     if (!campaignId || !creatorId || !invitedBy) {
-      return errorResponse(400, '필수 파라미터가 누락되었습니다.');
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '필수 파라미터가 누락되었습니다.' })
+      };
     }
 
-    const supabase = getBizClient();
-    let supabaseKorea = null;
-    try { supabaseKorea = getKoreaClient(); } catch (e) { /* Korea client optional */ }
+    if (!supabase) {
+      return {
+        statusCode: 500,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '데이터베이스 연결 오류가 발생했습니다.' })
+      };
+    }
 
     // 1. 캠페인 정보 조회 (Korea DB 우선, BIZ DB 폴백)
     let campaign = null;
@@ -60,11 +99,14 @@ exports.handler = async (event) => {
     }
 
     if (!campaign) {
-      console.error('[ERROR] Campaign not found:', campaignId);
-      return errorResponse(404, '캠페인을 찾을 수 없습니다.');
+      return {
+        statusCode: 404,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' })
+      };
     }
 
-    // 2. 크리에이터 정보 조회 (featured_creators 또는 user_profiles)
+    // 2. 크리에이터 정보 조회
     let creator = null;
 
     const { data: featuredCreator } = await supabase
@@ -94,39 +136,42 @@ exports.handler = async (event) => {
     }
 
     if (!creator) {
-      console.error('[ERROR] Creator not found:', creatorId);
-      return errorResponse(404, '크리에이터를 찾을 수 없습니다.');
+      return {
+        statusCode: 404,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '크리에이터를 찾을 수 없습니다.' })
+      };
     }
 
-    // 3. 기업 정보 조회 (companies 테이블 우선, notification 필드 우선)
+    // 3. 기업 정보 조회
     let company = null;
 
-    const { data: companyRecord, error: companyError } = await supabase
+    const { data: companyRecord } = await supabase
       .from('companies')
-      .select('company_name, notification_phone, notification_email, phone, email')
+      .select('company_name')
       .eq('user_id', invitedBy)
       .maybeSingle();
 
-    if (!companyError && companyRecord) {
-      company = {
-        company_name: companyRecord.company_name,
-        full_name: companyRecord.company_name
-      };
+    if (companyRecord) {
+      company = { company_name: companyRecord.company_name };
     } else {
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from('user_profiles')
         .select('full_name, company_name')
         .eq('id', invitedBy)
         .maybeSingle();
 
-      if (!profileError && profileData) {
-        company = profileData;
+      if (profileData) {
+        company = { company_name: profileData.company_name || profileData.full_name };
       }
     }
 
     if (!company) {
-      console.error('[ERROR] Company not found for invitedBy:', invitedBy);
-      return errorResponse(404, '기업 정보를 찾을 수 없습니다.');
+      return {
+        statusCode: 404,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '기업 정보를 찾을 수 없습니다.' })
+      };
     }
 
     // 4. 중복 초대 확인
@@ -138,15 +183,14 @@ exports.handler = async (event) => {
       .single();
 
     if (existingInvitation) {
-      console.log('[INFO] Invitation already exists');
-      return successResponse({
-        success: true,
-        message: '이미 초대를 보냈습니다.',
-        invitationId: existingInvitation.id
-      });
+      return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: true, message: '이미 초대를 보냈습니다.', invitationId: existingInvitation.id })
+      };
     }
 
-    // 5. campaign_invitations 테이블에 초대 기록 저장
+    // 5. 초대 기록 저장
     const { data: invitation, error: invitationError } = await supabase
       .from('campaign_invitations')
       .insert({
@@ -160,7 +204,11 @@ exports.handler = async (event) => {
 
     if (invitationError) {
       console.error('[ERROR] Failed to create invitation:', invitationError);
-      return errorResponse(500, '초대 생성에 실패했습니다.');
+      return {
+        statusCode: 500,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, error: '초대 생성에 실패했습니다.' })
+      };
     }
 
     console.log('[SUCCESS] Invitation created:', invitation.id);
@@ -169,7 +217,7 @@ exports.handler = async (event) => {
     const invitationUrl = `${baseUrl}/invitation/${invitation.id}`;
     const formattedReward = campaign.reward_points ? campaign.reward_points.toLocaleString() + '원' : '협의';
 
-    // 6. 카카오 알림톡 발송 (크리에이터에게)
+    // 6. 카카오 알림톡 발송
     if (creator.phone) {
       try {
         const kakaoResponse = await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
@@ -181,7 +229,7 @@ exports.handler = async (event) => {
             templateCode: '025110000798',
             variables: {
               '크리에이터명': creator.name,
-              '기업명': company.company_name || company.full_name,
+              '기업명': company.company_name,
               '캠페인명': campaign.title,
               '보상금액': formattedReward,
               '마감일': campaign.deadline || '상시',
@@ -189,26 +237,25 @@ exports.handler = async (event) => {
             }
           })
         });
-
         const kakaoResult = await kakaoResponse.json();
-        console.log('[INFO] Kakao notification sent:', kakaoResult);
+        console.log('[INFO] Kakao notification sent:', kakaoResult.success);
       } catch (kakaoError) {
-        console.error('[ERROR] Failed to send Kakao notification:', kakaoError);
+        console.error('[ERROR] Kakao notification failed:', kakaoError.message);
       }
     }
 
     // 7. 이메일 발송
     if (creator.email) {
       try {
-        const emailResponse = await fetch(`${baseUrl}/.netlify/functions/send-email`, {
+        await fetch(`${baseUrl}/.netlify/functions/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: creator.email,
-            subject: `[CNEC] ${company.company_name || company.full_name}에서 캠페인 지원 요청을 보냈습니다`,
+            subject: `[CNEC] ${company.company_name}에서 캠페인 지원 요청을 보냈습니다`,
             html: `
               <h2>캠페인 지원 요청</h2>
-              <p>${creator.name}님, ${company.company_name || company.full_name}에서 캠페인 지원 요청을 보냈습니다.</p>
+              <p>${creator.name}님, ${company.company_name}에서 캠페인 지원 요청을 보냈습니다.</p>
               <ul>
                 <li><strong>캠페인:</strong> ${campaign.title}</li>
                 <li><strong>보상:</strong> ${formattedReward}</li>
@@ -224,24 +271,25 @@ exports.handler = async (event) => {
             `
           })
         });
-
-        const emailResult = await emailResponse.json();
-        console.log('[INFO] Email sent:', emailResult);
+        console.log('[INFO] Email sent');
       } catch (emailError) {
-        console.error('[ERROR] Failed to send email:', emailError);
+        console.error('[ERROR] Email failed:', emailError.message);
       }
     }
 
-    return successResponse({
-      success: true,
-      invitationId: invitation.id,
-      message: '초대를 성공적으로 보냈습니다.'
-    });
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        success: true,
+        invitationId: invitation.id,
+        message: '초대를 성공적으로 보냈습니다.'
+      })
+    };
 
   } catch (error) {
     console.error('[send-campaign-invitation] Error:', error);
 
-    // 에러 알림 발송
     try {
       const alertBaseUrl = process.env.URL || 'https://cnecbiz.com';
       await fetch(`${alertBaseUrl}/.netlify/functions/send-error-alert`, {
@@ -249,12 +297,15 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           functionName: 'send-campaign-invitation',
-          errorMessage: error.message,
-          context: { body: event.body?.substring(0, 500) }
+          errorMessage: error.message
         })
       });
     } catch (e) { console.error('Error alert failed:', e.message); }
 
-    return errorResponse(500, error.message);
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 };
