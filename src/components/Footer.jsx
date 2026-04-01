@@ -7,46 +7,31 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-gray-900 text-gray-300">
+      <footer className="bg-gray-50 text-gray-500 border-t border-gray-200">
         {/* 메인 푸터 */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-8">
             {/* 회사 정보 */}
             <div>
-              <h3 className="text-white text-lg font-bold mb-4">CNEC (크넥)</h3>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">상호:</span> 주식회사 하우파파
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">대표자:</span> 박현용
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">사업자등록번호:</span> 575-81-02253
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">통신판매업 신고번호:</span> 2022-서울마포-3903호
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">주소:</span> 서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">고객센터:</span> 1833-6025
-              </p>
-              <p className="text-sm mb-2">
-                <span className="font-semibold">이메일:</span> howpapa@howpapa.co.kr
-              </p>
+              <h3 className="text-gray-900 text-lg font-bold mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</h3>
+              <div className="text-sm space-y-1.5 text-gray-400">
+                <p>주식회사 하우파파 | 대표자: 박현용</p>
+                <p>사업자등록번호: 575-81-02253 | 통신판매업: 2022-서울마포-3903호</p>
+                <p>서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</p>
+                <p>고객센터: 1833-6025 | howpapa@howpapa.co.kr</p>
+              </div>
             </div>
             {/* 빠른 링크 */}
             <div>
-              <h4 className="text-white font-semibold mb-4">서비스</h4>
+              <h4 className="text-gray-900 font-semibold text-sm mb-3">서비스</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="text-sm hover:text-white transition">
+                  <Link to="/" className="text-sm text-gray-400 hover:text-purple-600 transition">
                     홈
                   </Link>
                 </li>
                 <li>
-                  <Link to="/company/dashboard" className="text-sm hover:text-white transition">
+                  <Link to="/company/dashboard" className="text-sm text-gray-400 hover:text-purple-600 transition">
                     기업 대시보드
                   </Link>
                 </li>
@@ -55,24 +40,24 @@ export default function Footer() {
           </div>
         </div>
         {/* 하단 바 */}
-        <div className="border-t border-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+        <div className="border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-3 md:space-y-0">
               {/* 저작권 */}
-              <div className="text-sm text-gray-400">
+              <div className="text-xs text-gray-400">
                 © {new Date().getFullYear()} CNEC Corporation. All Rights Reserved.
               </div>
               {/* 법적 링크 */}
               <div className="flex space-x-6">
-                <button 
+                <button
                   onClick={() => setShowTerms(true)}
-                  className="text-sm text-gray-400 hover:text-white transition"
+                  className="text-xs text-gray-400 hover:text-gray-700 transition"
                 >
                   이용약관
                 </button>
-                <button 
+                <button
                   onClick={() => setShowPrivacy(true)}
-                  className="text-sm text-gray-400 hover:text-white transition font-semibold"
+                  className="text-xs text-gray-400 hover:text-gray-700 transition font-semibold"
                 >
                   개인정보처리방침
                 </button>
