@@ -30,7 +30,7 @@ const comparisons = [
 
 export default function PainSolutionSection({ navigate }) {
   return (
-    <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
+    <section className="py-12 sm:py-16 lg:py-24 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -39,13 +39,13 @@ export default function PainSolutionSection({ navigate }) {
           transition={{ duration: 0.5 }}
           className="text-center mb-10 sm:mb-14"
         >
-          <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <p className="text-purple-600 text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3">
             BEFORE & AFTER
           </p>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">
-            에이전시 300만원 vs <span className="text-[#C084FC]">크넥 20만원부터</span>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
+            에이전시 300만원 vs <span className="text-purple-600">크넥 20만원부터</span>
           </h2>
-          <p className="text-[#A0A0B0] text-sm sm:text-base">
+          <p className="text-gray-500 text-sm sm:text-base">
             에이전시에 맡길 때 vs 크넥에서 직접 할 때
           </p>
         </motion.div>
@@ -61,39 +61,39 @@ export default function PainSolutionSection({ navigate }) {
               className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 md:gap-0"
             >
               {/* Pain (Before) */}
-              <div className="bg-[#121218] rounded-[20px] p-5 sm:p-6 border border-white/[0.06] md:rounded-r-none md:border-r-0">
+              <div className="bg-gray-50 rounded-[20px] p-5 sm:p-6 border border-gray-200 md:rounded-r-none md:border-r-0">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
-                    <item.painIcon className="w-5 h-5 text-red-400" />
+                  <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
+                    <item.painIcon className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-red-400/60 font-medium tracking-wider uppercase mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>BEFORE</p>
-                    <h3 className="text-white font-bold text-base sm:text-lg mb-1">{item.painTitle}</h3>
-                    <p className="text-[#A0A0B0] text-sm leading-relaxed">{item.painDesc}</p>
+                    <p className="text-[10px] text-red-400 font-medium tracking-wider uppercase mb-1">BEFORE</p>
+                    <h3 className="text-gray-900 font-bold text-base sm:text-lg mb-1">{item.painTitle}</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">{item.painDesc}</p>
                   </div>
                 </div>
               </div>
 
               {/* Arrow */}
               <div className="hidden md:flex items-center justify-center w-12">
-                <ArrowRight className="w-5 h-5 text-[#C084FC]" />
+                <ArrowRight className="w-5 h-5 text-purple-600" />
               </div>
               <div className="flex md:hidden items-center justify-center">
-                <div className="w-8 h-8 rounded-full bg-[#C084FC]/10 border border-[#C084FC]/20 flex items-center justify-center">
-                  <ArrowRight className="w-4 h-4 text-[#C084FC] rotate-90" />
+                <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center">
+                  <ArrowRight className="w-4 h-4 text-purple-600 rotate-90" />
                 </div>
               </div>
 
               {/* Solution (After) */}
-              <div className="bg-[#121218] rounded-[20px] p-5 sm:p-6 border border-[#C084FC]/15 md:rounded-l-none md:border-l-0 md:border-l-2 md:border-l-[#C084FC]/30">
+              <div className="bg-white rounded-[20px] p-5 sm:p-6 border-2 border-purple-200 md:rounded-l-none md:border-l-0 shadow-sm">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(192,132,252,0.1)] border border-[rgba(192,132,252,0.2)] flex items-center justify-center flex-shrink-0">
-                    <item.solutionIcon className="w-5 h-5 text-[#C084FC]" />
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center flex-shrink-0">
+                    <item.solutionIcon className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-[#C084FC]/60 font-medium tracking-wider uppercase mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>AFTER</p>
-                    <h3 className="text-white font-bold text-base sm:text-lg mb-1">{item.solutionTitle}</h3>
-                    <p className="text-[#A0A0B0] text-sm leading-relaxed">{item.solutionDesc}</p>
+                    <p className="text-[10px] text-purple-500 font-medium tracking-wider uppercase mb-1">AFTER</p>
+                    <h3 className="text-gray-900 font-bold text-base sm:text-lg mb-1">{item.solutionTitle}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{item.solutionDesc}</p>
                   </div>
                 </div>
               </div>

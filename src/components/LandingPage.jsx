@@ -86,7 +86,7 @@ const VideoCard = ({ video, size = 'normal', autoPlay = true }) => {
   return (
     <div
       ref={cardRef}
-      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-[#121218] shadow-lg cursor-pointer`}
+      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-100 shadow-lg cursor-pointer`}
       onMouseEnter={() => !autoPlay && setIsActive(true)}
       onMouseLeave={() => !autoPlay && setIsActive(false)}
       onClick={() => setIsActive(true)}
@@ -151,7 +151,7 @@ const PortfolioVideoCard = ({ short }) => {
   return (
     <div
       ref={cardRef}
-      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[#121218] group"
+      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-100 group"
     >
       {/* 썸네일 (iframe 로드 전 또는 뷰포트 밖일 때) */}
       <img
@@ -273,15 +273,15 @@ const PortfolioSlider = ({ shorts, page, setPage, totalPages, totalPagesMobile, 
 }
 
 // 비디오 카테고리 섹션 컴포넌트
-const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-[#121218]' }) => {
+const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-gray-50' }) => {
   if (!videos || videos.length === 0) return null
 
   return (
     <div className={`py-8 sm:py-12 lg:py-16 ${bgColor}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-4 sm:mb-6 lg:mb-8">
-          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">{title}</h3>
-          <p className="text-[#A0A0B0] text-xs sm:text-sm lg:text-base">{subtitle}</p>
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{title}</h3>
+          <p className="text-gray-500 text-xs sm:text-sm lg:text-base">{subtitle}</p>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4 sm:overflow-visible sm:pb-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
           {videos.map((video, index) => (
@@ -518,19 +518,19 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-white">
+    <div className="min-h-screen bg-white text-gray-900">
       {/* Header - Dark Style */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0F]/80 backdrop-blur-md border-b border-white/5">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-12">
-              <span className="text-2xl sm:text-3xl font-bold tracking-tighter text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
+              <span className="text-2xl sm:text-3xl font-bold tracking-tighter text-gray-900" style={{ fontFamily: "'Outfit', sans-serif" }}>CNEC</span>
               <nav className="hidden lg:flex items-center gap-8">
-                <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">포트폴리오</a>
-                <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">요금제</a>
-                <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">수출바우처</a>
-                <button onClick={() => navigate('/newsletters')} className="text-gray-400 hover:text-white transition-colors text-sm font-medium">인사이트</button>
-                <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">FAQ</a>
+                <a href="#showcase" className="text-gray-500 hover:text-purple-600 transition-colors text-sm font-medium">포트폴리오</a>
+                <a href="#pricing" className="text-gray-500 hover:text-purple-600 transition-colors text-sm font-medium">요금제</a>
+                <a href="#voucher" className="text-gray-500 hover:text-purple-600 transition-colors text-sm font-medium">수출바우처</a>
+                <button onClick={() => navigate('/newsletters')} className="text-gray-500 hover:text-purple-600 transition-colors text-sm font-medium">인사이트</button>
+                <a href="#faq" className="text-gray-500 hover:text-purple-600 transition-colors text-sm font-medium">FAQ</a>
               </nav>
             </div>
 
@@ -538,7 +538,7 @@ export default function LandingPage() {
               {user ? (
                 <button
                   onClick={handleDashboardClick}
-                  className="px-6 py-2.5 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all"
+                        className="px-6 py-2.5 bg-purple-600 text-white rounded-full text-sm font-medium hover:bg-purple-700 transition-all"
                 >
                   대시보드
                 </button>
@@ -546,13 +546,13 @@ export default function LandingPage() {
                 <>
                   <button
                     onClick={() => navigate('/login')}
-                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
+                    className="px-4 py-2 text-gray-500 hover:text-gray-900 transition-colors text-sm"
                   >
                     로그인
                   </button>
                   <button
                     onClick={() => navigate('/signup')}
-                    className="px-6 py-2.5 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all"
+                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-900 hover:text-white transition-all"
                   >
                     무료로 시작하기
                   </button>
@@ -562,26 +562,26 @@ export default function LandingPage() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-white"
+              className="sm:hidden p-2 text-gray-700"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
 
           {mobileMenuOpen && (
-            <div className="sm:hidden py-4 border-t border-white/5">
+              <div className="sm:hidden py-4 border-t border-gray-100">
               <nav className="flex flex-col space-y-3">
-                <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
-                <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
-                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">수출바우처</a>
-                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-400 py-2 text-left">인사이트</button>
-                <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
+                <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 py-2">포트폴리오</a>
+                <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 py-2">요금제</a>
+                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 py-2">수출바우처</a>
+                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-600 py-2 text-left">인사이트</button>
+                <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 py-2">FAQ</a>
               </nav>
-              <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-white/5">
+              <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-100">
                 {user ? (
                   <button
                     onClick={() => { handleDashboardClick(); setMobileMenuOpen(false); }}
-                    className="w-full py-3 border border-white/20 text-white rounded-full font-medium"
+                    className="w-full py-3 border border-gray-300 text-gray-700 rounded-full font-medium"
                   >
                     대시보드
                   </button>
@@ -589,13 +589,13 @@ export default function LandingPage() {
                   <>
                     <button
                       onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
-                      className="w-full py-3 text-white border border-white/10 rounded-full"
+                      className="w-full py-3 text-gray-700 border border-gray-200 rounded-full"
                     >
                       로그인
                     </button>
                     <button
                       onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}
-                      className="w-full py-3 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold hover:brightness-110 transition-all"
+                      className="w-full py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-all"
                     >
                       무료로 시작하기
                     </button>
@@ -633,7 +633,7 @@ export default function LandingPage() {
             title={category.title}
             subtitle={category.subtitle}
             videos={getVideosForCategory(index)}
-            bgColor={index % 2 === 0 ? 'bg-[#121218]' : 'bg-[#0A0A0F]'}
+            bgColor={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
           />
         ))}
       </section>
@@ -642,16 +642,16 @@ export default function LandingPage() {
       <ProductTiersSection user={user} navigate={navigate} />
 
       {/* [섹션 9] Partner Brands */}
-      <section className="py-10 sm:py-16 lg:py-24 bg-[#0A0A0F]">
+      <section className="py-10 sm:py-16 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
-              <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>520+</span> 브랜드가 선택한 플랫폼
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
+              <span className="text-purple-600">520+</span> 브랜드가 선택한 플랫폼
             </h2>
-            <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">클리오, 동아제약, 스킨푸드 등 다양한 브랜드가 직접 캠페인을 운영하고 있습니다.</p>
+            <p className="text-gray-500 text-sm sm:text-base lg:text-lg">클리오, 동아제약, 스킨푸드 등 다양한 브랜드가 직접 캠페인을 운영하고 있습니다.</p>
           </div>
 
-          <div className="bg-[#121218] rounded-[20px] sm:rounded-[24px] p-4 sm:p-8 lg:p-12 border border-white/[0.06]">
+          <div className="bg-gray-50 rounded-2xl sm:rounded-3xl p-4 sm:p-8 lg:p-12 border border-gray-200">
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2 sm:gap-4 lg:gap-6">
               {[
                 'MEDIHEAL', 'SKINFOOD', 'REJURAN', 'Dr.G', 'CLIO',
@@ -665,9 +665,9 @@ export default function LandingPage() {
               ].map((brand, index) => (
                 <div
                   key={index}
-                  className={`flex items-center justify-center h-10 sm:h-14 lg:h-16 px-1 sm:px-2 border border-white/[0.06] rounded-md sm:rounded-lg hover:border-white/15 transition-colors ${index >= 21 ? 'hidden sm:flex' : ''}`}
+                  className={`flex items-center justify-center h-10 sm:h-14 lg:h-16 px-1 sm:px-2 border border-gray-200 bg-white rounded-md sm:rounded-lg hover:border-purple-200 hover:shadow-sm transition-all ${index >= 21 ? 'hidden sm:flex' : ''}`}
                 >
-                  <span className="text-[10px] sm:text-xs lg:text-sm text-[#A0A0B0] font-medium text-center truncate">{brand}</span>
+                  <span className="text-[10px] sm:text-xs lg:text-sm text-gray-600 font-medium text-center truncate">{brand}</span>
                 </div>
               ))}
             </div>
@@ -676,33 +676,33 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 10] Testimonials */}
-      <section id="testimonials" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
+      <section id="testimonials" className="py-12 sm:py-16 lg:py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-            <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <p className="text-purple-600 text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3">
               SOCIAL PROOF
             </p>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
-              브랜드 담당자들의 <span className="text-[#C084FC]">실제 후기</span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
+              브랜드 담당자들의 <span className="text-purple-600">실제 후기</span>
             </h2>
           </div>
 
           <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-[#121218] rounded-[20px] p-5 sm:p-6 lg:p-8 border border-white/[0.06] snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
+              <div key={index} className="bg-white rounded-2xl p-5 sm:p-6 lg:p-8 border border-gray-200 shadow-sm snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink">
                 <div className="flex items-center gap-1 mb-3 sm:mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-[#C084FC] fill-current" />
+                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 fill-current" />
                   ))}
                 </div>
-                <p className="text-[#A0A0B0] text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">"{testimonial.content}"</p>
+                <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">"{testimonial.content}"</p>
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#24243A] rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-base sm:text-lg font-semibold text-[#C084FC]">{testimonial.name[0]}</span>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-base sm:text-lg font-semibold text-purple-600">{testimonial.name[0]}</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-white text-sm sm:text-base">{testimonial.name}</div>
-                    <div className="text-xs sm:text-sm text-[#5A5A6E]">{testimonial.role} | {testimonial.company}</div>
+                    <div className="font-semibold text-gray-900 text-sm sm:text-base">{testimonial.name}</div>
+                    <div className="text-xs sm:text-sm text-gray-400">{testimonial.role} | {testimonial.company}</div>
                   </div>
                 </div>
               </div>
@@ -712,23 +712,23 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 11] Voucher */}
-      <section id="voucher" className="py-12 sm:py-16 lg:py-24 bg-[#121218]">
+      <section id="voucher" className="py-12 sm:py-16 lg:py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-[rgba(192,132,252,0.3)] bg-[rgba(192,132,252,0.05)] rounded-full text-white text-xs sm:text-sm mb-4 sm:mb-6">
-            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC]" />
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-purple-200 bg-purple-50 rounded-full text-purple-700 text-xs sm:text-sm mb-4 sm:mb-6">
+            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
             수출바우처 공식 수행기관
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
-            수출바우처로 최대 <span className="text-[#C084FC]" style={{ fontFamily: "'Outfit', sans-serif" }}>80%</span> 지원
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
+            수출바우처로 최대 <span className="text-purple-600">80%</span> 지원
           </h2>
-          <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg mb-6 sm:mb-8">
+          <p className="text-gray-500 text-sm sm:text-base lg:text-lg mb-6 sm:mb-8">
             200만원 패키지 이용 시 실제 부담금 40만원부터
           </p>
           <a
             href="https://pf.kakao.com/_xgNdxlG"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 border border-white/20 text-white rounded-full font-semibold text-sm sm:text-base hover:border-white/40 transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 border border-gray-300 text-gray-700 rounded-full font-semibold text-sm sm:text-base hover:border-purple-400 hover:text-purple-700 transition-colors"
           >
             <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             수출바우처 상담받기
@@ -737,20 +737,20 @@ export default function LandingPage() {
       </section>
 
       {/* [섹션 12] FAQ */}
-      <section id="faq" className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]">
+      <section id="faq" className="py-12 sm:py-16 lg:py-24 bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">자주 묻는 질문</h2>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">자주 묻는 질문</h2>
           </div>
 
           <div className="space-y-3 sm:space-y-4">
             {faqs.map((faq, index) => (
-              <details key={index} className="group bg-[#121218] rounded-xl sm:rounded-2xl border border-white/[0.06]">
+              <details key={index} className="group bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm">
                 <summary className="flex items-center justify-between cursor-pointer p-4 sm:p-6 min-h-[48px]">
-                  <span className="font-medium pr-3 sm:pr-4 text-white text-sm sm:text-base">{faq.question || faq.q}</span>
-                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-[#5A5A6E] group-open:rotate-180 transition-transform flex-shrink-0" />
+                  <span className="font-medium pr-3 sm:pr-4 text-gray-900 text-sm sm:text-base">{faq.question || faq.q}</span>
+                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0" />
                 </summary>
-                <div className="px-4 pb-4 sm:px-6 sm:pb-6 text-[#A0A0B0] text-sm sm:text-base leading-relaxed">
+                <div className="px-4 pb-4 sm:px-6 sm:pb-6 text-gray-600 text-sm sm:text-base leading-relaxed">
                   {faq.answer || faq.a}
                 </div>
               </details>
@@ -759,11 +759,11 @@ export default function LandingPage() {
 
           {/* 카카오톡 + 시작하기 듀얼 CTA */}
           <div className="mt-8 sm:mt-10 text-center">
-            <p className="text-[#A0A0B0] text-sm mb-3">더 궁금한 점이 있으신가요?</p>
+            <p className="text-gray-500 text-sm mb-3">더 궁금한 점이 있으신가요?</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
-                className="w-full sm:w-auto px-6 py-3 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-6 py-3 bg-purple-600 text-white rounded-full font-semibold text-sm hover:bg-purple-700 transition-all inline-flex items-center justify-center gap-2"
               >
                 무료로 캠페인 시작하기
                 <ArrowRight className="w-4 h-4" />
@@ -772,7 +772,7 @@ export default function LandingPage() {
                 href="https://pf.kakao.com/_xgNdxlG"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm hover:border-white/40 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-full font-medium text-sm hover:border-purple-400 hover:text-purple-700 transition-all"
               >
                 <MessageCircle className="w-4 h-4" />
                 카카오톡 상담
@@ -784,13 +784,13 @@ export default function LandingPage() {
 
       {/* [섹션 13] Featured Newsletters */}
       {featuredNewsletters.length > 0 && (
-        <section className="py-10 sm:py-16 lg:py-20 bg-[#121218]">
+        <section className="py-10 sm:py-16 lg:py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6 sm:mb-8 lg:mb-10">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 text-white">
-                최신 <span className="text-[#C084FC]">뉴스레터</span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 text-gray-900">
+                최신 <span className="text-purple-600">뉴스레터</span>
               </h2>
-              <p className="text-[#A0A0B0] text-sm sm:text-base">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
+              <p className="text-gray-500 text-sm sm:text-base">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -798,7 +798,7 @@ export default function LandingPage() {
                 <div
                   key={newsletter.id}
                   onClick={() => navigate(`/newsletter/${newsletter.id}`)}
-                  className="bg-[#1A1A24] rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-white/[0.06]"
+                  className="bg-white rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-gray-200"
                 >
                   <div className="h-28 sm:h-36 lg:h-40 bg-[#24243A] relative overflow-hidden">
                     {newsletter.thumbnail_url ? (
@@ -809,29 +809,29 @@ export default function LandingPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-white/30" />
+                        <Mail className="w-8 h-8 sm:w-12 sm:h-12 text-gray-300" />
                       </div>
                     )}
                     {newsletter.is_featured && (
-                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#C084FC] text-[#0A0A0F] text-[10px] sm:text-xs font-medium rounded-full flex items-center gap-0.5 sm:gap-1">
+                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-600 text-white text-[10px] sm:text-xs font-medium rounded-full flex items-center gap-0.5 sm:gap-1">
                         <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> 추천
                       </span>
                     )}
                   </div>
                   <div className="p-3 sm:p-4">
-                    <h3 className="font-bold text-white text-xs sm:text-sm lg:text-base mb-1 sm:mb-2 line-clamp-2 group-hover:text-[#C084FC] transition-colors">
+                    <h3 className="font-bold text-gray-900 text-xs sm:text-sm lg:text-base mb-1 sm:mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
                       {newsletter.title}
                     </h3>
                     {newsletter.description && (
-                      <p className="text-[#5A5A6E] text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3 hidden sm:block">
+                      <p className="text-gray-400 text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3 hidden sm:block">
                         {newsletter.description}
                       </p>
                     )}
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-[#5A5A6E]">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
                       {newsletter.published_at && (
                         <span>{new Date(newsletter.published_at).toLocaleDateString('ko-KR')}</span>
                       )}
-                      <span className="text-[#C084FC] font-medium group-hover:underline">읽기 →</span>
+                      <span className="text-purple-600 font-medium group-hover:underline">읽기 →</span>
                     </div>
                   </div>
                 </div>
@@ -841,7 +841,7 @@ export default function LandingPage() {
             <div className="text-center mt-6 sm:mt-8">
               <button
                 onClick={() => navigate('/newsletters')}
-                className="w-full sm:w-auto px-6 py-3 border border-white/20 text-white rounded-full font-medium text-sm sm:text-base hover:border-white/40 transition-colors inline-flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-6 py-3 border border-gray-300 text-gray-700 rounded-full font-medium text-sm sm:text-base hover:border-purple-400 hover:text-purple-700 transition-colors inline-flex items-center justify-center gap-2"
               >
                 모든 뉴스레터 보기
                 <ArrowRight className="w-4 h-4" />
@@ -852,22 +852,22 @@ export default function LandingPage() {
       )}
 
       {/* [섹션 14] 크넥 소개서 다운로드 */}
-      <section className="py-10 sm:py-14 lg:py-16 bg-[#0A0A0F]">
+      <section className="py-10 sm:py-14 lg:py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[rgba(192,132,252,0.1)] rounded-full text-[#C084FC] text-xs font-medium mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 rounded-full text-purple-600 text-xs font-medium mb-4 border border-purple-100">
             <FileText className="w-3.5 h-3.5" />
             Company Brochure
           </div>
-          <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 sm:mb-3">
+          <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">
             크넥이 처음이신가요?
           </h3>
-          <p className="text-[#A0A0B0] text-sm sm:text-base mb-5 sm:mb-6 max-w-lg mx-auto">
+          <p className="text-gray-500 text-sm sm:text-base mb-5 sm:mb-6 max-w-lg mx-auto">
             소개서 한 장이면 크넥 서비스가 한눈에 보입니다.<br className="hidden sm:inline" />
             프로세스, 성과 사례, 가격 안내까지.
           </p>
           <a
             href={brochureUrl || "https://docs.google.com/presentation/d/1PFEJi0gWZCWn9g9Vcx0bScZGf3W53_4n/export/pdf"}
-            className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-[#C084FC] hover:brightness-110 text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base transition-all"
+            className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-semibold text-sm sm:text-base transition-all shadow-lg shadow-purple-200"
           >
             <Download className="w-4 h-4" />
             CNEC 소개서 다운로드
@@ -885,11 +885,11 @@ export default function LandingPage() {
 
       {/* Sticky Bottom CTA Button */}
       {!user && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/95 to-transparent pointer-events-none">
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none">
           <div className="max-w-lg mx-auto pointer-events-auto">
             <button
               onClick={() => navigate('/signup')}
-              className="w-full py-3.5 bg-[#C084FC] text-[#0A0A0F] rounded-full font-semibold text-sm sm:text-base hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[rgba(192,132,252,0.3)]"
+              className="w-full py-3.5 bg-purple-600 text-white rounded-full font-semibold text-sm sm:text-base hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-200"
             >
               무료로 캠페인 시작하기
               <ArrowRight className="w-4 h-4" />

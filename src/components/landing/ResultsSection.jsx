@@ -24,21 +24,21 @@ export default function ResultsSection({
   const totalPagesMobile = Math.max(1, Math.ceil(shorts.length / VISIBLE_COUNT_MOBILE))
 
   return (
-    <section className="py-12 sm:py-16 lg:py-24 bg-[#0A0A0F]" id="showcase">
+    <section className="py-12 sm:py-16 lg:py-24 bg-gray-50" id="showcase">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header with tabs */}
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div>
-            <p className="text-[#C084FC] text-xs font-medium tracking-[0.15em] uppercase mb-2 flex items-center gap-1.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <p className="text-purple-600 text-xs font-medium tracking-[0.15em] uppercase mb-2 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5" />
               RESULTS & PORTFOLIO
             </p>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white" style={{ fontFamily: "'Outfit', 'Pretendard', sans-serif" }}>
-              PORTFOLIO <span className="italic font-light opacity-80">Series.</span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900">
+              PORTFOLIO <span className="italic font-light text-gray-400">Series.</span>
             </h2>
           </div>
           {/* Region tabs */}
-          <div className="flex rounded-full p-1">
+          <div className="flex rounded-full p-1 bg-white border border-gray-200 shadow-sm">
             {[
               { key: 'korea', label: 'KR' },
               { key: 'japan', label: 'JP' },
@@ -51,8 +51,8 @@ export default function ResultsSection({
                   onClick={() => { setSelectedRegion(tab.key); setPortfolioPage(0) }}
                   className={`px-5 sm:px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
                     selectedRegion === tab.key
-                      ? 'bg-white/10 text-white border border-white/15'
-                      : 'text-[#5A5A6E] hover:text-white'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-gray-700'
                   }`}
                 >
                   <FlagIcon className="w-5 h-3.5 rounded-[2px] overflow-hidden shadow-sm" /> {tab.label}
@@ -65,37 +65,37 @@ export default function ResultsSection({
         {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2fr] gap-5 lg:gap-6">
           {/* Left: Info card */}
-          <div className="bg-[#121218] border border-white/[0.06] rounded-[20px] p-6 sm:p-8 flex flex-col justify-between min-h-[320px] lg:min-h-[400px]">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 flex flex-col justify-between min-h-[320px] lg:min-h-[400px] shadow-sm">
             <div>
-              <p className="text-[#5A5A6E] text-[10px] font-medium tracking-[0.2em] uppercase mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>Selected Region</p>
+              <p className="text-gray-400 text-[10px] font-medium tracking-[0.2em] uppercase mb-1">Selected Region</p>
               <div className="flex items-center gap-2.5 mb-6">
                 {(() => { const FlagIcon = FLAGS[selectedRegion]; return <FlagIcon className="w-7 h-5 rounded-[2px] shadow-sm" /> })()}
-                <p className="text-white text-base font-medium">{ch.region}</p>
+                <p className="text-gray-700 text-base font-medium">{ch.region}</p>
               </div>
-              <h3 className="text-white font-black text-3xl sm:text-4xl mb-4 italic" style={{ fontFamily: "'Outfit', sans-serif" }}>{ch.name}</h3>
-              <p className="text-[#A0A0B0] text-sm leading-relaxed">{ch.desc}</p>
+              <h3 className="text-gray-900 font-black text-3xl sm:text-4xl mb-4 italic">{ch.name}</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">{ch.desc}</p>
             </div>
-            <div className="mt-6 pt-5 border-t border-white/[0.08]">
+            <div className="mt-6 pt-5 border-t border-gray-100">
               <a
                 href={ch.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 group"
               >
-                <div className="w-10 h-10 rounded-full border border-white/[0.08] flex items-center justify-center group-hover:border-white/15 transition-colors">
-                  <Play className="w-4 h-4 text-white ml-0.5" />
+                <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center group-hover:border-purple-300 group-hover:bg-purple-50 transition-colors">
+                  <Play className="w-4 h-4 text-gray-600 ml-0.5 group-hover:text-purple-600" />
                 </div>
-                <span className="text-[#A0A0B0] text-xs font-medium tracking-wider uppercase group-hover:text-white transition-colors" style={{ fontFamily: "'Outfit', sans-serif" }}>Watch All Works</span>
+                <span className="text-gray-400 text-xs font-medium tracking-wider uppercase group-hover:text-purple-600 transition-colors">Watch All Works</span>
                 {shorts.length > 0 && (
                   <div className="ml-auto flex items-center -space-x-2">
                     {shorts.slice(0, 3).map((s) => (
-                      <div key={s.video_id} className="w-7 h-7 rounded-full border-2 border-gray-900 overflow-hidden">
+                      <div key={s.video_id} className="w-7 h-7 rounded-full border-2 border-white overflow-hidden shadow-sm">
                         <img src={s.thumbnail} alt="" className="w-full h-full object-cover" />
                       </div>
                     ))}
                     {shorts.length > 3 && (
-                      <div className="w-7 h-7 rounded-full border-2 border-[#121218] bg-[#1A1A24] flex items-center justify-center">
-                        <span className="text-gray-400 text-[9px] font-medium">+{shorts.length - 3}</span>
+                      <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center shadow-sm">
+                        <span className="text-gray-500 text-[9px] font-medium">+{shorts.length - 3}</span>
                       </div>
                     )}
                   </div>
@@ -110,7 +110,7 @@ export default function ResultsSection({
                         key={i}
                         onClick={() => setPortfolioPage(i)}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
-                          portfolioPage === i ? 'w-6 bg-white' : 'w-1.5 bg-[#24243A] hover:bg-[#5A5A6E]'
+                          portfolioPage === i ? 'w-6 bg-purple-600' : 'w-1.5 bg-gray-200 hover:bg-gray-400'
                         }`}
                       />
                     ))}
@@ -119,14 +119,14 @@ export default function ResultsSection({
                     <button
                       onClick={() => setPortfolioPage(p => Math.max(0, p - 1))}
                       disabled={portfolioPage === 0}
-                      className="w-8 h-8 rounded-full border border-white/[0.08] flex items-center justify-center text-[#A0A0B0] hover:text-white hover:border-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-purple-600 hover:border-purple-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setPortfolioPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={portfolioPage === totalPages - 1}
-                      className="w-8 h-8 rounded-full border border-white/[0.08] flex items-center justify-center text-[#A0A0B0] hover:text-white hover:border-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-purple-600 hover:border-purple-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -152,8 +152,8 @@ export default function ResultsSection({
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[#121218] animate-pulse">
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-900" />
+                  <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-gray-100 animate-pulse">
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-200 to-gray-100" />
                   </div>
                 ))}
               </div>

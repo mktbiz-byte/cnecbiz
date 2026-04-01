@@ -1,4 +1,4 @@
-import { CheckCircle2, ArrowRight } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const tiers = [
@@ -54,7 +54,7 @@ const tiers = [
 
 export default function ProductTiersSection({ user, navigate }) {
   return (
-    <section id="pricing" className="py-12 sm:py-16 lg:py-24 bg-[#121218]">
+    <section id="pricing" className="py-12 sm:py-16 lg:py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -63,11 +63,11 @@ export default function ProductTiersSection({ user, navigate }) {
           transition={{ duration: 0.5 }}
           className="text-center mb-8 sm:mb-12 lg:mb-16"
         >
-          <p className="text-[#C084FC] text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <p className="text-purple-600 text-xs sm:text-sm font-medium tracking-[0.15em] uppercase mb-3">
             PRODUCT TIERS
           </p>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">목적에 맞는 <span className="text-[#C084FC]">캠페인 선택</span></h2>
-          <p className="text-[#A0A0B0] text-sm sm:text-base lg:text-lg">모든 캠페인에 AI 기획안, 크리에이터 매칭, 2차 활용이 포함됩니다.</p>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">목적에 맞는 <span className="text-purple-600">캠페인 선택</span></h2>
+          <p className="text-gray-500 text-sm sm:text-base lg:text-lg">모든 캠페인에 AI 기획안, 크리에이터 매칭, 2차 활용이 포함됩니다.</p>
         </motion.div>
 
         <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 max-w-5xl mx-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -78,46 +78,45 @@ export default function ProductTiersSection({ user, navigate }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.5, delay: idx * 0.1 }}
-              className={`bg-[#0A0A0F] rounded-[20px] p-5 sm:p-6 lg:p-8 border snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink relative ${
+              className={`bg-white rounded-2xl p-5 sm:p-6 lg:p-8 border snap-center min-w-[280px] sm:min-w-0 flex-shrink-0 md:flex-shrink relative ${
                 tier.popular
-                  ? 'border-[#C084FC]'
-                  : 'border-white/[0.06] hover:border-white/15'
-              } transition-colors`}
-              style={tier.popular ? { boxShadow: '0 0 30px rgba(192,132,252,0.1)' } : {}}
+                  ? 'border-purple-400 shadow-lg shadow-purple-100'
+                  : 'border-gray-200 hover:border-purple-200 hover:shadow-md'
+              } transition-all`}
             >
               {tier.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C084FC] rounded-full text-xs font-semibold text-[#0A0A0F]">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-purple-600 rounded-full text-xs font-semibold text-white">
                   인기
                 </div>
               )}
-              <h3 className={`text-base sm:text-lg font-medium mb-1.5 sm:mb-2 ${tier.popular ? 'text-[#C084FC]' : 'text-[#A0A0B0]'}`}>
+              <h3 className={`text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 ${tier.popular ? 'text-purple-600' : 'text-gray-500'}`}>
                 {tier.name}
               </h3>
               <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>{tier.price}</span>
-                <span className="text-[#5A5A6E] text-sm">{tier.unit}</span>
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">{tier.price}</span>
+                <span className="text-gray-400 text-sm">{tier.unit}</span>
               </div>
-              <p className="text-[#5A5A6E] text-xs sm:text-sm mb-4 sm:mb-6">{tier.desc}</p>
+              <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">{tier.desc}</p>
               <button
                 onClick={() => navigate(user ? '/company/campaigns/new' : '/signup')}
                 className={`w-full py-3 rounded-xl font-semibold text-sm sm:text-base transition-all mb-2 ${
                   tier.popular
-                    ? 'bg-[#C084FC] text-[#0A0A0F] hover:brightness-110'
-                    : 'bg-white/10 text-white hover:bg-white/15'
+                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 이 캠페인으로 시작하기
               </button>
               <button
                 onClick={() => window.open(tier.guideUrl, '_blank')}
-                className="w-full py-2 text-[#5A5A6E] text-xs hover:text-white transition-colors mb-4 sm:mb-6"
+                className="w-full py-2 text-gray-400 text-xs hover:text-purple-600 transition-colors mb-4 sm:mb-6"
               >
                 캠페인 가이드 상세 보기 →
               </button>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 {tier.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-[#A0A0B0]">
-                    <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C084FC] flex-shrink-0" />
+                  <li key={i} className="flex items-center gap-2 text-gray-600">
+                    <CheckCircle2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${tier.popular ? 'text-purple-600' : 'text-gray-400'}`} />
                     {feature}
                   </li>
                 ))}
@@ -127,7 +126,7 @@ export default function ProductTiersSection({ user, navigate }) {
         </div>
         {/* 스와이프 힌트 - 모바일만 */}
         <div className="flex justify-center gap-1.5 mt-3 md:hidden">
-          <span className="text-[#5A5A6E] text-[10px]">← 스와이프하여 모든 요금제 보기 →</span>
+          <span className="text-gray-400 text-[10px]">← 스와이프하여 모든 요금제 보기 →</span>
         </div>
       </div>
     </section>

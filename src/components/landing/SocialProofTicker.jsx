@@ -1,19 +1,19 @@
 import { Users, Globe, Award, Sparkles, Video } from 'lucide-react'
 
 const items = [
-  { icon: Users, text: '520+ 브랜드 이용 중' },
+  { icon: Users, text: '27,000+ 검증된 크리에이터' },
   { icon: Video, text: '유튜브·인스타·틱톡 전 채널 대응' },
   { icon: Globe, text: '3개국 운영 (한국·미국·일본)' },
   { icon: Award, text: 'KOTRA 수출바우처 공식 수행기관' },
   { icon: Sparkles, text: 'AI 기획안 무료 제공' },
+  { icon: Users, text: '520+ 브랜드 파트너' },
 ]
 
 export default function SocialProofTicker() {
-  // Double items for seamless infinite scroll
   const doubled = [...items, ...items]
 
   return (
-    <section className="py-4 bg-[#121218] border-y border-white/[0.04] overflow-hidden">
+    <section className="py-4 bg-gray-50 border-y border-gray-100 overflow-hidden">
       <style>{`
         @keyframes ticker-scroll {
           0% { transform: translateX(0); }
@@ -28,10 +28,10 @@ export default function SocialProofTicker() {
       `}</style>
       <div className="ticker-track flex items-center gap-8 sm:gap-12 w-max">
         {doubled.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2 text-[#A0A0B0] whitespace-nowrap">
-            <item.icon className="w-4 h-4 text-[#C084FC] flex-shrink-0" />
+          <div key={idx} className="flex items-center gap-2 text-gray-500 whitespace-nowrap">
+            <item.icon className="w-4 h-4 text-purple-600 flex-shrink-0" />
             <span className="text-sm font-medium">{item.text}</span>
-            <span className="text-[#5A5A6E] ml-4">·</span>
+            <span className="text-gray-300 ml-4">·</span>
           </div>
         ))}
       </div>
