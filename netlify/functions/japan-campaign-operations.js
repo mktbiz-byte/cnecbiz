@@ -76,10 +76,10 @@ exports.handler = async (event) => {
 
     console.log('[Japan API] Request:', { action, campaign_id, application_id, userEmail: user.email })
 
-    // 캠페인 조회 (Japan DB — company_id 컬럼이 없을 수 있으므로 company_biz_id 사용)
+    // 캠페인 조회 (Japan DB — company_id/company_biz_id 컬럼 없음, company_email만 존재)
     const { data: campaign, error: campaignError } = await supabaseJapan
       .from('campaigns')
-      .select('id, company_biz_id, company_email, title')
+      .select('id, company_email, title')
       .eq('id', campaign_id)
       .single()
 
@@ -100,8 +100,8 @@ exports.handler = async (event) => {
 
     const isAdmin = !!adminData
 
-    // 소유권 확인 (관리자이거나 company_email 또는 company_biz_id가 일치)
-    if (!isAdmin && campaign.company_biz_id !== user.id && campaign.company_email !== user.email) {
+    // 소유권 확인 (관리자이거나 company_email이 일치)
+    if (!isAdmin && campaign.company_email !== user.email) {
       return {
         statusCode: 403,
         headers,

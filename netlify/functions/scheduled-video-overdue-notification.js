@@ -388,7 +388,7 @@ exports.handler = async (event, context) => {
 
       const { data: regionCampaigns, error: campaignError } = await client
         .from('campaigns')
-        .select('id, title, company_id, campaign_type, content_submission_deadline, video_deadline, sns_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
+        .select('id, title, company_email, campaign_type, content_submission_deadline, video_deadline, sns_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline, step1_deadline, step2_deadline')
         .in('status', ['active', 'recruiting', 'approved']);
 
       if (campaignError) {
