@@ -67,7 +67,7 @@ exports.handler = async (event) => {
         const client = getRegionClient(region);
         const { data: campaign } = await client
           .from('campaigns')
-          .select('company_email, user_id, company_id')
+          .select('company_email')
           .eq('id', campaignId)
           .single();
 
@@ -75,9 +75,7 @@ exports.handler = async (event) => {
           return errorResponse(404, '캠페인을 찾을 수 없습니다.');
         }
 
-        const isOwner = campaign.company_email === adminEmail ||
-                        campaign.user_id === adminEmail ||
-                        campaign.company_id === adminEmail;
+        const isOwner = campaign.company_email === adminEmail;
 
         if (!isOwner) {
           return errorResponse(403, '이 캠페인을 수정할 권한이 없습니다.');

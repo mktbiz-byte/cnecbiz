@@ -122,7 +122,7 @@ exports.handler = async (event) => {
     // 2. 캠페인 정보 조회 (같은 리전 DB에서)
     const { data: campaign, error: campaignError } = await regionalClient
       .from('campaigns')
-      .select('id, title, company_id, company_email')
+      .select('id, title, company_email')
       .eq('id', application.campaign_id)
       .single();
 

@@ -527,7 +527,7 @@ exports.handler = async (event, context) => {
         // Japan/US는 video_deadline, sns_deadline 필드도 사용
         const { data: regionCampaigns, error: campaignError } = await supabase
           .from('campaigns')
-          .select('id, title, company_id, campaign_type, content_submission_deadline, video_deadline, sns_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
+          .select('id, title, company_email, campaign_type, content_submission_deadline, video_deadline, sns_deadline, step1_deadline, step2_deadline, week1_deadline, week2_deadline, week3_deadline, week4_deadline')
           .in('status', ['active', 'recruiting', 'approved']);
 
         if (campaignError) {
@@ -918,11 +918,13 @@ exports.handler = async (event, context) => {
             // 캠페인별 크리에이터 그룹화 (기업 이메일용 — 전 리전)
             {
               const campaignId = campaign.id;
-              const companyId = campaign.company_id;
+              const companyId = campaign.company_id || null;
+              const companyEmail = campaign.company_email || null;
               if (!campaignCreatorsMap[campaignId]) {
                 campaignCreatorsMap[campaignId] = {
                   campaignName,
                   companyId,
+                  companyEmail,
                   region: campaign.region,
                   deadline: date,
                   daysRemaining,
@@ -1035,6 +1037,25 @@ exports.handler = async (event, context) => {
             companyEmail = companyById.notification_email || companyById.email;
             companyName = companyById.company_name || '기업';
           }
+        }
+
+        // 3. company_email로 BIZ DB companies 테이블 조회 (Japan 등 company_id 없는 리전)
+        if (!companyEmail && campaignData.companyEmail) {
+          const { data: companyByEmail } = await supabaseBiz
+            .from('companies')
+            .select('company_name, notification_email, email')
+            .eq('email', campaignData.companyEmail)
+            .maybeSingle();
+
+          if (companyByEmail) {
+            companyEmail = companyByEmail.notification_email || companyByEmail.email;
+            companyName = companyByEmail.company_name || '기업';
+          }
+        }
+
+        // 4. 최종 fallback: 캠페인의 company_email 직접 사용
+        if (!companyEmail && campaignData.companyEmail) {
+          companyEmail = campaignData.companyEmail;
         }
 
         if (!companyEmail) {
