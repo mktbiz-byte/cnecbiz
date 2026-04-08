@@ -516,11 +516,25 @@ export default function AdminCampaignDetail() {
         const appResult = await appRes.json()
         if (!appResult.success) console.warn('Korea applications 업데이트 실패:', appResult.error)
       } else {
-        const { error: appUpdateError } = await client
-          .from('applications')
-          .update(appUpdateData)
-          .eq('id', application.id)
-        if (appUpdateError) throw appUpdateError
+        // 일본/미국 등 리전 DB는 RLS로 프론트엔드 직접 UPDATE 불가 → 리전 API 사용
+        const regionApiMap = { japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+        const apiName = regionApiMap[region]
+        if (apiName) {
+          const { data: { session } } = await supabaseBiz.auth.getSession()
+          const appRes = await fetch(`/.netlify/functions/${apiName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+            body: JSON.stringify({ action: 'update_application', campaign_id: id, application_id: application.id, data: appUpdateData })
+          })
+          const appResult = await appRes.json()
+          if (!appResult.success) throw new Error(appResult.error || 'Application 업데이트 실패')
+        } else {
+          const { error: appUpdateError } = await client
+            .from('applications')
+            .update(appUpdateData)
+            .eq('id', application.id)
+          if (appUpdateError) throw appUpdateError
+        }
       }
 
       // 한국 캠페인: campaign_participants.video_files도 업데이트 (Netlify Function으로 RLS 우회)
@@ -625,18 +639,18 @@ export default function AdminCampaignDetail() {
     }
 
     try {
-      const client = getSupabaseClient(region)
-      if (!client) throw new Error('Supabase client not found')
-
-      const { error } = await client
-        .from('campaigns')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
+      // 리전 DB는 RLS로 프론트엔드 직접 UPDATE 불가 → Netlify Function 사용
+      const response = await fetch('/.netlify/functions/update-campaign-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: id,
+          region: region,
+          newStatus: newStatus
         })
-        .eq('id', id)
-
-      if (error) throw error
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || '상태 변경에 실패했습니다.')
 
       setCampaign({ ...campaign, status: newStatus })
       alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
@@ -738,19 +752,40 @@ export default function AdminCampaignDetail() {
 
           const { guide } = await response.json()
 
-          // 생성된 가이드를 applications 테이블에 저장 (직접 Supabase 업데이트)
+          // 생성된 가이드를 applications 테이블에 저장
           console.log(`[DEBUG] Saving guide for app:`, {
             id: app.id,
             applicant_name: app.applicant_name,
             guide_length: guide?.length,
             guide_preview: guide?.substring(0, 100)
           })
-          
-          const { data: updateData, error: updateError } = await client
-            .from('applications')
-            .update({ personalized_guide: guide })
-            .eq('id', app.id)
-            .select()
+
+          // 리전 DB는 RLS로 프론트엔드 직접 UPDATE 불가 → 리전 API 사용
+          const regionApiMap = { japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+          const guideApiName = regionApiMap[region]
+          let updateData, updateError
+          if (guideApiName) {
+            const { data: { session } } = await supabaseBiz.auth.getSession()
+            const guideRes = await fetch(`/.netlify/functions/${guideApiName}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+              body: JSON.stringify({ action: 'update_application', campaign_id: id, application_id: app.id, data: { personalized_guide: guide } })
+            })
+            const guideResult = await guideRes.json()
+            if (!guideResult.success) {
+              updateError = { message: guideResult.error }
+            } else {
+              updateData = guideResult.data
+            }
+          } else {
+            const result = await client
+              .from('applications')
+              .update({ personalized_guide: guide })
+              .eq('id', app.id)
+              .select()
+            updateData = result.data
+            updateError = result.error
+          }
 
           if (updateError) {
             console.error(`[DEBUG] Save error for ${app.applicant_name}:`, updateError)
@@ -1661,11 +1696,26 @@ export default function AdminCampaignDetail() {
                   <Button
                     onClick={async () => {
                       try {
-                        const client = getSupabaseClient(region)
-                        await client
-                          .from('applications')
-                          .update({ personalized_guide: editedGuideContent })
-                          .eq('id', selectedGuide.id)
+                        // 리전 DB는 RLS로 프론트엔드 직접 UPDATE 불가 → 리전 API 사용
+                        const regionApiMap = { japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+                        const editGuideApi = regionApiMap[region]
+                        if (editGuideApi) {
+                          const { data: { session } } = await supabaseBiz.auth.getSession()
+                          const res = await fetch(`/.netlify/functions/${editGuideApi}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                            body: JSON.stringify({ action: 'update_application', campaign_id: id, application_id: selectedGuide.id, data: { personalized_guide: editedGuideContent } })
+                          })
+                          const result = await res.json()
+                          if (!result.success) throw new Error(result.error)
+                        } else {
+                          const client = getSupabaseClient(region)
+                          const { error } = await client
+                            .from('applications')
+                            .update({ personalized_guide: editedGuideContent })
+                            .eq('id', selectedGuide.id)
+                          if (error) throw error
+                        }
 
                         alert('가이드가 저장되었습니다.')
                         setEditingGuide(false)
@@ -1673,7 +1723,7 @@ export default function AdminCampaignDetail() {
                         fetchApplications()
                       } catch (error) {
                         console.error('Error saving guide:', error)
-                        alert('저장에 실패했습니다.')
+                        alert('저장에 실패했습니다: ' + error.message)
                       }
                     }}
                     className="bg-purple-600 hover:bg-purple-700"
@@ -2070,11 +2120,29 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign
 
   const isSelected = ['approved', 'virtual_selected', 'selected'].includes(application.status)
 
+  // 리전 DB 업데이트 헬퍼: japan/us는 서버사이드 API, 나머지는 직접 업데이트
+  const updateApplicationViaApi = async (appId, campaignId, data) => {
+    const regionApiMap = { japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+    const apiName = regionApiMap[region]
+    if (apiName) {
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      const res = await fetch(`/.netlify/functions/${apiName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ action: 'update_application', campaign_id: campaignId, application_id: appId, data })
+      })
+      const result = await res.json()
+      if (!result.success) throw new Error(result.error || '업데이트 실패')
+    } else {
+      const client = getSupabaseClient(region)
+      const { error } = await client.from('applications').update(data).eq('id', appId)
+      if (error) throw error
+    }
+  }
+
   const handleSave = async () => {
     try {
       setSaving(true)
-      const client = getSupabaseClient(region)
-
       const updateData = {
         tracking_number: formData.tracking_number || null,
         shipping_date: formData.shipping_date ? new Date(formData.shipping_date).toISOString() : null,
@@ -2082,16 +2150,11 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await client
-        .from('applications')
-        .update(updateData)
-        .eq('id', application.id)
-
-      if (error) throw error
+      await updateApplicationViaApi(application.id, campaign.id, updateData)
 
       alert('저장되었습니다')
       setEditing(false)
-      window.location.reload() // 데이터 새로고침
+      window.location.reload()
     } catch (error) {
       console.error('Error saving:', error)
       alert('저장 실패: ' + error.message)
@@ -2103,8 +2166,6 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign
   const handleSaveAddress = async () => {
     try {
       setSaving(true)
-      const client = getSupabaseClient(region)
-
       const updateData = {
         phone_number: formData.phone_number || null,
         postal_code: formData.postal_code || null,
@@ -2113,16 +2174,11 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge, campaign
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await client
-        .from('applications')
-        .update(updateData)
-        .eq('id', application.id)
-
-      if (error) throw error
+      await updateApplicationViaApi(application.id, campaign.id, updateData)
 
       alert('주소 정보가 저장되었습니다')
       setEditingAddress(false)
-      window.location.reload() // 데이터 새로고침
+      window.location.reload()
     } catch (error) {
       console.error('Error saving address:', error)
       alert('저장 실패: ' + error.message)

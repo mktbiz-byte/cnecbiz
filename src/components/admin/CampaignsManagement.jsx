@@ -658,7 +658,6 @@ export default function CampaignsManagement() {
     setSavingPoints(true)
     try {
       const campaign = campaigns.find(c => c.id === campaignId)
-      const supabaseClient = getSupabaseClient(campaign?.region || 'biz')
       const region = campaign?.region || 'korea'
 
       // 일본/미국은 reward_amount 필드 사용, 한국은 creator_points_override 사용
@@ -674,12 +673,27 @@ export default function CampaignsManagement() {
         updateData.updated_at = new Date().toISOString()
       }
 
-      const { error } = await supabaseClient
-        .from('campaigns')
-        .update(updateData)
-        .eq('id', campaignId)
+      // 리전 DB는 RLS로 프론트엔드 직접 UPDATE 불가 → 리전 API 사용
+      const regionApiMap = { japan: 'japan-campaign-operations', us: 'us-campaign-operations' }
+      const apiName = regionApiMap[region]
+      if (apiName) {
+        const { data: { session } } = await supabaseBiz.auth.getSession()
+        const response = await fetch(`/.netlify/functions/${apiName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ action: 'update_campaign', campaign_id: campaignId, data: updateData })
+        })
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || '저장에 실패했습니다.')
+      } else {
+        const supabaseClient = getSupabaseClient(region)
+        const { error } = await supabaseClient
+          .from('campaigns')
+          .update(updateData)
+          .eq('id', campaignId)
+        if (error) throw error
+      }
 
-      if (error) throw error
       setEditingPoints(null)
       fetchCampaigns()
     } catch (error) {
