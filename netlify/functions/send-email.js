@@ -5,7 +5,17 @@ const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// 🔕 알림 전역 비활성화 스위치 (2026-04-20)
+const NOTIFICATIONS_DISABLED = true;
+
 exports.handler = async (event) => {
+  if (NOTIFICATIONS_DISABLED) {
+    console.log('[send-email] SKIPPED: notifications globally disabled');
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, skipped: true, reason: 'notifications_disabled' })
+    };
+  }
   try {
     // body 파싱 안전 처리 (null, base64 인코딩 대응)
     let rawBody = event.body;

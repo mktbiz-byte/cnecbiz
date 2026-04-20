@@ -12,7 +12,17 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  * @param {string} to - 수신자 이메일
  * @param {object} variables - 템플릿 변수 (예: { company_name: '회사명', campaign_title: '캠페인명' })
  */
+// 🔕 알림 전역 비활성화 스위치 (2026-04-20)
+const NOTIFICATIONS_DISABLED = true;
+
 exports.handler = async (event) => {
+  if (NOTIFICATIONS_DISABLED) {
+    console.log('[send-template-email] SKIPPED: notifications globally disabled');
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, skipped: true, reason: 'notifications_disabled' })
+    };
+  }
   try {
     const { templateKey, to, variables } = JSON.parse(event.body);
 

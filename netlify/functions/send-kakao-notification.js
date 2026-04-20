@@ -361,6 +361,9 @@ SNS 업로드 기한: #{업로드기한}
   return message;
 }
 
+// 🔕 알림 전역 비활성화 스위치 (2026-04-20)
+const NOTIFICATIONS_DISABLED = true;
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -370,6 +373,15 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
+  }
+
+  if (NOTIFICATIONS_DISABLED) {
+    console.log('[send-kakao-notification] SKIPPED: notifications globally disabled');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, skipped: true, reason: 'notifications_disabled' })
+    };
   }
 
   try {

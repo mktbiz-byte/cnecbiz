@@ -173,6 +173,10 @@ async function sendMessage(accessToken, botId, channelId, message) {
   });
 }
 
+// 🔕 알림 전역 비활성화 스위치 (2026-04-20)
+// true 이면 네이버웍스 메시지 전송을 건너뜀 (수신 로직만 반환)
+const NOTIFICATIONS_DISABLED = true;
+
 exports.handler = async (event, context) => {
   // CORS 헤더
   const headers = {
@@ -187,6 +191,15 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       headers,
       body: ''
+    };
+  }
+
+  if (NOTIFICATIONS_DISABLED) {
+    console.log('[send-naver-works-message] SKIPPED: notifications globally disabled');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, skipped: true, reason: 'notifications_disabled' })
     };
   }
 

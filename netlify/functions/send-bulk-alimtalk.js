@@ -56,6 +56,9 @@ function normalizePhone(phone) {
   return cleaned;
 }
 
+// 🔕 알림 전역 비활성화 스위치 (2026-04-20)
+const NOTIFICATIONS_DISABLED = true;
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -69,6 +72,15 @@ exports.handler = async (event) => {
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  }
+
+  if (NOTIFICATIONS_DISABLED) {
+    console.log('[send-bulk-alimtalk] SKIPPED: notifications globally disabled');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, skipped: true, reason: 'notifications_disabled' })
+    };
   }
 
   try {

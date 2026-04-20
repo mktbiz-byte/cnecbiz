@@ -56,61 +56,62 @@
   timeout = 60
 
 # Scheduled Functions
+# ⚠️ 알림 관련 스케줄 전체 비활성화 (2026-04-20) - 네이버웍스/알림톡/이메일 OFF
 [functions."scheduled-collect-transactions"]
-  schedule = "* * * * *"  # 매 1분마다 실행
+  # schedule = "* * * * *"  # 비활성화: 알림 연계 작업
   timeout = 120  # 팝빌 API 폴링(최대 20초+) + 거래 처리 시간 필요
   external_node_modules = ["popbill"]
 
 [functions."scheduled-unmatched-deposits-alert"]
-  schedule = "0 7 * * *"  # 매일 오후 4시 (한국시간 = UTC+9)
+  # schedule = "0 7 * * *"  # 비활성화: 네이버웍스 알림
 
 # 소속 크리에이터 모니터링은 scheduled-weekly-report에서 통합 처리
 # [functions."scheduled-creator-monitoring"]
 #   schedule = "0 1 * * 1"  # 주간 리포트로 변경 (기존: 매일)
 
 [functions."report-daily"]
-  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 일일 리포트
+  # schedule = "0 1 * * *"  # 비활성화: 일일 리포트 알림
 
 [functions."scheduled-youtube-update-check"]
-  schedule = "0 0 * * *"  # 매일 오전 9시 (한국시간 = UTC+9)
+  # schedule = "0 0 * * *"  # 비활성화
 
 [functions."scheduled-campaign-deadline-notification"]
-  schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
+  # schedule = "15 1 * * *"  # 비활성화: 캠페인 마감 알림
 
 [functions."scheduled-video-upload-notification"]
-  schedule = "*/2 * * * *"  # 2분마다 실행 - 영상 업로드 알림 큐 처리 (네이버웍스+카카오+이메일)
+  # schedule = "*/2 * * * *"  # 비활성화: 영상 업로드 알림 큐 (네이버웍스+카카오+이메일)
 
 [functions."scheduled-video-deadline-notification"]
-  schedule = "15 1 * * *"  # 매일 오전 10:15 (KST) - 마감 전 알림 (3일전/2일전/당일)
+  # schedule = "15 1 * * *"  # 비활성화: 마감 전 알림
 
 [functions."scheduled-video-overdue-notification"]
-  schedule = "15 1 * * *"  # 매일 오전 10:15 (KST) - 마감 지연 알림 (1일/3일/5일 지연)
+  # schedule = "15 1 * * *"  # 비활성화: 마감 지연 알림
 
 
 [functions."scheduled-overdue-notification"]
-  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 영상 제출 지연 알림
+  # schedule = "0 1 * * *"  # 비활성화: 영상 제출 지연 알림
 
 [functions."scheduled-weekly-report"]
-  schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 통합 주간 리포트
+  # schedule = "0 1 * * 1"  # 비활성화: 통합 주간 리포트
 
 # 출금 주간 보고서는 scheduled-weekly-report로 통합됨 - 스케줄 비활성화
 # [functions."scheduled-weekly-withdrawal-report"]
 #   schedule = "0 1 * * 1"
 
 [functions."scheduled-billing-schedule-notification"]
-  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 빌링 스케줄 접근 알림
+  # schedule = "0 1 * * *"  # 비활성화: 빌링 스케줄 접근 알림
 
 [functions."scheduled-sns-upload"]
-  schedule = "*/30 * * * *"  # 30분마다 - 예약 업로드 처리 및 성과 데이터 수집
+  # schedule = "*/30 * * * *"  # 비활성화: 예약 업로드/성과 수집 (알림 연계)
 
 # 구글 시트 → 스티비 주소록 자동 싱크
 # 한국/일본: 매일 오후 5시 KST (UTC 08:00)
 [functions."scheduled-stibee-sync"]
-  schedule = "0 8 * * *"
+  # schedule = "0 8 * * *"  # 비활성화: 스티비 이메일 주소록 싱크
 
 # 미국: 매일 오전 10시 EST (UTC 15:00) - 화~목 활동 활발
 [functions."scheduled-stibee-sync-us"]
-  schedule = "0 15 * * *"
+  # schedule = "0 15 * * *"  # 비활성화: 스티비 이메일 주소록 싱크
 
 [functions."generate-sns-content"]
   timeout = 60
@@ -130,21 +131,21 @@
 
 # 오픈클로 봇 크롤링 (매 30분)
 [functions."scheduled-openclo-crawl"]
-  schedule = "*/30 * * * *"
+  # schedule = "*/30 * * * *"  # 비활성화
   timeout = 120
 
 # 오픈클로 이메일 자동 발송 (매일 오전 10시 KST = UTC 01:00)
 [functions."scheduled-openclo-email"]
-  schedule = "0 1 * * *"
+  # schedule = "0 1 * * *"  # 비활성화: 오픈클로 이메일 자동 발송
   timeout = 120
 
 # 오픈클로 일일 리포트 → 네이버웍스 (매일 오후 6시 KST = UTC 09:00)
 [functions."scheduled-openclo-report"]
-  schedule = "0 9 * * *"
+  # schedule = "0 9 * * *"  # 비활성화: 네이버웍스 리포트
 
 # 오픈클로 가입 여부 재확인 (매시간)
 [functions."scheduled-openclo-registration-check"]
-  schedule = "0 * * * *"
+  # schedule = "0 * * * *"  # 비활성화
 
 # 오픈클로 AI 분석 타임아웃
 [functions."openclo-ai-analyze"]
@@ -177,15 +178,15 @@
 
 # 챗봇 대화 데이터 정리 (매일 오후 12시 KST = UTC 03:00)
 [functions."scheduled-chatbot-cleanup"]
-  schedule = "0 3 * * *"
+  # schedule = "0 3 * * *"  # 비활성화
 
 # 챗봇 일일 리포트 → 네이버웍스 (매일 오전 9시 KST = UTC 00:00)
 [functions."scheduled-chatbot-daily-report"]
-  schedule = "0 0 * * *"
+  # schedule = "0 0 * * *"  # 비활성화: 네이버웍스 리포트
 
 # 출금 결재 자동 상신 (매주 월~금 오전 10시 KST = UTC 01:00)
 [functions."scheduled-daily-withdrawal-approval"]
-  schedule = "0 1 * * 1-5"
+  # schedule = "0 1 * * 1-5"  # 비활성화: 네이버웍스 결재 상신
 
 # Discovery IP 제한 Edge Function (구 OpenClo)
 [[edge_functions]]
