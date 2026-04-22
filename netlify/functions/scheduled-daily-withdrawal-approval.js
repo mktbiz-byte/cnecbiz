@@ -693,24 +693,9 @@ exports.handler = async (event) => {
       }
     }
 
-    // 결과 요약 네이버웍스 메시지
+    // 결과 요약 네이버웍스 메시지 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
     const successResults = results.filter(r => !r.error);
-    if (successResults.length > 0 && botId && channelId) {
-      const koreanDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-      const detailLines = successResults.map(r =>
-        `[${r.entity}] ${r.count}건 / ${r.totalAmount.toLocaleString()}원${r.fileUploaded ? ' (엑셀첨부)' : ''}`
-      ).join('\n');
-
-      const totalAll = successResults.reduce((s, r) => s + r.totalAmount, 0);
-      const countAll = successResults.reduce((s, r) => s + r.count, 0);
-      const summaryMessage = `[결재상신완료] ${koreanDate}\n\n총 ${countAll}건 / ${totalAll.toLocaleString()}원\n${successResults.length}건 결재문서 상신\n\n${detailLines}`;
-
-      try {
-        await sendChannelMessage(botToken, botId, channelId, summaryMessage);
-      } catch (e) {
-        console.error('[daily-withdrawal-approval] 요약 메시지 전송 실패:', e.message);
-      }
-    }
+    console.log(`[daily-withdrawal-approval] NW 요약 메시지 SKIP (결재 알림 OFF) - 성공 ${successResults.length}건`);
 
     const totalSuccess = successResults.reduce((s, r) => s + r.count, 0);
     const totalFailed = results.filter(r => r.error).reduce((s, r) => s + r.count, 0);

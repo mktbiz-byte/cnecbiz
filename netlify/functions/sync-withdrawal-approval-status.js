@@ -123,6 +123,14 @@ exports.handler = async (event) => {
   const httpMethod = event.httpMethod || 'SCHEDULED';
   console.log(`[sync-withdrawal-approval] 시작 - ${httpMethod}`);
 
+  // 자동 스케줄 실행 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
+  // 수동 관리자 트리거(HTTP 호출)는 계속 허용
+  const isManualTrigger = httpMethod === 'GET' || httpMethod === 'POST';
+  if (!isManualTrigger) {
+    console.log('[sync-withdrawal-approval] 자동 스케줄 비활성화 상태 - skip');
+    return { statusCode: 200, headers, body: JSON.stringify({ message: '자동 스케줄 비활성화됨' }) };
+  }
+
   try {
     // PENDING 상태이고 approval_doc_id가 있는 건 조회
     const { data: pendingWithdrawals, error } = await supabase
@@ -252,28 +260,9 @@ exports.handler = async (event) => {
       }
     }
 
-    // 변경 사항이 있으면 네이버웍스 알림
-    if (approvedCount > 0 || rejectedCount > 0) {
-      const baseUrl = process.env.URL || 'https://cnecbiz.com';
-      try {
-        const approvedNames = results.filter(r => r.status === 'APPROVED').map(r => r.name).join(', ');
-        const rejectedNames = results.filter(r => r.status === 'REJECTED').map(r => r.name).join(', ');
-        let msg = `🔄 [결재상태 동기화]\n`;
-        if (approvedCount > 0) msg += `승인: ${approvedCount}건 (${approvedNames})\n`;
-        if (rejectedCount > 0) msg += `반려: ${rejectedCount}건 (${rejectedNames})\n`;
-        msg += `미변경: ${unchangedCount}건`;
-
-        await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: msg,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
-          })
-        });
-      } catch (e) { console.error('NW notification failed:', e.message); }
-    }
+    // 네이버웍스 알림 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
+    // if (approvedCount > 0 || rejectedCount > 0) { ... }
+    console.log(`[sync-withdrawal-approval] NW 알림 SKIP (결재 알림 OFF) - 승인 ${approvedCount}, 반려 ${rejectedCount}`);
 
     console.log(`[sync-withdrawal-approval] 완료 - 승인: ${approvedCount}, 반려: ${rejectedCount}, 미변경: ${unchangedCount}`);
 
@@ -312,5 +301,6 @@ exports.handler = async (event) => {
   }
 };
 
-// 스케줄: 매 30분 (평일 업무시간 KST 09~19시 = UTC 00~10시)
-exports.config = { schedule: '*/30 0-10 * * 1-5' };
+// 스케줄 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
+// 수동 트리거(관리자 UI)는 계속 작동함
+// exports.config = { schedule: '*/30 0-10 * * 1-5' };  // 매 30분 (평일 업무시간 KST 09~19시 = UTC 00~10시)

@@ -113,21 +113,8 @@ exports.handler = async (event) => {
         ip_address: clientIp
       });
 
-      // 네이버웍스 알림: 송금 대기
-      const baseUrl = process.env.URL || 'https://cnecbiz.com';
-      try {
-        await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: `✅ [결재승인] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} / ${(withdrawal.final_amount || withdrawal.requested_amount || 0).toLocaleString()}원\n결재자: ${approverName || '-'}\n→ 송금 대기`,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
-          })
-        });
-      } catch (e) { console.error('NW notification failed:', e.message); }
-
-      console.log(`[withdrawal-approval-callback] APPROVED: ${withdrawal.id}`);
+      // 네이버웍스 알림 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
+      console.log(`[withdrawal-approval-callback] APPROVED: ${withdrawal.id} (NW 알림 SKIP)`);
 
     } else if (normalizedStatus === 'rejected' || normalizedStatus === 'reject' || normalizedStatus === 'denied' || normalizedStatus === 'returned') {
       // === 반려 처리 ===
@@ -158,21 +145,8 @@ exports.handler = async (event) => {
         ip_address: clientIp
       });
 
-      // 네이버웍스 알림: 반려
-      const baseUrl = process.env.URL || 'https://cnecbiz.com';
-      try {
-        await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: `❌ [결재반려] ${withdrawal.creator_name || withdrawal.account_holder || 'Unknown'} / ${(withdrawal.requested_amount || 0).toLocaleString()}원\n결재자: ${approverName || '-'}\n사유: ${rejectionReason || '-'}`,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
-          })
-        });
-      } catch (e) { console.error('NW notification failed:', e.message); }
-
-      console.log(`[withdrawal-approval-callback] REJECTED: ${withdrawal.id}`);
+      // 네이버웍스 알림 비활성화 (사용자 요청: 네이버웍스 결재 관련 메시지 OFF)
+      console.log(`[withdrawal-approval-callback] REJECTED: ${withdrawal.id} (NW 알림 SKIP)`);
 
     } else {
       console.log(`[withdrawal-approval-callback] Unknown status: ${callbackStatus}`);
