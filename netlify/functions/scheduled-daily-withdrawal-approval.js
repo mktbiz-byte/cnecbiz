@@ -396,6 +396,13 @@ exports.handler = async (event) => {
   const isManualTest = httpMethod === 'GET' || httpMethod === 'POST';
   const queryParams = event.queryStringParameters || {};
 
+  // 자동 스케줄 실행 비활성화 (사용자 요청: 네이버웍스 결재상신 알림 OFF)
+  // 수동 관리자 트리거(HTTP 호출)는 계속 허용
+  if (!isManualTest) {
+    console.log('[daily-withdrawal-approval] 자동 스케줄 비활성화 상태 - skip');
+    return { statusCode: 200, body: JSON.stringify({ message: '자동 스케줄 비활성화됨' }) };
+  }
+
   // dry-run 모드: DB 변경 없이 결과만 반환
   let dryRun = false;
   if (httpMethod === 'POST' && event.body) {
@@ -802,5 +809,6 @@ exports.handler = async (event) => {
   }
 };
 
-// 스케줄: 매주 월~금 UTC 01:00 = KST 10:00
-exports.config = { schedule: '0 1 * * 1-5' };
+// 스케줄 비활성화 (사용자 요청: 네이버웍스 결재상신 알림 OFF)
+// 수동 트리거(관리자 UI)는 계속 작동함
+// exports.config = { schedule: '0 1 * * 1-5' };  // 매주 월~금 UTC 01:00 = KST 10:00

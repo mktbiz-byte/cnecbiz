@@ -183,9 +183,9 @@
 [functions."scheduled-chatbot-daily-report"]
   schedule = "0 0 * * *"
 
-# 출금 결재 자동 상신 (매주 월~금 오전 10시 KST = UTC 01:00)
-[functions."scheduled-daily-withdrawal-approval"]
-  schedule = "0 1 * * 1-5"
+# 출금 결재 자동 상신 - 비활성화 (사용자 요청: 네이버웍스 결재상신 알림 OFF)
+# [functions."scheduled-daily-withdrawal-approval"]
+#   schedule = "0 1 * * 1-5"  # 매주 월~금 오전 10시 KST = UTC 01:00
 
 # Discovery IP 제한 Edge Function (구 OpenClo)
 [[edge_functions]]
