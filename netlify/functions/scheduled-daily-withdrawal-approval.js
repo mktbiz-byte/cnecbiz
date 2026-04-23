@@ -801,6 +801,3 @@ exports.handler = async (event) => {
     };
   }
 };
-
-// 스케줄: 매주 월~금 UTC 01:00 = KST 10:00
-exports.config = { schedule: '0 1 * * 1-5' };
